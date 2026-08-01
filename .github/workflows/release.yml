@@ -14,6 +14,9 @@ concurrency:
   group: goreleaser
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   release:
     if: ${{ !contains(github.repository, '-internal') }}
