@@ -22,7 +22,28 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   Journal JSON Lines (`<data>/loops/<tên>-<thời điểm>.jsonl`, 0600) được ghi và `Sync` TRƯỚC mỗi bước.
   Mã thoát: 0 `GREEN`, 1 mọi lý do dừng khác, 2 dùng sai. `--json` in một object ở cuối. Không bao giờ commit,
   push hay merge. Cùng mô hình quyền như `run` (tự duyệt tool): dành cho việc bạn khởi chạy và trông.
-  Chưa có: lên lịch / chạy không người trực (cần danh sách chặn lệnh theo lượt, xem audit R-01), UI.
+- **`agent-cli routine new|list|show|run|schedule`**: routine là định nghĩa đã lưu (đích, lệnh verify, repo, giới
+  hạn, lịch tuỳ chọn) chạy bằng engine của `loop`. Tệp `~/.config/agent-cli/routines/<tên>.json` (0600, nằm ở cấu
+  hình của bạn, không nằm trong repo nên repo lạ không tự thêm được việc chạy theo lịch). Hai mode: `maintenance`
+  (cơ học, kiểm được, vô tận: được lên lịch) và `goal` (có đích như làm tính năng: chỉ chạy tay; `--scheduled`
+  bị từ chối). Định nghĩa bắt buộc có `verify` ("xong" là lệnh nào), từ chối trường lạ, `max_repairs` 0–5.
+  `routine run` mỗi lần: giữ khoá (lượt thứ hai thoát **75**, không có khoá mồ côi); làm việc trong **git worktree
+  riêng** `routine/<tên>-<thời điểm>` ngoài repo (checkout của bạn không bị đụng; worktree và nhánh được giữ lại để
+  bạn duyệt, kèm lệnh xem diff và lệnh dọn); chạy agent in-process với **chế độ không người trực** bật; ghi báo
+  cáo 0600 ngoài worktree (sha định nghĩa, nhánh, base, lý do dừng, verify cuối, journal). Không commit trừ khi
+  định nghĩa có `"commit": true`; không bao giờ push hay merge. `--expect-sha` từ chối chạy khi tệp định nghĩa đã
+  đổi so với lúc cài lịch. Mã thoát: 0 GREEN, 1 khác, 2 dùng sai, 75 đang chạy.
+  `routine schedule NAME --print` chỉ IN unit systemd `--user` (`Persistent=true`, `TZ`/`PATH` tường minh,
+  `TimeoutStartSec`) và/hoặc dòng crontab, kèm lệnh cài để bạn tự chạy; agent-cli không bao giờ sửa timer hay crontab.
+- **Chế độ không người trực** (`AGENT_CLI_UNATTENDED=1`, hoặc routine tự bật): chặn CỨNG ở trình thực thi shell,
+  trước cả quyền đã cấp và YOLO: `git push/pull/merge/rebase/reset --hard/clean`, xoá/đổi tên nhánh và tag,
+  `worktree remove/prune`, `update-ref`, đổi remote, `reflog expire`, ghi `git config` toàn cục, `git commit`
+  (mở riêng bằng `AGENT_CLI_UNATTENDED_COMMIT=1`), `rsync`/`sftp`, và `rm` đệ quy có đích ngoài workspace
+  (kể cả khi lồng trong `sh -c`, vòng lặp, `$(...)`). Biến là biến tin cậy: đọc từ env gốc đã chụp đầu main nên
+  `.env` của repo không bật/tắt được. Đây là danh sách đen, KHÔNG phải sandbox: chưa phủ `python`/`node` tự xoá,
+  `find -delete`, script nạp từ tệp hay stdin; vì vậy routine chạy trong worktree riêng và `loop`/`routine` không
+  dành cho môi trường bạn không tin.
+  Chưa có: UI (Alt+R, sidebar, dòng trạng thái), lịch tự cài, pause/resume, nhiều worker ghi song song.
 
 ### Sửa lỗi
 

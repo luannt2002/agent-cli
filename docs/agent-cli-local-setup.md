@@ -631,6 +631,46 @@ Lệnh chỉ-đọc trong danh sách an toàn chạy không hỏi, kể cả khi
   trong dự án trỏ ra ngoài không bị nhận ra ở bước này.
 - `date -s ...` và `hostname <tên>` đổi giờ/tên máy nếu agent-cli chạy bằng root.
 
+## Loop và Routine
+
+Hai lệnh dùng chung một engine: chạy agent, chạy lệnh verify, sửa tiếp cho tới khi verify thoát 0. "Xong" là mã
+thoát của lệnh verify, không phải lời của agent.
+
+**`agent-cli loop` (có người trông):**
+
+```bash
+agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"
+agent-cli loop --verify "npm test" --max-duration 2h --json "Làm cho endpoint mới qua test"
+```
+
+Mỗi lượt là một session mới (prompt gồm đề bài + đuôi output verify vừa đo). Dừng khi `GREEN`, hết 2 lượt sửa
+(`MAX_REPAIRS`), cùng lỗi và cây không đổi (`STALLED`), quá `--max-duration` (`TIMEOUT`), lượt agent lỗi
+(`RUN_ERROR`), Ctrl+C (`CANCELLED`) hoặc verify không chạy được (`UNMEASURED`). Journal JSONL nằm ở
+`<data>/loops/` (đường dẫn in ra đầu lượt). Không commit, không push. Quyền: như `run` (tự duyệt tool).
+
+**`agent-cli routine` (chạy lặp lại, kể cả theo lịch):**
+
+```bash
+agent-cli routine new tidy --mode maintenance --repo ~/code/proj \
+  --goal "Xoá các test không thể fail" --verify "go test ./..."
+agent-cli routine run tidy          # chạy tay một lần
+agent-cli routine list
+agent-cli routine show tidy         # định nghĩa, sha256, nơi lưu khoá và báo cáo
+```
+
+Mỗi lượt chạy làm việc trong worktree riêng (nhánh `routine/tidy-<thời điểm>`, nằm ngoài repo), giữ khoá (lượt thứ
+hai thoát 75), chạy với chế độ không người trực (không push/merge/reset --hard/xoá đệ quy ngoài workspace) và ghi
+báo cáo ra ngoài worktree. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, rồi dọn bằng lệnh được in.
+
+Lên lịch: thêm `"schedule": {"on_calendar": "Mon..Fri 09:00", "timezone": "Asia/Ho_Chi_Minh"}` (hoặc `"cron"`) vào
+tệp định nghĩa của routine `maintenance`, rồi `agent-cli routine schedule tidy --print`. Lệnh chỉ IN unit systemd
+`--user` và/hoặc dòng crontab; bạn tự cài. Lịch ghim sha256 của định nghĩa: sửa tệp xong phải in và cài lại. Muốn
+timer chạy khi đã đăng xuất cần `loginctl enable-linger $USER` (chưa kiểm trên máy này). Việc có đích (`goal`) không
+lên lịch được.
+
+Giới hạn cần biết: lớp chặn không người trực là danh sách đen, không phải sandbox (không phủ `python`/`node` tự
+xoá, `find -delete`, script nạp từ tệp). Chỉ cho routine chạy trên repo và máy bạn tin.
+
 ## Tổ hợp phím
 
 Xem mọi action và phím hiện tại: `agent-cli keys` (bảng `ACTION  KEYS  HELP`) hoặc `agent-cli keys --json`.
