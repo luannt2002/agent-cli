@@ -250,3 +250,10 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
 - **Vì:** lượt soát độc lập chạy mô phỏng và phá bản đầu (tách bằng regex `[;&|\n(){}]`) ở `for ...; do kill $p; done`, `if ...; then kill`, `bash -c -- 'kill N'`, `exec/eval/builtin kill`, `x=1 kill N`, `ki""ll`, backtick. Regex không hiểu từ khoá, phép gán, nháy.
 - **Đã thử và bỏ:** vá regex từng dạng (đuổi theo cú pháp bash mãi); gọi `execpolicy.commandString` (logic gần giống nhưng phục vụ mục đích khác, gộp là một việc riêng).
 - **Lật lại khi:** cần phủ script từ tệp/stdin (cần sandbox chứ không phải BlockFunc) hoặc hợp nhất với `execpolicy`.
+
+## 2026-10-16 — Loop: driver phía CLI, verify do driver chạy, mỗi lượt một session mới
+**Trạng thái:** đã làm (lát 1: `agent-cli loop`; chưa lên lịch, chưa UI)
+- **Chốt:** `internal/loop` là engine thuần logic (agent và verify được tiêm vào); `agent-cli loop` là driver phía CLI gọi `runNonInteractive`/`RunNonInteractive` mỗi lượt trong session MỚI, tự chạy lệnh verify bằng `shell.Run` trong thư mục workspace, và tin mã thoát của chính lệnh đó. Trạng thái chạy nằm trong journal JSONL ngoài worktree, không có bảng DB mới.
+- **Vì:** audit trục runtime: server không phải daemon, trần mồ côi 6h và tự thoát sau 60s nên engine trong server chết giữa chừng; không có bảng run và `sqlc` chưa cài; "lượt xong" không phải bằng chứng (loop-detection dừng với rc=0, Stop hook fail-open, MCP không timeout). Mỗi lượt session mới (prompt tự chứa đủ) tránh auto-summarize lặp lại và ngữ cảnh nhiễm sau lần sửa hỏng.
+- **Đã thử và bỏ:** (a) engine trong server (cần proto/endpoint/bảng DB/khôi phục khi khởi động, và chịu trần 6h); (b) khái quát hoá Stop hook (trạng thái chỉ ở RAM, không có pause, áp lên cả lượt TUI); (c) trần token/cost (cost đo ra 0 nên là cổng giả: không bao giờ chặn ai; chốt thật là thời gian và số lần sửa); (d) tiếp tục cùng một session qua các lượt sửa.
+- **Lật lại khi:** cần Routine UI/Agent Map dùng chung runId (khi đó cần tệp trạng thái bền, xem audit R-02) hoặc chạy theo lịch không người trực (cần R-01 trước).

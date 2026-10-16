@@ -121,6 +121,9 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	// Baseline: đo verify TRƯỚC mọi thay đổi. Đỏ là bình thường (có việc để làm);
 	// xanh nghĩa là cổng có thể không đo đúng mục tiêu; không chạy được thì dừng.
 	base, err := e.runVerify(ctx)
+	if ctx.Err() != nil {
+		return stop(StopCancelled, "cancelled during the baseline verify")
+	}
 	if err != nil {
 		return stop(StopUnmeasured, err.Error())
 	}
@@ -178,6 +181,10 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		}
 
 		v, err := e.runVerify(ctx)
+		if ctx.Err() != nil {
+			// Huỷ giữa lúc verify: kết quả đo dở không phải bằng chứng, đừng báo CHƯA ĐO.
+			return stop(StopCancelled, "cancelled during verify")
+		}
 		if err != nil {
 			return stop(StopUnmeasured, err.Error())
 		}

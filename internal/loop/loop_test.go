@@ -33,6 +33,7 @@ type script struct {
 	prompts      []string
 	agentErr     error
 	onAgent      func()
+	onVerify     func()
 	vi, ai       int
 	journal      *memJournal
 	clock        time.Time
@@ -66,6 +67,9 @@ func (s *script) engine(spec Spec) *Engine {
 			}
 			r := s.verifies[s.vi]
 			s.vi++
+			if s.onVerify != nil {
+				s.onVerify()
+			}
 			return r, nil
 		},
 		Fingerprint: func(ctx context.Context) (string, error) {
@@ -233,6 +237,34 @@ func TestEngine_CancelDuringRunStopsBeforeNextTurn(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, StopCancelled, res.Reason)
 	require.Equal(t, 1, s.ai)
+}
+
+// Huỷ rơi đúng lúc lệnh verify đang chạy: CANCELLED, không phải UNMEASURED.
+func TestEngine_CancelDuringVerifyIsCancelledNotUnmeasured(t *testing.T) {
+	t.Parallel()
+	killed := VerifyResult{Status: StatusUnmeasured, Output: "killed"}
+	for name, tc := range map[string]struct {
+		verifies []VerifyResult
+		atCall   int
+	}{
+		"baseline":         {[]VerifyResult{killed}, 1},
+		"after an attempt": {[]VerifyResult{fail("b"), killed}, 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			s := &script{verifies: tc.verifies, fingerprints: []string{"fp1"}}
+			ctx, cancel := context.WithCancel(t.Context())
+			calls := 0
+			s.onVerify = func() {
+				if calls++; calls == tc.atCall {
+					cancel()
+				}
+			}
+			res, err := s.engine(baseSpec()).Run(ctx)
+			require.NoError(t, err)
+			require.Equal(t, StopCancelled, res.Reason)
+		})
+	}
 }
 
 func TestEngine_AgentErrorStopsWithRunError(t *testing.T) {
