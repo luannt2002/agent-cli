@@ -40,7 +40,7 @@ func TestBashTool_WrapperCommandsRequirePermission(t *testing.T) {
 
 func TestBashTool_ReadOnlyCommandsStillAutoApprove(t *testing.T) {
 	for _, cmd := range []string{
-		"ls", "ls -la", "pwd", "echo hi", "date", "whoami", "uname -a", "printenv HOME",
+		"ls", "ls -la", "pwd", "echo hi", "date", "whoami", "uname -a",
 		"git status", "git log --oneline -1", "git diff",
 		"git branch", "git branch -a", "git branch -r", "git branch --list", "git branch -v",
 		"git tag", "git tag -l", "git tag --list",

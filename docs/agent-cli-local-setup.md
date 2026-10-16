@@ -625,7 +625,10 @@ Lệnh chỉ-đọc trong danh sách an toàn chạy không hỏi, kể cả khi
   `diff.external`... Cần một `.git/config` (hoặc repo bare lồng) đã bị cài sẵn: tool sửa file luôn hỏi khi ghi vào
   `.git` hay `HEAD`, nhưng file đã có sẵn trên đĩa thì không ai kiểm.
 - `git ls-remote` và `git remote show <tên>` kết nối mạng tới remote.
-- `printenv` và `echo $X` in biến môi trường, kể cả secret (API key), vào output gửi cho model.
+- Từ v0.2.0, lệnh chỉ-đọc có đối số trỏ ra ngoài thư mục làm việc (đường dẫn tuyệt đối, `~`, `..`, `$VAR`,
+  `--cờ=/đường/dẫn`, `git diff --no-index`) hoặc chạy với `working_dir` ngoài workspace thì HỎI quyền; `printenv`
+  và `git config --list` không còn trong danh sách an toàn. Giới hạn còn lại: đường dẫn tương đối đi qua symlink
+  trong dự án trỏ ra ngoài không bị nhận ra ở bước này.
 - `date -s ...` và `hostname <tên>` đổi giờ/tên máy nếu agent-cli chạy bằng root.
 
 ## Tổ hợp phím

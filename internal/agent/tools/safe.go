@@ -21,7 +21,6 @@ var safeCommands = []string{
 	"hostname",
 	"id",
 	"ls",
-	"printenv",
 	"ps",
 	"pwd",
 	"set",
@@ -39,7 +38,6 @@ var safeCommands = []string{
 	"git blame",
 	"git branch",
 	"git config --get",
-	"git config --list",
 	"git describe",
 	"git diff",
 	"git grep",
@@ -74,10 +72,31 @@ func containsCommandChaining(s string) bool {
 	})
 }
 
+// argLeavesWorkspace reports whether an argument can point a read-only command
+// outside the working directory or expand a secret: an absolute or ~ path, a
+// ".." segment, or $VAR, also as the value of --flag=value. Such a command
+// prompts, like the view/ls/glob/grep tools do for paths outside the project.
+// shortcut: a relative path through a symlink that leaves the project is not
+// seen here; upgrade by resolving the path with outsideWorkingDir.
+func argLeavesWorkspace(arg string) bool {
+	arg = strings.Trim(arg, `'"`)
+	if strings.Contains(arg, "$") {
+		return true
+	}
+	if strings.HasPrefix(arg, "-") {
+		if _, value, ok := strings.Cut(arg, "="); ok {
+			arg = strings.Trim(value, `'"`)
+		}
+	}
+	return strings.HasPrefix(arg, "/") || strings.HasPrefix(arg, "~") ||
+		arg == ".." || strings.HasPrefix(arg, "../") || strings.HasSuffix(arg, "/..") || strings.Contains(arg, "/../")
+}
+
 // isSafeCommand reports whether cmd may skip the permission prompt: no
-// chaining, and it starts with a safeCommands entry (whole word or word-flag).
+// chaining, no argument that leaves the workspace, and it starts with a
+// safeCommands entry (whole word or word-flag).
 func isSafeCommand(cmd string) bool {
-	if containsCommandChaining(cmd) {
+	if containsCommandChaining(cmd) || slices.ContainsFunc(strings.Fields(cmd), argLeavesWorkspace) {
 		return false
 	}
 	lower := strings.ToLower(cmd)
@@ -99,10 +118,11 @@ func isSafeCommand(cmd string) bool {
 }
 
 // gitProgramOptions name a program for git to run (pager, upload-pack) or
-// let it run a configured diff/textconv driver. Top-level -c, --config-env,
+// let it run a configured diff/textconv driver; --no-index makes diff/grep
+// compare files outside the repository. Top-level -c, --config-env,
 // --exec-path and GIT_* env prefixes need no entry: they come before the
 // verb, so the safeCommands prefix never matches them.
-var gitProgramOptions = []string{"--open-files-in-pager", "--upload-pack", "--exec", "--ext-diff", "--textconv"}
+var gitProgramOptions = []string{"--open-files-in-pager", "--upload-pack", "--exec", "--ext-diff", "--textconv", "--no-index"}
 
 // gitArgRunsProgram reports whether a git argument can make git run another
 // program: grep's -O[<pager>], also bundled (-iO), or a gitProgramOptions

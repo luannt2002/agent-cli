@@ -230,7 +230,9 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 			// Determine working directory
 			execWorkingDir := cmp.Or(params.WorkingDir, workingDir)
 
-			isSafeReadOnly := isSafeCommand(params.Command)
+			// working_dir do model đặt: lệnh chỉ-đọc chạy ở thư mục ngoài workspace vẫn phải hỏi.
+			_, workingDirOutside := outsideWorkingDir(workingDir, execWorkingDir)
+			isSafeReadOnly := isSafeCommand(params.Command) && !workingDirOutside
 
 			sessionID := GetSessionFromContext(ctx)
 			if sessionID == "" {
