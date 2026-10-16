@@ -33,6 +33,39 @@ Hướng dẫn đầy đủ (cấu hình model, kiểm chứng, cập nhật): [
 
 Tên tệp và biến môi trường bên trong (`crush.json`, `CRUSH_*`, `.crush/`) giữ nguyên để dễ gộp thay đổi từ upstream. Launcher `agent-cli` đã đặt sẵn các biến đó, tắt metrics và tắt cập nhật catalog provider; kiểm tra phiên bản upstream thì tắt sẵn ngay trong binary (launcher còn đặt `CRUSH_DISABLE_UPDATE_CHECK=1`; chỉ chạy thẳng binary với `CRUSH_DISABLE_UPDATE_CHECK=false` mới bật được).
 
+## Phím tắt và luồng dùng
+
+Phím hiển thị ngay dưới chân màn hình; `ctrl+g` xem thêm. Bảng dưới là các phím hay dùng (nguồn: `internal/ui/model/keys.go`).
+
+**Màn Home (chọn/mở dự án):** gõ để tìm · `↑↓` chọn · `enter` mở · `ctrl+p` ghim/bỏ ghim · `ctrl+x` bỏ dự án đã mất khỏi danh sách · `esc` thoát.
+
+**Màn chat:**
+
+| Phím | Việc |
+|---|---|
+| `enter` | gửi tin · `ctrl+j` xuống dòng · `ctrl+o` mở editor ngoài |
+| `@` | chèn file vào ngữ cảnh · `/` hoặc `ctrl+p` bảng lệnh |
+| `ctrl+f` | đính kèm ảnh · `ctrl+v` dán ảnh từ clipboard |
+| `tab` | đổi focus (ô nhập ↔ khung chat) · `shift+tab` đổi mode · `ctrl+y` bật/tắt YOLO |
+| `alt+n` | session mới · **`f2` đổi tên session hiện tại** · `alt+s` danh sách session |
+| `alt+.` / `alt+,` | session kế / trước |
+| `alt+p` | chọn provider · `alt+m` model của provider đó · `alt+e` mức effort |
+| `alt+w` | về Home · `alt+j` bảng Jobs (tiến trình bash nền) |
+| `ctrl+b` | ẩn/hiện sidebar · `ctrl+t` ẩn/hiện To-Do · `ctrl+d` chi tiết |
+| `esc` | huỷ lượt đang chạy · `ctrl+c` thoát · `ctrl+z` treo |
+
+> `f2` đổi tên session đổi tên đúng session đang mở; tên bạn đặt KHÔNG bị tiêu đề do model sinh ghi đè. Vài terminal tự chiếm `f2`; khi đó dùng `alt+s` rồi `ctrl+r`.
+
+**Luồng dùng thường ngày:**
+
+1. `agent-cli` ở thư mục dự án → màn Home → `enter` mở dự án (hoặc chọn "Open current folder").
+2. Gõ yêu cầu, `enter`. Model chạy, gọi tool, hỏi quyền (mặc định Deny — bấm cho phép từng cái hoặc "Allow for Session").
+3. `f2` đặt tên session cho dễ tìm. Mở việc khác song song: `alt+n` tạo session mới, `alt+.`/`alt+,` qua lại.
+4. Context gần đầy thì tự tóm tắt; trả lời bị cắt vì hết token thì tự làm tiếp (đặt `AGENT_CLI_MAX_TOKENS` đủ lớn trong env cho model suy luận).
+5. Đóng TUI vẫn để run chạy tiếp; mở lại `agent-cli --session <id>` hoặc `agent-cli --continue` để nối. `agent-cli ps --all` liệt kê session đang chạy.
+
+Cổng nghiệm thu tuỳ chọn (chặn model báo "xong" khi test/lint fail): bật Stop hook `verify-gate.sh`, xem [docs/hooks/examples/verify-gate.sh](docs/hooks/examples/verify-gate.sh).
+
 ## Khác upstream
 
 - Tên và giao diện: wordmark AGENT-CLI, banner thoát, thông báo, trợ giúp lệnh.
