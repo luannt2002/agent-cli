@@ -45,7 +45,7 @@
   - Sonnet cho UI và task nhỏ.
   - Opus cho code an ninh, đồng thời và vòng đời run, cùng lượt soát chúng.
   - Không dùng mutant, không giao lượt soát lại, trừ code an ninh.
-- **Changelog:** repo chưa có `CHANGELOG`, ADR hay `GLOSSARY.md`; trạng thái kiểm chứng ghi ở P8. Ledger `.superpowers/sdd/...` (`go.sh`, `preview-install.sh`, luật implementer/reviewer) và `docs/progress/` của đợt Phase 1 chưa từng vào git và đã mất khỏi máy ngày 14/10; tài liệu trong `docs/` còn nhắc tới chúng là lịch sử, đừng làm theo.
+- **Changelog:** `CHANGELOG.md` (Keep a Changelog, SemVer, tag `vX.Y.Z`); quy trình phát hành ở P6. Repo chưa có ADR hay `GLOSSARY.md`; trạng thái kiểm chứng ghi ở P8. Ledger `.superpowers/sdd/...` (`go.sh`, `preview-install.sh`, luật implementer/reviewer) và `docs/progress/` của đợt Phase 1 chưa từng vào git và đã mất khỏi máy ngày 14/10; tài liệu trong `docs/` còn nhắc tới chúng là lịch sử, đừng làm theo.
 - **Đã gộp (14/10):** nhánh `feat/core-mvp-phase1` và `feat/personal-rename-providers` vào `main`, kèm đợt sửa sau audit độc lập.
 
 ### P3. Kiến trúc và bản đồ repo
@@ -76,19 +76,20 @@
 | Mọi lệnh Go | `taskset -c 0,2,3,5-8,10,11,13-15 go <args>` | ĐÃ CHẠY 14/10 | Bỏ nhân CPU lỗi 1, 4 (SMT 9, 12). Một lệnh Go nặng một lúc |
 | Test toàn kho | `taskset -c 0,2,3,5-8,10,11,13-15 go test ./... -count=1 -p 4` | ĐÃ CHẠY 14/10 | 65 package ok, khoảng 45 giây. `go vet` chỉ báo `internal/csync/maps.go:156` (mã upstream) |
 | Race | `taskset -c 0,2,3,5-8,10,11,13-15 go test -race -count=1 -p 2 ./internal/backend/... ./internal/agent/... ./internal/cmd/... ./internal/ui/... ./internal/workspace/... ./internal/projects/... ./internal/permission/... ./internal/server/...` | ĐÃ CHẠY 14/10 | 0 data race |
-| Cassette agent | `taskset -c 0,2,3,5-8,10,11,13-15 go test ./internal/agent -run TestCoderAgent -count=1` | ĐÃ CHẠY 14/10 | Phải chạy trong cây git; ngoài cây git `load.go` giới hạn độ sâu ls nên đỏ giả |
+| Cassette agent | `taskset -c 0,2,3,5-8,10,11,13-15 go test ./internal/agent -run TestCoderAgent -count=1` | ĐÃ CHẠY 14/10 | Từ v0.2.0 test tự ghim giới hạn ls (không còn phụ thuộc cwd có phải cây git) |
 | E2E run/send | `bash scripts/test-agent-cli-run-json.sh` | xem P8 | Binary + server thật với LLM giả |
 | Launcher + installer | `bash scripts/test-agent-cli-wrapper.sh` | ĐÃ CHẠY 14/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
 | Giao việc thật | `bash scripts/test-agent-cli-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
 | Lint | `task lint` | CHƯA CHẠY | |
 
-- **Máy:** luannt-pc, Ryzen 7 9700X 8 nhân/16 luồng (nhân 1, 4 lỗi L1D), RAM 60 GiB, swap 2 GiB (đo 14/10). Tối đa 3 agent cùng lúc.
+- **Máy:** luannt-pc, Intel i7-8750H 6 nhân/12 luồng, RAM 15,5 GiB, swap 8 GiB (đo 16/10 bằng `lscpu`, `/proc/meminfo`; bản ghi 14/10 là Ryzen 9700X 16 luồng/60 GiB, không khớp nữa). Các lệnh `taskset -c …13-15` ở trên viết cho 16 luồng: trên 12 luồng CPU 13-15 bị bỏ lặng lẽ. Tối đa 3 agent cùng lúc; Go nặng chạy một lệnh một lúc, chờ RAM trống ≥3 GB.
 - Phiên Claude Code chạy test giao việc phải bỏ biến `CLAUDECODE`, `CLAUDE_CODE_*` (script dùng `env -i`) để `claude` con chạy như ở terminal thường.
 
 ### P6. Cổng, phát hành và vận hành
 
 - **CI:** `.github/workflows/` có build, lint, security… của upstream; CHƯA XÁC MINH là có chạy cho fork này.
 - **Cổng local:** không commit/push khi chưa được phép. Code an ninh và vòng đời qua một lượt soát độc lập, người soát không có quyền Edit.
+- **Phiên bản:** SemVer, tag git có chú thích `vX.Y.Z` trên `main`; `agent-cli --version` hiện số đó khi build từ commit được gắn tag (Go gắn version từ tag, không cần `-ldflags`). Mỗi bản: sửa `CHANGELOG.md` (chuyển mục `[Unreleased]` thành `[X.Y.Z] - ngày`), commit `chore(release): vX.Y.Z`, `git tag -a vX.Y.Z -m "…"`, push `main` rồi push tag, rồi mới cài.
 - **Phát hành = cài local:**
   - Binary ở `~/.local/lib/agent-cli/crush`, wrapper ở `~/.local/bin/agent-cli`.
   - Smoke sau khi cài: `agent-cli --version`, rồi một prompt thật (không in secret).

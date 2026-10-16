@@ -155,6 +155,12 @@ func coderAgent(r *vcr.Recorder, env fakeEnv, large, small fantasy.LanguageModel
 	cfg.Config().Options.GlobalContextPaths = nil
 	cfg.Config().LSP = nil
 
+	// Cassettes were recorded without ls limits. config.Init limits ls when the
+	// workspace is not inside a git work tree, and this temp dir is not one;
+	// before, the process cwd (inside the repo) hid that. Pin it explicitly.
+	cfg.Config().Tools.Ls.MaxDepth = nil
+	cfg.Config().Tools.Ls.MaxItems = nil
+
 	systemPrompt, err := prompt.Build(context.TODO(), large.Provider(), large.Model(), cfg)
 	if err != nil {
 		return nil, err

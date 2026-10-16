@@ -208,3 +208,31 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
 - **Chốt:** tên chính `luannt-theme-everforest-dark`; `everforest-dark-v2` là alias tương thích cấu hình cũ. Giữ nguyên bảng màu và các theme khác.
 - **Vì:** người dùng muốn nhận biết ngay theme do mình đặt.
 - **Lật lại khi:** người dùng yêu cầu đổi tên hoặc màu.
+
+## 2026-10-16 — bash tự duyệt: đối số ngoài workspace phải hỏi quyền
+**Trạng thái:** đã làm (v0.2.0)
+- **Chốt:** Lệnh chỉ-đọc trong danh sách an toàn vẫn hỏi quyền khi đối số trỏ ra ngoài thư mục làm việc: đường dẫn tuyệt đối, `~`, `..`, `$VAR`, giá trị của `--cờ=`, `git diff --no-index`, hoặc `working_dir` ngoài workspace. Bỏ `printenv` và `git config --list` khỏi danh sách an toàn. Kiểm sau khi bỏ nháy và `\`, chặn brace expansion (`internal/agent/tools/safe.go`, `commandLeavesWorkspace`).
+- **Vì:** audit 16/10 (X-01) chạy được `isSafeCommand("git diff --no-index /dev/null ~/.config/agent-cli/env") == true`: nội dung tệp env vào ngữ cảnh model mà không hỏi, trái với chính crushrc mẫu ("chỉ hỏi khi đọc NGOÀI dự án"). `printenv VAR` và `echo $VAR` đo được là lộ biến môi trường không hỏi (`set` thì không lộ nên giữ).
+- **Đã thử và bỏ:** chỉ kiểm token có bắt đầu bằng `/`, `~`, `..`: bị phá ngay 5/12 dạng (`ls \/etc`, `ls {/etc,/tmp}`, `ls .''./etc`...) vì shell ghép chuỗi trước khi chạy. Cấm hẳn mọi dấu nháy: bỏ vì `echo "a b"` là dùng hợp lệ; đổi lại bỏ nháy rồi mới kiểm, chấp nhận hỏi thừa.
+- **Lật lại khi:** hỏi thừa gây phiền thật (đo được) thì nới có bằng chứng; symlink trong dự án trỏ ra ngoài còn lọt (ghi `shortcut:` ở `safe.go`), xử lý bằng `outsideWorkingDir` nếu cần.
+
+## 2026-10-16 — Stop hook vẫn chặn sau 3 lần chạy lại: lượt báo lỗi
+**Trạng thái:** đã làm (v0.2.0)
+- **Chốt:** Chạm trần chạy lại (3) mà hook vẫn nói "block" thì `RunComplete` cuối của lượt mang lỗi `Stop hook still blocking after 3 re-runs: <lý do>` (`run --json` rc=1). Timeout, crash, exit khác 2/49 và halt giữ nguyên fail-open.
+- **Vì:** audit C-01: trước đây lượt kết thúc như thành công, chỉ có `slog.Warn`, trong khi cổng verify đang đỏ.
+- **Đã thử và bỏ:** làm cả timeout/crash thành lỗi: bỏ vì là giao thức Claude Code (hook không quyết định được thì không cản), README đã ghi, và lỗi hạ tầng của hook không nên đồng nghĩa với "việc hỏng".
+- **Lật lại khi:** cần cổng fail-closed hẳn (thêm tuỳ chọn `fail_closed` cho hook Stop).
+
+## 2026-10-16 — Mã thoát bash đi vào metadata, không đặt IsError
+**Trạng thái:** đã làm (v0.2.0)
+- **Chốt:** `BashResponseMetadata.ExitCode` (`*int`, omitempty); UI hiện icon lỗi và `(exit=N)` khi ≠ 0. Không đặt `ToolResponse.IsError`.
+- **Vì:** audit X-02: `go test` thoát 1 vẫn hiện ✓ xanh. `IsError` đổi nội dung gửi model (và cassette VCR `TestCoderAgent`); metadata chỉ phục vụ UI.
+- **Đã thử và bỏ:** parse chữ "Exit code N" trong UI: mong manh, không có ở job nền.
+- **Lật lại khi:** muốn model thấy lệnh lỗi là lỗi công cụ (quyết định sản phẩm, phải thu lại cassette).
+
+## 2026-10-16 — Phiên bản: SemVer + CHANGELOG + tag, mốc cơ sở v0.1.0
+**Trạng thái:** đã làm
+- **Chốt:** `CHANGELOG.md` theo Keep a Changelog; tag có chú thích `vX.Y.Z` trên `main`. `v0.1.0` gắn vào `87233bc8` (trạng thái trước audit, nối tiếp dòng `0.1.0-lat1/lat1.1/lat2` trong `~/.local/lib/agent-cli/VERSIONS.log`); `v0.2.0` là đợt sửa audit. Quy trình ở CLAUDE.md P6.
+- **Vì:** binary trước đây báo `devel` hoặc pseudo-version, không có chỗ tra "bản nào có gì". Go 1.27 gắn version từ tag nên không cần `-ldflags`.
+- **Đã thử và bỏ:** `-ldflags -X version.Version=…` trong installer: thêm một nguồn sự thật thứ hai cần giữ khớp với tag.
+- **Lật lại khi:** build từ thư mục không có `.git` (VCS stamping không hoạt động): khi đó mới cần `-ldflags`.
