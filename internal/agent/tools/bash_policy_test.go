@@ -10,6 +10,7 @@ import (
 
 	"mvdan.cc/sh/v3/syntax"
 
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/shell"
 	"github.com/stretchr/testify/require"
 )
@@ -103,4 +104,48 @@ func TestBashBlocksKillingOwnProcessTree(t *testing.T) {
 	out, _, err := sh.Exec(t.Context(), "echo ok")
 	require.NoError(t, err)
 	require.Equal(t, "ok\n", out)
+}
+
+// Chế độ không người trực phải được NỐI vào shell của tool bash (blockFuncs):
+// git push và rm -rf ra ngoài bị chặn cứng, việc thường vẫn chạy; tắt chế độ thì
+// không chặn. Dùng công tắc toàn cục nên KHÔNG song song (test song song chỉ chạy
+// sau khi mọi test tuần tự xong) và luôn trả lại công tắc.
+func TestBashBlocksDestructiveCommandsWhenUnattended(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	execpolicy.SetUnattended(true, false)
+	dir := t.TempDir()
+	sh := shell.NewShell(&shell.Options{WorkingDir: dir, BlockFuncs: blockFuncs()})
+
+	for _, cmd := range []string{
+		"git push origin main",
+		"git -C . reset --hard",
+		"sh -c 'git push'",
+		"for i in 1; do git merge x; done",
+		"rm -rf /tmp/never-created-by-test",
+		"git commit -m x",
+	} {
+		_, _, err := sh.Exec(t.Context(), cmd)
+		require.Errorf(t, err, "%q", cmd)
+		require.Containsf(t, err.Error(), "not allowed", "%q", cmd)
+	}
+	out, _, err := sh.Exec(t.Context(), "echo ok")
+	require.NoError(t, err)
+	require.Equal(t, "ok\n", out)
+
+	// Mở commit tường minh: commit qua ràng chặn (repo giả không có gì để commit nên
+	// git tự lỗi, nhưng KHÔNG phải do ràng chặn).
+	execpolicy.SetUnattended(true, true)
+	_, _, err = sh.Exec(t.Context(), "git commit -m x")
+	if err != nil {
+		require.NotContains(t, err.Error(), "not allowed for security reasons")
+	}
+	_, _, err = sh.Exec(t.Context(), "git push origin main")
+	require.ErrorContains(t, err, "not allowed", "mở commit không mở push")
+
+	// Tắt chế độ: dùng tương tác bình thường, không chặn gì thêm.
+	execpolicy.SetUnattended(false, false)
+	_, _, err = sh.Exec(t.Context(), "git push origin main")
+	if err != nil {
+		require.NotContains(t, err.Error(), "not allowed for security reasons")
+	}
 }

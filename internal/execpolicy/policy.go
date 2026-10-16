@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"unicode"
 )
@@ -31,6 +32,11 @@ const (
 	// DelegationEnv bật giao việc sang CLI agent khác provider ("on"); mặc
 	// định tắt dù CLI có trên máy.
 	DelegationEnv = "AGENT_CLI_DELEGATION"
+	// UnattendedEnv bật chế độ không người trực (routine chạy theo lịch): lớp
+	// chặn lệnh phá huỷ/đẩy ra ngoài ở trình thực thi shell. UnattendedCommitEnv
+	// mở riêng `git commit` (không mở gì khác). Cả hai là biến tin cậy.
+	UnattendedEnv       = "AGENT_CLI_UNATTENDED"
+	UnattendedCommitEnv = "AGENT_CLI_UNATTENDED_COMMIT"
 )
 
 // Backend giao việc: CLI agent bên ngoài, gọi qua tool cùng tên.
@@ -92,7 +98,7 @@ const EnvFileEnv = "AGENT_CLI_ENV_FILE"
 // của dự án (cả hai đều os.Setenv và do repo kiểm soát). Gồm ranh giới, nơi
 // đặt tệp env (và HOME suy ra nó), cùng CLI và mức quyền của tool giao việc.
 var trustedKeys = []string{
-	AllowedModelsEnv, DelegationEnv, EnvFileEnv, "HOME",
+	AllowedModelsEnv, DelegationEnv, UnattendedEnv, UnattendedCommitEnv, EnvFileEnv, "HOME",
 	"AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_BIN",
 	"AGENT_CLI_CLAUDE_PERMISSION_MODE", "AGENT_CLI_CODEX_SANDBOX",
 }
@@ -528,4 +534,31 @@ func isNumberish(s string) bool {
 		return false
 	}
 	return strings.Trim(s, "0123456789.smhd") == ""
+}
+
+var unattendedOn, unattendedCommit atomic.Bool
+
+// SetUnattended bật/tắt chế độ không người trực trong tiến trình này (driver
+// routine gọi trước khi chạy agent in-process). allowCommit mở `git commit`.
+func SetUnattended(on, allowCommit bool) {
+	unattendedOn.Store(on)
+	unattendedCommit.Store(allowCommit)
+}
+
+// Unattended cho biết tiến trình đang ở chế độ không người trực: do SetUnattended
+// hoặc do env GỐC (UnattendedEnv, đã chụp đầu main, nên `.env` của repo không bật
+// hay tắt được).
+func Unattended() bool { return unattendedOn.Load() || truthy(TrustedEnv(UnattendedEnv)) }
+
+// UnattendedAllowsCommit cho biết routine được phép `git commit`.
+func UnattendedAllowsCommit() bool {
+	return unattendedCommit.Load() || truthy(TrustedEnv(UnattendedCommitEnv))
+}
+
+func truthy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "on", "yes":
+		return true
+	}
+	return false
 }

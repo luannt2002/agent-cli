@@ -183,6 +183,12 @@ func blockFuncs() []shell.BlockFunc {
 				"reason", reason, "command", args[0])
 		}),
 
+		// Chế độ không người trực (routine): `run` tự duyệt mọi quyền nên chặn cứng
+		// lệnh phá huỷ/đẩy ra ngoài ở đây. Tắt thì không chặn gì thêm.
+		shell.UnattendedGuard(execpolicy.Unattended, execpolicy.UnattendedAllowsCommit, func(reason string, args []string) {
+			slog.Warn("Blocked a command while running unattended", "reason", reason, "command", args[0])
+		}),
+
 		// System package managers
 		shell.ArgumentsBlocker("apk", []string{"add"}, nil),
 		shell.ArgumentsBlocker("apt", []string{"install"}, nil),

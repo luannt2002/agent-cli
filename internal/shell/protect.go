@@ -254,6 +254,9 @@ type ProcessGuard struct {
 	// ProtectedName cho biết tên/pattern của pkill/killall khớp tiến trình
 	// agent-cli.
 	ProtectedName func(name string) bool
+	// Deny (tuỳ chọn) được gọi với argv của MỌI lệnh đơn sau khi bóc lớp bọc,
+	// kể cả lệnh nằm trong script của `sh -c`; trả (lý do, true) để chặn.
+	Deny func(args []string) (reason string, blocked bool)
 }
 
 // Blocked báo lệnh args có bị chặn không, và lý do để ghi log.
@@ -267,6 +270,11 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 		return "", false
 	}
 	cmd := baseName(args[0])
+	if g.Deny != nil {
+		if reason, denied := g.Deny(args); denied {
+			return reason, true
+		}
+	}
 	switch {
 	case shutdownCommands[cmd]:
 		return "shutting the machine down or rebooting is never allowed", true
