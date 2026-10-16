@@ -4,18 +4,26 @@
 # agent được phép báo "xong". Fail thì chặn: agent nhận lại output và làm tiếp,
 # thay vì tự tuyên bố hoàn thành khi test đỏ.
 #
-# Bật trong crush.json của dự án (hoặc ~/.config/agent-cli/crush.json):
+# Bật trong crush.json của dự án (hoặc ~/.config/agent-cli/crush.json). Đặt lệnh
+# verify NGAY TRONG lệnh hook (hook chạy qua shell nhúng của Crush nên nhận được
+# tiền tố gán biến):
 #   {
 #     "hooks": {
 #       "Stop": [
-#         { "command": "/ĐƯỜNG/DẪN/verify-gate.sh", "timeout": 300 }
+#         {
+#           "command": "AGENT_CLI_VERIFY_CMD='go build ./... && go test ./...' /ĐƯỜNG/DẪN/verify-gate.sh",
+#           "timeout": 300
+#         }
 #       ]
 #     }
 #   }
 #
-# Lệnh verify lấy từ biến AGENT_CLI_VERIFY_CMD (đặt trong ~/.config/agent-cli/env),
-# ví dụ: AGENT_CLI_VERIFY_CMD="go build ./... && go test ./..."
-# Không đặt thì cổng tự bỏ qua (exit 0), không cản gì.
+# KHÔNG đặt AGENT_CLI_VERIFY_CMD trong ~/.config/agent-cli/env: tệp đó chỉ được
+# crushrc nạp trong trình thông dịch riêng, biến không tới hook (cổng sẽ tắt).
+# Đặt `export` ở shell trước khi mở server cũng được, nhưng chỉ có hiệu lực lúc
+# server được dựng. Đặt "timeout" đủ lớn cho cả bộ verify: hook quá hạn thì lượt
+# được kết thúc như bình thường (hook không quyết định được).
+# Không đặt biến thì cổng tự bỏ qua (exit 0) và in cảnh báo ra stderr.
 #
 # Giao thức Stop hook (xem docs/hooks/README.md):
 #   - exit 0, không in gì  -> cho kết thúc.
@@ -27,7 +35,9 @@ set -uo pipefail
 
 cmd="${AGENT_CLI_VERIFY_CMD:-}"
 if [[ -z "$cmd" ]]; then
-	exit 0 # Chưa cấu hình cổng: không cản.
+	# Chưa cấu hình cổng: không cản, nhưng nói rõ để không tưởng cổng đang chạy.
+	echo "verify-gate: AGENT_CLI_VERIFY_CMD rỗng, cổng KHÔNG chạy (xem hướng dẫn đầu tệp)" >&2
+	exit 0
 fi
 
 # stdin mang {"stop_hook_active":true} khi lượt này đã là lần làm lại do cổng
