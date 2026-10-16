@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,4 +72,31 @@ func TestBashBlocksInterpreterAgentLaunch(t *testing.T) {
 	out, _, err := sh.Exec(t.Context(), node+` -e 'console.log("codex")'`)
 	require.NoError(t, err)
 	require.Equal(t, "codex\n", out)
+}
+
+// Bộ chặn tự giết tiến trình điều khiển phải được NỐI vào shell mà tool bash
+// dùng (blockFuncs). Xoá dòng nối ở bash.go thì test này đỏ. `kill` trần là
+// builtin chưa cài đặt của trình thông dịch (không giết được ai, không qua
+// BlockFunc) nên test dùng các đường giết thật: /bin/kill, env/xargs, và shell
+// con có builtin kill thật. Dùng `kill -0` (tín hiệu 0) để nếu guard hỏng thì
+// lệnh cũng không làm hại gì.
+func TestBashBlocksKillingOwnProcessTree(t *testing.T) {
+	t.Parallel()
+	pid := os.Getpid()
+	sh := shell.NewShell(&shell.Options{WorkingDir: t.TempDir(), BlockFuncs: blockFuncs()})
+	for _, cmd := range []string{
+		fmt.Sprintf("/bin/kill -0 %d", pid),
+		fmt.Sprintf("env kill -0 %d", pid),
+		fmt.Sprintf("sh -c 'kill -0 %d'", pid),
+		fmt.Sprintf("bash -c 'echo x; kill -0 %d'", pid),
+		"xargs kill -0 < /dev/null",
+	} {
+		_, _, err := sh.Exec(t.Context(), cmd)
+		require.Errorf(t, err, "%q", cmd)
+		require.Containsf(t, err.Error(), "not allowed", "%q", cmd)
+	}
+	// Lệnh thường vẫn chạy.
+	out, _, err := sh.Exec(t.Context(), "echo ok")
+	require.NoError(t, err)
+	require.Equal(t, "ok\n", out)
 }

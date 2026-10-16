@@ -49,6 +49,17 @@ var killByPID = map[string]bool{"kill": true}
 // killByName là các lệnh dừng tiến trình theo tên/pattern.
 var killByName = map[string]bool{"pkill": true, "killall": true}
 
+// shellInterpreters chạy được script qua -c; `kill` trong script đó là builtin
+// thật của shell con nên argv của nó không bao giờ tới BlockFunc.
+var shellInterpreters = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true}
+
+// scriptSeparators tách một script -c thành các lệnh đơn (xấp xỉ: đủ để thấy
+// `kill` trong `a; b && c | d`; không phải bộ phân tích cú pháp shell đầy đủ).
+var scriptSeparators = regexp.MustCompile(`[;&|\n(){}]+`)
+
+// maxShellDepth là số lớp `sh -c` lồng nhau được soi; sâu hơn thì chặn luôn.
+const maxShellDepth = 3
+
 // baseName chuẩn hoá argv[0] về tên lệnh (bỏ đường dẫn, bỏ đuôi Windows).
 func baseName(arg string) string {
 	name := strings.ToLower(filepath.Base(arg))
@@ -145,6 +156,27 @@ func killNames(args []string) []string {
 	return names
 }
 
+// shellScript trả script đứng sau cờ -c của một shell (kể cả cờ gộp -lc, -ec).
+func shellScript(args []string) (string, bool) {
+	for i := 1; i < len(args)-1; i++ {
+		a := args[i]
+		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && strings.Contains(a, "c") {
+			return args[i+1], true
+		}
+	}
+	return "", false
+}
+
+// killListsSignals: `kill -l` chỉ liệt kê tên tín hiệu, không giết ai.
+func killListsSignals(args []string) bool {
+	for _, a := range args[1:] {
+		if a == "-l" || a == "-L" || a == "--list" || a == "--table" {
+			return true
+		}
+	}
+	return false
+}
+
 // ProcessGuard quyết định một PID hay tên tiến trình có được agent-cli bảo vệ
 // (không được tự giết). Tách ra để test thay bằng đồ giả.
 type ProcessGuard struct {
@@ -158,6 +190,10 @@ type ProcessGuard struct {
 
 // Blocked báo lệnh args có bị chặn không, và lý do để ghi log.
 func (g ProcessGuard) Blocked(args []string) (reason string, blocked bool) {
+	return g.blocked(args, 0)
+}
+
+func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked bool) {
 	args = peelLaunchers(args)
 	if len(args) == 0 {
 		return "", false
@@ -166,8 +202,38 @@ func (g ProcessGuard) Blocked(args []string) (reason string, blocked bool) {
 	switch {
 	case shutdownCommands[cmd]:
 		return "shutting the machine down or rebooting is never allowed", true
+	case shellInterpreters[cmd]:
+		script, ok := shellScript(args)
+		if !ok {
+			return "", false
+		}
+		if depth >= maxShellDepth {
+			return "shell commands nested too deep to inspect for process-killing", true
+		}
+		for _, segment := range scriptSeparators.Split(script, -1) {
+			fields := strings.Fields(segment)
+			for i, f := range fields {
+				fields[i] = strings.Trim(f, `'"`)
+			}
+			if len(fields) == 0 {
+				continue
+			}
+			if reason, blocked := g.blocked(fields, depth+1); blocked {
+				return reason, true
+			}
+		}
 	case killByPID[cmd]:
-		for _, pid := range killPIDs(args) {
+		pids := killPIDs(args)
+		// Không có PID tường minh thì PID đến từ nơi khác (xargs, stdin): không
+		// kiểm được, nên chặn. `kill -l` chỉ liệt kê tín hiệu.
+		if len(pids) == 0 && !killListsSignals(args) {
+			return "kill without an explicit PID (fed by xargs or stdin) could hit agent-cli's own process", true
+		}
+		for _, pid := range pids {
+			// `kill -9 -1` / pid 1: nhắm mọi tiến trình hoặc init.
+			if pid == 1 {
+				return "kill targeting pid 1 or -1 reaches every process, including agent-cli's own", true
+			}
 			if g.ProtectedPID != nil && g.ProtectedPID(pid) {
 				return "refusing to kill agent-cli's own process (pid " + strconv.Itoa(pid) + "): it is running this session", true
 			}

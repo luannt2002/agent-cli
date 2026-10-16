@@ -167,3 +167,50 @@ func TestDefaultGuard_ProtectsSelf(t *testing.T) {
 	_, ok := defaultProcessGuard.Blocked([]string{"/bin/kill", "-9", strconv.Itoa(self)})
 	require.True(t, ok, "killing a pid in agent-cli's own process tree must be blocked")
 }
+
+// Các đường vòng đã tái lập ở audit 16/10: kill không PID tường minh (PID đến từ
+// xargs/stdin), kill vào "mọi tiến trình" (-1 / pid 1), và lệnh kill bọc trong
+// `sh -c` / `bash -c` (kill là builtin của shell con nên argv của nó không qua
+// BlockFunc).
+func TestProtect_BlocksPidlessKillShellWrappedAndKillAll(t *testing.T) {
+	t.Parallel()
+	g := testGuard(946242)
+	for _, args := range [][]string{
+		{"xargs", "kill", "-9"},
+		{"xargs", "-r", "kill"},
+		{"kill"},
+		{"kill", "-9", "-1"},
+		{"kill", "-9", "1"},
+		{"bash", "-c", "kill 946242"},
+		{"sh", "-c", "kill -9 946242"},
+		{"bash", "-lc", "echo hi; kill 946242"},
+		{"sh", "-c", "pgrep x | xargs kill -9"},
+		{"sh", "-c", "env kill 946242"},
+		{"bash", "-c", "bash -c 'kill 946242'"},
+		{"bash", "-o", "errexit", "-c", "true && kill 946242"},
+	} {
+		reason, ok := g.Blocked(args)
+		require.Truef(t, ok, "%v", args)
+		require.NotEmpty(t, reason)
+	}
+}
+
+// Siết lớp trên không được chặn oan lệnh thường: shell chạy script/lệnh vô hại,
+// kill liệt kê tín hiệu, kill PID không thuộc agent-cli.
+func TestProtect_ShellWrappingDoesNotBlockNormalCommands(t *testing.T) {
+	t.Parallel()
+	g := testGuard(946242)
+	for _, args := range [][]string{
+		{"bash", "-c", "echo hello"},
+		{"sh", "-c", "ls -la && pwd"},
+		{"bash", "script.sh"},
+		{"bash", "-c", "go test ./... | tail"},
+		{"kill", "-l"},
+		{"kill", "-9", "12345"},
+		{"bash", "-c", "kill 12345"},
+		{"xargs", "echo"},
+	} {
+		_, ok := g.Blocked(args)
+		require.Falsef(t, ok, "%v", args)
+	}
+}
