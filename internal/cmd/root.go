@@ -259,10 +259,7 @@ func Execute() {
 		fang.WithNotifySignal(os.Interrupt),
 		fang.WithColorSchemeFunc(helpColorScheme),
 	); err != nil {
-		if isUsageError(err) {
-			os.Exit(2)
-		}
-		os.Exit(1)
+		os.Exit(exitCodeFor(err))
 	}
 }
 

@@ -397,6 +397,13 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
 		}, cleanup, nil
 	}
 
+	return newLocalLoopAgent(cmd, p, out)
+}
+
+// newLocalLoopAgent chạy agent in-process (không qua server), trong thư mục hiện
+// tại của tiến trình. Routine luôn dùng đường này: lớp chặn không người trực là
+// trạng thái của chính tiến trình, nên không thể bị một server dùng chung bỏ qua.
+func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(context.Context, string) (loop.RunInfo, error), func(), error) {
 	ws, cleanup, err := setupLocalWorkspace(cmd)
 	if err != nil {
 		return nil, nil, err
