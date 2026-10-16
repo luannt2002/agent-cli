@@ -69,6 +69,17 @@ Plan: [docs/superpowers/plans/2026-10-16-audit-fixes-v0.2.0.md](docs/superpowers
   mới không nhận ra nó là "cùng binary" để bảo vệ (`pkill`/`killall` theo tên vẫn bị chặn).
 - Mọi mục LOW của audit.
 
+### Kiểm chứng
+
+- `go test ./...`: 66 gói ok, 17 không có test, 0 FAIL; cùng tập gói và trạng thái với baseline trước khi sửa.
+  `go test -race` sạch cho `internal/agent`, `internal/agent/tools`, `internal/config`, `internal/shell`,
+  `internal/ui/chat`.
+- Soát độc lập (agent riêng, không có quyền sửa, Opus): lượt 1 bắt được 3 lỗ còn lại của safe-list (đã sửa, mỗi
+  đòn thành test); lượt 2 bắt được các lỗ của guard (đã sửa bằng cách phân tích cú pháp). Bản guard sau khi viết
+  lại CHƯA qua lượt soát thứ ba; bảng tấn công của reviewer đã được chuyển thành test, và guard là lớp chặn thêm
+  (bash vẫn hỏi quyền cho lệnh không an toàn, trừ `run`/YOLO).
+- Chưa chạy: `run --json` end-to-end với Stop hook chạm trần; build có `GOEXPERIMENT=greenteagc` như installer.
+
 ### Lưu ý nâng cấp
 
 - Một số lệnh chỉ-đọc từng tự duyệt nay hỏi quyền (đối số ngoài workspace, `printenv`, `ps`, `git config`).
