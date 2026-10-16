@@ -20,7 +20,8 @@ Plan: [docs/superpowers/plans/2026-10-16-audit-fixes-v0.2.0.md](docs/superpowers
   tuyệt đối, `~`, `..`, `$VAR`, `--cờ=/đường/dẫn`, `git diff --no-index`, hoặc chạy với `working_dir` ngoài
   workspace nay HỎI quyền. Đối số được kiểm sau khi bỏ nháy, `\` và chặn brace expansion, vì shell ghép chuỗi
   trước khi chạy (`ls \/etc`, `ls {/etc,}`, `ls .''./etc` từng lọt ở bản thử đầu).
-  `printenv` và `git config --list` không còn trong danh sách an toàn.
+  `printenv`, `ps` (cờ `e` in biến môi trường) và mọi `git config` không còn trong danh sách an toàn;
+  giá trị dính liền cờ ngắn (`date -f/etc/hostname`) cũng bị coi là đường dẫn.
 - **Self-kill guard kín hơn** (B-05): chặn `sh -c 'kill <pid>'` / `bash -c ...` (bóc script sau `-c`, tối đa
   3 lớp lồng), `xargs kill` (PID đến từ stdin không kiểm được), `kill -9 -1` và pid 1.
   Có test nối `blockFuncs()` vào shell thật (C-05): xoá dòng nối ở `bash.go` thì test đỏ.
@@ -30,8 +31,9 @@ Plan: [docs/superpowers/plans/2026-10-16-audit-fixes-v0.2.0.md](docs/superpowers
 - **Lệnh bash thoát mã ≠ 0 không còn hiện ✓ xanh** (X-02). `BashResponseMetadata.ExitCode` mới; UI đổi icon
   thành lỗi và ghi `(exit=N)`. Không đặt `IsError`, nên nội dung gửi model và cassette VCR giữ nguyên.
 - **Stop hook vẫn chặn sau 3 lần chạy lại thì lượt báo lỗi** (C-01): `RunComplete` cuối mang
-  `Stop hook still blocking after 3 re-runs: …`, `run --json` trả rc=1. Timeout, crash và halt vẫn kết thúc
-  như thành công (hook không quyết định được).
+  `Stop hook still blocking after 3 re-runs: …`; `run` coi `RunComplete.Error` là lỗi (`agent run failed: …`,
+  `internal/cmd/run.go`) nên thoát khác 0. Test chỉ phủ phần `RunComplete`; chưa có test `run` end-to-end.
+  Timeout, crash và halt vẫn kết thúc như thành công (hook không quyết định được).
 - **Giới hạn duyệt tệp theo workspace, không theo cwd tiến trình** (A-04): server thừa hưởng cwd của client
   đầu tiên nên mở Home từ `$HOME` từng làm mọi repo git sau đó bị giới hạn `ls` depth 2 / 100 mục.
 
@@ -51,11 +53,15 @@ Plan: [docs/superpowers/plans/2026-10-16-audit-fixes-v0.2.0.md](docs/superpowers
 - IO HTTP đồng bộ trong `Update` của TUI, không timeout (D-03).
 - Footer cắt `ctrl+g more` ở terminal <162 cột (D-01); "Modified Files" chỉ đếm tool edit/write (F-02).
 - Safe-list chưa nhận ra đường dẫn tương đối đi qua symlink trong dự án trỏ ra ngoài (ghi `shortcut:` ở `safe.go`).
+- `git ls-remote <url>` vẫn tự duyệt: có thể đẩy dữ liệu ra mạng qua URL hoặc liệt kê repo ngoài (có từ trước).
+- Danh sách an toàn là danh sách đen theo cú pháp; hướng đúng là danh sách trắng cờ cho từng lệnh.
+- Stop hook chạm trần: lỗi đặt lên `RunComplete` của lượt chính và của prompt xếp hàng xả ra giữa chuỗi chạy
+  lại, không đặt lên prompt xả ở lượt cuối; chưa có test cho trường hợp prompt xếp hàng.
 - Mọi mục LOW của audit.
 
 ### Lưu ý nâng cấp
 
-- Một số lệnh chỉ-đọc từng tự duyệt nay hỏi quyền (đối số ngoài workspace, `printenv`, `git config --list`).
+- Một số lệnh chỉ-đọc từng tự duyệt nay hỏi quyền (đối số ngoài workspace, `printenv`, `ps`, `git config`).
   Đó là chủ ý; cấp quyền theo phiên nếu cần.
 
 ## [0.1.0] - 2026-10-16

@@ -20,7 +20,7 @@ func TestIsSafeCommand_StaysInsideWorkspace(t *testing.T) {
 		"ls", "ls -la", "ls -R src", "pwd", "echo hi", `echo "a/b"`, "date +%s", "du -sh .",
 		"git status", "git diff", "git diff --stat", "git diff HEAD~1", "git diff HEAD~1 HEAD",
 		"git log --oneline -1", "git log origin/main..HEAD", "git log --format=%H",
-		"git show HEAD:README.md", "git branch -a", "git config --get-regexp no-such-key",
+		"git show HEAD:README.md", "git branch -a",
 		"git ls-files src", "git grep -n foo",
 		"echo 'hello world'", `echo "a b"`,
 	} {
@@ -40,6 +40,10 @@ func TestIsSafeCommand_StaysInsideWorkspace(t *testing.T) {
 		// shell ghép chuỗi trước khi chạy: nháy, \ và {a,b} dựng được đường dẫn mà
 		// token không bắt đầu bằng "/" hay "..".
 		`ls \/etc`, "ls {/etc,}", "ls {/etc,/tmp}", "ls .''./etc", `ls ."."/etc`, `ls "/"etc`, "ls ''/etc", `ls /e\tc`,
+		// lượt soát độc lập 16/10: giá trị dính liền cờ ngắn, đọc cấu hình git, ps hiện env.
+		"date -f/etc/hostname", "git grep -f/etc/x foo", "git blame -S/etc/x main.go", "git ls-files -X/etc/x",
+		"du --files0-from=/etc/x", "git config --get-regexp .", "git config --get user.name",
+		"git config --get-regexp -f/etc/x key", "ps eww", "ps auxe", "ps aux",
 		// đổ biến môi trường
 		"printenv", "printenv HOME", "echo $HOME", `echo "$AWS_SECRET_ACCESS_KEY"`, "echo ${HOME}",
 		// nhắc lại: cấu hình có thể chứa token trong URL remote
@@ -66,6 +70,9 @@ func TestBashTool_ReadsOutsideWorkspaceRequirePermission(t *testing.T) {
 		{"echo $VAR", BashParams{Command: "echo $AUDIT_ENV_CANARY"}},
 		{"printenv", BashParams{Command: "printenv AUDIT_ENV_CANARY"}},
 		{"working_dir ngoài", BashParams{Command: "ls", WorkingDir: outside}},
+		{"date -f<tệp ngoài>", BashParams{Command: "date -f" + secret}},
+		{"ps hiện env", BashParams{Command: "ps eww -o args= -p 1"}},
+		{"git config --get-regexp", BashParams{Command: "git config --get-regexp ."}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tool, perms := newBashToolWithRecordingPerms(t.TempDir(), false)

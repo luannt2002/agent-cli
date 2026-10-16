@@ -45,7 +45,6 @@ func TestBashTool_ReadOnlyCommandsStillAutoApprove(t *testing.T) {
 		"git branch", "git branch -a", "git branch -r", "git branch --list", "git branch -v",
 		"git tag", "git tag -l", "git tag --list",
 		"git remote", "git remote -v", "git remote show", "git remote show origin",
-		"git config --get-regexp no-such-key",
 	} {
 		t.Run(cmd, func(t *testing.T) {
 			tool, perms := newBashToolWithRecordingPerms(t.TempDir(), false)

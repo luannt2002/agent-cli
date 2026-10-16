@@ -236,3 +236,10 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
 - **Vì:** binary trước đây báo `devel` hoặc pseudo-version, không có chỗ tra "bản nào có gì". Go 1.27 gắn version từ tag nên không cần `-ldflags`.
 - **Đã thử và bỏ:** `-ldflags -X version.Version=…` trong installer: thêm một nguồn sự thật thứ hai cần giữ khớp với tag.
 - **Lật lại khi:** build từ thư mục không có `.git` (VCS stamping không hoạt động): khi đó mới cần `-ldflags`.
+
+## 2026-10-16 — bash tự duyệt: bổ sung sau lượt soát độc lập
+**Trạng thái:** đã làm (v0.2.0); bổ sung cho mục "bash tự duyệt: đối số ngoài workspace phải hỏi quyền" cùng ngày
+- **Chốt:** Bỏ thêm `ps` và `git config --get` khỏi danh sách an toàn; mọi cờ chứa `/` hoặc `~` (kể cả dính liền cờ ngắn như `-f/etc/x`) bị coi là đường dẫn. Câu "không bao giờ bỏ sót" ở commit `7cee200b` và comment cũ trong `safe.go` là sai và đã bỏ: đây là danh sách đen theo cú pháp.
+- **Vì:** lượt soát độc lập (agent riêng, không có Edit) chạy thật ba đường còn lọt: `date -f/etc/hostname` (nội dung tệp hiện qua stderr), `git config --get-regexp .` (tương đương `--list`, thứ vừa bị gỡ), `ps eww` (lộ env như `printenv`). Mỗi đường đã thành test đỏ rồi xanh.
+- **Đã thử và bỏ:** lọc riêng `ps` có cờ `e`: cú pháp BSD (`ps eww`, `ps auxe`, `ps e`) quá nhiều dạng, bỏ hẳn `ps` đơn giản hơn. Giữ `git config --get <key>` đúng một khoá: `--get-regexp .` lấy được tất cả nên không phân biệt được.
+- **Lật lại khi:** có danh sách trắng cờ cho từng lệnh an toàn (cách sửa tận gốc), khi đó có thể cho lại `ps`/`git config --get` với cờ cụ thể.

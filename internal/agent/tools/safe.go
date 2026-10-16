@@ -8,7 +8,9 @@ import (
 
 // safeCommands skip the permission prompt. Never list a command that runs
 // another command (env, nice, nohup, time, timeout): the prefix match would
-// auto-approve whatever it wraps.
+// auto-approve whatever it wraps. Nor one that can print the environment or
+// config values (printenv, ps with the e modifier, git config): those hold
+// API keys and remote URLs with tokens.
 var safeCommands = []string{
 	// Bash builtins and core utils
 	"cal",
@@ -21,7 +23,6 @@ var safeCommands = []string{
 	"hostname",
 	"id",
 	"ls",
-	"ps",
 	"pwd",
 	"set",
 	"top",
@@ -37,7 +38,6 @@ var safeCommands = []string{
 	// Git
 	"git blame",
 	"git branch",
-	"git config --get",
 	"git describe",
 	"git diff",
 	"git grep",
@@ -83,6 +83,10 @@ func argLeavesWorkspace(arg string) bool {
 		return true
 	}
 	if strings.HasPrefix(arg, "-") {
+		// Giá trị dính liền cờ ngắn (-f/etc/x) hay sau "=" đều có thể là đường dẫn.
+		if strings.ContainsAny(arg, "/~") {
+			return true
+		}
 		if _, value, ok := strings.Cut(arg, "="); ok {
 			arg = value
 		}
@@ -96,8 +100,9 @@ func argLeavesWorkspace(arg string) bool {
 // an empty quoted string and ./etc into ../etc, and turns a backslash-escaped
 // slash into a plain one), and brace expansion
 // ({/etc,}) is refused outright since it can build any path.
-// shortcut: dropping quotes also splits "a b" into two words; the cost is an
-// occasional extra prompt, never a missed one.
+// shortcut: dropping quotes also splits "a b" into two words, which can only
+// add a prompt. This is a deny-list on syntax, not proof that no safe command
+// can reach outside; the real fix is an allow-list of flags per command.
 func commandLeavesWorkspace(cmd string) bool {
 	flat := strings.NewReplacer("'", "", `"`, "", `\`, "").Replace(cmd)
 	return strings.ContainsAny(flat, "{}") || slices.ContainsFunc(strings.Fields(flat), argLeavesWorkspace)

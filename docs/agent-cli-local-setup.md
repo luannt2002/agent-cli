@@ -626,8 +626,8 @@ Lệnh chỉ-đọc trong danh sách an toàn chạy không hỏi, kể cả khi
   `.git` hay `HEAD`, nhưng file đã có sẵn trên đĩa thì không ai kiểm.
 - `git ls-remote` và `git remote show <tên>` kết nối mạng tới remote.
 - Từ v0.2.0, lệnh chỉ-đọc có đối số trỏ ra ngoài thư mục làm việc (đường dẫn tuyệt đối, `~`, `..`, `$VAR`,
-  `--cờ=/đường/dẫn`, `git diff --no-index`) hoặc chạy với `working_dir` ngoài workspace thì HỎI quyền; `printenv`
-  và `git config --list` không còn trong danh sách an toàn. Giới hạn còn lại: đường dẫn tương đối đi qua symlink
+  `--cờ=/đường/dẫn`, `-fPATH`, `git diff --no-index`) hoặc chạy với `working_dir` ngoài workspace thì HỎI quyền;
+  `printenv`, `ps` (cờ `e` in env) và mọi `git config` không còn trong danh sách an toàn. Giới hạn còn lại: đường dẫn tương đối đi qua symlink
   trong dự án trỏ ra ngoài không bị nhận ra ở bước này.
 - `date -s ...` và `hostname <tên>` đổi giờ/tên máy nếu agent-cli chạy bằng root.
 
