@@ -177,6 +177,9 @@ func (s *stopHookCoordinator) gate(ctx context.Context, sessionID string, first 
 		}
 		if reruns == maxStopHookReruns {
 			slog.Warn("Stop hook kept blocking", "session_id", sessionID, "reruns", reruns, "reason", agg.Reason)
+			// Cổng vẫn đỏ mà hết lượt chạy lại: lượt không được báo xong như
+			// thành công. Lỗi đặt lên RunComplete cuối (run --json rc=1).
+			g.setCapReached(fmt.Sprintf("Stop hook still blocking after %d re-runs: %s", reruns, cmp.Or(agg.Reason, "no reason given")))
 			return result, err
 		}
 		// Reserve the re-run before the last cancel check: a Cancel after
@@ -211,6 +214,8 @@ type stopGate struct {
 	pub     pubsub.Publisher[notify.RunComplete]
 	held    []heldRunComplete // The latest per RunID, in first-publish order.
 	attempt int
+	// capErr: lý do Stop hook vẫn chặn khi hết lượt chạy lại ("" = không chạm trần).
+	capErr string
 }
 
 type heldRunComplete struct {
@@ -238,6 +243,12 @@ func (g *stopGate) hold(pub pubsub.Publisher[notify.RunComplete], rc notify.RunC
 	return true
 }
 
+func (g *stopGate) setCapReached(msg string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.capErr = msg
+}
+
 func (g *stopGate) nextAttempt() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -259,10 +270,16 @@ func (g *stopGate) release(ctx context.Context, canceled bool, err error) (own b
 			final, ok = h, true
 		}
 	}
+	if ok && g.capErr != "" {
+		final.rc.Error = cmp.Or(final.rc.Error, g.capErr)
+	}
 	for _, h := range g.held {
 		rc := h.rc
 		switch {
 		case h.attempt == g.attempt:
+			if ok && h.rc.RunID == g.runID {
+				rc = final.rc
+			}
 		case ok:
 			rc = final.rc
 			rc.RunID = h.rc.RunID

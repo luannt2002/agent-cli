@@ -216,7 +216,11 @@ and the agent keeps going. Exit `0` without a decision, any other exit code, a
 timeout, or a halt (exit `49`) lets the turn end.
 
 A turn can be sent back at most **3** times in a row; after that Crush lets it
-end and logs `Stop hook kept blocking`. The hook does not fire when the turn
+end, logs `Stop hook kept blocking`, and reports the run as failed: the final
+`RunComplete` carries an error (`Stop hook still blocking after 3 re-runs: …`),
+so `crush run --json` exits 1 instead of reporting success while the gate is
+still red. A timeout, crash or halt still lets the turn end as a success (the
+hook could not decide); only a hook that keeps saying "block" fails the run. The hook does not fire when the turn
 errored or was cancelled, nor for sub-agents. The stdin payload carries
 `stop_hook_active`: `true` when the turn is already a re-run caused by a Stop
 hook, so a hook can choose to let it go.

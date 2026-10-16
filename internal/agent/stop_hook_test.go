@@ -770,3 +770,44 @@ func TestNoStopHookDoesNotHoldRunComplete(t *testing.T) {
 	close(model.gate2)
 	require.NoError(t, <-done)
 }
+
+// Hook vẫn chặn sau trần chạy lại thì lượt KHÔNG được kết thúc như thành công:
+// RunComplete cuối mang lỗi (run --json trả rc=1). Hook chặn một lần rồi cho
+// qua thì không có lỗi.
+func TestStopHookCapSurfacesErrorOnFinalRunComplete(t *testing.T) {
+	t.Parallel()
+
+	run := func(t *testing.T, script string) notify.RunComplete {
+		t.Helper()
+		broker := pubsub.NewBroker[notify.RunComplete]()
+		events := broker.Subscribe(t.Context())
+		stop, _ := stopHookScript(t, script)
+		inner := &stubCoordinator{pub: holdRunComplete(broker)}
+		ctx := WithRunCompleteMarker(WithRunID(t.Context(), "run-1"))
+
+		_, err := WithStopHooks(inner, stop).Run(ctx, "s1", "fix the bug")
+		require.NoError(t, err)
+		require.True(t, RunCompletePublished(ctx))
+		ev := <-events
+		select {
+		case extra := <-events:
+			t.Fatalf("unexpected extra RunComplete: %+v", extra.Payload)
+		default:
+		}
+		return ev.Payload
+	}
+
+	t.Run("blocks to the cap", func(t *testing.T) {
+		t.Parallel()
+		rc := run(t, "echo tests still red >&2; exit 2\n")
+		require.Equal(t, "run-1", rc.RunID)
+		require.Contains(t, rc.Error, "Stop hook still blocking")
+		require.Contains(t, rc.Error, "tests still red")
+	})
+
+	t.Run("blocks once then passes", func(t *testing.T) {
+		t.Parallel()
+		rc := run(t, "if [ ! -f blocked ]; then touch blocked; echo lint is red >&2; exit 2; fi\n")
+		require.Empty(t, rc.Error)
+	})
+}
