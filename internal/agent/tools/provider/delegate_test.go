@@ -273,3 +273,26 @@ var testPolicy = func() execpolicy.Policy {
 	}
 	return p
 }()
+
+// Tool giao việc chạy CLI con ở mức quyền rất rộng (mặc định claude --permission-mode
+// bypassPermissions, codex danger-full-access): khi không người trực nó không được
+// tồn tại, kể cả khi người dùng đã bật AGENT_CLI_DELEGATION. KHÔNG song song: công tắc
+// là biến toàn cục.
+func TestNewToolsRegistersNothingWhileUnattended(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	t.Setenv(claudeBinEnv, "")
+	t.Setenv(codexBinEnv, "")
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\n"), 0o755))
+	all := []string{ClaudeCodeToolName, CodexToolName}
+
+	got, err := NewTools(t.TempDir(), &fakePermissions{}, all, testPolicy)
+	require.NoError(t, err)
+	require.Len(t, got, 1, "đối chứng: bình thường tool được đăng ký")
+
+	execpolicy.SetUnattended(true, false)
+	got, err = NewTools(t.TempDir(), &fakePermissions{}, all, testPolicy)
+	require.NoError(t, err)
+	require.Empty(t, got, "không người trực thì không có tool giao việc")
+}

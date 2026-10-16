@@ -98,6 +98,13 @@ type strategy interface {
 // có model cụ thể trong AGENT_CLI_ALLOWED_MODELS; không thì tool không tồn
 // tại, model chính không thể gọi tới.
 func NewTools(workingDir string, perms permissionRequester, allowed []string, pol execpolicy.Policy) ([]fantasy.AgentTool, error) {
+	// Không người trực (routine): CLI con chạy ở mức quyền rất rộng (mặc định claude
+	// bypassPermissions, codex danger-full-access) và lớp chặn lệnh không phủ nó, nên
+	// tool không được tồn tại dù người dùng đã bật giao việc.
+	if execpolicy.Unattended() {
+		slog.Debug("Delegation tools not registered while unattended")
+		return nil, nil
+	}
 	var out []fantasy.AgentTool
 	for _, s := range []strategy{newClaudeStrategy(), newCodexStrategy()} {
 		if !slices.Contains(allowed, s.name()) {

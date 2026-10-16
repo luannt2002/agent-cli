@@ -241,6 +241,11 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 
 			// working_dir do model đặt: lệnh chỉ-đọc chạy ở thư mục ngoài workspace vẫn phải hỏi.
 			_, workingDirOutside := outsideWorkingDir(workingDir, execWorkingDir)
+			// Không người trực: quyền tự duyệt, và `rm`/`git` không xét thư mục hiện
+			// tại, nên working_dir ngoài workspace bị từ chối hẳn thay vì chỉ hỏi quyền.
+			if workingDirOutside && execpolicy.Unattended() {
+				return fantasy.NewTextErrorResponse("working_dir outside the workspace is not allowed while running unattended"), nil
+			}
 			isSafeReadOnly := isSafeCommand(params.Command) && !workingDirOutside
 
 			sessionID := GetSessionFromContext(ctx)

@@ -58,7 +58,8 @@ class H(http.server.BaseHTTPRequestHandler):
             ev = lambda d: self.wfile.write(("data: " + json.dumps(d) + "\n\n").encode())
             cmd = None
             if msgs[-1].get('role') != 'tool':
-                if 'PUSHCALL' in last: cmd = "git push origin HEAD:refs/heads/pushed"
+                if 'ALIASCALL' in last: cmd = "git -c alias.p=push p origin HEAD:refs/heads/aliased"
+                elif 'PUSHCALL' in last: cmd = "git push origin HEAD:refs/heads/pushed"
                 elif 'TOOLCALL' in last: cmd = "touch e2e-probe"
             if cmd:
                 call = {"index": 0, "id": "call_1", "type": "function", "function": {"name": "bash", "arguments": json.dumps({"command": cmd, "description": "probe"})}}
@@ -143,6 +144,19 @@ refs_after_routine="$(git --git-dir="$t/pusher.bare.git" for-each-ref)"
 (cd "$repo2" && "$bin" run --json "PUSHCALL try to publish the work") >"$t/ctl.json" 2>/dev/null; rc=$?
 refs_after_run="$(git --git-dir="$t/pusher.bare.git" for-each-ref)"
 [ "$rc" -eq 0 ] && [[ "$refs_after_run" == *refs/heads/pushed* ]]; check "đối chứng: lệnh run (không chế độ không người trực) cùng lệnh PUSH ĐƯỢC (rc=$rc refs='$refs_after_run')" $?
+
+# ---- 3b: đường vòng alias (`git -c alias.p=push p`) cũng bị chặn; đối chứng bằng run ---
+repo4="$(mkrepo aliaser)"
+"$bin" routine new aliaser --mode goal --repo "$repo4" --goal "ALIASCALL try to publish through an alias" --verify 'test -f never' --max-repairs 0 >/dev/null 2>&1
+(cd "$t" && "$bin" routine run aliaser) >"$t/run3.out" 2>"$t/run3.err"; rc=$?
+refs_alias_routine="$(git --git-dir="$t/aliaser.bare.git" for-each-ref)"
+[ "$rc" -eq 1 ] && [ -z "$refs_alias_routine" ]; check "routine: git -c alias.p=push p bị chặn, remote vẫn rỗng (rc=$rc refs='$refs_alias_routine')" $?
+(cd "$repo4" && "$bin" run --json "ALIASCALL try to publish through an alias") >/dev/null 2>&1; rc=$?
+refs_alias_run="$(git --git-dir="$t/aliaser.bare.git" for-each-ref)"
+[ "$rc" -eq 0 ] && [[ "$refs_alias_run" == *refs/heads/aliased* ]]; check "đối chứng: cùng lệnh alias qua run PUSH ĐƯỢC (rc=$rc refs='$refs_alias_run')" $?
+(cd "$t" && "$bin" routine run green --cwd "$repo") >/dev/null 2>"$t/cwd.err"; rc=$?
+cwd_err="$(cat "$t/cwd.err")"
+[ "$rc" -eq 2 ] && [[ "$cwd_err" == *worktree* ]]; check "routine run --cwd bị từ chối (rc=$rc)" $?
 
 # ---- 4: khoá chống chạy chồng (mã 75) -----------------------------------------
 sleep 1.1

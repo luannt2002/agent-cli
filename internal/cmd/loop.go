@@ -285,8 +285,10 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
 // đổi gì. Không phải repo git (hoặc chưa có commit) thì không biết cây có đổi
 // không: trả giá trị luôn khác để không dừng oan vì STALLED.
 func gitFingerprint(dir string) func(ctx context.Context) (string, error) {
+	// Cấu hình của repo có thể do agent vừa ghi (core.fsmonitor, diff.external): tắt
+	// mọi chương trình do cấu hình chỉ định để dấu vân tay không chạy mã của nó.
 	git := func(ctx context.Context, args ...string) ([]byte, error) {
-		c := exec.CommandContext(ctx, "git", args...)
+		c := exec.CommandContext(ctx, "git", append([]string{"-c", "core.fsmonitor=false"}, args...)...)
 		c.Dir = dir
 		return c.Output()
 	}
@@ -297,7 +299,7 @@ func gitFingerprint(dir string) func(ctx context.Context) (string, error) {
 		}
 		h := sha256.New()
 		h.Write(head)
-		if diff, err := git(ctx, "diff", "HEAD"); err == nil {
+		if diff, err := git(ctx, "diff", "--no-ext-diff", "--no-textconv", "HEAD"); err == nil {
 			h.Write(diff)
 		}
 		if names, err := git(ctx, "ls-files", "--others", "--exclude-standard", "-z"); err == nil {

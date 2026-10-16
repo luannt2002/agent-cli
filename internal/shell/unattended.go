@@ -15,8 +15,8 @@ import (
 // -delete`, script nạp từ tệp hoặc stdin. Xem docs trong CHANGELOG.
 
 // UnattendedGuard là BlockFunc chặn lệnh nguy hiểm khi enabled() trả true.
-// allowCommit() mở `git commit` (routine bật commit tường minh); không mở thứ
-// nào khác. onBlock (có thể nil) nhận lý do để ghi log.
+// allowCommit() mở các lệnh tạo commit (git commit, am, cherry-pick, revert) khi
+// routine bật commit tường minh; không mở thứ nào khác. onBlock (có thể nil) nhận lý do để ghi log.
 func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason string, args []string)) BlockFunc {
 	g := ProcessGuard{Deny: func(args []string) (string, bool) {
 		return unattendedDenied(args, allowCommit())
@@ -33,77 +33,127 @@ func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason strin
 	}
 }
 
+// outboundTools nói chuyện với dịch vụ ngoài hoặc mở kênh mạng thô.
+var outboundTools = map[string]bool{"gh": true, "glab": true, "socat": true, "ncat": true}
+
 // unattendedDenied quyết một lệnh đơn (đã bóc lớp bọc) có bị chặn không.
 func unattendedDenied(args []string, allowCommit bool) (string, bool) {
-	switch baseName(args[0]) {
-	case "git":
+	name := baseName(args[0])
+	switch {
+	case name == "git":
 		return gitDenied(args[1:], allowCommit)
-	case "rm":
+	case strings.HasPrefix(name, "git-"):
+		return name + ": git helper commands run git plumbing directly and are not allowed while unattended", true
+	case name == "rm":
 		return rmDenied(args[1:])
-	case "rsync", "sftp":
-		return baseName(args[0]) + " copies to or from other machines, not allowed while unattended", true
+	case name == "rsync" || name == "sftp":
+		return name + " copies to or from other machines, not allowed while unattended", true
+	case outboundTools[name]:
+		return name + " talks to remote services, not allowed while unattended", true
 	}
 	return "", false
 }
 
-// gitGlobalValueFlags là cờ toàn cục của git ăn thêm một giá trị ở arg kế.
-var gitGlobalValueFlags = map[string]bool{"-C": true, "-c": true, "--git-dir": true, "--work-tree": true, "--namespace": true}
+// gitGlobalValueFlags là cờ toàn cục của git ăn thêm một giá trị ở arg kế. Cờ
+// khác ăn giá trị tách rời mà ta không biết thì giá trị rơi vào chỗ lệnh con và
+// bị danh sách trắng chặn (fail-closed).
+var gitGlobalValueFlags = map[string]bool{"-C": true, "--git-dir": true, "--work-tree": true, "--namespace": true}
 
+// gitReadOnly: lệnh con chỉ đọc, luôn qua.
+var gitReadOnly = map[string]bool{
+	"status": true, "diff": true, "log": true, "show": true, "blame": true, "grep": true,
+	"ls-files": true, "ls-tree": true, "rev-parse": true, "rev-list": true, "describe": true,
+	"shortlog": true, "cat-file": true, "merge-base": true, "name-rev": true, "show-ref": true,
+	"for-each-ref": true, "check-ignore": true, "diff-tree": true, "diff-index": true,
+	"diff-files": true, "count-objects": true, "version": true,
+}
+
+// gitWorktreeOnly: chỉ đổi cây làm việc/chỉ mục của worktree riêng của routine.
+var gitWorktreeOnly = map[string]bool{"add": true, "rm": true, "mv": true, "apply": true}
+
+// gitDenied là DANH SÁCH TRẮNG cho git khi không người trực. Danh sách đen theo
+// tên lệnh con bị vòng ngay bằng alias (`git -c alias.p=push p`, hay `git config
+// alias.p push` rồi `git p`), cờ toàn cục lạ, biến chưa mở rộng; nên lệnh con
+// lạ, rỗng hay động đều bị chặn, `-c`/`--config-env` bị cấm, `git config` chỉ
+// được đọc.
 func gitDenied(args []string, allowCommit bool) (string, bool) {
 	i := 0
 	for i < len(args) && strings.HasPrefix(args[i], "-") {
-		if gitGlobalValueFlags[args[i]] {
+		a := args[i]
+		if a == "-c" || strings.HasPrefix(a, "--config-env") {
+			return "git " + a + " can define aliases and hooks and is not allowed while unattended", true
+		}
+		if gitGlobalValueFlags[a] {
 			i++
 		}
 		i++
 	}
 	if i >= len(args) {
-		return "", false
+		return "git without a subcommand (its arguments come from elsewhere) is not allowed while unattended", true
 	}
 	sub, rest := args[i], args[i+1:]
 	deny := func(why string) (string, bool) {
 		return "git " + sub + ": " + why + " is not allowed while unattended", true
 	}
+	switch {
+	case gitReadOnly[sub], gitWorktreeOnly[sub]:
+		return "", false
+	}
 	switch sub {
-	case "push", "pull", "merge", "rebase", "filter-branch", "update-ref", "clean":
-		return deny("it publishes, merges or rewrites history or deletes untracked files")
 	case "commit", "am", "cherry-pick", "revert":
-		if !allowCommit {
-			return deny("committing (enable commit in the routine definition)")
+		if allowCommit {
+			return "", false
 		}
+		return deny("committing (set \"commit\": true in the routine definition)")
 	case "reset":
 		if hasAny(rest, "--hard", "--merge", "--keep") {
 			return deny("a hard reset")
 		}
+		return "", false
 	case "branch":
 		if hasFlagLetters(rest, "dDmMfcC", "--delete", "--move", "--force", "--copy") {
 			return deny("deleting, renaming or copying branches")
 		}
+		return "", false
 	case "tag":
 		if hasFlagLetters(rest, "df", "--delete", "--force") {
 			return deny("deleting or moving tags")
 		}
-	case "worktree":
-		if len(rest) > 0 && (rest[0] == "remove" || rest[0] == "prune" || rest[0] == "move") {
-			return deny("removing or moving worktrees")
+		return "", false
+	case "checkout", "switch":
+		// Chỉ tạo nhánh mới: checkout/switch khác có thể bỏ thay đổi hay đổi nhánh dùng chung.
+		if hasAny(rest, "-b", "-c", "--create") && !hasAny(rest, "-B", "-C", "-f", "--force", "--force-create", "--") {
+			return "", false
 		}
+		return deny("anything but creating a new branch")
+	case "restore":
+		if hasAny(rest, "--staged") && !hasAny(rest, "--worktree", "-W", "-S") {
+			return "", false
+		}
+		return deny("restoring files in the worktree")
+	case "stash":
+		if len(rest) > 0 && (rest[0] == "list" || rest[0] == "show") {
+			return "", false
+		}
+		return deny("changing the stash (shared with your checkout)")
 	case "remote":
-		if len(rest) > 0 {
-			switch rest[0] {
-			case "add", "remove", "rm", "rename", "set-url", "set-head", "set-branches", "prune", "update":
-				return deny("changing or contacting remotes")
-			}
+		if len(rest) == 0 || rest[0] == "-v" || rest[0] == "--verbose" || rest[0] == "show" || rest[0] == "get-url" {
+			return "", false
 		}
-	case "reflog":
-		if len(rest) > 0 && (rest[0] == "expire" || rest[0] == "delete") {
-			return deny("deleting reflog entries")
+		return deny("changing or contacting remotes")
+	case "worktree":
+		if len(rest) > 0 && rest[0] == "list" {
+			return "", false
 		}
+		return deny("managing worktrees")
 	case "config":
-		if hasAny(rest, "--global", "--system", "--file", "-f") {
-			return deny("writing git config outside the repository")
+		if hasAny(rest, "--get", "--get-all", "--get-regexp", "--list", "-l") &&
+			!hasAny(rest, "--add", "--unset", "--unset-all", "--replace-all", "--rename-section", "--remove-section", "-e", "--edit", "-f", "--file") {
+			return "", false
 		}
+		return deny("writing git config")
 	}
-	return "", false
+	return deny("it is not on the allow-list (read-only commands, add/rm/mv/apply, new branches, local tags)")
 }
 
 // hasAny báo rest có một trong các cờ cho trước (nguyên văn).
@@ -118,8 +168,9 @@ func hasAny(rest []string, flags ...string) bool {
 	return false
 }
 
-// hasFlagLetters báo rest có cờ dài trong long, hoặc cờ ngắn (gộp được, vd -dr)
-// chứa một chữ trong letters.
+// hasFlagLetters báo rest có cờ dài trong long, hoặc cụm cờ ngắn (gộp được, vd
+// -dr; chỉ xét cụm ngắn toàn chữ, để giá trị như `-committerdate` của --sort không
+// bị coi là cờ) chứa một chữ trong letters.
 func hasFlagLetters(rest []string, letters string, long ...string) bool {
 	for _, a := range rest {
 		if strings.HasPrefix(a, "--") {
@@ -130,16 +181,28 @@ func hasFlagLetters(rest []string, letters string, long ...string) bool {
 			}
 			continue
 		}
-		if strings.HasPrefix(a, "-") && strings.ContainsAny(a[1:], letters) {
+		if len(a) > 1 && len(a) <= 4 && strings.HasPrefix(a, "-") && isLetters(a[1:]) && strings.ContainsAny(a[1:], letters) {
 			return true
 		}
 	}
 	return false
 }
 
-// rmDenied chặn `rm` đệ quy có đích ra ngoài workspace: đường dẫn tuyệt đối, ~,
-// có biến chưa mở rộng, hoặc có thành phần "..". Xoá đệ quy trong workspace
-// (rm -rf build) và xoá một tệp (kể cả tuyệt đối, không đệ quy) vẫn qua.
+func isLetters(s string) bool {
+	for _, r := range s {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+			return false
+		}
+	}
+	return true
+}
+
+// rmDenied chặn `rm` có đích ngoài workspace, đệ quy hay không (`rm -f
+// ~/.ssh/id_rsa` cũng nguy hiểm): đường dẫn tuyệt đối, ~, có biến chưa mở rộng,
+// hoặc có thành phần "..". Không có đích nào (tham số đến từ xargs/stdin) cũng bị
+// chặn vì không kiểm được. Xoá trong workspace (rm -rf build, rm file) vẫn qua. KHÔNG
+// xét thư mục hiện tại: `cd / && rm -rf home` không bị bắt ở đây (tool bash từ chối
+// working_dir ngoài workspace khi không người trực, nhưng `cd` trong lệnh thì không).
 func rmDenied(args []string) (string, bool) {
 	recursive := false
 	var targets []string
@@ -161,14 +224,15 @@ func rmDenied(args []string) (string, bool) {
 			targets = append(targets, a)
 		}
 	}
-	if !recursive {
-		return "", false
+	_ = recursive // mọi rm đều phải ở trong workspace, đệ quy hay không
+	if len(targets) == 0 {
+		return "rm without explicit targets (they come from xargs or stdin) is not allowed while unattended", true
 	}
 	for _, t := range targets {
 		if strings.HasPrefix(t, "/") || strings.HasPrefix(t, "~") || strings.Contains(t, "$") ||
 			strings.Contains(t, dynamicWord) || t == ".." || strings.HasPrefix(t, "../") ||
 			strings.HasSuffix(t, "/..") || strings.Contains(t, "/../") {
-			return "recursive rm with a target outside the workspace (" + t + ") is not allowed while unattended", true
+			return "rm with a target outside the workspace (" + t + ") is not allowed while unattended", true
 		}
 	}
 	return "", false

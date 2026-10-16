@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/crush/internal/lock"
 	"github.com/charmbracelet/crush/internal/loop"
 	"github.com/charmbracelet/crush/internal/routine"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
 
@@ -321,4 +322,95 @@ func TestExitCodeFor(t *testing.T) {
 	require.Equal(t, 75, exitCodeFor(&exitCodeError{code: 75, err: errors.New("busy")}))
 	require.Equal(t, 75, exitCodeFor(errors.Join(errors.New("wrap"), &exitCodeError{code: 75, err: errors.New("busy")})))
 	require.Equal(t, 1, exitCodeFor(errors.New("boom")))
+}
+
+// Công tắc phải đi tới tiến trình CON qua env (agent chạy `crush loop`, hay một CLI khác,
+// từ bash): atomic trong tiến trình không đủ. Env được trả lại sau lượt chạy.
+func TestExecuteRoutine_ExportsTheSwitchToChildProcessesAndRestoresIt(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	for _, commit := range []bool{false, true} {
+		t.Setenv(execpolicy.UnattendedEnv, "")
+		t.Setenv(execpolicy.UnattendedCommitEnv, "")
+		e := newRoutineEnv(t)
+		e.opts.Def.Commit = commit
+		var envOn, envCommit string
+		_, err := executeRoutine(t.Context(), e.opts, e.deps(func(string) error {
+			envOn, envCommit = os.Getenv(execpolicy.UnattendedEnv), os.Getenv(execpolicy.UnattendedCommitEnv)
+			return nil
+		}))
+		require.NoError(t, err)
+		require.Equal(t, "1", envOn, "tiến trình con phải thấy chế độ không người trực")
+		if commit {
+			require.Equal(t, "1", envCommit)
+		} else {
+			require.NotEqual(t, "1", envCommit, "không mở commit khi định nghĩa không bật")
+		}
+		require.Empty(t, os.Getenv(execpolicy.UnattendedEnv), "trả lại env sau khi chạy")
+		require.Empty(t, os.Getenv(execpolicy.UnattendedCommitEnv))
+	}
+}
+
+// Dựng agent lỗi (vd chưa cấu hình provider) thì chưa có việc nào được làm: không để lại
+// worktree/nhánh mồ côi (một timer hằng ngày sẽ dồn dần), nhưng vẫn có báo cáo ERROR để
+// người dùng thấy routine hỏng thay vì im lặng.
+func TestExecuteRoutine_AgentSetupFailureLeavesNoOrphanButWritesAReport(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	e := newRoutineEnv(t)
+	deps := e.deps(nil)
+	deps.NewAgent = func(string) (func(context.Context, string) (loop.RunInfo, error), func(), error) {
+		return nil, nil, errors.New("no providers configured")
+	}
+	out, err := executeRoutine(t.Context(), e.opts, deps)
+	require.ErrorContains(t, err, "no providers configured")
+	require.Empty(t, gitIn(t, e.repo, "branch", "--list", "routine/*"), "nhánh tạm phải được dọn")
+	require.Len(t, strings.Split(gitIn(t, e.repo, "worktree", "list"), "\n"), 1, "chỉ còn worktree chính")
+	require.False(t, execpolicy.Unattended(), "trả lại công tắc")
+
+	raw, rerr := os.ReadFile(filepath.Join(out.RunDir, "report.json"))
+	require.NoError(t, rerr)
+	var rep routineReport
+	require.NoError(t, json.Unmarshal(raw, &rep))
+	require.Equal(t, "ERROR", rep.Reason)
+	require.Contains(t, rep.Detail, "no providers configured")
+
+	// Khoá đã nhả: chạy lại được.
+	release, lerr := lock.TryFile(routineLockPath(e.data, "nightly"))
+	require.NoError(t, lerr)
+	release()
+}
+
+// `routine run` làm việc trong worktree của nó: --cwd sẽ đưa agent thẳng vào repo của người dùng.
+func TestRejectCwdFlag(t *testing.T) {
+	t.Parallel()
+	c := &cobra.Command{Use: "x"}
+	c.Flags().String("cwd", "", "")
+	require.NoError(t, rejectCwdFlag(c))
+	require.NoError(t, c.Flags().Set("cwd", "/tmp"))
+	err := rejectCwdFlag(c)
+	require.Error(t, err)
+	var ue *usageError
+	require.True(t, errors.As(err, &ue))
+	require.Contains(t, err.Error(), "worktree")
+}
+
+// Driver chạy `git diff HEAD` trong repo mà agent vừa sửa cấu hình: cấu hình đó không
+// được chạy mã (diff.external, core.fsmonitor).
+func TestGitFingerprint_DoesNotRunRepoConfiguredPrograms(t *testing.T) {
+	t.Parallel()
+	dir := gitInit(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644))
+	gitIn(t, dir, "add", "a.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "a")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("2\n"), 0o644))
+
+	marker := filepath.Join(t.TempDir(), "ran")
+	script := filepath.Join(t.TempDir(), "evil.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 0\n"), 0o755))
+	gitIn(t, dir, "config", "diff.external", script)
+	gitIn(t, dir, "config", "core.fsmonitor", script)
+
+	fp, err := gitFingerprint(dir)(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, fp)
+	require.NoFileExists(t, marker, "dấu vân tay không được chạy chương trình do cấu hình repo chỉ định")
 }

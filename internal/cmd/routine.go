@@ -206,6 +206,9 @@ func init() {
 75 another run of this routine holds the lock.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectCwdFlag(cmd); err != nil {
+				return err
+			}
 			d, sum, err := loadRoutine(routineDefsDir(), args[0])
 			if err != nil {
 				return &usageError{err}
@@ -243,6 +246,45 @@ func init() {
 
 	routineCmd.AddCommand(newCmd, listCmd, showCmd, scheduleCmd, runCmd)
 	rootCmd.AddCommand(routineCmd)
+}
+
+// rejectCwdFlag: `routine run` làm việc trong worktree của nó; --cwd/-c sẽ đưa
+// agent thẳng vào checkout của người dùng (ResolveCwd chdir theo cờ này).
+func rejectCwdFlag(cmd *cobra.Command) error {
+	if cmd.Flags().Changed("cwd") {
+		return &usageError{errors.New("routine run works in its own git worktree; --cwd would put the agent in your own checkout")}
+	}
+	return nil
+}
+
+// exportUnattendedEnv đặt biến công tắc cho MỌI tiến trình con của lượt chạy (agent
+// chạy `crush loop`, hay CLI khác, từ bash): cờ atomic trong tiến trình không tới
+// được chúng. Trả hàm khôi phục env cũ. commit=false đặt rõ "0" để một biến mở
+// commit có sẵn trong env của người gọi không lọt sang routine không bật commit.
+func exportUnattendedEnv(commit bool) func() {
+	commitVal := "0"
+	if commit {
+		commitVal = "1"
+	}
+	type saved struct {
+		key, val string
+		had      bool
+	}
+	var prev []saved
+	for _, kv := range [][2]string{{execpolicy.UnattendedEnv, "1"}, {execpolicy.UnattendedCommitEnv, commitVal}} {
+		old, had := os.LookupEnv(kv[0])
+		prev = append(prev, saved{kv[0], old, had})
+		_ = os.Setenv(kv[0], kv[1])
+	}
+	return func() {
+		for _, p := range prev {
+			if p.had {
+				_ = os.Setenv(p.key, p.val)
+			} else {
+				_ = os.Unsetenv(p.key)
+			}
+		}
+	}
 }
 
 // Thư mục định nghĩa nằm cạnh cấu hình toàn cục của người dùng; dữ liệu chạy (khoá,
@@ -491,10 +533,24 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 
 	execpolicy.SetUnattended(true, def.Commit)
 	defer execpolicy.SetUnattended(false, false)
+	defer exportUnattendedEnv(def.Commit)()
 
 	agent, cleanup, err := d.NewAgent(worktree)
 	if err != nil {
-		return routineOutcome{}, err
+		// Chưa có việc nào được làm: dọn worktree và nhánh vừa tạo (một timer hằng ngày
+		// sẽ dồn chúng dần), nhưng để lại báo cáo ERROR để routine hỏng không im lặng.
+		_, _ = git("worktree", "remove", "--force", worktree)
+		_, _ = git("branch", "-D", branch)
+		rep := routineReport{
+			Routine: def.Name, Mode: def.Mode, DefinitionSHA256: o.Sum, Scheduled: o.Scheduled,
+			Started: started, Finished: now(), Repo: def.Repo, Branch: branch, BaseSHA: base,
+			Commit: def.Commit, Reason: "ERROR", Detail: err.Error(),
+		}
+		out := routineOutcome{Report: rep, RunDir: runDir}
+		if werr := writeReport(runDir, rep); werr != nil {
+			return out, errors.Join(err, werr)
+		}
+		return out, err
 	}
 	defer cleanup()
 

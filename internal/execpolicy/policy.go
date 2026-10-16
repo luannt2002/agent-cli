@@ -34,7 +34,8 @@ const (
 	DelegationEnv = "AGENT_CLI_DELEGATION"
 	// UnattendedEnv bật chế độ không người trực (routine chạy theo lịch): lớp
 	// chặn lệnh phá huỷ/đẩy ra ngoài ở trình thực thi shell. UnattendedCommitEnv
-	// mở riêng `git commit` (không mở gì khác). Cả hai là biến tin cậy.
+	// mở riêng các lệnh tạo commit (git commit, am, cherry-pick, revert) và không
+	// mở thứ nào khác. Cả hai là biến tin cậy.
 	UnattendedEnv       = "AGENT_CLI_UNATTENDED"
 	UnattendedCommitEnv = "AGENT_CLI_UNATTENDED_COMMIT"
 )
@@ -383,7 +384,7 @@ var externalAgentPackages = []string{"claude-code", "@openai/codex", "@google/ge
 var selfNames = map[string]bool{"agent-cli": true, "crush": true}
 
 // selfAgentSubcommands là lệnh con của agent-cli chạy agent.
-var selfAgentSubcommands = map[string]bool{"run": true, "send": true, "server": true}
+var selfAgentSubcommands = map[string]bool{"run": true, "send": true, "server": true, "loop": true, "routine": true}
 
 // launchers chạy lệnh khác làm tiến trình con; lệnh thật nằm sau các cờ,
 // gán biến và tham số của chúng. Giá trị là các cờ nhận giá trị ở arg kế

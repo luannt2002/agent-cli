@@ -44,3 +44,28 @@ func TestUnattendedKeysAreTrusted(t *testing.T) {
 	require.True(t, slices.Contains(trustedKeys, UnattendedEnv))
 	require.True(t, slices.Contains(trustedKeys, UnattendedCommitEnv))
 }
+
+// `agent-cli loop` và `agent-cli routine run` chạy agent; từ bash của một agent đang
+// chạy không người trực chúng bị chặn như run/send/server (agent lồng).
+func TestSelfAgentSubcommandsIncludeLoopAndRoutine(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{
+		{"agent-cli", "loop", "--verify", "true", "x"},
+		{"crush", "routine", "run", "x"},
+		{"/usr/local/bin/agent-cli", "loop"},
+		{"env", "A=b", "agent-cli", "routine", "run", "x"},
+	} {
+		name, ok := ExternalAgentCommand(args)
+		require.Truef(t, ok, "%q phải bị chặn", args)
+		require.NotEmpty(t, name)
+	}
+	// Vế ngược: lệnh con không chạy agent thì không bị chặn.
+	for _, args := range [][]string{
+		{"agent-cli", "ps"},
+		{"agent-cli", "logs"},
+		{"agent-cli", "jobs"},
+	} {
+		_, ok := ExternalAgentCommand(args)
+		require.Falsef(t, ok, "%q không chạy agent, không được chặn", args)
+	}
+}

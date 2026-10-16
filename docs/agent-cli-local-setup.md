@@ -668,8 +668,11 @@ tệp định nghĩa của routine `maintenance`, rồi `agent-cli routine sched
 timer chạy khi đã đăng xuất cần `loginctl enable-linger $USER` (chưa kiểm trên máy này). Việc có đích (`goal`) không
 lên lịch được.
 
-Giới hạn cần biết: lớp chặn không người trực là danh sách đen, không phải sandbox (không phủ `python`/`node` tự
-xoá, `find -delete`, script nạp từ tệp). Chỉ cho routine chạy trên repo và máy bạn tin.
+Giới hạn cần biết: lớp chặn không người trực KHÔNG phải ranh giới an ninh. `git` chỉ cho một danh sách trắng
+(đọc, add/rm/mv, nhánh mới...; push/merge/reset --hard/alias/`-c` bị chặn), `rm` phải ở trong workspace, tool giao
+việc bị tắt, `working_dir` ngoài workspace bị từ chối. Nhưng agent viết mã rồi chạy `go test`/`make`/verify, và mã đó
+có thể làm bất cứ gì; chưa phủ `python`/`node`, `find -delete`, ghi tệp qua redirect, `cd / && rm -rf x`. Worktree
+dùng chung refs, config và hooks với repo gốc. Chỉ cho routine chạy trên repo và máy bạn tin.
 
 ## Tổ hợp phím
 

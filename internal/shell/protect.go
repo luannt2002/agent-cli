@@ -26,7 +26,20 @@ var processLaunchers = map[string]bool{
 	"stdbuf": true, "setsid": true, "ionice": true, "command": true,
 	"sudo": true, "doas": true, "xargs": true,
 	"exec": true, "builtin": true, "time": true, "taskset": true, "busybox": true,
+	"flock": true, "strace": true, "ltrace": true, "systemd-run": true, "chrt": true,
+	"unshare": true, "nsenter": true, "setpriv": true, "fakeroot": true,
 }
+
+// launcherFlagTakesValue ghi đè launcherValueFlags cho một lớp bọc cụ thể: cờ
+// dùng chung tên nhưng có nghĩa khác (`sudo --user NAME` ăn giá trị, còn
+// `systemd-run --user` thì không).
+var launcherFlagTakesValue = map[string]map[string]bool{
+	"systemd-run": {"--user": false, "--system": false},
+}
+
+// launcherPositionals là số tham số vị trí (không phải cờ) mà một lớp bọc ăn TRƯỚC
+// lệnh thật: `flock FILE cmd`.
+var launcherPositionals = map[string]int{"flock": 1}
 
 // launcherValueFlags là các cờ của lớp bọc ăn thêm một GIÁ TRỊ ở arg kế (vd
 // `sudo -u root`, `xargs -I{} ...`): phải bỏ cả giá trị để không nhầm nó là
@@ -38,6 +51,8 @@ var launcherValueFlags = map[string]bool{
 	"-I": true, "--replace": true, "-a": true, "--arg-file": true,
 	"-E": true, "--eof": true, "-d": true, "--delimiter": true,
 	"-L": true, "--max-lines": true, "-P": true, "--max-procs": true,
+	"-s": true, "--signal": true, "-k": true, "--kill-after": true, // timeout
+	"-c": true, // taskset -c CPULIST
 }
 
 // shutdownCommands tắt/khởi động lại cả máy: box chạy dịch vụ thật nên chặn
@@ -82,18 +97,29 @@ func baseName(arg string) string {
 // lệnh thật.
 func peelLaunchers(args []string) []string {
 	for len(args) > 0 && processLaunchers[baseName(args[0])] {
+		name := baseName(args[0])
+		positionals := launcherPositionals[name]
 		args = args[1:]
 		for len(args) > 0 {
 			a := args[0]
 			// Bỏ cờ, gán biến (A=b) và tham số số (timeout 5) của lớp bọc.
 			if strings.HasPrefix(a, "-") {
 				args = args[1:]
-				if launcherValueFlags[a] && len(args) > 0 {
+				takes := launcherValueFlags[a]
+				if override, ok := launcherFlagTakesValue[name][a]; ok {
+					takes = override
+				}
+				if takes && len(args) > 0 {
 					args = args[1:] // bỏ luôn giá trị đi kèm
 				}
 				continue
 			}
-			if strings.Contains(a, "=") || isAllDigits(a) || isDuration(a) {
+			if strings.Contains(a, "=") || isAllDigits(a) || isNumericArg(a) {
+				args = args[1:]
+				continue
+			}
+			if positionals > 0 {
+				positionals--
 				args = args[1:]
 				continue
 			}
@@ -103,10 +129,11 @@ func peelLaunchers(args []string) []string {
 	return args
 }
 
-// isDuration nhận đối số thời gian của timeout/sleep: 5, 5s, 1.5m, 2h, 1d.
-var durationArg = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?[smhd]?$`)
+// numericArg nhận tham số số của lớp bọc: thời gian (5, 5s, 1.5m, 2h), danh sách
+// CPU của taskset (0,2 hay 0-3) và mặt nạ thập lục phân (0x3).
+var numericArg = regexp.MustCompile(`^(0x[0-9a-fA-F]+|[0-9][0-9,.\-]*[smhd]?)$`)
 
-func isDuration(s string) bool { return durationArg.MatchString(s) }
+func isNumericArg(s string) bool { return numericArg.MatchString(s) }
 
 func isAllDigits(s string) bool {
 	if s == "" {

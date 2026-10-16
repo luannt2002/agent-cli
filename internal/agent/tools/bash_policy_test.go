@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"testing"
 
+	"charm.land/fantasy"
 	"mvdan.cc/sh/v3/syntax"
 
 	"github.com/charmbracelet/crush/internal/execpolicy"
@@ -148,4 +150,35 @@ func TestBashBlocksDestructiveCommandsWhenUnattended(t *testing.T) {
 	if err != nil {
 		require.NotContains(t, err.Error(), "not allowed for security reasons")
 	}
+}
+
+// Không người trực thì `working_dir` ngoài workspace bị TỪ CHỐI hẳn (không chỉ hỏi
+// quyền: dưới `run` quyền tự duyệt, và `rm` không xét thư mục hiện tại). Đối chứng:
+// khi không ở chế độ đó thì lệnh chạy được như thường. KHÔNG song song (công tắc toàn cục).
+func TestBashRefusesWorkingDirOutsideWorkspaceWhileUnattended(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	work := t.TempDir()
+	outside := t.TempDir()
+	run := func(marker string) fantasy.ToolResponse {
+		tool, _ := newBashToolWithRecordingPerms(work, true)
+		ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+		return runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: "touch " + marker, WorkingDir: outside})
+	}
+
+	execpolicy.SetUnattended(false, false)
+	run("control")
+	require.FileExists(t, filepath.Join(outside, "control"), "đối chứng: bình thường lệnh chạy được")
+
+	execpolicy.SetUnattended(true, false)
+	resp := run("blocked")
+	require.NoFileExists(t, filepath.Join(outside, "blocked"), "không người trực: lệnh không được chạy")
+	require.Contains(t, resp.Content, "not allowed")
+
+	// working_dir trong workspace vẫn chạy được.
+	sub := filepath.Join(work, "sub")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	tool, _ := newBashToolWithRecordingPerms(work, true)
+	ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+	runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: "touch inside", WorkingDir: sub})
+	require.FileExists(t, filepath.Join(sub, "inside"))
 }

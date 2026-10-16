@@ -27,7 +27,7 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   hình của bạn, không nằm trong repo nên repo lạ không tự thêm được việc chạy theo lịch). Hai mode: `maintenance`
   (cơ học, kiểm được, vô tận: được lên lịch) và `goal` (có đích như làm tính năng: chỉ chạy tay; `--scheduled`
   bị từ chối). Định nghĩa bắt buộc có `verify` ("xong" là lệnh nào), từ chối trường lạ, `max_repairs` 0–5.
-  `routine run` mỗi lần: giữ khoá (lượt thứ hai thoát **75**, không có khoá mồ côi); làm việc trong **git worktree
+  `routine run` mỗi lần (từ chối `--cwd`): giữ khoá (lượt thứ hai thoát **75**, không có khoá mồ côi); làm việc trong **git worktree
   riêng** `routine/<tên>-<thời điểm>` ngoài repo (checkout của bạn không bị đụng; worktree và nhánh được giữ lại để
   bạn duyệt, kèm lệnh xem diff và lệnh dọn); chạy agent in-process với **chế độ không người trực** bật; ghi báo
   cáo 0600 ngoài worktree (sha định nghĩa, nhánh, base, lý do dừng, verify cuối, journal). Không commit trừ khi
@@ -35,14 +35,29 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   đổi so với lúc cài lịch. Mã thoát: 0 GREEN, 1 khác, 2 dùng sai, 75 đang chạy.
   `routine schedule NAME --print` chỉ IN unit systemd `--user` (`Persistent=true`, `TZ`/`PATH` tường minh,
   `TimeoutStartSec`) và/hoặc dòng crontab, kèm lệnh cài để bạn tự chạy; agent-cli không bao giờ sửa timer hay crontab.
-- **Chế độ không người trực** (`AGENT_CLI_UNATTENDED=1`, hoặc routine tự bật): chặn CỨNG ở trình thực thi shell,
-  trước cả quyền đã cấp và YOLO: `git push/pull/merge/rebase/reset --hard/clean`, xoá/đổi tên nhánh và tag,
-  `worktree remove/prune`, `update-ref`, đổi remote, `reflog expire`, ghi `git config` toàn cục, `git commit`
-  (mở riêng bằng `AGENT_CLI_UNATTENDED_COMMIT=1`), `rsync`/`sftp`, và `rm` đệ quy có đích ngoài workspace
-  (kể cả khi lồng trong `sh -c`, vòng lặp, `$(...)`). Biến là biến tin cậy: đọc từ env gốc đã chụp đầu main nên
-  `.env` của repo không bật/tắt được. Đây là danh sách đen, KHÔNG phải sandbox: chưa phủ `python`/`node` tự xoá,
-  `find -delete`, script nạp từ tệp hay stdin; vì vậy routine chạy trong worktree riêng và `loop`/`routine` không
-  dành cho môi trường bạn không tin.
+- **Chế độ không người trực** (`AGENT_CLI_UNATTENDED=1`; `routine run` tự bật và tự xuất biến này cho mọi tiến
+  trình con rồi trả lại): lớp chặn CỨNG ở trình thực thi shell, trước cả quyền đã cấp và YOLO. Đây là danh sách
+  đen cộng một danh sách TRẮNG cho git, KHÔNG phải sandbox. Cụ thể:
+  - `git` chỉ cho: lệnh đọc (`status`, `diff`, `log`, `show`, `blame`, `grep`, `ls-files`, `rev-parse`...),
+    `add/rm/mv/apply`, `reset` không `--hard`, `branch`/`tag` không xoá/đổi tên, `checkout -b`/`switch -c`,
+    `restore --staged`, `stash list|show`, `remote -v|show|get-url`, `worktree list`, `config` chỉ đọc.
+    Lệnh con lạ, rỗng hoặc chưa mở rộng bị chặn (nên alias `git -c alias.p=push p`, `git config alias.p push`,
+    cờ toàn cục lạ như `--attr-source`, `git-push`, `send-pack`, `xargs git`, `bash -c 'git "$1"' _ push` đều bị
+    chặn); `-c`/`--config-env` bị cấm. `git commit`, `am`, `cherry-pick`, `revert` chỉ mở khi định nghĩa có
+    `"commit": true` (`AGENT_CLI_UNATTENDED_COMMIT=1`); không mở thứ gì khác.
+  - `rm` có đích tuyệt đối, `~`, `$VAR`, `..` hoặc không có đích (tham số từ `xargs`) bị chặn, đệ quy hay không;
+    `rsync`, `sftp`, `gh`, `glab`, `socat`, `ncat` bị chặn (cùng `ssh`, `scp`, `curl`, `sudo`, `crontab`,
+    `systemctl` đã bị cấm sẵn). Bóc lớp bọc: `env`, `timeout -s`, `taskset -c 0,2`, `flock FILE`, `strace`,
+    `systemd-run --user`, `nice`, `chrt`, `xargs`... và script trong `sh -c`/`eval` (vòng lặp, `$(...)`).
+  - Tool bash từ chối `working_dir` ngoài workspace; tool giao việc `claude_code`/`codex` không được đăng ký;
+    `agent-cli loop`/`routine` gọi từ bash bị chặn như `run`/`send`/`server`.
+  - Biến là biến tin cậy: đọc từ env gốc đã chụp đầu main, nên `.env` của repo không bật/tắt được.
+  KHÔNG phải ranh giới an ninh: agent viết mã rồi chạy `go test`/`make`/verify, và mã đó có thể gọi `git push`.
+  Chưa phủ `python`/`node` tự xoá hay mở socket, `find -delete`, ghi tệp qua redirect/`tee`/`cp`/`mv`, `cd /; rm
+  -rf x` (rm không xét `cd`), script nạp từ tệp hoặc stdin, agent ghi unit systemd vào `~/.config/systemd/user`
+  bằng tool ghi tệp. Worktree dùng CHUNG refs, `.git/config` và hooks với repo gốc; hooks của repo chạy lúc
+  `git worktree add`. Vì vậy chỉ chạy routine trên repo và máy bạn tin, và coi `--scheduled` là khai báo (rào thật
+  là: định nghĩa `goal` không thể mang lịch và không in được lịch).
   Chưa có: UI (Alt+R, sidebar, dòng trạng thái), lịch tự cài, pause/resume, nhiều worker ghi song song.
 
 ### Sửa lỗi
