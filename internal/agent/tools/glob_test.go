@@ -9,6 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Pattern có tiền tố thư mục không tồn tại trả 0 kết quả, không lỗi (ca
+// `.github/workflows/*` trong repo không có CI).
+func TestGlobFilesMissingPatternDirReturnsEmpty(t *testing.T) {
+	root := t.TempDir()
+	got, truncated, err := globFiles(context.Background(), ".github/workflows/*", root, 100)
+	require.NoError(t, err)
+	require.False(t, truncated)
+	require.Empty(t, got)
+}
+
 func TestGlobFilesScopedPrefixMatchesUnscoped(t *testing.T) {
 	t.Parallel()
 

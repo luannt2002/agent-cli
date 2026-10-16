@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -124,6 +125,15 @@ func globWalkRoot(pattern, searchPath string) (walkRoot, walkPattern string) {
 
 func globFiles(ctx context.Context, pattern, searchPath string, limit int) ([]string, bool, error) {
 	walkRoot, walkPattern := globWalkRoot(pattern, searchPath)
+
+	// Tiền tố thư mục của pattern không tồn tại (vd `.github/workflows/*` trong
+	// repo không có CI): không khớp gì, như shell glob — không phải lỗi. Chỉ áp
+	// khi tiền tố KHÁC searchPath; search path chính vắng vẫn để fsext báo lỗi.
+	if walkRoot != searchPath {
+		if _, statErr := os.Stat(walkRoot); os.IsNotExist(statErr) {
+			return nil, false, nil
+		}
+	}
 
 	cmdRg := getRgCmd(ctx, walkPattern)
 	if cmdRg != nil {
