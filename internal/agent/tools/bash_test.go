@@ -227,3 +227,28 @@ func TestTruncateOutputEmoji(t *testing.T) {
 	require.True(t, utf8.ValidString(out), "truncated output must stay valid UTF-8")
 	require.Contains(t, out, "lines truncated")
 }
+
+// Mã thoát của lệnh nằm trong metadata (không chỉ trong chữ "Exit code N"),
+// để UI và script phân biệt lệnh lỗi mà không phải đọc output.
+func TestBashTool_MetadataCarriesExitCode(t *testing.T) {
+	for _, tc := range []struct {
+		command string
+		want    int
+	}{
+		{"true", 0},
+		{"false", 1},
+		{"sh -c 'exit 3'", 3},
+	} {
+		t.Run(tc.command, func(t *testing.T) {
+			tool, _ := newBashToolWithRecordingPerms(t.TempDir(), true)
+			ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+
+			resp := runBashTool(t, tool, ctx, BashParams{Description: "exit code", Command: tc.command})
+
+			var meta BashResponseMetadata
+			require.NoError(t, json.Unmarshal([]byte(resp.Metadata), &meta))
+			require.NotNil(t, meta.ExitCode, "metadata phải mang exit_code")
+			require.Equal(t, tc.want, *meta.ExitCode)
+		})
+	}
+}

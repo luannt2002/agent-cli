@@ -47,6 +47,9 @@ type BashResponseMetadata struct {
 	WorkingDirectory string `json:"working_directory"`
 	Background       bool   `json:"background,omitempty"`
 	ShellID          string `json:"shell_id,omitempty"`
+	// ExitCode chỉ có khi lệnh đã chạy xong; con trỏ để phân biệt 0 với "không biết"
+	// (tin nhắn cũ, job nền còn chạy).
+	ExitCode *int `json:"exit_code,omitempty"`
 }
 
 const (
@@ -294,6 +297,7 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 						Description:      params.Description,
 						Background:       params.RunInBackground,
 						WorkingDirectory: bgShell.WorkingDir,
+						ExitCode:         &exitCode,
 					}
 					if stdout == "" {
 						return fantasy.WithResponseMetadata(fantasy.NewTextResponse(BashNoOutput), metadata), nil
@@ -380,6 +384,7 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 					Description:      params.Description,
 					Background:       params.RunInBackground,
 					WorkingDirectory: bgShell.WorkingDir,
+					ExitCode:         &exitCode,
 				}
 				if stdout == "" {
 					return fantasy.WithResponseMetadata(fantasy.NewTextResponse(BashNoOutput), metadata), nil

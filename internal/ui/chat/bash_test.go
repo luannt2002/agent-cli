@@ -122,3 +122,33 @@ func TestToolOutputPlainContent_SingleHiddenLineShown(t *testing.T) {
 	require.NotContains(t, out, "line12")
 	require.Contains(t, out, "2 lines hidden")
 }
+
+// TestBashToolMessageItem_NonZeroExitIsNotShownAsSuccess: lệnh thoát mã ≠ 0
+// không được mang dấu ✓ thành công; mã 0 và tin nhắn cũ (không có exit_code)
+// giữ nguyên hiển thị.
+func TestBashToolMessageItem_NonZeroExitIsNotShownAsSuccess(t *testing.T) {
+	t.Parallel()
+
+	sty := styles.CharmtonePantera()
+	render := func(metadata string) string {
+		tc := message.ToolCall{ID: "bashx", Name: "bash", Input: `{"command":"go test ./..."}`, Finished: true}
+		ctx := &BashToolRenderContext{}
+		return ansi.Strip(ctx.RenderTool(&sty, 120, &ToolRenderOpts{
+			ToolCall: tc,
+			Result:   &message.ToolResult{ToolCallID: "bashx", Content: "FAIL\nExit code 1", Metadata: metadata},
+			Status:   ToolStatusSuccess,
+		}))
+	}
+
+	failed := render(`{"output":"FAIL","exit_code":1}`)
+	require.Contains(t, failed, styles.ToolError)
+	require.Contains(t, failed, "exit=1")
+	require.NotContains(t, failed, styles.ToolSuccess)
+
+	ok := render(`{"output":"ok","exit_code":0}`)
+	require.Contains(t, ok, styles.ToolSuccess)
+	require.NotContains(t, ok, "exit=")
+
+	legacy := render(`{"output":"ok"}`)
+	require.Contains(t, legacy, styles.ToolSuccess)
+}

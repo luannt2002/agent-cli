@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -78,12 +79,19 @@ func (b *BashToolRenderContext) RenderTool(sty *styles.Styles, width int, opts *
 	if params.RunInBackground {
 		toolParams = append(toolParams, "background", "true")
 	}
+	// Lệnh thoát mã ≠ 0 vẫn là kết quả "thành công" của tool (model nhận chữ
+	// "Exit code N"), nhưng với người dùng thì đó là lệnh lỗi: đổi icon + ghi mã.
+	status := opts.Status
+	if opts.HasResult() && meta.ExitCode != nil && *meta.ExitCode != 0 && status == ToolStatusSuccess {
+		status = ToolStatusError
+		toolParams = append(toolParams, "exit", strconv.Itoa(*meta.ExitCode))
+	}
 
 	// The command is always rendered expanded (wrapped, never
 	// truncated); expansion only controls the output body.
 	headerOpts := *opts
 	headerOpts.ExpandedContent = true
-	header := toolHeader(sty, opts.Status, "Bash", cappedWidth, &headerOpts, toolParams...)
+	header := toolHeader(sty, status, "Bash", cappedWidth, &headerOpts, toolParams...)
 	if opts.Compact {
 		return header
 	}
