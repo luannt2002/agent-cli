@@ -79,24 +79,35 @@ func containsCommandChaining(s string) bool {
 // shortcut: a relative path through a symlink that leaves the project is not
 // seen here; upgrade by resolving the path with outsideWorkingDir.
 func argLeavesWorkspace(arg string) bool {
-	arg = strings.Trim(arg, `'"`)
 	if strings.Contains(arg, "$") {
 		return true
 	}
 	if strings.HasPrefix(arg, "-") {
 		if _, value, ok := strings.Cut(arg, "="); ok {
-			arg = strings.Trim(value, `'"`)
+			arg = value
 		}
 	}
 	return strings.HasPrefix(arg, "/") || strings.HasPrefix(arg, "~") ||
 		arg == ".." || strings.HasPrefix(arg, "../") || strings.HasSuffix(arg, "/..") || strings.Contains(arg, "/../")
 }
 
+// commandLeavesWorkspace applies argLeavesWorkspace the way the shell would see
+// the words: quotes and backslashes are dropped first (the shell joins a dot,
+// an empty quoted string and ./etc into ../etc, and turns a backslash-escaped
+// slash into a plain one), and brace expansion
+// ({/etc,}) is refused outright since it can build any path.
+// shortcut: dropping quotes also splits "a b" into two words; the cost is an
+// occasional extra prompt, never a missed one.
+func commandLeavesWorkspace(cmd string) bool {
+	flat := strings.NewReplacer("'", "", `"`, "", `\`, "").Replace(cmd)
+	return strings.ContainsAny(flat, "{}") || slices.ContainsFunc(strings.Fields(flat), argLeavesWorkspace)
+}
+
 // isSafeCommand reports whether cmd may skip the permission prompt: no
 // chaining, no argument that leaves the workspace, and it starts with a
 // safeCommands entry (whole word or word-flag).
 func isSafeCommand(cmd string) bool {
-	if containsCommandChaining(cmd) || slices.ContainsFunc(strings.Fields(cmd), argLeavesWorkspace) {
+	if containsCommandChaining(cmd) || commandLeavesWorkspace(cmd) {
 		return false
 	}
 	lower := strings.ToLower(cmd)

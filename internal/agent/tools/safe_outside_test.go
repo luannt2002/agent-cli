@@ -22,6 +22,7 @@ func TestIsSafeCommand_StaysInsideWorkspace(t *testing.T) {
 		"git log --oneline -1", "git log origin/main..HEAD", "git log --format=%H",
 		"git show HEAD:README.md", "git branch -a", "git config --get-regexp no-such-key",
 		"git ls-files src", "git grep -n foo",
+		"echo 'hello world'", `echo "a b"`,
 	} {
 		require.Truef(t, isSafeCommand(cmd), "%q phải vẫn tự duyệt", cmd)
 	}
@@ -36,6 +37,9 @@ func TestIsSafeCommand_StaysInsideWorkspace(t *testing.T) {
 		"ls /etc", `ls "/etc"`, "ls ~", "ls -la ~/.ssh", "ls ..", "ls ../x", "ls a/../b", "ls -la /",
 		"du -sh /", "git log -- /etc/passwd", "git ls-files /etc", "git show --stat=/x",
 		"git diff --git-dir=/etc",
+		// shell ghép chuỗi trước khi chạy: nháy, \ và {a,b} dựng được đường dẫn mà
+		// token không bắt đầu bằng "/" hay "..".
+		`ls \/etc`, "ls {/etc,}", "ls {/etc,/tmp}", "ls .''./etc", `ls ."."/etc`, `ls "/"etc`, "ls ''/etc", `ls /e\tc`,
 		// đổ biến môi trường
 		"printenv", "printenv HOME", "echo $HOME", `echo "$AWS_SECRET_ACCESS_KEY"`, "echo ${HOME}",
 		// nhắc lại: cấu hình có thể chứa token trong URL remote
