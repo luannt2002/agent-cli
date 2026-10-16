@@ -198,36 +198,36 @@ func TestEverforestDarkV2_PaletteMatchesSpec(t *testing.T) {
 		"bg_least_visible": "#0f1113", // bg.sunken
 		"bg_less_visible":  "#1b1e22", // bg.raised
 		"bg_most_visible":  "#23272d", // bg.overlay
-		"fg_base":          "#d0d2d1",
-		"fg_more_subtle":   "#929997", // fg.muted
-		"fg_most_subtle":   "#7d8585", // fg.subtle
+		"fg_base":          "#e6e9e7",
+		"fg_more_subtle":   "#b2b8b6", // fg.muted
+		"fg_most_subtle":   "#99a09e", // fg.subtle
 		"separator":        "#30343b", // border
-		"primary":          "#82aeb1", // accent
-		"accent":           "#82aeb1",
-		"info":             "#82aeb1",
-		"success":          "#8faf87",
-		"warning":          "#c2a66f",
-		"error":            "#c77d7d",
-		"diff_insert_fg":   "#8faf87",
-		"diff_delete_fg":   "#c77d7d",
+		"primary":          "#93cfd1", // accent
+		"accent":           "#93cfd1",
+		"info":             "#93cfd1",
+		"success":          "#9cc093",
+		"warning":          "#d4b87c",
+		"error":            "#dd9090",
+		"diff_insert_fg":   "#9cc093",
+		"diff_delete_fg":   "#dd9090",
 		"keyword":          "#a392b2", // syntax.keyword
 		"ansi_black":       "#23272d",
-		"ansi_red":         "#c77d7d",
-		"ansi_green":       "#8faf87",
-		"ansi_yellow":      "#c2a66f",
-		"ansi_blue":        "#829cb5",
+		"ansi_red":         "#dd9090",
+		"ansi_green":       "#9cc093",
+		"ansi_yellow":      "#d4b87c",
+		"ansi_blue":        "#9bb6d0",
 		"ansi_magenta":     "#a392b2",
-		"ansi_cyan":        "#82aeb1",
-		"ansi_white":       "#b7bbb9",
+		"ansi_cyan":        "#93cfd1",
+		"ansi_white":       "#c8ccca",
 
-		"ansi_bright_black":   "#525959",
-		"ansi_bright_red":     "#d28e8e",
-		"ansi_bright_green":   "#9fbc98",
-		"ansi_bright_yellow":  "#cfb583",
-		"ansi_bright_blue":    "#95aec4",
+		"ansi_bright_black":   "#5e6665",
+		"ansi_bright_red":     "#e6a0a0",
+		"ansi_bright_green":   "#accda4",
+		"ansi_bright_yellow":  "#dec78c",
+		"ansi_bright_blue":    "#a6c0d6",
 		"ansi_bright_magenta": "#b3a3c0",
-		"ansi_bright_cyan":    "#94bdc0",
-		"ansi_bright_white":   "#d0d2d1",
+		"ansi_bright_cyan":    "#a5dadc",
+		"ansi_bright_white":   "#e6e9e7",
 	}
 	for _, f := range PaletteFields() {
 		if w, ok := want[f.Name]; ok {
@@ -252,7 +252,7 @@ func TestEverforestDarkV2_UserForkLoads(t *testing.T) {
 
 	pure, err := LoadPaletteTheme(everforestDarkV2Name, Palette{})
 	require.NoError(t, err)
-	require.Equal(t, "#d0d2d1", *pure.Markdown.Code.Color, "bản nguyên trạng có override (inline code = fg.base)")
+	require.Equal(t, "#e6e9e7", *pure.Markdown.Code.Color, "bản nguyên trạng có override (inline code = fg.base)")
 
 	forked, err := LoadPaletteTheme(everforestDarkV2Name, Palette{Accent: "#ff8800"})
 	require.NoError(t, err)
@@ -272,7 +272,7 @@ func TestEverforestDarkV2_CloneKeepsColors(t *testing.T) {
 	require.Equal(t, s.ChromaTheme()[chroma.Keyword], clone.ChromaTheme()[chroma.Keyword])
 	newColor := "#ff0000"
 	clone.Markdown.Document.Color = &newColor
-	require.Equal(t, "#d0d2d1", *s.Markdown.Document.Color, "sửa bản clone không được chạm bản gốc")
+	require.Equal(t, "#e6e9e7", *s.Markdown.Document.Color, "sửa bản clone không được chạm bản gốc")
 }
 
 // Vai trò -> màu, đúng theo bảng quy tắc của thiết kế (Phase 4/5).
@@ -840,10 +840,10 @@ func TestLuanntThemeReportHeadingIsMuted(t *testing.T) {
 		{"markdown", s.Markdown.H1.Color, s.Markdown.H1.BackgroundColor},
 		{"plan", s.PlanMarkdown.H1.Color, s.PlanMarkdown.H1.BackgroundColor},
 	} {
-		require.Equal(t, "#d0d2d1", *md.fg, md.name)
+		require.Equal(t, "#e6e9e7", *md.fg, md.name)
 		require.Equal(t, "#1b1e22", *md.bg, md.name)
 		require.GreaterOrEqual(t, contrastRatio(*md.fg, *md.bg), 4.5, md.name)
 	}
-	require.Equal(t, "#d0d2d1", hexOf(s.Logo.TitleColorA))
+	require.Equal(t, "#e6e9e7", hexOf(s.Logo.TitleColorA))
 	require.Equal(t, hexOf(s.Logo.TitleColorA), hexOf(s.Logo.TitleColorB))
 }

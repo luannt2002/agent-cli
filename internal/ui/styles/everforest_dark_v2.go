@@ -55,48 +55,48 @@ var everforestV2 = everforestTokens{
 
 	// fgBase là fg.primary (chữ chính, tên thương hiệu); chữ thường trong khối
 	// code (synDefault) là fg.normal, tối hơn một bậc.
-	fgBase:   lipgloss.Color("#D0D2D1"),
-	fgMuted:  lipgloss.Color("#929997"),
-	fgSubtle: lipgloss.Color("#7D8585"),
+	fgBase:   lipgloss.Color("#E6E9E7"),
+	fgMuted:  lipgloss.Color("#B2B8B6"),
+	fgSubtle: lipgloss.Color("#99A09E"),
 
 	border:      lipgloss.Color("#30343B"),
-	borderFocus: lipgloss.Color("#82AEB1"),
-	accent:      lipgloss.Color("#82AEB1"),
+	borderFocus: lipgloss.Color("#93CFD1"),
+	accent:      lipgloss.Color("#93CFD1"),
 
-	success: lipgloss.Color("#8FAF87"),
-	warning: lipgloss.Color("#C2A66F"),
-	error:   lipgloss.Color("#C77D7D"),
-	info:    lipgloss.Color("#829CB5"),
+	success: lipgloss.Color("#9CC093"),
+	warning: lipgloss.Color("#D4B87C"),
+	error:   lipgloss.Color("#DD9090"),
+	info:    lipgloss.Color("#9BB6D0"),
 
-	diffAdd:    lipgloss.Color("#8FAF87"),
-	diffDelete: lipgloss.Color("#C77D7D"),
-	diffChange: lipgloss.Color("#C2A66F"),
+	diffAdd:    lipgloss.Color("#9CC093"),
+	diffDelete: lipgloss.Color("#DD9090"),
+	diffChange: lipgloss.Color("#D4B87C"),
 
 	synKeyword:  lipgloss.Color("#A392B2"),
-	synFunction: lipgloss.Color("#82AEB1"),
-	synString:   lipgloss.Color("#8FAF87"),
-	synNumber:   lipgloss.Color("#C2A66F"),
-	synComment:  lipgloss.Color("#7D8585"),
-	synDefault:  lipgloss.Color("#B7BBB9"),
-	synType:     lipgloss.Color("#82AEB1"),
+	synFunction: lipgloss.Color("#93CFD1"),
+	synString:   lipgloss.Color("#9CC093"),
+	synNumber:   lipgloss.Color("#D4B87C"),
+	synComment:  lipgloss.Color("#99A09E"),
+	synDefault:  lipgloss.Color("#C8CCCA"),
+	synType:     lipgloss.Color("#93CFD1"),
 
 	ansi: [16]color.Color{
 		lipgloss.Color("#23272D"), // black
-		lipgloss.Color("#C77D7D"), // red
-		lipgloss.Color("#8FAF87"), // green
-		lipgloss.Color("#C2A66F"), // yellow
-		lipgloss.Color("#829CB5"), // blue
+		lipgloss.Color("#DD9090"), // red
+		lipgloss.Color("#9CC093"), // green
+		lipgloss.Color("#D4B87C"), // yellow
+		lipgloss.Color("#9BB6D0"), // blue
 		lipgloss.Color("#A392B2"), // magenta
-		lipgloss.Color("#82AEB1"), // cyan
-		lipgloss.Color("#B7BBB9"), // white
-		lipgloss.Color("#525959"), // bright black
-		lipgloss.Color("#D28E8E"), // bright red
-		lipgloss.Color("#9FBC98"), // bright green
-		lipgloss.Color("#CFB583"), // bright yellow
-		lipgloss.Color("#95AEC4"), // bright blue
+		lipgloss.Color("#93CFD1"), // cyan
+		lipgloss.Color("#C8CCCA"), // white
+		lipgloss.Color("#5E6665"), // bright black
+		lipgloss.Color("#E6A0A0"), // bright red
+		lipgloss.Color("#ACCDA4"), // bright green
+		lipgloss.Color("#DEC78C"), // bright yellow
+		lipgloss.Color("#A6C0D6"), // bright blue
 		lipgloss.Color("#B3A3C0"), // bright magenta
-		lipgloss.Color("#94BDC0"), // bright cyan
-		lipgloss.Color("#D0D2D1"), // bright white
+		lipgloss.Color("#A5DADC"), // bright cyan
+		lipgloss.Color("#E6E9E7"), // bright white
 	},
 }
 
