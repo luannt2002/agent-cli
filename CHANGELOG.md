@@ -9,6 +9,16 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 
 ## [Unreleased]
 
+### Sửa lỗi
+
+- **Tiêu đề markdown (H1) vô hình trong theme tuỳ chỉnh.** Theme tuỳ chỉnh (vd `github-dark-dim` trong
+  `~/.config/agent-cli/themes/`) không nhận lớp "yên tĩnh" của theme dựng sẵn, nên H1 rơi về kiểu `quickStyle`
+  gốc: chữ `warning_subtle` trên nền `primary`. Với `#ffa657` trên `#79c0ff` đó là 1,00:1 (đo bằng công thức
+  WCAG). Nay theme tuỳ chỉnh dùng chữ `fg_base` cho H1, heading và inline code, nền `bg_less_visible`, H6 dùng
+  `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+  mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+  Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
+
 ## [0.2.0] - 2026-10-16
 
 Đợt sửa theo [audit 16/10](docs/reviews/2026-10-16-deep-audit-agent-cli.md) (mã nguồn `87233bc8`).

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"charm.land/glamour/v2/ansi"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/exp/charmtone"
 )
@@ -509,7 +510,8 @@ func LoadPaletteTheme(baseName string, palette Palette) (Styles, error) {
 	if err != nil {
 		return Styles{}, err
 	}
-	s := quickStyle(palette.ToQuickStyleOpts(base.ToQuickStyleOpts(rootOpts)))
+	opts := palette.ToQuickStyleOpts(base.ToQuickStyleOpts(rootOpts))
+	s := quickStyle(opts)
 	// Root theme overrides hardcode built-in colors (e.g. the Charmtone
 	// syntax palette) that only make sense for the untouched built-in.
 	// Only apply them when the theme is unmodified, so user themes (e.g.
@@ -519,8 +521,26 @@ func LoadPaletteTheme(baseName string, palette Palette) (Styles, error) {
 		if override, ok := builtinThemeOverrides[root]; ok {
 			s = override(s)
 		}
+	} else {
+		restyleMarkdownNeutral(&s.Markdown, opts)
+		restyleMarkdownNeutral(&s.PlanMarkdown, opts)
 	}
 	return s, nil
+}
+
+// restyleMarkdownNeutral keeps headings and inline code as plain text for a
+// user theme. quickStyle paints H1 with warningSubtle on primary, headings with
+// info and inline code with destructive: for a palette whose primary and
+// warning_subtle have about the same luminance (github-dark-dim: 1.00:1) the H1
+// is invisible, and status colors end up on ordinary prose. Only the theme's own
+// tokens are used, so light themes work too.
+func restyleMarkdownNeutral(m *ansi.StyleConfig, o quickStyleOpts) {
+	m.Heading.Color = hex(o.fgBase)
+	m.H1.Color = hex(o.fgBase)
+	m.H1.BackgroundColor = hex(o.bgLessVisible)
+	m.H6.Color = hex(o.fgSubtle)
+	m.Code.Color = hex(o.fgBase)
+	m.Code.BackgroundColor = hex(o.bgLessVisible)
 }
 
 // colorToHex returns a canonical display string for a color. If the color
