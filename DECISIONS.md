@@ -243,3 +243,10 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
 - **Vì:** lượt soát độc lập (agent riêng, không có Edit) chạy thật ba đường còn lọt: `date -f/etc/hostname` (nội dung tệp hiện qua stderr), `git config --get-regexp .` (tương đương `--list`, thứ vừa bị gỡ), `ps eww` (lộ env như `printenv`). Mỗi đường đã thành test đỏ rồi xanh.
 - **Đã thử và bỏ:** lọc riêng `ps` có cờ `e`: cú pháp BSD (`ps eww`, `ps auxe`, `ps e`) quá nhiều dạng, bỏ hẳn `ps` đơn giản hơn. Giữ `git config --get <key>` đúng một khoá: `--get-regexp .` lấy được tất cả nên không phân biệt được.
 - **Lật lại khi:** có danh sách trắng cờ cho từng lệnh an toàn (cách sửa tận gốc), khi đó có thể cho lại `ps`/`git config --get` với cờ cụ thể.
+
+## 2026-10-16 — Self-kill guard: phân tích cú pháp script `-c`, không tách chuỗi
+**Trạng thái:** đã làm (v0.2.0)
+- **Chốt:** `internal/shell/protect.go` parse script sau `sh/bash/... -c` và `eval` bằng `syntax.NewParser` rồi duyệt mọi `CallExpr`; từ chỉ gồm chữ và nháy được giải thành chuỗi, từ có expansion là "động". Tên lệnh động cạnh chữ kill/shutdown thì chặn.
+- **Vì:** lượt soát độc lập chạy mô phỏng và phá bản đầu (tách bằng regex `[;&|\n(){}]`) ở `for ...; do kill $p; done`, `if ...; then kill`, `bash -c -- 'kill N'`, `exec/eval/builtin kill`, `x=1 kill N`, `ki""ll`, backtick. Regex không hiểu từ khoá, phép gán, nháy.
+- **Đã thử và bỏ:** vá regex từng dạng (đuổi theo cú pháp bash mãi); gọi `execpolicy.commandString` (logic gần giống nhưng phục vụ mục đích khác, gộp là một việc riêng).
+- **Lật lại khi:** cần phủ script từ tệp/stdin (cần sandbox chứ không phải BlockFunc) hoặc hợp nhất với `execpolicy`.

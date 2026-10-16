@@ -214,3 +214,67 @@ func TestProtect_ShellWrappingDoesNotBlockNormalCommands(t *testing.T) {
 		require.Falsef(t, ok, "%v", args)
 	}
 }
+
+// Lượt soát độc lập 16/10 (T3): script sau `-c` phải được PHÂN TÍCH CÚ PHÁP như
+// shell, không tách chuỗi bằng regex. Các dạng dưới đây từng lọt.
+func TestProtect_ParsesScriptAfterDashC(t *testing.T) {
+	t.Parallel()
+	g := testGuard(946242)
+	for _, args := range [][]string{
+		// từ khoá đứng đầu đoạn che mất kill
+		{"bash", "-c", "for p in 946242; do kill -9 $p; done"},
+		{"sh", "-c", "if true; then kill 946242; fi"},
+		{"sh", "-c", "while true; do kill 946242; done"},
+		{"bash", "-c", "! kill 946242"},
+		{"bash", "-c", "f() { kill 946242; }; f"},
+		// -c -- script
+		{"bash", "-c", "--", "kill 946242"},
+		{"sh", "-c", "--", "kill 946242"},
+		// exec / eval / builtin / time / gán đứng trước
+		{"sh", "-c", "exec kill 946242"},
+		{"sh", "-c", "eval kill 946242"},
+		{"sh", "-c", "builtin kill 946242"},
+		{"sh", "-c", "x=1 kill 946242"},
+		{"sh", "-c", "time kill 946242"},
+		{"eval", "kill 946242"},
+		// nháy / escape chen giữa từ, lệnh trong backtick và $(...)
+		{"sh", "-c", `ki""ll 946242`},
+		{"sh", "-c", `\kill 946242`},
+		{"sh", "-c", "echo `kill 946242`"},
+		{"sh", "-c", "echo $(kill 946242)"},
+		// tên lệnh động cạnh chữ kill, và đối số vị trí chạy kill
+		{"sh", "-c", "k=kill; $k 946242"},
+		{"bash", "-c", `"$@"`, "_", "/bin/kill", "946242"},
+		// bọc ngoài chưa bóc: timeout 5s, taskset, busybox
+		{"timeout", "5s", "/bin/kill", "946242"},
+		{"taskset", "-c", "0", "/bin/kill", "946242"},
+		{"busybox", "kill", "946242"},
+		{"rbash", "-c", "kill 946242"},
+	} {
+		reason, ok := g.Blocked(args)
+		require.Truef(t, ok, "%q", args)
+		require.NotEmpty(t, reason)
+	}
+}
+
+// Phân tích cú pháp không được chặn oan: chữ kill/shutdown nằm trong chuỗi, dấu
+// tách nằm trong nháy, lệnh vô hại có từ khoá điều khiển.
+func TestProtect_ParsedScriptDoesNotBlockHarmlessText(t *testing.T) {
+	t.Parallel()
+	g := testGuard(946242)
+	for _, args := range [][]string{
+		{"bash", "-c", `git commit -m "fix; kill stale workers"`},
+		{"bash", "-c", `echo "(kill)"`},
+		{"bash", "-c", `git log --grep="fix|shutdown"`},
+		{"bash", "-c", "for f in a b; do echo $f; done"},
+		{"sh", "-c", "if test -f x; then ls; fi"},
+		{"bash", "-c", "kill 12345"},
+		{"bash", "-c", "kill -l"},
+		{"bash", "-c", `"$@"`, "_", "ls", "-la"},
+		{"timeout", "5s", "ls"},
+		{"taskset", "-c", "0", "ls"},
+	} {
+		_, ok := g.Blocked(args)
+		require.Falsef(t, ok, "%q", args)
+	}
+}

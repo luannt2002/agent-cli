@@ -22,9 +22,17 @@ Plan: [docs/superpowers/plans/2026-10-16-audit-fixes-v0.2.0.md](docs/superpowers
   trước khi chạy (`ls \/etc`, `ls {/etc,}`, `ls .''./etc` từng lọt ở bản thử đầu).
   `printenv`, `ps` (cờ `e` in biến môi trường) và mọi `git config` không còn trong danh sách an toàn;
   giá trị dính liền cờ ngắn (`date -f/etc/hostname`) cũng bị coi là đường dẫn.
-- **Self-kill guard kín hơn** (B-05): chặn `sh -c 'kill <pid>'` / `bash -c ...` (bóc script sau `-c`, tối đa
-  3 lớp lồng), `xargs kill` (PID đến từ stdin không kiểm được), `kill -9 -1` và pid 1.
-  Có test nối `blockFuncs()` vào shell thật (C-05): xoá dòng nối ở `bash.go` thì test đỏ.
+- **Self-kill guard kín hơn** (B-05): script sau `sh/bash/zsh/dash/ksh/rbash -c` (kể cả `-c --`) và `eval` được
+  PHÂN TÍCH CÚ PHÁP bằng `mvdan.cc/sh/v3/syntax` rồi soi từng lệnh đơn, kể cả trong `for/if/while`, hàm,
+  `$(...)`, backtick; nháy và `\` chen giữa từ được giải (`ki""ll`). Bản đầu dùng regex tách chuỗi và bị lượt
+  soát độc lập phá ngay (`for p in N; do kill $p; done`). Thêm: chặn `xargs kill` (PID từ stdin), `kill -1` /
+  pid 1, `kill` không PID tường minh (trừ `kill -l`); bóc thêm `exec`, `builtin`, `time`, `taskset`, `busybox`
+  và đối số thời gian `5s` của `timeout`; tên lệnh động (`$k X`, `"$@"`) cạnh chữ kill thì chặn. Tối đa 3 lớp
+  `sh -c` lồng nhau, sâu hơn thì chặn. Có test nối `blockFuncs()` vào shell thật (C-05): xoá dòng nối ở `bash.go`
+  thì test đỏ.
+  Cố ý KHÔNG phủ: script nạp từ tệp hoặc stdin (`bash x.sh`, `echo 'kill N' | sh`), `env -S`, `find -exec`,
+  `script -c`, ngôn ngữ khác (`python -c "os.kill"`). Chặn oan đã biết: `kill $VAR` bên trong `bash -c` (không
+  biết giá trị lúc phân tích); dùng `/bin/kill $VAR` ở lớp ngoài (đã expand thành số) hoặc tool `job_kill`.
 
 ### Sửa lỗi
 
@@ -57,6 +65,8 @@ Plan: [docs/superpowers/plans/2026-10-16-audit-fixes-v0.2.0.md](docs/superpowers
 - Danh sách an toàn là danh sách đen theo cú pháp; hướng đúng là danh sách trắng cờ cho từng lệnh.
 - Stop hook chạm trần: lỗi đặt lên `RunComplete` của lượt chính và của prompt xếp hàng xả ra giữa chuỗi chạy
   lại, không đặt lên prompt xả ở lượt cuối; chưa có test cho trường hợp prompt xếp hàng.
+- Sau khi cài lại binary (`mv -f`), server cũ có `/proc/<pid>/exe` kết thúc bằng ` (deleted)` nên tiến trình
+  mới không nhận ra nó là "cùng binary" để bảo vệ (`pkill`/`killall` theo tên vẫn bị chặn).
 - Mọi mục LOW của audit.
 
 ### Lưu ý nâng cấp

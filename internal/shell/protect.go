@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // Lớp bảo vệ tiến trình điều khiển: chặn CỨNG trong trình thực thi shell (như
@@ -23,6 +25,7 @@ var processLaunchers = map[string]bool{
 	"env": true, "nohup": true, "timeout": true, "nice": true,
 	"stdbuf": true, "setsid": true, "ionice": true, "command": true,
 	"sudo": true, "doas": true, "xargs": true,
+	"exec": true, "builtin": true, "time": true, "taskset": true, "busybox": true,
 }
 
 // launcherValueFlags là các cờ của lớp bọc ăn thêm một GIÁ TRỊ ở arg kế (vd
@@ -51,11 +54,20 @@ var killByName = map[string]bool{"pkill": true, "killall": true}
 
 // shellInterpreters chạy được script qua -c; `kill` trong script đó là builtin
 // thật của shell con nên argv của nó không bao giờ tới BlockFunc.
-var shellInterpreters = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true}
+var shellInterpreters = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "rbash": true}
 
-// scriptSeparators tách một script -c thành các lệnh đơn (xấp xỉ: đủ để thấy
-// `kill` trong `a; b && c | d`; không phải bộ phân tích cú pháp shell đầy đủ).
-var scriptSeparators = regexp.MustCompile(`[;&|\n(){}]+`)
+// killWords là các từ lệnh mà guard chặn; dùng để quyết khi script có tên lệnh
+// động (`$k X`) mà không thể biết nó là gì.
+var killWords = regexp.MustCompile(`\b(kill|pkill|killall|shutdown|reboot|halt|poweroff|telinit)\b`)
+
+// dynamicWord đánh dấu một từ có expansion ($x, $(...), ${...}) nên không biết
+// giá trị lúc phân tích.
+const dynamicWord = "\x00"
+
+// Guard KHÔNG phủ (cố ý): script nạp từ tệp (`bash x.sh`, shebang), từ stdin
+// (`echo 'kill N' | sh`, here-doc), `env -S`, `find -exec`, `script -c`, và
+// ngôn ngữ khác (python/node `os.kill`). Chỉ phủ lệnh gọi trực tiếp và script
+// nằm ngay trên dòng lệnh (sh/bash/... -c, eval).
 
 // maxShellDepth là số lớp `sh -c` lồng nhau được soi; sâu hơn thì chặn luôn.
 const maxShellDepth = 3
@@ -81,7 +93,7 @@ func peelLaunchers(args []string) []string {
 				}
 				continue
 			}
-			if strings.Contains(a, "=") || isAllDigits(a) {
+			if strings.Contains(a, "=") || isAllDigits(a) || isDuration(a) {
 				args = args[1:]
 				continue
 			}
@@ -90,6 +102,11 @@ func peelLaunchers(args []string) []string {
 	}
 	return args
 }
+
+// isDuration nhận đối số thời gian của timeout/sleep: 5, 5s, 1.5m, 2h, 1d.
+var durationArg = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?[smhd]?$`)
+
+func isDuration(s string) bool { return durationArg.MatchString(s) }
 
 func isAllDigits(s string) bool {
 	if s == "" {
@@ -156,15 +173,66 @@ func killNames(args []string) []string {
 	return names
 }
 
-// shellScript trả script đứng sau cờ -c của một shell (kể cả cờ gộp -lc, -ec).
-func shellScript(args []string) (string, bool) {
+// shellScript trả script đứng sau cờ -c của một shell (kể cả cờ gộp -lc, -ec;
+// bỏ "--" đứng ngay sau) và các đối số vị trí còn lại ($0 $1...).
+func shellScript(args []string) (script string, positional []string, ok bool) {
 	for i := 1; i < len(args)-1; i++ {
 		a := args[i]
 		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && strings.Contains(a, "c") {
-			return args[i+1], true
+			j := i + 1
+			if args[j] == "--" && j+1 < len(args) {
+				j++
+			}
+			return args[j], args[j+1:], true
 		}
 	}
-	return "", false
+	return "", nil, false
+}
+
+// scriptCommands phân tích script như bash và trả argv của MỌI lệnh đơn trong nó
+// (kể cả trong vòng lặp, if, hàm, $(...), backtick). Từ chỉ gồm chữ và nháy
+// được giải thành chuỗi (`ki""ll` -> kill); từ có expansion là dynamicWord.
+func scriptCommands(script string) (cmds [][]string, ok bool) {
+	file, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(script), "")
+	if err != nil {
+		return nil, false
+	}
+	syntax.Walk(file, func(n syntax.Node) bool {
+		call, isCall := n.(*syntax.CallExpr)
+		if !isCall || len(call.Args) == 0 {
+			return true
+		}
+		argv := make([]string, len(call.Args))
+		for i, w := range call.Args {
+			argv[i] = staticWord(w)
+		}
+		cmds = append(cmds, argv)
+		return true
+	})
+	return cmds, true
+}
+
+func staticWord(w *syntax.Word) string {
+	var b strings.Builder
+	for _, part := range w.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			b.WriteString(strings.ReplaceAll(p.Value, `\`, ""))
+		case *syntax.SglQuoted:
+			b.WriteString(p.Value)
+		case *syntax.DblQuoted:
+			for _, q := range p.Parts {
+				lit, isLit := q.(*syntax.Lit)
+				if !isLit {
+					return dynamicWord
+				}
+				b.WriteString(lit.Value)
+			}
+		default:
+			return dynamicWord
+		}
+	}
+	return b.String()
 }
 
 // killListsSignals: `kill -l` chỉ liệt kê tên tín hiệu, không giết ai.
@@ -202,26 +270,18 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 	switch {
 	case shutdownCommands[cmd]:
 		return "shutting the machine down or rebooting is never allowed", true
-	case shellInterpreters[cmd]:
-		script, ok := shellScript(args)
-		if !ok {
-			return "", false
-		}
-		if depth >= maxShellDepth {
-			return "shell commands nested too deep to inspect for process-killing", true
-		}
-		for _, segment := range scriptSeparators.Split(script, -1) {
-			fields := strings.Fields(segment)
-			for i, f := range fields {
-				fields[i] = strings.Trim(f, `'"`)
-			}
-			if len(fields) == 0 {
-				continue
-			}
-			if reason, blocked := g.blocked(fields, depth+1); blocked {
-				return reason, true
+	case shellInterpreters[cmd] || cmd == "eval":
+		var script string
+		var positional []string
+		if cmd == "eval" {
+			script = strings.Join(args[1:], " ") // eval nối đối số rồi chạy như script
+		} else {
+			var ok bool
+			if script, positional, ok = shellScript(args); !ok {
+				return "", false
 			}
 		}
+		return g.blockedScript(script, positional, depth)
 	case killByPID[cmd]:
 		pids := killPIDs(args)
 		// Không có PID tường minh thì PID đến từ nơi khác (xargs, stdin): không
@@ -232,7 +292,7 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 		for _, pid := range pids {
 			// `kill -9 -1` / pid 1: nhắm mọi tiến trình hoặc init.
 			if pid == 1 {
-				return "kill targeting pid 1 or -1 reaches every process, including agent-cli's own", true
+				return "kill -1 (every process) or pid 1 (init) is never allowed", true
 			}
 			if g.ProtectedPID != nil && g.ProtectedPID(pid) {
 				return "refusing to kill agent-cli's own process (pid " + strconv.Itoa(pid) + "): it is running this session", true
@@ -242,6 +302,44 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 		for _, name := range killNames(args) {
 			if g.ProtectedName != nil && g.ProtectedName(name) {
 				return "refusing to " + cmd + " a process matching agent-cli (" + name + "): it would kill this session's own server or client", true
+			}
+		}
+	}
+	return "", false
+}
+
+// blockedScript soi từng lệnh đơn trong script của `sh -c` / `eval`.
+func (g ProcessGuard) blockedScript(script string, positional []string, depth int) (string, bool) {
+	if depth >= maxShellDepth {
+		return "shell commands nested too deep to inspect for process-killing", true
+	}
+	cmds, ok := scriptCommands(script)
+	if !ok {
+		// Không phân tích được: chỉ chặn khi script có nhắc tới lệnh bị cấm.
+		if killWords.MatchString(script) {
+			return "cannot parse a shell script that mentions kill or shutdown", true
+		}
+		return "", false
+	}
+	dynamicHead := false
+	for _, argv := range cmds {
+		if argv[0] == dynamicWord {
+			dynamicHead = true
+			continue
+		}
+		if reason, blocked := g.blocked(argv, depth+1); blocked {
+			return reason, true
+		}
+	}
+	if dynamicHead {
+		// Tên lệnh chỉ biết lúc chạy (`$k X`, `"$@"`): chặn khi script nhắc tới
+		// kill/shutdown, và soi các đối số vị trí (`bash -c '"$@"' _ /bin/kill N`).
+		if killWords.MatchString(script) {
+			return "shell script runs a command whose name is only known at run time, next to kill", true
+		}
+		for i := range positional {
+			if reason, blocked := g.blocked(positional[i:], depth+1); blocked {
+				return reason, true
 			}
 		}
 	}

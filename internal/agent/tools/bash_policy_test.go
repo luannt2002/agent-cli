@@ -89,6 +89,10 @@ func TestBashBlocksKillingOwnProcessTree(t *testing.T) {
 		fmt.Sprintf("env kill -0 %d", pid),
 		fmt.Sprintf("sh -c 'kill -0 %d'", pid),
 		fmt.Sprintf("bash -c 'echo x; kill -0 %d'", pid),
+		fmt.Sprintf("bash -c 'for p in %d; do /bin/kill -0 $p; done'", pid),
+		fmt.Sprintf("sh -c 'if true; then /bin/kill -0 %d; fi'", pid),
+		fmt.Sprintf("bash -c -- 'kill -0 %d'", pid),
+		fmt.Sprintf("timeout 5s /bin/kill -0 %d", pid),
 		"xargs kill -0 < /dev/null",
 	} {
 		_, _, err := sh.Exec(t.Context(), cmd)
