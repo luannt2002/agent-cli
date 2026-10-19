@@ -64,7 +64,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
 	rootCmd.PersistentFlags().StringVarP(&clientHost, "host", "H", server.DefaultHost(), "Connect to a specific agent-cli server host (for advanced users)")
 	rootCmd.Flags().BoolP("help", "h", false, "Help")
-	rootCmd.Flags().BoolP("yolo", "y", false, "Automatically accept all permissions (dangerous mode)")
+	addYOLOFlag(rootCmd)
 	rootCmd.PersistentFlags().StringSlice("channels", nil, "MCP servers to enable as channels (repeatable), e.g. --channels server:webhook")
 	_ = rootCmd.PersistentFlags().MarkHidden("channels")
 	rootCmd.Flags().StringP("session", "s", "", "Continue a previous session by ID")
@@ -261,6 +261,13 @@ func Execute() {
 	); err != nil {
 		os.Exit(exitCodeFor(err))
 	}
+}
+
+// addYOLOFlag khai --yolo cho TUI và các lệnh chạy model qua server của dự án
+// (run, send, loop): server từ chối client có --yolo khác workspace đang mở,
+// nên lệnh nào chạy model cũng phải nói được cờ đó.
+func addYOLOFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolP("yolo", "y", false, "Automatically accept all permissions (dangerous mode); must match the --yolo of a project that is already open")
 }
 
 // yoloMismatchWarning trả lời cảnh báo khi chế độ YOLO của workspace trên

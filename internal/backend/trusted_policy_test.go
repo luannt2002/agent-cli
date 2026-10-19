@@ -56,7 +56,7 @@ func TestCreateWorkspace_TrustPolicyMismatch(t *testing.T) {
 		{
 			name:    "yolo differs",
 			mutate:  func(p *proto.Workspace) { p.YOLO = true },
-			wantKey: "--yolo",
+			wantKey: "--yolo (this project is open without --yolo: drop --yolo)",
 		},
 		{
 			name:    "older client sends no policy",

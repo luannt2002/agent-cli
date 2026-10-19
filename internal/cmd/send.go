@@ -99,6 +99,7 @@ agent-cli send -c ~/code/web --new --title review --wait --json "Review the last
 
 func init() {
 	sendCmd.Flags().StringP("session", "s", "", "Session to send to: full ID or hash prefix")
+	addYOLOFlag(sendCmd)
 	sendCmd.Flags().Bool("new", false, "Create a new session instead of using --session")
 	sendCmd.Flags().String("title", "", "Title for the session created by --new")
 	sendCmd.Flags().Bool("wait", false, "Wait until the run finishes and print the final text")

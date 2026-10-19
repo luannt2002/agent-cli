@@ -492,7 +492,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 			}
 			if !args.NoAgentRuns && ws.Cfg.Overrides().SkipPermissionRequests != args.YOLO {
 				b.mu.Unlock()
-				return nil, proto.Workspace{}, policyMismatch("--yolo")
+				return nil, proto.Workspace{}, policyMismatch(yoloMismatch(ws.Cfg.Overrides().SkipPermissionRequests))
 			}
 			logFirstWinsMismatch(ws, args)
 			b.registerClient(ws, clientID)
@@ -604,7 +604,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 			if !args.NoAgentRuns && existing.Cfg.Overrides().SkipPermissionRequests != args.YOLO {
 				b.mu.Unlock()
 				ws.invokeShutdown()
-				return nil, proto.Workspace{}, policyMismatch("--yolo")
+				return nil, proto.Workspace{}, policyMismatch(yoloMismatch(existing.Cfg.Overrides().SkipPermissionRequests))
 			}
 			logFirstWinsMismatch(existing, args)
 			b.registerClient(existing, clientID)
@@ -1471,6 +1471,14 @@ func checkTrustedEnv(args proto.Workspace) error {
 		return policyMismatch(strings.Join(keys, ", "))
 	}
 	return nil
+}
+
+// yoloMismatch nói workspace đang mở ở chiều nào để người gọi biết thêm hay bỏ cờ.
+func yoloMismatch(open bool) string {
+	if open {
+		return "--yolo (this project is open with --yolo: pass --yolo too)"
+	}
+	return "--yolo (this project is open without --yolo: drop --yolo)"
 }
 
 // policyMismatch nêu cái gì lệch (tên, không giá trị) và cách sửa.

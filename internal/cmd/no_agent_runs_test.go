@@ -94,3 +94,51 @@ func isolateServerCache(t *testing.T) {
 	prev := slog.Default()
 	t.Cleanup(func() { slog.SetDefault(prev) })
 }
+
+// Server từ chối client có --yolo khác workspace đang mở, nên mọi lệnh chạy
+// model qua server phải nhận cờ đó và gửi đúng giá trị lên dây: thiếu cờ thì
+// GetBool trả false lặng lẽ và lệnh không bao giờ vào được dự án mở bằng --yolo.
+func TestModelRunCommandsSendYOLO(t *testing.T) {
+	for _, c := range []*cobra.Command{rootCmd, runCmd, sendCmd, loopCmd} {
+		require.NotNil(t, c.Flags().Lookup("yolo"), c.CommandPath())
+	}
+	isolateServerCache(t)
+	var mu sync.Mutex
+	var got []bool
+	dataDir := t.TempDir()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/workspaces" {
+			var req proto.Workspace
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			mu.Lock()
+			got = append(got, req.YOLO)
+			mu.Unlock()
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id": "w1", "path": req.Path, "data_dir": dataDir, "yolo": req.YOLO,
+				"config": map[string]any{"options": map[string]any{"data_directory": dataDir, "disable_metrics": true}},
+			})
+		}
+	}))
+	t.Cleanup(srv.Close)
+	old := clientHost
+	clientHost = "tcp://" + srv.Listener.Addr().String()
+	t.Cleanup(func() { clientHost = old })
+	t.Chdir(t.TempDir())
+
+	for _, yolo := range []bool{true, false} {
+		c := &cobra.Command{Use: "run"}
+		addYOLOFlag(c)
+		args := []string{}
+		if yolo {
+			args = append(args, "--yolo")
+		}
+		require.NoError(t, c.ParseFlags(args))
+		c.SetContext(t.Context())
+		_, _, cleanup, err := connectToServer(c)
+		require.NoError(t, err)
+		cleanup()
+		mu.Lock()
+		require.Equal(t, yolo, got[len(got)-1])
+		mu.Unlock()
+	}
+}

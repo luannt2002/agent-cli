@@ -138,6 +138,7 @@ func init() {
 	f.StringP("model", "m", "", "Model to use. Accepts 'model' or 'provider/model'")
 	f.String("reasoning-effort", "", "Reasoning effort for the model (e.g. low, medium, high)")
 	f.Bool("json", false, "Print one JSON object with the stop reason, attempts and journal path to stdout")
+	addYOLOFlag(loopCmd)
 	loopCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return &usageError{err} })
 	rootCmd.AddCommand(loopCmd)
 }
