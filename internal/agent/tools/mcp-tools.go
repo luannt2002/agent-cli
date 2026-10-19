@@ -150,9 +150,18 @@ func (m *Tool) Run(ctx context.Context, params fantasy.ToolCall) (fantasy.ToolRe
 		} else {
 			response = fantasy.NewMediaResponse(result.Data, result.MediaType)
 		}
+		// shortcut: ảnh/media giữ hành vi cũ — chữ đi kèm chưa có trần và IsError
+		// chưa xét (IsError trong fantasy bỏ ảnh, chỉ gửi chữ); nâng khi có MCP
+		// trả ảnh kèm chữ lớn hoặc ảnh kèm lỗi trong thực tế.
 		response.Content = result.Content
 		return response, nil
 	default:
-		return fantasy.NewTextResponse(result.Content), nil
+		// Cùng trần, cùng tệp spill (<data>/shell-output) như bash: kết quả MCP
+		// lớn không đi nguyên vào request kế tiếp và vào DB.
+		content := TruncateOutput(result.Content, m.cfg.Config().Options.DataDirectory)
+		if result.IsError {
+			return fantasy.NewTextErrorResponse(content), nil
+		}
+		return fantasy.NewTextResponse(content), nil
 	}
 }

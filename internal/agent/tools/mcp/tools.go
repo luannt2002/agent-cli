@@ -23,6 +23,8 @@ type ToolResult struct {
 	Content   string
 	Data      []byte
 	MediaType string
+	// IsError là cờ isError của server: tool đã chạy nhưng báo thất bại.
+	IsError bool
 }
 
 var allTools = csync.NewMap[string, []*Tool]()
@@ -58,7 +60,7 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
 	}
 
 	if len(result.Content) == 0 {
-		return ToolResult{Type: "text", Content: ""}, nil
+		return ToolResult{Type: "text", Content: "", IsError: result.IsError}, nil
 	}
 
 	var textParts []string
@@ -96,6 +98,7 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
 			Content:   textContent,
 			Data:      ensureRawBytes(imageData),
 			MediaType: imageMimeType,
+			IsError:   result.IsError,
 		}, nil
 	}
 
@@ -105,12 +108,14 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
 			Content:   textContent,
 			Data:      ensureRawBytes(audioData),
 			MediaType: audioMimeType,
+			IsError:   result.IsError,
 		}, nil
 	}
 
 	return ToolResult{
 		Type:    "text",
 		Content: textContent,
+		IsError: result.IsError,
 	}, nil
 }
 

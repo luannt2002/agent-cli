@@ -190,6 +190,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `$VAR` của `api_key`/`base_url` trong `crush.json`) không được so và vẫn theo client đã dựng server, như trước.
   Tiến trình con mà Home dựng và lệnh `--verify` của loop không còn nhận biến tin cậy từ `.env` của repo (gõ
   `agent-cli` trong repo có `.env` đặt `AGENT_CLI_DELEGATION=on` từng bật giao việc cho workspace mở từ Home).
+- **Kết quả tool MCP dạng chữ có trần như bash và giữ cờ lỗi.** MCP trả 5 MiB từng đi nguyên vào request kế tiếp và
+  `crush.db` (+5,3 MB mỗi nơi); nay cắt và spill ra `<data>/shell-output/` như bash. `isError=true` nay lưu `is_error=true`.
+  Chưa sửa: chữ đi kèm ảnh/media và tool `read_mcp_resource` chưa có trần; MCP trả ảnh kèm `isError=true` vẫn lưu
+  `is_error=false`.
 
 ## [0.2.0] - 2026-10-16
 
