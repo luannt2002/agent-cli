@@ -46,7 +46,7 @@ disallow the use of Haskell (but we love you, Simon Peyton Jones).
 The first thing we need to do is hook up our hook. Let's add the following to
 our **project-level** `crush.json`. Relative paths like `./no-haskell.sh` work
 here because the project root is your working directory. If you're configuring
-a global hook (`~/.config/crush/crush.json`), use an absolute path instead.
+a global hook (`~/.config/agent-cli/crush.json`), use an absolute path instead.
 
 ```jsonc
 {
@@ -153,16 +153,16 @@ and project-level, with project level hooks taking precedence.
 > The `command` is resolved relative to your **current working directory** —
 > not relative to the config file. Relative paths like `./hooks/whatever.sh`
 > work fine in project-level `crush.json` because the project root is also
-> your working directory. For **global** config (`~/.config/crush/`),
+> your working directory. For **global** config (`~/.config/agent-cli/`),
 > however, you must use either an absolute path or an inline command:
 >
 > ```jsonc
-> // Global ~/.config/crush/crush.json
+> // Global ~/.config/agent-cli/crush.json
 > {
 >   "hooks": {
 >     "PreToolUse": [
 >       {
->         "command": "/home/you/.config/crush/hooks/no-haskell.sh"
+>         "command": "/home/you/.config/agent-cli/hooks/no-haskell.sh"
 >         // or use an inline command:
 >         // "command": "echo '{\"decision\":\"allow\"}'"
 >       }
@@ -218,14 +218,14 @@ timeout, or a halt (exit `49`) lets the turn end.
 A turn can be sent back at most **3** times in a row; after that Crush lets it
 end, logs `Stop hook kept blocking`, and reports the run as failed: the final
 `RunComplete` carries an error (`Stop hook still blocking after 3 re-runs: …`),
-so `crush run --json` exits 1 instead of reporting success while the gate is
+so `agent-cli run --json` exits 1 instead of reporting success while the gate is
 still red. A timeout, crash or halt still lets the turn end as a success (the
 hook could not decide); only a hook that keeps saying "block" fails the run. The hook does not fire when the turn
 errored or was cancelled, nor for sub-agents. The stdin payload carries
 `stop_hook_active`: `true` when the turn is already a re-run caused by a Stop
 hook, so a hook can choose to let it go.
 
-The turn is reported finished only once Stop hooks let it end: `crush run`
+The turn is reported finished only once Stop hooks let it end: `agent-cli run`
 (including `--json`) waits for the last attempt instead of returning at the
 blocked one. A prompt that was queued behind the turn with its own run ID
 (`send --wait`) is reported at the same time, with the last attempt's result.
@@ -245,7 +245,7 @@ Known limits:
 - The re-run inherits the blocked turn's context. If that turn's user message
   was hidden, the hook's reason is hidden from the user too, and a turn that
   came from a channel sends the channel one reply per attempt.
-- In-process `crush run` (no server) prints every attempt's reply, joined
+- In-process `agent-cli run` (no server) prints every attempt's reply, joined
   without a separator.
 
 Example: don't let the agent finish while lint is red.

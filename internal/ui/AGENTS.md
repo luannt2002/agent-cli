@@ -192,7 +192,8 @@ box width — border and padding live *inside* it.
 
 ### Shared Context
 
-The `common.Common` struct holds `*app.App` and `*styles.Styles`. Thread it
+The `common.Common` struct holds a `workspace.Workspace` (`ClientWorkspace`
+against a server, or in-process `AppWorkspace`) and `*styles.Styles`. Thread it
 through all components that need access to app state or styles.
 
 ## File Organization

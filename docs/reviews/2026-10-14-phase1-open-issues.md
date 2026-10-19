@@ -1,5 +1,7 @@
 # Phase 1 — vấn đề còn mở (audit 14/10, khoảng 16:55)
 
+> Lỗi thời (16/10), giữ làm lịch sử: trạng thái hiện tại ở `CHANGELOG.md` và `docs/agent-cli-local-setup.md`, mục "Giới hạn đã biết". C1 (PRB-04) đã đóng: fallback không còn ghi xuống đĩa, và không bao giờ đổi sang provider khác (model đang chọn không dùng được thì dừng có lỗi; DECISIONS.md, 16/10).
+
 Nguồn:
 - Ledger `.superpowers/sdd/2026-10-14-multi-session-multi-project/progress.md`. Mọi mục ở đây đều đã có người soát hoặc worker ghi lại, kèm file:line.
 - Kết quả soát lát 1 ("INSTALL: GO").

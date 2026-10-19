@@ -64,12 +64,15 @@ internal/
 - **`charm.land/bubbletea/v2`**: TUI framework powering the interactive UI.
 - **`charm.land/lipgloss/v2`**: Terminal styling.
 - **`charm.land/glamour/v2`**: Markdown rendering in the terminal.
-- **`charm.land/catwalk`**: Snapshot/golden-file testing for TUI components.
+- **`charm.land/catwalk`**: Catalog of providers and models (`catwalk.Provider`),
+  embedded in the binary and refreshed by `update-providers`. Golden-file tests
+  use `github.com/charmbracelet/x/exp/golden`.
 - **`sqlc`**: Generates Go code from SQL queries in `internal/db/sql/`.
 
 ### Key Patterns
 
-- **Config is a Service**: accessed via `config.Service`, not global state.
+- **Config lives in a store**: accessed via `*config.ConfigStore`
+  (`internal/config/store.go`), not global state.
 - **Tools are self-documenting**: each tool has a `.go` implementation and a
   `.md` description file in `internal/agent/tools/`.
 - **System prompts are Go templates**: `internal/agent/templates/*.md.tpl`
@@ -95,8 +98,8 @@ internal/
   independent of fantasy and agent — it takes inputs, runs commands,
   returns decisions. The `hookedTool` decorator in
   `internal/agent/hooked_tool.go` wraps tools at the coordinator level.
-  Hooks run before permission checks. See `HOOKS.md` for the user-facing
-  protocol.
+  Hooks run before permission checks. See `docs/hooks/README.md` for the
+  user-facing protocol.
 - **CGO disabled**: builds with `CGO_ENABLED=0` and
   `GOEXPERIMENT=greenteagc`.
 
@@ -104,12 +107,12 @@ internal/
 
 - **Build**: `go build .` or `go run .`
 - **Test**: `task test` or `go test ./...` (run single test:
-  `go test ./internal/llm/prompt -run TestGetContextFromPaths`)
+  `go test ./internal/agent/prompt -run TestGetGitStatusReportsBranch`)
 - **Update Golden Files**: `go test ./... -update` (regenerates `.golden`
   files when test output changes)
   - Update specific package:
-    `go test ./internal/tui/components/core -update` (in this case,
-    we're updating "core")
+    `go test ./internal/ui/diffview -update` (in this case,
+    we're updating "diffview")
 - **Lint**: `task lint:fix`
 - **Format**: `task fmt` (`gofumpt -w .`)
 - **Modernize**: `task modernize` (runs `modernize` which makes code

@@ -221,6 +221,8 @@ Acceptance: local và remote cùng path tách riêng; resume remote đúng; mấ
 
 ## 8. Phase 4 — Tự động hóa có kiểm soát
 
+> Sửa đổi 16/10: `agent-cli loop` và `agent-cli routine` (verify làm cổng, routine chạy trong worktree riêng với chế độ không người trực, lịch chỉ in) đã ra sớm, trước khi xong Phase 2–3. Lý do và phạm vi: `DECISIONS.md`, các mục 16/10 "Loop", "Routine", "Chế độ không người trực". Phần còn lại của Phase 4 vẫn là kế hoạch.
+
 - Task templates cho FE/BE review, test/build, CI failure triage, staging health và log investigation.
 - Queue có ownership, retry/backoff, timeout, giới hạn concurrency; phê duyệt nằm ở người theo quy trình box.
 - Schedules/watch chỉ khi người dùng yêu cầu; tránh chạy agent không người trực bằng quyền rộng.

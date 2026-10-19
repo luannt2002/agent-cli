@@ -14,13 +14,17 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 - **`agent-cli loop --verify "<lệnh>" "<việc>"`**: chạy agent, rồi lệnh verify, sửa tiếp cho tới khi verify
   thoát 0 hoặc gặp điều kiện dừng. "Xong" là mã thoát của `--verify`, không phải lời agent. Mỗi lượt là một
   session mới với prompt tự chứa đủ (đề bài + đuôi output verify vừa đo, kèm lệnh cấm sửa test/cổng để qua).
-  Lý do dừng: `GREEN`, `MAX_REPAIRS` (mặc định 2 lượt sửa, tổng 3 lượt, không có lần vá thứ ba), `STALLED` (cùng
+  Lý do dừng: `GREEN`, `NO_CHANGE` (verify xanh từ trước mọi thay đổi và cây làm việc không đổi: không có gì
+  chứng minh việc của agent), `MAX_REPAIRS` (mặc định 2 lượt sửa, tổng 3 lượt, không có lần vá thứ ba), `STALLED` (cùng
   chữ ký lỗi và cây làm việc không đổi sau một lượt sửa), `TIMEOUT` (`--max-duration`, kiểm trước mỗi lượt),
   `RUN_ERROR` (lượt agent lỗi hoặc quá `--run-timeout`), `CANCELLED` (Ctrl+C/SIGTERM), `UNMEASURED` (verify
   không chạy được: không tìm thấy lệnh, lỗi cú pháp, quá hạn; không đốt lượt agent nào). Verify đã xanh sẵn
   trước mọi thay đổi thì ghi cảnh báo "cổng có thể không đo đúng mục tiêu" nhưng vẫn chạy.
+  Verify chạy với `set -o pipefail`: `go test ./... | tee log` không che được lỗi; exit 141 (SIGPIPE, thường do
+  `| head`, `| grep -q`) vẫn là FAIL nhưng output có gợi ý. Verify xanh từ baseline VÀ cây không đổi thì dừng
+  `NO_CHANGE` (thoát 1); chỉ một trong hai thì vẫn `GREEN`, dòng dừng và `detail` của `--json` ghi cảnh báo.
   Journal JSON Lines (`<data>/loops/<tên>-<thời điểm>.jsonl`, 0600) được ghi và `Sync` TRƯỚC mỗi bước.
-  Mã thoát: 0 `GREEN`, 1 mọi lý do dừng khác, 2 dùng sai. `--json` in một object ở cuối. Không bao giờ commit,
+  Mã thoát: 0 `GREEN`, 1 mọi lý do dừng khác (kể cả `NO_CHANGE`), 2 dùng sai. `--json` in một object ở cuối. Không bao giờ commit,
   push hay merge. Cùng mô hình quyền như `run` (tự duyệt tool): dành cho việc bạn khởi chạy và trông.
 - **`agent-cli routine new|list|show|run|schedule`**: routine là định nghĩa đã lưu (đích, lệnh verify, repo, giới
   hạn, lịch tuỳ chọn) chạy bằng engine của `loop`. Tệp `~/.config/agent-cli/routines/<tên>.json` (0600, nằm ở cấu
@@ -32,9 +36,17 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   bạn duyệt, kèm lệnh xem diff và lệnh dọn); chạy agent in-process với **chế độ không người trực** bật; ghi báo
   cáo 0600 ngoài worktree (sha định nghĩa, nhánh, base, lý do dừng, verify cuối, journal). Không commit trừ khi
   định nghĩa có `"commit": true`; không bao giờ push hay merge. `--expect-sha` từ chối chạy khi tệp định nghĩa đã
-  đổi so với lúc cài lịch. Mã thoát: 0 GREEN, 1 khác, 2 dùng sai, 75 đang chạy.
+  đổi so với lúc cài lịch. Mã thoát: 0 GREEN (và `NO_CHANGE` của routine `maintenance`: không có việc), 1 khác (kể
+  cả `NO_CHANGE` của routine `goal`), 2 dùng sai, 75 đang chạy.
   `routine schedule NAME --print` chỉ IN unit systemd `--user` (`Persistent=true`, `TZ`/`PATH` tường minh,
   `TimeoutStartSec`) và/hoặc dòng crontab, kèm lệnh cài để bạn tự chạy; agent-cli không bao giờ sửa timer hay crontab.
+  Lịch in ra mang theo biến của launcher và `AGENT_CLI_ENV_FILE` (bản đầu thiếu chúng nên không chạy được, xem Sửa
+  lỗi). Allowlist provider KHÔNG được chép vào lịch: lượt theo lịch đọc nó từ tệp env, nên siết allowlist trong tệp
+  env là có hiệu lực ngay; allowlist chỉ đặt ở shell thì `schedule --print` in cảnh báo ra stderr.
+  Báo cáo từng lượt: `RUNNING` ghi ngay khi bắt đầu; lượt chết giữa chừng hiện `ABANDONED`; hỏng trước khi agent chạy
+  (vd không tạo được worktree) hiện `ERROR` kèm nguyên nhân; `routine show` liệt kê mọi lượt (`runs`). Báo cáo có
+  `changed_files`, `touched_tests`, `touched_gate` (GREEN mà agent đã đổi test hay tệp mà verify gọi thì stderr cảnh báo),
+  `baseline_pass`, `unchanged_tree`.
 - **Chế độ không người trực** (`AGENT_CLI_UNATTENDED=1`; `routine run` tự bật và tự xuất biến này cho mọi tiến
   trình con rồi trả lại): lớp chặn CỨNG ở trình thực thi shell, trước cả quyền đã cấp và YOLO. Đây là danh sách
   đen cộng một danh sách TRẮNG cho git, KHÔNG phải sandbox. Cụ thể:
@@ -51,17 +63,106 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
     `systemd-run --user`, `nice`, `chrt`, `xargs`... và script trong `sh -c`/`eval` (vòng lặp, `$(...)`).
   - Tool bash từ chối `working_dir` ngoài workspace; tool giao việc `claude_code`/`codex` không được đăng ký;
     `agent-cli loop`/`routine` gọi từ bash bị chặn như `run`/`send`/`server`.
+  - Tool ghi tệp (`write`, `edit`, `multiedit`, `download`, `lsp_replace_symbol`, `lsp_rename`) bị từ chối khi đích
+    nằm ngoài thư mục làm việc, trước cả YOLO và `allowed_tools`. Bash thì không qua kiểm tra này.
+  - `git -C`/`--git-dir`/`--work-tree` trỏ ra ngoài workspace bị chặn; option dài viết tắt được so như git
+    (`--har` là `--hard`).
+  - Mọi lệnh có chữ nhắc tới biến trỏ git sang repo khác hoặc nạp cấu hình (`GIT_DIR`, `GIT_WORK_TREE`,
+    `GIT_INDEX_FILE`, `GIT_CONFIG_*`…) bị chặn, bất kể lệnh và giá trị, kể cả trong `sh -c`, `env -S`, `eval`. Cố ý
+    nghiêng về chặn: biến shell thường trùng tên cũng bị chặn.
   - Biến là biến tin cậy: đọc từ env gốc đã chụp đầu main, nên `.env` của repo không bật/tắt được.
   KHÔNG phải ranh giới an ninh: agent viết mã rồi chạy `go test`/`make`/verify, và mã đó có thể gọi `git push`.
   Chưa phủ `python`/`node` tự xoá hay mở socket, `find -delete`, ghi tệp qua redirect/`tee`/`cp`/`mv`, `cd /; rm
-  -rf x` (rm không xét `cd`), script nạp từ tệp hoặc stdin, agent ghi unit systemd vào `~/.config/systemd/user`
-  bằng tool ghi tệp. Worktree dùng CHUNG refs, `.git/config` và hooks với repo gốc; hooks của repo chạy lúc
+  -rf x` (rm không xét `cd`), thư mục symlink trỏ ra ngoài, tên biến git ghép lúc chạy (`"GIT_""DIR"`), script nạp từ
+  tệp hoặc stdin. Worktree dùng CHUNG refs, `.git/config` và hooks với repo gốc; hooks của repo chạy lúc
   `git worktree add`. Vì vậy chỉ chạy routine trên repo và máy bạn tin, và coi `--scheduled` là khai báo (rào thật
   là: định nghĩa `goal` không thể mang lịch và không in được lịch).
   Chưa có: UI (Alt+R, sidebar, dòng trạng thái), lịch tự cài, pause/resume, nhiều worker ghi song song.
+- **Sổ ghi lời gọi LLM (opt-in): `AGENT_CLI_LLM_LEDGER=<tệp>`.** Mỗi lời gọi LLM, kể cả lần thử lại, thêm một dòng JSON:
+  vai trò (`main`, `title`, `summary`, `subagent`, `agentic_fetch`), provider và model thật đã gọi, kích thước prompt,
+  hash system prompt, tên tool, token của chính lời gọi đó, lý do kết thúc, loại lỗi (chỉ loại và mã HTTP). Không chép
+  nội dung prompt, câu trả lời hay văn bản lỗi; tệp mode 600. Biến tin cậy: chỉ đọc từ env gốc, `.env` của repo không
+  bật hay chuyển được sổ. Dùng để kiểm "phiên chỉ dùng provider X" và để đếm token thật (bộ đếm của session chỉ giữ bước cuối).
+- **`run --json` có `provider` và `model`** của câu trả lời cuối (đọc từ tin đã lưu, không phải model đang chọn).
+- **`scripts/eval/`: đo và cổng hồi quy bằng LLM giả.** `fakellm.py` (server tương thích OpenAI, ghi mỗi request:
+  provider, model, vai trò, kích thước); `faults.sh` (tiêm lỗi provider, ca model đang chọn thiếu key); `qwen-only.sh`
+  (đi qua mọi đường gọi LLM với model nhỏ cố ý ở provider khác); `workspaces.sh` (nhiều workspace, nhiều session, chế độ local);
+  `fixtures.py`/`run.sh`/`score.py` (bộ kịch bản đo trước/sau, chạy bằng cấu hình provider thật của bạn nên tốn hạn mức). `faults.sh`, `qwen-only.sh`,
+  `workspaces.sh` thoát 1 khi hỏng.
 
 ### Sửa lỗi
 
+- **Lời gọi ẩn không còn sang provider khác.** Model nhỏ nằm ở provider khác model chính từng nhận lời gọi đặt tiêu đề
+  (kèm nguyên văn prompt đầu của bạn) và `agentic_fetch`, không cảnh báo: phiên chọn Qwen local vẫn gửi prompt sang
+  provider của model nhỏ. Bộ tiêm lỗi với provider giả: bản trước có lời gọi lọt ở cả 8/8 ca (kể cả khi provider
+  chính chết); bản này 0/8. Nay model nhỏ ở provider khác được thay bằng model chính, log cảnh báo một lần. Tóm tắt
+  và agent con vốn đã dùng model chính.
+- **Bớt lời gọi đặt tiêu đề vô ích.** Session con (agent con, `agentic_fetch`) không còn gọi LLM đặt tiêu đề. Tiêu đề bị
+  cắt vì hết token thì không thử lại bằng model khác, giữ tiêu đề suy ra từ prompt (đo baseline: 26/26 lời gọi tiêu đề
+  kết thúc vì hết token, không lần nào ra tiêu đề). Chỉ thử thêm model chính khi nó khác model nhỏ.
+- **Tự tóm tắt không còn lặp vô hạn.** Khi phần cố định của prompt gần đầy context window, tóm tắt không giải phóng được
+  chỗ và từng lặp mãi (755 lời gọi chính + 755 lời gọi tóm tắt trong 90 giây với provider giả). Nay lượt dừng với lỗi
+  `context window too small…` khi việc còn dở mà riêng phần đầu vào sau tóm tắt đã vượt ngưỡng (output lớn, vd ghi
+  tệp lớn, thì vẫn tóm tắt tiếp). Thêm trần 10 lần tự tóm tắt cho một prompt khi việc còn dở (một kịch bản thật với
+  Qwen từng chạy 1.338 lời gọi chính trong 120 giây); quá trần thì lượt dừng có lỗi, gửi prompt mới để làm tiếp.
+- **Bản tóm tắt bị cắt** (hết ngân sách output) không còn thay cho toàn bộ lịch sử: tính là tóm tắt hỏng.
+- **Sau tự tóm tắt, lượt làm tiếp chạy trước prompt đang xếp hàng**; lỗi của prompt xếp hàng không còn bị báo là
+  "tóm tắt hỏng".
+- **Mở lại session sau khi tiến trình chết:** lời trả lời chỉ chữ hoặc rỗng và bản tóm tắt viết dở được đóng lại (kết
+  thúc lỗi), UI thôi hiện đang chạy, bản dở không vào lịch sử gửi model.
+- **`run` không còn báo thành công giả.** Prompt kết thúc mà model chưa ra chữ hay tool call nào, xét cả các lượt tự
+  làm tiếp của prompt đó, nay là lỗi `empty reply`; bộ lọc nội dung của provider chặn trước khi có gì thì báo lỗi riêng
+  (TUI vẫn hiện Refused); bị cắt vì hết ngân sách output thì vẫn tự làm tiếp trước, hết lượt mới báo lỗi. Lượt bị dừng
+  vì lặp cùng một tool call cũng là lỗi. `run` thoát 1 cho các trường hợp này. Đã gọi tool hay ra chữ rồi im lặng thì
+  không phải lỗi.
+- **`run` chạy local không còn in bản tự tóm tắt.** Lượt có tự tóm tắt từng in cả bản tóm tắt dính liền câu trả lời ra
+  stdout và vào `text` của `--json` (vd `## Current State…SUMMARY…DONE`); nay bản tóm tắt không còn được in. Chế độ
+  local vẫn in mọi chữ assistant của lượt (kể cả câu dẫn trước tool call); qua server `text` chỉ có câu trả lời cuối.
+- **Lệnh bash bị lớp chặn từ chối thì model biết lý do.** Khi lớp bảo vệ tiến trình hoặc lớp không người trực chặn một
+  lệnh, output gửi model có thêm dòng `Blocked: <lý do>` thay vì chỉ "not allowed for security reasons". Dòng này có
+  trần (5 lý do, mỗi lý do 300 ký tự) vì nó nằm ngoài bước cắt output.
+- **Model đang chọn không dùng được thì agent-cli không đổi sang provider khác.** Trước đây, khi provider dựng sẵn của
+  model đang chọn thiếu API key (hoặc ID model không còn), agent-cli lặng lẽ chạy bằng model của provider khác và ghi
+  lựa chọn đó xuống `~/.local/share/agent-cli/crush.json`. Đo bằng provider giả (`scripts/eval/faults.sh`, ca
+  `selected-no-key`: chọn `openai/gpt-4o` không có key): bản trước thoát 0 sau 2 request sang provider `glm`; bản này
+  thoát 1, 0 request. Nay: chỉ mất ID model thì dùng model mặc định của CÙNG provider (log cảnh báo, không ghi xuống
+  đĩa); provider không dùng được thì giữ nguyên lựa chọn: `run`, `loop`, `routine` dừng ngay với lỗi nêu provider/model
+  và cách sửa (`run -m` không vượt qua lỗi này), còn app vẫn khởi động không agent như lúc chưa cấu hình, nên
+  `agent-cli login <nền tảng>` chạy được và TUI mở thẳng màn chọn model.
+- **Panic log không còn rơi vào thư mục đang làm việc.** Tệp `crush-panic-*.log` nay nằm cùng thư mục với log, quyền 600
+  (trước đây ở thư mục hiện tại, quyền mặc định, dễ bị commit nhầm). Bước dọn dẹp sau panic chạy cả khi không ghi được tệp.
+- **Chi phí của agent con được cộng vào session cha cả khi agent con lỗi** (nó có thể đã tiêu tiền rồi mới lỗi).
+- **Hộp thoại quyền của một session không còn chặn session khác.** Yêu cầu đang chờ huỷ được; session được tự duyệt
+  (lượt `run`) không xếp hàng sau hộp thoại của session khác.
+- **`run` không còn treo vì quyền của session con.** Chạy local, yêu cầu quyền của agent con hay `agentic_fetch` không ai
+  trả lời nên treo tới hết giờ. Nay `run` (local như qua server) duyệt session con của chính lượt đó; không tra được
+  session gốc thì không duyệt.
+- **`agentic_fetch` tôn trọng `disabled_tools`.** Tool con bị lọc theo danh sách tắt; tắt cả `web_fetch` lẫn `web_search`
+  thì không đăng ký `agentic_fetch`; tắt `web_fetch` thì chế độ URL bị từ chối. Tắt `fetch` (tên tool trong cấu hình)
+  cũng tính là tắt `web_fetch` của `agentic_fetch`. Session con của nó không còn tự duyệt
+  (nội dung web có thể bảo agent đọc tệp ngoài rồi gửi đi); trong TUI, đọc ngoài thư mục tạm thì hỏi.
+- **Đóng một workspace không còn giết job nền và đóng MCP của workspace khác cùng server.** App đóng chỉ dừng job của
+  gốc mình; App cuối mới dừng hết và đóng MCP. Còn hai giới hạn hẹp (MCP sau App cuối, job của App mới cùng gốc): xem
+  `docs/agent-cli-local-setup.md`, mục "Giới hạn đã biết".
+- **`job_output`/`job_kill` chỉ thấy job của session đang gọi.** Job của session khác trả "not found" (ID job đánh số lại
+  sau mỗi lần khởi động nên từng có thể trùng).
+- **Job nền lỗi không còn hiện ✓.** `job_output` trả `exit_code` khi job đã xong; UI đổi icon lỗi và ghi `exit=N`. Chưa
+  xem trong TUI thật.
+- **Skill trong thư mục ẩn (vd `~/.claude/skills/.trash`) không còn được liệt kê.** Trên máy tác giả, khối skill gửi kèm
+  mỗi request nhỏ đi 4.691 B (31.860 → 27.169 B). Gốc skill nằm trong thư mục ẩn (`~/.agents/skills`) vẫn được quét,
+  kể cả khi viết kèm `/` cuối.
+- **Log không còn ghi giá trị env của client** (có thể chứa API key đã export) khi hai client mở cùng workspace với cờ
+  khác nhau: chỉ ghi tên các biến khác nhau.
+- **Lịch routine in ra chạy được.** Bản đầu (trên `main` sau v0.2.0) thiếu biến của launcher (`CRUSH_GLOBAL_CONFIG`…),
+  nên mỗi lần chạy theo lịch tìm định nghĩa ở `~/.config/crush`, thoát 2 và không chạy routine. Nay lịch mang theo
+  `CRUSH_GLOBAL_CONFIG`, `CRUSH_GLOBAL_DATA`, `CRUSH_CACHE_DIR`, ba biến tắt metrics/cập nhật và `AGENT_CLI_ENV_FILE`,
+  đọc từ env gốc (`.env` của thư mục hiện tại không chen vào được); giá trị có ký tự lạ thì lệnh từ chối.
+- **Routine bị kill giữa chừng không còn bị che.** Bản đầu không để lại báo cáo, `list`/`show` hiện lượt GREEN cũ; lỗi
+  trước khi agent chạy hiện như lượt bỏ dở. Nay có `RUNNING`/`ABANDONED`/`ERROR` (mục Thêm).
+- **Verify của loop/routine không còn GREEN nhờ `| cat`.** `pipefail` (mục Thêm).
+- **Chế độ không người trực bịt thêm lỗ.** Bản đầu để lọt: ghi tệp ra ngoài bằng tool ghi tệp (vd `~/.config/agent-cli/crushrc`,
+  chạy như Bash ở lần mở sau), `git -C <repo khác>`, option viết tắt (`--har`), biến `GIT_DIR=… git rm`. Nay đều bị chặn
+  (mục Thêm).
 - **Tiêu đề markdown (H1) vô hình trong theme tuỳ chỉnh.** Theme tuỳ chỉnh (vd `github-dark-dim` trong
   `~/.config/agent-cli/themes/`) không nhận lớp "yên tĩnh" của theme dựng sẵn, nên H1 rơi về kiểu `quickStyle`
   gốc: chữ `warning_subtle` trên nền `primary`. Với `#ffa657` trên `#79c0ff` đó là 1,00:1 (đo bằng công thức

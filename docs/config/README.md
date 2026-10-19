@@ -12,6 +12,10 @@
 > If you're migrating from the old JSON format, you can also ask Crush to
 > convert the config for you.
 
+> [!NOTE]
+> agent-cli (this fork): global config lives in `~/.config/agent-cli/` (the `agent-cli` launcher sets
+> `CRUSH_GLOBAL_CONFIG`) and the command is `agent-cli`, not `crush`; see [agent-cli-local-setup.md](../agent-cli-local-setup.md).
+
 Crush is configured with Bash via a set of Crush-specific builtin commands. By
 default, global config lives at `~/.config/crush/crushrc` on Unix-like systems
 and `%USERPROFILE%\.config\crush\crushrc` on Windows. It works like a `.bashrc`:
@@ -491,7 +495,7 @@ Integer Keys:
   request-timeout int              seconds before an LLM request is aborted;
                                    streaming responses are only aborted after
                                    this much inactivity; 0 waits forever
-                                   (default 60)
+                                   (default 120, i.e. 2 minutes)
 
 List Keys:
   context-path string             append a project context path

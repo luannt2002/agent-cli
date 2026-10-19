@@ -20,9 +20,9 @@
 ### P1. Mục tiêu sản phẩm và quyền thực hiện
 
 - **Bài toán:** fork cá nhân của Crush (TUI coding agent bằng Go). User làm FE/BE/devops, cần làm nhiều session và nhiều dự án song song trong một terminal, với model local hoặc provider qua API key. ĐÃ XÁC MINH: `AGENTS.md`, roadmap.
-- **Giai đoạn:** Phase 1 core MVP. Thứ tự giao hàng ở `docs/superpowers/plans/2026-10-14-core-mvp-lat1-lat2.md`: lát 1 (Home, 4 phím Alt, run sống khi đóng TUI, vá quyền bash, cài) → lát 2 (draft riêng từng session, câu hỏi xin quyền của session nền).
+- **Giai đoạn:** Phase 1 core MVP đã gộp và phát hành (tag `v0.1.0`, `v0.2.0` trên `main`). `agent-cli loop`/`routine` (Phase 4 của roadmap) ra sớm sau `v0.2.0`, chưa phát hành (DECISIONS.md, các mục 16/10).
 - **Thành công:** đạt cổng WIN ở roadmap mục 5. Nghĩa là user đi trọn daily workflow trên launcher thật với provider thật. Unit test xanh chưa đủ.
-- **Ngoài phạm vi:** Phase 2–5; remote SSH picker; GUI/RAG/team; dashboard chi phí; switcher Alt+Tab, phím index, framework keybinding mới, mode quyền mới (đã DEFER).
+- **Ngoài phạm vi:** phần còn lại của Phase 2–5 (trừ `loop`/`routine` đã ra sớm); remote SSH picker; GUI/RAG/team; dashboard chi phí; switcher Alt+Tab, phím index, framework keybinding mới, mode quyền mới (đã DEFER).
 - **Quyền agent:**
   - Mặc định THỰC HIỆN trong worktree.
   - KHÔNG commit/push khi user chưa cho phép; lời cho phép chỉ áp dụng đúng lần đó.
@@ -36,7 +36,6 @@
 | `~/.claude/CLAUDE.md` | BASE, chỉ đọc | Luật lõi của user: đòi lệnh, người chấm ≠ người làm, đo đừng đoán |
 | `AGENTS.md`, `internal/ui/AGENTS.md` | REPO | Hướng dẫn dev upstream; bắt buộc đọc file UI trước khi sửa TUI |
 | `docs/superpowers/plans/2026-10-14-agent-cli-personal-roadmap.md` | REPO | Thắng các plan cũ khi mâu thuẫn |
-| `docs/superpowers/plans/2026-10-14-core-mvp-lat1-lat2.md` | REPO | Plan hiện hành, kèm đối chiếu file feedback UI |
 | `docs/superpowers/plans/2026-10-14-multi-session-multi-project.md`, Phần K | REPO | Bảng KEEP/DISABLE/DEFER/REMOVE; các task cũ A6, A8, A9, A10 đã DEFER |
 | `docs/reviews/2026-10-14-phase1-ui-feedback.md` | REPO | Danh sách đề nghị; ACCEPT/DEFER/REJECT ghi trong plan core MVP |
 
@@ -45,7 +44,7 @@
   - Sonnet cho UI và task nhỏ.
   - Opus cho code an ninh, đồng thời và vòng đời run, cùng lượt soát chúng.
   - Không dùng mutant, không giao lượt soát lại, trừ code an ninh.
-- **Changelog:** `CHANGELOG.md` (Keep a Changelog, SemVer, tag `vX.Y.Z`); quy trình phát hành ở P6. Repo chưa có ADR hay `GLOSSARY.md`; trạng thái kiểm chứng ghi ở P8. Ledger `.superpowers/sdd/...` (`go.sh`, `preview-install.sh`, luật implementer/reviewer) và `docs/progress/` của đợt Phase 1 chưa từng vào git và đã mất khỏi máy ngày 14/10; tài liệu trong `docs/` còn nhắc tới chúng là lịch sử, đừng làm theo.
+- **Changelog:** `CHANGELOG.md` (Keep a Changelog, SemVer, tag `vX.Y.Z`); quy trình phát hành ở P6. Repo chưa có ADR hay `GLOSSARY.md`; trạng thái kiểm chứng ghi ở P8. Ledger `.superpowers/sdd/...` (`go.sh`, `preview-install.sh`, luật implementer/reviewer) của đợt Phase 1 chưa từng vào git; thư mục vẫn còn trên đĩa ở cây chính (không theo dõi, loại trừ ở `.git/info/exclude`). `docs/progress/PHASE1_STATUS.md` nằm trong `stash@{0}`, không có trong cây làm việc. Tài liệu trong `docs/` còn nhắc tới chúng là lịch sử, đừng làm theo.
 - **Đã gộp (14/10):** nhánh `feat/core-mvp-phase1` và `feat/personal-rename-providers` vào `main`, kèm đợt sửa sau audit độc lập.
 
 ### P3. Kiến trúc và bản đồ repo
@@ -73,16 +72,18 @@
 
 | Mục đích | Lệnh (chạy ở gốc repo) | Thực thi | Kết quả / giới hạn |
 |---|---|---|---|
-| Mọi lệnh Go | `taskset -c 0,2,3,5-8,10,11,13-15 go <args>` | ĐÃ CHẠY 14/10 | Bỏ nhân CPU lỗi 1, 4 (SMT 9, 12). Một lệnh Go nặng một lúc |
-| Test toàn kho | `taskset -c 0,2,3,5-8,10,11,13-15 go test ./... -count=1 -p 4` | ĐÃ CHẠY 14/10 | 65 package ok, khoảng 45 giây. `go vet` chỉ báo `internal/csync/maps.go:156` (mã upstream) |
-| Race | `taskset -c 0,2,3,5-8,10,11,13-15 go test -race -count=1 -p 2 ./internal/backend/... ./internal/agent/... ./internal/cmd/... ./internal/ui/... ./internal/workspace/... ./internal/projects/... ./internal/permission/... ./internal/server/...` | ĐÃ CHẠY 14/10 | 0 data race |
-| Cassette agent | `taskset -c 0,2,3,5-8,10,11,13-15 go test ./internal/agent -run TestCoderAgent -count=1` | ĐÃ CHẠY 14/10 | Từ v0.2.0 test tự ghim giới hạn ls (không còn phụ thuộc cwd có phải cây git) |
+| Mọi lệnh Go | `GOMAXPROCS=2 go <args>`, build/test thêm `-p 2` (như `scripts/install-agent-cli.sh`) | quy ước | Máy dùng chung 12 luồng (CPU 0-11): một lệnh Go nặng một lúc |
+| Test toàn kho | `GOMAXPROCS=2 go test ./... -count=1 -p 2` | ĐÃ CHẠY 16/10 | 68 package ok, 17 không có test, 0 FAIL, trên bản sửa đợt 16/10 lẫn cây sạch `4a0b25b6`; so theo tên: 0 test mất, 76 test mới đều xanh. Lần chạy đó dùng `GOMAXPROCS=4 GOMEMLIMIT=3GiB go test -json -count=1 -p 2 ./...`, 153 giây, trước đợt sửa cuối của ngày (`reports/system-evolution/evidence/suite-compare-1.txt`, chưa vào git). `go vet` (14/10) chỉ báo `internal/csync/maps.go:156` (mã upstream) |
+| Race | `GOMAXPROCS=2 go test -race -count=1 -p 2 ./internal/backend/... ./internal/agent/... ./internal/cmd/... ./internal/ui/... ./internal/workspace/... ./internal/projects/... ./internal/permission/... ./internal/server/...` | ĐÃ CHẠY 14/10 (máy cũ, lệnh có `taskset`) | 0 data race. Chưa chạy lại bộ này trên máy hiện tại |
+| Cassette agent | `GOMAXPROCS=2 go test ./internal/agent -run TestCoderAgent -count=1` | ĐÃ CHẠY 16/10 (trong lần chạy toàn kho) | Xanh. Từ v0.2.0 test tự ghim giới hạn ls (không còn phụ thuộc cwd có phải cây git) |
 | E2E run/send | `bash scripts/test-agent-cli-run-json.sh` | xem P8 | Binary + server thật với LLM giả |
+| E2E loop / routine | `AGENT_CLI_BIN=<binary> bash scripts/test-agent-cli-loop.sh`, `… scripts/test-agent-cli-routine.sh` | ĐÃ CHẠY 16/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả |
+| Cô lập provider, tiêm lỗi | `bash scripts/eval/faults.sh <thư-mục-mới> <binary>`, `bash scripts/eval/qwen-only.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 16/10 | LLM giả đếm request theo provider. Thoát 1 khi: request lọt sang provider khác, model đang chọn thiếu key mà không dừng, `text` lẫn bản tóm tắt, loop có cổng xanh sẵn mà không ra `NO_CHANGE` |
 | Launcher + installer | `bash scripts/test-agent-cli-wrapper.sh` | ĐÃ CHẠY 14/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
 | Giao việc thật | `bash scripts/test-agent-cli-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
 | Lint | `task lint` | CHƯA CHẠY | |
 
-- **Máy:** luannt-pc, Intel i7-8750H 6 nhân/12 luồng, RAM 15,5 GiB, swap 8 GiB (đo 16/10 bằng `lscpu`, `/proc/meminfo`; bản ghi 14/10 là Ryzen 9700X 16 luồng/60 GiB, không khớp nữa). Các lệnh `taskset -c …13-15` ở trên viết cho 16 luồng: trên 12 luồng CPU 13-15 bị bỏ lặng lẽ. Tối đa 3 agent cùng lúc; Go nặng chạy một lệnh một lúc, chờ RAM trống ≥3 GB.
+- **Máy:** luannt-pc, Intel i7-8750H 6 nhân/12 luồng, RAM 15,5 GiB, swap 8 GiB (đo 16/10 bằng `lscpu`, `/proc/meminfo`; bản ghi 14/10 là Ryzen 9700X 16 luồng/60 GiB, không khớp nữa; `nproc` 16/10 = 12). Tối đa 3 agent cùng lúc; Go nặng chạy một lệnh một lúc, chờ RAM trống ≥3 GB.
 - Phiên Claude Code chạy test giao việc phải bỏ biến `CLAUDECODE`, `CLAUDE_CODE_*` (script dùng `env -i`) để `claude` con chạy như ở terminal thường.
 
 ### P6. Cổng, phát hành và vận hành
@@ -104,7 +105,7 @@
 
 | Loại task | Đọc trước | Mã mẫu / convention | Ghi chú |
 |---|---|---|---|
-| Sửa TUI | `internal/ui/AGENTS.md` | `internal/ui/model/workspace_cache.go` (probe qua `tea.Cmd`) | `ui.go` dài khoảng 5.700 dòng: sửa có mục tiêu, đọc lại ngay trước khi sửa |
+| Sửa TUI | `internal/ui/AGENTS.md` | `internal/ui/model/workspace_cache.go` (probe qua `tea.Cmd`) | `ui.go` dài khoảng 7.000 dòng: sửa có mục tiêu, đọc lại ngay trước khi sửa |
 | Phím tắt | Roadmap P1.3a | `internal/ui/model/keys.go` | Core gồm Alt+W/S/N/M. Thêm 15/10 (DECISIONS.md): Alt+P chọn provider, Alt+M chỉ hiện model của provider đó, Alt+E chọn effort, Alt+. / Alt+, đổi session. Alt+J mở Jobs (job bash: xem output, dừng có hỏi lại). Alt+Tab bị hệ điều hành chiếm. Ctrl+P là đường phụ |
 | Quyền / bash | `internal/agent/tools/*.md` | `safe.go`, `bash_autoapprove_test.go` (permission luôn từ chối) | Mọi thay đổi tự duyệt phải có test chứng minh vẫn hỏi quyền |
 | Hook | `docs/hooks/README.md` | `internal/agent/stop_hook.go` | Không sửa dòng `description:` của SKILL.md builtin |
