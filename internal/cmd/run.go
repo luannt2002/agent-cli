@@ -969,23 +969,19 @@ func overrideModels(
 	return c.UpdateAgent(ctx, ws.ID)
 }
 
-// noteSessionModel in một dòng ra stderr khi tin assistant cuối của session
-// chạy model khác model lớn của workspace (model lượt này chạy).
+// noteSessionModel in một dòng ra stderr khi lời trả lời thật cuối của session
+// (lastReplyModel: không tính tin giữ chỗ) chạy model khác model lớn của
+// workspace (model lượt này chạy).
 func noteSessionModel(ctx context.Context, c *client.Client, ws *proto.Workspace, sessionID string) {
 	msgs, err := c.ListMessages(ctx, ws.ID, sessionID)
 	if err != nil {
 		slog.Warn("Failed to read the session's last model", "error", err)
 		return
 	}
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role != proto.Assistant || msgs[i].IsSummaryMessage {
-			continue
-		}
-		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}
-		if note := app.SessionModelNote(last, ws.Config.Models[config.SelectedModelTypeLarge]); note != "" {
-			fmt.Fprintf(runStderr, "session %s %s (pick another with -m)\n", sessionID, note)
-		}
-		return
+	var last config.SelectedModel
+	last.Provider, last.Model = lastReplyModel(protoReplies(msgs))
+	if note := app.SessionModelNote(last, ws.Config.Models[config.SelectedModelTypeLarge]); note != "" {
+		fmt.Fprintf(runStderr, "session %s %s (pick another with -m)\n", sessionID, note)
 	}
 }
 

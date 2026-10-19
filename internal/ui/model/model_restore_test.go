@@ -62,15 +62,28 @@ func modelWithID(id string) catwalk.Model { return catwalk.Model{ID: id} }
 func TestOpeningSessionKeepsTheWorkspaceModel(t *testing.T) {
 	t.Parallel()
 
+	// Tin giữ chỗ của prompt u2 (đang chờ, hoặc đã đóng khi bị huỷ/lỗi) không
+	// phải lời trả lời: thông báo dựa vào lời trả lời thật trước nó.
+	pending := []message.Message{{ID: "u2", Role: message.User}, {Role: message.Assistant, Provider: message.PendingReplyProvider, Model: "u2"}}
+	closed := []message.Message{pending[0], pending[1]}
+	closed[1].AddFinish(message.FinishReasonCanceled, "User canceled request", "")
+
 	for name, tc := range map[string]struct {
 		session  string
 		last     message.Message
 		wantHint string // Rỗng: không có thông báo.
+
+		after []message.Message // Tin sau last.
 	}{
 		"other provider":          {session: "s2", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}, wantHint: "alt+p"},
 		"other model":             {session: "s2", last: lastAssistantFor("b")[0], wantHint: "alt+m"},
 		"same model":              {session: "s2", last: lastAssistantFor("a")[0]},
 		"reload of shown session": {session: "s1", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}},
+
+		"other model, prompt pending after":  {session: "s2", last: lastAssistantFor("b")[0], after: pending, wantHint: "alt+m"},
+		"other model, prompt canceled after": {session: "s2", last: lastAssistantFor("b")[0], after: closed, wantHint: "alt+m"},
+		"same model, prompt pending after":   {session: "s2", last: lastAssistantFor("a")[0], after: pending},
+		"only a pending prompt":              {session: "s2", last: pending[0], after: pending[1:]},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -85,11 +98,15 @@ func TestOpeningSessionKeepsTheWorkspaceModel(t *testing.T) {
 			ws.cfg.Providers.Set("p", config.ProviderConfig{ID: "p", Models: []catwalk.Model{modelWithID("a"), modelWithID("b")}})
 			m.userThemeSelected = true
 
-			_, next := m.Update(loadSessionMsg{session: &session.Session{ID: tc.session}, messages: []message.Message{tc.last}})
+			msgs := append([]message.Message{tc.last}, tc.after...)
+			_, next := m.Update(loadSessionMsg{session: &session.Session{ID: tc.session}, messages: msgs})
 			var notes []string
 			for _, msg := range leafMsgs(next) {
-				if info, ok := msg.(util.InfoMsg); ok && strings.Contains(info.Msg, "last ran on") {
-					notes = append(notes, info.Msg)
+				if info, ok := msg.(util.InfoMsg); ok {
+					require.NotContains(t, info.Msg, message.PendingReplyProvider, "a placeholder is not a model")
+					if strings.Contains(info.Msg, "last ran on") {
+						notes = append(notes, info.Msg)
+					}
 				}
 			}
 

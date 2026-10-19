@@ -10,14 +10,15 @@ import (
 
 // sessionModelNote báo trên thanh trạng thái khi tin assistant cuối của session
 // vừa mở chạy model khác model lớn của workspace. Mở session không ghi gì: model
-// thuộc workspace và chỉ đổi khi người dùng chọn (alt+m, alt+p).
+// thuộc workspace và chỉ đổi khi người dùng chọn (alt+m, alt+p). Tin giữ chỗ
+// của prompt chưa chạy không phải lời trả lời: lùi về lời trả lời trước nó.
 func (m *UI) sessionModelNote(msgs []message.Message) tea.Cmd {
 	cfg := m.com.Config()
 	if cfg == nil {
 		return nil
 	}
 	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role != message.Assistant || msgs[i].IsSummaryMessage {
+		if msgs[i].Role != message.Assistant || msgs[i].IsSummaryMessage || message.IsPromptPlaceholder(msgs[i]) {
 			continue
 		}
 		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}

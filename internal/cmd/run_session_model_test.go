@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/crush/internal/client"
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/csync"
+	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/charmbracelet/crush/internal/pubsub"
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,9 @@ type sessionModelRun struct {
 	largeModel string // `-m`.
 	effort     string // `--reasoning-effort`.
 	lastModel  string // Model lượt cuối của x (mặc định m-pp trên pp).
+
+	after   []proto.Message // Tin sau lời trả lời cuối (prompt khác đã ghi).
+	noReply bool            // x chưa có lời trả lời nào, chỉ có after.
 }
 
 // runOnSessionX chạy runNonInteractive trên server giả và trả các lần ghi
@@ -48,6 +52,10 @@ func runOnSessionX(t *testing.T, o sessionModelRun) ([]config.SelectedModel, str
 	last := proto.Message{Role: proto.Assistant, Provider: "pp", Model: "m-pp"}
 	if o.lastModel != "" {
 		last.Provider, last.Model, _ = strings.Cut(o.lastModel, "/")
+	}
+	msgs := append([]proto.Message{last}, o.after...)
+	if o.noReply {
+		msgs = o.after
 	}
 
 	var (
@@ -81,7 +89,7 @@ func runOnSessionX(t *testing.T, o sessionModelRun) ([]config.SelectedModel, str
 		case p == "/sessions" && r.Method == http.MethodGet:
 			_ = json.NewEncoder(w).Encode([]proto.Session{{ID: "x"}})
 		case p == "/sessions/x/messages":
-			_ = json.NewEncoder(w).Encode([]proto.Message{last})
+			_ = json.NewEncoder(w).Encode(msgs)
 		case p == "/events":
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.WriteHeader(http.StatusOK)
@@ -128,6 +136,11 @@ func TestContinuedRunKeepsTheWorkspaceModel(t *testing.T) {
 	// Not parallel: swaps runStderr.
 	const note = "pp/m-pp"
 	qqHigh := config.SelectedModel{Provider: "qq", Model: "m-qq", ReasoningEffort: "high"}
+	// Tin giữ chỗ của prompt u2 (đang chờ, hoặc đã đóng khi bị huỷ/lỗi) không
+	// phải lời trả lời: dòng báo dựa vào lời trả lời thật trước nó.
+	pending := []proto.Message{{ID: "u2", Role: proto.User}, {Role: proto.Assistant, Provider: message.PendingReplyProvider, Model: "u2"}}
+	closed := []proto.Message{pending[0], pending[1]}
+	closed[1].AddFinish(proto.FinishReasonCanceled, "User canceled request", "")
 	cases := map[string]struct {
 		run        sessionModelRun
 		wantWrites []config.SelectedModel
@@ -138,17 +151,23 @@ func TestContinuedRunKeepsTheWorkspaceModel(t *testing.T) {
 		"run -s --reasoning-effort": {run: sessionModelRun{effort: "high"}, wantWrites: []config.SelectedModel{qqHigh}, wantNote: true},
 		"run -s -m":                 {run: sessionModelRun{largeModel: "pp/m-pp"}, wantWrites: []config.SelectedModel{{Provider: "pp", Model: "m-pp"}}},
 		"run -s same model":         {run: sessionModelRun{lastModel: "qq/m-qq"}},
+
+		"run -s, prompt pending after":            {run: sessionModelRun{after: pending}, wantNote: true},
+		"run -C, prompt canceled after":           {run: sessionModelRun{useLast: true, after: closed}, wantNote: true},
+		"run -s same model, prompt pending after": {run: sessionModelRun{lastModel: "qq/m-qq", after: pending}},
+		"run -s, only a pending prompt":           {run: sessionModelRun{noReply: true, after: pending}},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			writes, stderr := runOnSessionX(t, tc.run)
 			require.Equal(t, tc.wantWrites, writes, "model writes to the project config")
+			require.NotContains(t, stderr, message.PendingReplyProvider, "a placeholder is not a model")
 			if tc.wantNote {
 				require.Contains(t, stderr, note, "stderr names the session's last model")
 				require.Contains(t, stderr, "qq/m-qq", "stderr names the model this run uses")
 				require.Equal(t, 1, strings.Count(stderr, "\n"), "one line: %q", stderr)
 			} else {
-				require.NotContains(t, stderr, note)
+				require.NotContains(t, stderr, "last ran on")
 			}
 		})
 	}
