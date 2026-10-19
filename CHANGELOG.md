@@ -246,6 +246,13 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   Không mở được tệp sổ (vd thư mục không ghi được) thì giữ như cũ: cảnh báo một lần mỗi tiến trình, không có
   `ledger_error`. Kiểm: `scripts/eval/ledger.sh <thư-mục-mới> <binary>` (binary thật, LLM giả; thoát 1 khi thiếu
   cảnh báo hay trường).
+- **Chỉ dẫn của MCP server (`<mcp-instructions>`) chỉ gửi cho lượt có đường tới server đó.** Trước đây chỉ dẫn của
+  mọi MCP đang kết nối được gắn vào system prompt của mọi lượt, kể cả agent con (`agent`), `agentic_fetch` và plan,
+  vốn không có tool MCP nào: model nhận lời dặn gọi tool nó không có. Nay lượt nhận chỉ dẫn của một server khi có
+  ít nhất một tool của server đó, hoặc có `list_mcp_resources`/`read_mcp_resource` (hai tool này đọc được mọi
+  server). Agent chính có MCP vẫn nhận đủ như cũ. Các khối chỉ dẫn nay xếp theo tên server: trước đây thứ tự ngẫu
+  nhiên khi có từ 2 server, nên system prompt đổi giữa các lượt và prompt cache của provider bị trượt. Test:
+  `TestMCPInstructionsFollowRunTools`, `TestRunMCPInstructionsFollowRunTools`, `TestMCPInstructionsOrderIsStable`.
 
 ## [0.2.0] - 2026-10-16
 

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"regexp"
@@ -280,6 +281,46 @@ func filterToolsForChannel(agentTools []fantasy.AgentTool, channel string, state
 		}
 	}
 	return filtered
+}
+
+// mcpInstructions trả khối <mcp-instructions> cho system prompt của một lượt,
+// chỉ gồm chỉ dẫn của MCP server mà bộ tool của lượt (agentTools) chạm tới:
+// có ít nhất một tool của server đó, hoặc có list/read_mcp_resource (nhận tên
+// server bất kỳ). Agent con, agentic_fetch, plan không có tool MCP nên không
+// nhận chỉ dẫn cho tool chúng không có.
+func mcpInstructions(states map[string]mcp.ClientInfo, agentTools []fantasy.AgentTool) string {
+	reach := make(map[string]bool)
+	allServers := false
+	for _, t := range agentTools {
+		switch t.Info().Name {
+		case tools.ListMCPResourcesToolName, tools.ReadMCPResourceToolName:
+			allServers = true
+		}
+		// hookedTool (PreToolUse) không lộ MCP() của tool bên trong.
+		if h, ok := t.(*hookedTool); ok {
+			t = h.inner
+		}
+		if m, ok := t.(interface{ MCP() string }); ok {
+			reach[m.MCP()] = true
+		}
+	}
+	var instructions strings.Builder
+	// Duyệt theo tên server: thứ tự cố định thì system prompt không đổi giữa
+	// các lượt (prompt cache của provider không trượt).
+	for _, name := range slices.Sorted(maps.Keys(states)) {
+		server := states[name]
+		if server.State != mcp.StateConnected || !allServers && !reach[name] {
+			continue
+		}
+		if s := server.Client.InitializeResult().Instructions; s != "" {
+			instructions.WriteString(s)
+			instructions.WriteString("\n\n")
+		}
+	}
+	if s := instructions.String(); s != "" {
+		return "\n\n<mcp-instructions>\n" + s + "\n</mcp-instructions>"
+	}
+	return ""
 }
 
 type SessionAgent interface {
@@ -1020,23 +1061,8 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 	}
 	agentTools := filterToolsForChannel(runToolSet, call.Channel, mcp.GetStates())
 	largeModel := a.runModel(call)
-	systemPrompt := a.systemPrompt.Get()
+	systemPrompt := a.systemPrompt.Get() + mcpInstructions(mcp.GetStates(), agentTools)
 	promptPrefix := a.systemPromptPrefix.Get()
-	var instructions strings.Builder
-
-	for _, server := range mcp.GetStates() {
-		if server.State != mcp.StateConnected {
-			continue
-		}
-		if s := server.Client.InitializeResult().Instructions; s != "" {
-			instructions.WriteString(s)
-			instructions.WriteString("\n\n")
-		}
-	}
-
-	if s := instructions.String(); s != "" {
-		systemPrompt += "\n\n<mcp-instructions>\n" + s + "\n</mcp-instructions>"
-	}
 
 	if len(agentTools) > 0 {
 		// Add Anthropic caching to the last tool.
