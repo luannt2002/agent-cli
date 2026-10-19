@@ -61,6 +61,27 @@ func TestInitializePromptDefaultsToNo(t *testing.T) {
 	require.Equal(t, uiLanding, m.state)
 }
 
+// Model chính đã chọn mà provider không dùng được (thiếu key, không còn): agent-cli
+// không đổi provider, nên TUI mở màn chọn model như lúc chưa cấu hình; chọn xong mới
+// dựng agent. Model dùng được thì không vào onboarding.
+func TestUnavailableSelectedModelOpensOnboarding(t *testing.T) {
+	providers := csync.NewMap[string, config.ProviderConfig]()
+	providers.Set("p", config.ProviderConfig{ID: "p", APIKey: "k", Models: []catwalk.Model{{ID: "m"}}})
+	newUI := func(large config.SelectedModel) *UI {
+		return New(common.DefaultCommon(&initWorkspace{countingWorkspace: &countingWorkspace{
+			ready: true,
+			cfg: &config.Config{
+				Providers: providers,
+				Options:   &config.Options{TUI: &config.TUIOptions{}},
+				Models:    map[config.SelectedModelType]config.SelectedModel{config.SelectedModelTypeLarge: large},
+			},
+		}}), "", false)
+	}
+	require.Equal(t, uiOnboarding, newUI(config.SelectedModel{Provider: "openai", Model: "gpt-4o"}).state)
+	require.Equal(t, uiOnboarding, newUI(config.SelectedModel{Provider: "p", Model: "gone"}).state)
+	require.Equal(t, uiInitialize, newUI(config.SelectedModel{Provider: "p", Model: "m"}).state)
+}
+
 // newInitUI dựng UI ở màn "khởi tạo dự án" (dự án chưa khởi tạo).
 func newInitUI(t *testing.T) (*UI, *initWorkspace) {
 	t.Helper()

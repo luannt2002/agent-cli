@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"charm.land/fantasy"
@@ -149,6 +150,40 @@ func TestBashBlocksDestructiveCommandsWhenUnattended(t *testing.T) {
 	_, _, err = sh.Exec(t.Context(), "git push origin main")
 	if err != nil {
 		require.NotContains(t, err.Error(), "not allowed for security reasons")
+	}
+}
+
+// Lệnh bị chặn khi không người trực phải cho model biết LÝ DO (soát lượt 3, F4):
+// chỉ "not allowed for security reasons" thì model không biết đổi gì (vd nhắc
+// GIT_DIR trong commit message: dùng `git commit -F <tệp>`). KHÔNG song song.
+func TestBashTellsTheModelWhyAnUnattendedCommandWasBlocked(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	execpolicy.SetUnattended(true, false)
+	work := t.TempDir()
+	tool, _ := newBashToolWithRecordingPerms(work, true)
+	ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+	resp := runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: `git log --grep=GIT_DIR`})
+	require.Contains(t, resp.Content, "not allowed")
+	require.Contains(t, resp.Content, "mentions GIT_DIR", "the guard's reason reaches the model")
+}
+
+// Dòng lý do chặn nằm NGOÀI bước cắt output (MaxOutputLength), nên phải tự có trần:
+// lý do chép tham số đã mở rộng (đích rm dài) và mỗi lệnh chạy nền `&` bị chặn
+// riêng (soát lượt 4, R4-M1: 147.581 và 200.327 ký tự). KHÔNG song song.
+func TestBashBlockReasonsAreBounded(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	execpolicy.SetUnattended(true, false)
+	work := t.TempDir()
+	tool, _ := newBashToolWithRecordingPerms(work, true)
+	ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+	for name, cmd := range map[string]string{
+		"many blocked commands": `for i in $(seq 1 60); do rm /tmp/never_$i & done; wait; echo end`,
+		"one huge argument":     `rm "/tmp/$(head -c 20000 /dev/zero | tr '\\0' a)"`,
+	} {
+		resp := runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: cmd})
+		_, note, found := strings.Cut(resp.Content, "Blocked: ")
+		require.Truef(t, found, "%s: the reason is reported", name)
+		require.LessOrEqualf(t, len(note), 2500, "%s: the reason note stays small", name)
 	}
 }
 

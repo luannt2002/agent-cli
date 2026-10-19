@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 
 	"charm.land/fantasy"
@@ -70,6 +71,12 @@ func (c *coordinator) agenticFetchTool(_ context.Context, client *http.Client) (
 			validationResult, err := validateAgenticFetchParams(ctx, params)
 			if err != nil {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
+			}
+
+			// Chế độ URL tự tải URL trước khi agent con chạy, nên tắt web_fetch phải
+			// chặn ở đây; chế độ tìm kiếm vẫn được nếu web_search còn bật.
+			if params.URL != "" && slices.Contains(agenticFetchDisabled(c.cfg.Config().Options.DisabledTools), tools.WebFetchToolName) {
+				return fantasy.NewTextErrorResponse("URL mode is unavailable: the web_fetch tool is disabled (fetch or web_fetch is in disabled_tools). Omit url to search the web instead."), nil
 			}
 
 			// Determine description based on mode.
@@ -162,16 +169,7 @@ func (c *coordinator) agenticFetchTool(_ context.Context, client *http.Client) (
 				return fantasy.ToolResponse{}, errors.New("small model provider not configured")
 			}
 
-			webFetchTool := tools.NewWebFetchTool(tmpDir, client)
-			webSearchTool := tools.NewWebSearchTool(client)
-			fetchTools := []fantasy.AgentTool{
-				webFetchTool,
-				webSearchTool,
-				tools.NewGlobTool(c.permissions, tmpDir, c.cfg.Config().Tools.Glob),
-				tools.NewGrepTool(c.permissions, tmpDir, c.cfg.Config().Tools.Grep),
-				tools.NewSourcegraphTool(client),
-				tools.NewViewTool(c.lspManager, c.permissions, c.filetracker, nil, tmpDir),
-			}
+			fetchTools := c.agenticFetchInnerTools(tmpDir, client)
 
 			// Sub-agent tools run without hook interception. The top-level
 			// `agentic_fetch` call itself is already wrapped from the coder's
@@ -190,17 +188,58 @@ func (c *coordinator) agenticFetchTool(_ context.Context, client *http.Client) (
 				Tools:                fetchTools,
 			})
 
-			return c.runSubAgent(ctx, subAgentParams{
+			return c.runSubAgent(withLLMRole(ctx, "agentic_fetch"), subAgentParams{
 				Agent:          agent,
 				SessionID:      validationResult.SessionID,
 				AgentMessageID: validationResult.AgentMessageID,
 				ToolCallID:     call.ID,
 				Prompt:         fullPrompt,
 				SessionTitle:   "Fetch Analysis",
-				SessionSetup: func(sessionID string) {
-					c.permissions.AutoApproveSession(sessionID)
-				},
+				// Không tự duyệt session con: nội dung web có thể tiêm lệnh bảo agent
+				// đọc tệp ngoài thư mục tạm (rồi gửi đi bằng web_fetch). Việc thường
+				// của nó (web_fetch/web_search, view/grep trong thư mục tạm) không cần
+				// quyền. Đọc ra ngoài: TUI hỏi người dùng; `run` không người hỏi nên
+				// duyệt mọi phiên con như phiên gốc (app.autoApproveRun) (audit g5).
 			})
 		},
 	), nil
+}
+
+func (c *coordinator) agenticFetchInnerTools(tmpDir string, client *http.Client) []fantasy.AgentTool {
+	return filterDisabledTools([]fantasy.AgentTool{
+		tools.NewWebFetchTool(tmpDir, client),
+		tools.NewWebSearchTool(client),
+		tools.NewGlobTool(c.permissions, tmpDir, c.cfg.Config().Tools.Glob),
+		tools.NewGrepTool(c.permissions, tmpDir, c.cfg.Config().Tools.Grep),
+		tools.NewSourcegraphTool(client),
+		tools.NewViewTool(c.lspManager, c.permissions, c.filetracker, nil, tmpDir),
+	}, agenticFetchDisabled(c.cfg.Config().Options.DisabledTools))
+}
+
+// filterDisabledTools bỏ các tool có tên trong disabled_tools của người dùng: luật
+// tắt tool áp cho cả agent con, không chỉ agent chính.
+func filterDisabledTools(ts []fantasy.AgentTool, disabled []string) []fantasy.AgentTool {
+	out := ts[:0:0]
+	for _, t := range ts {
+		if !slices.Contains(disabled, t.Info().Name) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// agenticFetchUsable: tắt cả web_fetch lẫn web_search thì agentic_fetch không còn
+// cách nào lên web, nên không đưa nó cho model.
+func agenticFetchUsable(disabled []string) bool {
+	disabled = agenticFetchDisabled(disabled)
+	return !slices.Contains(disabled, tools.WebFetchToolName) || !slices.Contains(disabled, tools.WebSearchToolName)
+}
+
+// agenticFetchDisabled: danh sách tool người dùng thấy chỉ có "fetch", không có
+// web_fetch; tắt "fetch" mà agentic_fetch vẫn tải được URL là lọt.
+func agenticFetchDisabled(disabled []string) []string {
+	if slices.Contains(disabled, tools.FetchToolName) && !slices.Contains(disabled, tools.WebFetchToolName) {
+		return append(slices.Clone(disabled), tools.WebFetchToolName)
+	}
+	return disabled
 }

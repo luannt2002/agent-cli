@@ -10,7 +10,9 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
@@ -167,7 +169,56 @@ func bashDescription(attribution *config.Attribution, modelID string) string {
 	return out.String()
 }
 
-func blockFuncs() []shell.BlockFunc {
+// blockNotes gom lý do chặn của MỘT lời gọi tool bash để trả cho model: chỉ
+// "not allowed for security reasons" thì model không biết phải đổi gì. Dòng này
+// nằm ngoài bước cắt output nên tự có trần: lý do chép tham số đã mở rộng, và
+// mỗi lệnh chạy nền `&` bị chặn riêng.
+type blockNotes struct {
+	mu      sync.Mutex
+	reasons []string
+	more    int
+}
+
+const (
+	maxBlockNotes     = 5
+	maxBlockNoteRunes = 300
+)
+
+func (n *blockNotes) add(reason string) {
+	if n == nil {
+		return
+	}
+	if r := []rune(reason); len(r) > maxBlockNoteRunes {
+		reason = string(r[:maxBlockNoteRunes]) + "…"
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	switch {
+	case slices.Contains(n.reasons, reason):
+	case len(n.reasons) < maxBlockNotes:
+		n.reasons = append(n.reasons, reason)
+	default:
+		n.more++
+	}
+}
+
+// annotate nối lý do (nếu có) vào output gửi model.
+func (n *blockNotes) annotate(output string) string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if len(n.reasons) == 0 {
+		return output
+	}
+	note := strings.Join(n.reasons, "; ")
+	if n.more > 0 {
+		note += fmt.Sprintf(" (and %d more blocked commands)", n.more)
+	}
+	return strings.TrimRight(output, "\n") + "\nBlocked: " + note
+}
+
+func blockFuncs() []shell.BlockFunc { return blockFuncsWithNotes(nil) }
+
+func blockFuncsWithNotes(notes *blockNotes) []shell.BlockFunc {
 	return []shell.BlockFunc{
 		shell.CommandsBlocker(bannedCommands),
 
@@ -181,12 +232,14 @@ func blockFuncs() []shell.BlockFunc {
 		shell.ProtectControlProcess(func(reason string, args []string) {
 			slog.Warn("Blocked a command that targets agent-cli's own process or the machine",
 				"reason", reason, "command", args[0])
+			notes.add(reason)
 		}),
 
 		// Chế độ không người trực (routine): `run` tự duyệt mọi quyền nên chặn cứng
 		// lệnh phá huỷ/đẩy ra ngoài ở đây. Tắt thì không chặn gì thêm.
 		shell.UnattendedGuard(execpolicy.Unattended, execpolicy.UnattendedAllowsCommit, func(reason string, args []string) {
 			slog.Warn("Blocked a command while running unattended", "reason", reason, "command", args[0])
+			notes.add(reason)
 		}),
 
 		// System package managers
@@ -280,7 +333,8 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 				bgManager.Cleanup()
 				// Use background context so it continues after tool returns
 				owner := shell.JobOwner{SessionID: GetSessionFromContext(ctx), ToolCallID: call.ID, Root: workingDir}
-				bgShell, err := bgManager.StartFor(context.Background(), owner, execWorkingDir, blockFuncs(), params.Command, params.Description)
+				notes := &blockNotes{}
+				bgShell, err := bgManager.StartFor(context.Background(), owner, execWorkingDir, blockFuncsWithNotes(notes), params.Command, params.Description)
 				if err != nil {
 					return fantasy.ToolResponse{}, fmt.Errorf("error starting background shell: %w", err)
 				}
@@ -299,7 +353,7 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 						return fantasy.ToolResponse{}, fmt.Errorf("[Job %s] error executing command: %w", bgShell.ID, execErr)
 					}
 
-					stdout = formatOutput(stdout, stderr, execErr, spillDir)
+					stdout = notes.annotate(formatOutput(stdout, stderr, execErr, spillDir))
 
 					metadata := BashResponseMetadata{
 						StartTime:        startTime.UnixMilli(),
@@ -338,7 +392,8 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 			bgManager := shell.GetBackgroundShellManager()
 			bgManager.Cleanup()
 			owner := shell.JobOwner{SessionID: GetSessionFromContext(ctx), ToolCallID: call.ID, Root: workingDir}
-			bgShell, err := bgManager.StartFor(context.Background(), owner, execWorkingDir, blockFuncs(), params.Command, params.Description)
+			notes := &blockNotes{}
+			bgShell, err := bgManager.StartFor(context.Background(), owner, execWorkingDir, blockFuncsWithNotes(notes), params.Command, params.Description)
 			if err != nil {
 				return fantasy.ToolResponse{}, fmt.Errorf("error starting shell: %w", err)
 			}
@@ -386,7 +441,7 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 					return fantasy.ToolResponse{}, fmt.Errorf("[Job %s] error executing command: %w", bgShell.ID, execErr)
 				}
 
-				stdout = formatOutput(stdout, stderr, execErr, spillDir)
+				stdout = notes.annotate(formatOutput(stdout, stderr, execErr, spillDir))
 
 				metadata := BashResponseMetadata{
 					StartTime:        startTime.UnixMilli(),

@@ -871,7 +871,8 @@ func (c *coordinator) buildTools(ctx context.Context, agent config.Agent, isSubA
 		allTools = append(allTools, agentTool)
 	}
 
-	if slices.Contains(agent.AllowedTools, tools.AgenticFetchToolName) {
+	if slices.Contains(agent.AllowedTools, tools.AgenticFetchToolName) &&
+		agenticFetchUsable(c.cfg.Config().Options.DisabledTools) {
 		agenticFetchTool, err := c.agenticFetchTool(ctx, nil)
 		if err != nil {
 			return nil, err
@@ -1020,6 +1021,45 @@ func checkModelPolicy(pol execpolicy.Policy, models ...config.SelectedModel) err
 	return nil
 }
 
+var crossProviderSmallWarned sync.Map
+
+// sameProviderSmall giữ việc phụ (tiêu đề, agentic_fetch) trong provider của
+// model chính: model small khác provider thì dùng chính model large. Không thế
+// thì phiên chọn Qwen local vẫn gửi prompt đầu của người dùng sang provider của
+// model small (probe P-01: tiêu đề đi glm), không ai thấy. Cùng provider thì
+// giữ model small (rẻ hơn) như cấu hình.
+func sameProviderSmall(large, small config.SelectedModel) config.SelectedModel {
+	if small.Provider == large.Provider {
+		return small
+	}
+	if _, warned := crossProviderSmallWarned.LoadOrStore(small.Provider+">"+large.Provider, true); !warned {
+		slog.Warn("Small model is on another provider; using the main model for titles and agentic_fetch",
+			"small_provider", small.Provider, "small_model", small.Model,
+			"main_provider", large.Provider, "main_model", large.Model)
+	}
+	return large
+}
+
+// noFallbackError nêu đúng provider/model đã cấu hình và cách sửa: agent-cli cố
+// ý không mượn provider khác (fail closed), nên người dùng phải biết vì sao dừng.
+// Lỗi này chặn trước khi `run -m` được áp, nên không gợi ý `-m`.
+func noFallbackError(sentinel error, m config.SelectedModel) error {
+	return fmt.Errorf("%w: provider %q, model %q is unavailable (missing key or login, disabled, or unknown model) and agent-cli does not switch to another provider; fix that provider (API key, `agent-cli login <platform>`, or re-enable it), or select another model (alt+m in the TUI, or the models section of your config)",
+		sentinel, m.Provider, m.Model)
+}
+
+// SelectedModelUnavailable: lỗi dựng agent vì provider/model đang chọn không dùng
+// được. App vẫn khởi động không agent (như lúc chưa cấu hình) để còn login và chọn
+// model khác; lượt nào cần agent dựng lại và gặp đúng lỗi này.
+func SelectedModelUnavailable(err error) bool {
+	for _, sentinel := range []error{errLargeModelProviderNotConfigured, errSmallModelProviderNotConfigured, errLargeModelNotFound, errSmallModelNotFound} {
+		if errors.Is(err, sentinel) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *coordinator) buildAgentModels(ctx context.Context, isSubAgent bool) (Model, Model, error) {
 	largeModelCfg, ok := c.cfg.Config().Models[config.SelectedModelTypeLarge]
 	if !ok {
@@ -1029,6 +1069,7 @@ func (c *coordinator) buildAgentModels(ctx context.Context, isSubAgent bool) (Mo
 	if !ok {
 		return Model{}, Model{}, errSmallModelNotSelected
 	}
+	smallModelCfg = sameProviderSmall(largeModelCfg, smallModelCfg)
 	pol, err := c.execPolicy()
 	if err != nil {
 		return Model{}, Model{}, err
@@ -1037,9 +1078,10 @@ func (c *coordinator) buildAgentModels(ctx context.Context, isSubAgent bool) (Mo
 		return Model{}, Model{}, err
 	}
 
+	// Provider dựng sẵn bị tắt vẫn nằm trong Providers (Disable=true): tắt là không gọi.
 	largeProviderCfg, ok := c.cfg.Config().Providers.Get(largeModelCfg.Provider)
-	if !ok {
-		return Model{}, Model{}, errLargeModelProviderNotConfigured
+	if !ok || largeProviderCfg.Disable {
+		return Model{}, Model{}, noFallbackError(errLargeModelProviderNotConfigured, largeModelCfg)
 	}
 
 	largeProvider, err := c.buildProvider(largeProviderCfg, largeModelCfg, isSubAgent)
@@ -1048,8 +1090,8 @@ func (c *coordinator) buildAgentModels(ctx context.Context, isSubAgent bool) (Mo
 	}
 
 	smallProviderCfg, ok := c.cfg.Config().Providers.Get(smallModelCfg.Provider)
-	if !ok {
-		return Model{}, Model{}, errSmallModelProviderNotConfigured
+	if !ok || smallProviderCfg.Disable {
+		return Model{}, Model{}, noFallbackError(errSmallModelProviderNotConfigured, smallModelCfg)
 	}
 
 	smallProvider, err := c.buildProvider(smallProviderCfg, smallModelCfg, true)
@@ -1065,11 +1107,11 @@ func (c *coordinator) buildAgentModels(ctx context.Context, isSubAgent bool) (Mo
 	smallCatwalkModel := c.cfg.Config().GetModel(smallModelCfg.Provider, smallModelCfg.Model)
 
 	if largeCatwalkModel == nil {
-		return Model{}, Model{}, errLargeModelNotFound
+		return Model{}, Model{}, noFallbackError(errLargeModelNotFound, largeModelCfg)
 	}
 
 	if smallCatwalkModel == nil {
-		return Model{}, Model{}, errSmallModelNotFound
+		return Model{}, Model{}, noFallbackError(errSmallModelNotFound, smallModelCfg)
 	}
 
 	largeModelID := largeModelCfg.Model
@@ -1107,6 +1149,10 @@ func (c *coordinator) buildAgentModels(ctx context.Context, isSubAgent bool) (Mo
 	if smallModelCfg.Provider == hyper.Name {
 		smallModel = newHyperCreditsModel(smallModel, c.hyperAPIKey)
 	}
+	// Sổ ghi lời gọi LLM (opt-in): ngoài cùng, để mỗi lần thử của fantasy là một dòng.
+	ledger := ledgerPath()
+	largeModel = newLedgerModel(largeModel, largeModelCfg.Provider, largeModelID, ledger)
+	smallModel = newLedgerModel(smallModel, smallModelCfg.Provider, smallModelID, ledger)
 
 	large := Model{
 		Model:      largeModel,
@@ -1768,19 +1814,19 @@ func (c *coordinator) runSubAgent(ctx context.Context, params subAgentParams) (f
 			ProviderID: model.ModelCfg.Provider,
 		})
 	}
-	if err != nil {
-		return fantasy.NewTextErrorResponse(fmt.Sprintf("Failed to generate response: %s", err)), nil
-	}
-
 	// Update parent session cost on a best-effort basis. A failure here must
-	// not discard the sub-agent output that was already produced.
-	if err := c.updateParentSessionCost(ctx, session.ID, params.SessionID); err != nil {
+	// not discard the sub-agent output that was already produced. Chạy cả khi
+	// agent con lỗi: nó có thể đã tiêu tiền rồi mới lỗi.
+	if costErr := c.updateParentSessionCost(ctx, session.ID, params.SessionID); costErr != nil {
 		slog.Warn(
 			"Failed to update parent session cost",
 			"child_session", session.ID,
 			"parent_session", params.SessionID,
-			"error", err,
+			"error", costErr,
 		)
+	}
+	if err != nil {
+		return fantasy.NewTextErrorResponse(fmt.Sprintf("Failed to generate response: %s", err)), nil
 	}
 
 	output := subAgentOutput(result)

@@ -24,8 +24,10 @@ import (
 type scriptModel struct {
 	script      []string
 	summaryText string
-	gate        chan struct{}
-	entered     chan struct{}
+	// summaryFinish là lý do kết thúc của request tóm tắt (rỗng = stop).
+	summaryFinish fantasy.FinishReason
+	gate          chan struct{}
+	entered       chan struct{}
 
 	mu      sync.Mutex
 	work    int
@@ -84,7 +86,11 @@ func (m *scriptModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.St
 		m.kinds = append(m.kinds, "summary")
 		m.prompts = append(m.prompts, last)
 		m.mu.Unlock()
-		return textStream(m.summaryText, fantasy.FinishReasonStop, fantasy.Usage{InputTokens: 10, OutputTokens: 5, TotalTokens: 15}), nil
+		finish := m.summaryFinish
+		if finish == "" {
+			finish = fantasy.FinishReasonStop
+		}
+		return textStream(m.summaryText, finish, fantasy.Usage{InputTokens: 10, OutputTokens: 5, TotalTokens: 15}), nil
 	}
 	step := "done"
 	if m.work < len(m.script) {
@@ -108,6 +114,58 @@ func (m *scriptModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.St
 	switch step {
 	case "cut":
 		return textStream("part ", fantasy.FinishReasonLength, small), nil
+	case "empty":
+		return textStream("", fantasy.FinishReasonStop, small), nil
+	case "refused":
+		return textStream("", fantasy.FinishReasonContentFilter, small), nil
+	case "empty_unknown", "empty_error", "empty_other":
+		// Provider openai-compat ánh xạ finish lạ (GLM "network_error", "sensitive")
+		// thành unknown; google/Responses API có error/other.
+		reason := map[string]fantasy.FinishReason{"empty_unknown": fantasy.FinishReasonUnknown,
+			"empty_error": fantasy.FinishReasonError, "empty_other": fantasy.FinishReasonOther}[step]
+		return textStream("", reason, small), nil
+	case "two_text_blocks":
+		// Khối chữ đầu chỉ có khoảng trắng, câu trả lời thật ở khối sau (google mở khối
+		// mới sau phần nghĩ): ResponseContent.Text() chỉ trả khối đầu.
+		return func(yield func(fantasy.StreamPart) bool) {
+			for i, txt := range []string{"\n", "the real answer"} {
+				id := fmt.Sprintf("t%d", i)
+				if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextStart, ID: id}) ||
+					!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextDelta, ID: id, Delta: txt}) ||
+					!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextEnd, ID: id}) {
+					return
+				}
+			}
+			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop, Usage: small})
+		}, nil
+	case "think_cut_big":
+		// Nghĩ hết ngân sách output (finish=length, không chữ) ĐÚNG lúc vượt ngưỡng tự tóm tắt.
+		return func(yield func(fantasy.StreamPart) bool) {
+			if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningStart, ID: "r1"}) ||
+				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningDelta, ID: "r1", Delta: "thinking..."}) ||
+				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningEnd, ID: "r1"}) {
+				return
+			}
+			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength,
+				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}})
+		}, nil
+	case "cut_tool", "think_cut":
+		// Bị cắt ở giới hạn output: provider openai-compat không phát ToolCall cho
+		// tool call viết dở; model suy luận tiêu hết ngân sách vào phần nghĩ.
+		id := fmt.Sprintf("tc%d", n)
+		return func(yield func(fantasy.StreamPart) bool) {
+			if step == "cut_tool" {
+				if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputStart, ID: id, ToolCallName: "noop"}) ||
+					!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputDelta, ID: id, Delta: `{"content": "half`}) {
+					return
+				}
+			} else if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningStart, ID: "r1"}) ||
+				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningDelta, ID: "r1", Delta: "thinking..."}) ||
+				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningEnd, ID: "r1"}) {
+				return
+			}
+			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength, Usage: small})
+		}, nil
 	case "tool", "tool_small":
 		id := fmt.Sprintf("tc%d", n)
 		usage := fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}
@@ -173,16 +231,18 @@ func TestEmptySummaryKeepsHistory(t *testing.T) {
 
 // Hai lần tóm tắt liên tiếp trong cùng một việc không được bọc "yêu cầu gốc"
 // thành chuỗi lồng nhau: prompt làm tiếp phải mang đúng yêu cầu thật của
-// người dùng, mỗi lớp chỉ một lần.
+// người dùng, mỗi lớp chỉ một lần. Lượt làm tiếp có một bước nhỏ (tóm tắt đã
+// giải phóng chỗ) trước khi đầy lại: tóm tắt ngay ở bước đầu của lượt làm tiếp
+// là ca không tiến triển, bị chặn bằng lỗi (summarize_overflow_test.go).
 func TestRepeatedSummaryDoesNotNestThePrompt(t *testing.T) {
-	h := newContHarness(t, &scriptModel{script: []string{"tool", "tool", "done"}, summaryText: "SUMMARY"})
+	h := newContHarness(t, &scriptModel{script: []string{"tool", "tool_small", "tool", "done"}, summaryText: "SUMMARY"})
 
 	_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "refactor the scanner"})
 	require.NoError(t, err)
 	waitRunComplete(t, h.ch, "x")
 
 	kinds, prompts := h.model.seen()
-	require.Equal(t, []string{"work", "summary", "work", "summary", "work"}, kinds)
+	require.Equal(t, []string{"work", "summary", "work", "work", "summary", "work"}, kinds)
 	last := prompts[len(prompts)-1]
 	require.Equal(t, 1, strings.Count(last, "interrupted because it got too long"), "one wrapper only, got: %q", last)
 	require.Equal(t, 1, strings.Count(last, "refactor the scanner"), "the real request exactly once, got: %q", last)
@@ -263,4 +323,29 @@ func TestLengthContinueCapResetsWhenTheRunMakesProgress(t *testing.T) {
 	require.NoError(t, err)
 	rc := waitRunComplete(t, h.ch, "x")
 	require.Equal(t, "done", rc.Text, "progress between cuts must not exhaust the continuation cap")
+}
+
+// Sau khi TỰ tóm tắt, lượt làm tiếp của việc đang dở chạy TRƯỚC prompt người dùng
+// vừa xếp hàng (đúng lời hứa ở nhánh xếp lượt làm tiếp). Trước đây summarize tự
+// chạy prompt xếp hàng trước, và lỗi của nó bị báo thành "tóm tắt hỏng" (audit g1).
+func TestSummaryContinuationRunsBeforeQueuedUserPrompt(t *testing.T) {
+	m := &scriptModel{script: []string{"tool", "done", "done"}, summaryText: "SUMMARY", gate: make(chan struct{}), entered: make(chan struct{})}
+	h := newContHarness(t, m)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "a", Prompt: "task A"})
+		done <- err
+	}()
+	waitEntered(t, m.entered)
+	_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "b", Prompt: "task B"})
+	require.NoError(t, err)
+	close(m.gate)
+	require.NoError(t, <-done)
+	waitRunComplete(t, h.ch, "b")
+
+	kinds, prompts := m.seen()
+	require.Equal(t, []string{"work", "summary", "work", "work"}, kinds)
+	require.Contains(t, prompts[2], "interrupted because it got too long", "the continuation of task A runs first")
+	require.Equal(t, "task B", prompts[3])
 }

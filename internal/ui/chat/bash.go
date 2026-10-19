@@ -64,7 +64,7 @@ func (b *BashToolRenderContext) RenderTool(sty *styles.Styles, width int, opts *
 	if meta.Background {
 		description := cmp.Or(meta.Description, params.Command)
 		content := "Command: " + params.Command + "\n" + opts.Result.Content
-		return renderJobTool(sty, opts, cappedWidth, "Start", meta.ShellID, description, content)
+		return renderJobTool(sty, opts, cappedWidth, "Start", meta.ShellID, description, content, meta.ExitCode)
 	}
 
 	// Regular bash command. The command is always rendered expanded
@@ -154,10 +154,12 @@ func (j *JobOutputToolRenderContext) RenderTool(sty *styles.Styles, width int, o
 	}
 
 	var description string
+	var exitCode *int
 	if opts.HasResult() && opts.Result.Metadata != "" {
 		var meta tools.JobOutputResponseMetadata
 		if err := json.Unmarshal([]byte(opts.Result.Metadata), &meta); err == nil {
 			description = cmp.Or(meta.Description, meta.Command)
+			exitCode = meta.ExitCode
 		}
 	}
 
@@ -165,7 +167,7 @@ func (j *JobOutputToolRenderContext) RenderTool(sty *styles.Styles, width int, o
 	if opts.HasResult() {
 		content = opts.Result.Content
 	}
-	return renderJobTool(sty, opts, cappedWidth, "Output", params.ShellID, description, content)
+	return renderJobTool(sty, opts, cappedWidth, "Output", params.ShellID, description, content, exitCode)
 }
 
 // -----------------------------------------------------------------------------
@@ -216,13 +218,20 @@ func (j *JobKillToolRenderContext) RenderTool(sty *styles.Styles, width int, opt
 	if opts.HasResult() {
 		content = opts.Result.Content
 	}
-	return renderJobTool(sty, opts, cappedWidth, "Kill", params.ShellID, description, content)
+	return renderJobTool(sty, opts, cappedWidth, "Kill", params.ShellID, description, content, nil)
 }
 
 // renderJobTool renders a job-related tool with the common pattern:
 // header → nested check → early state → body.
-func renderJobTool(sty *styles.Styles, opts *ToolRenderOpts, width int, action, shellID, description, content string) string {
-	header := jobHeader(sty, opts.Status, action, shellID, description, width)
+func renderJobTool(sty *styles.Styles, opts *ToolRenderOpts, width int, action, shellID, description, content string, exitCode *int) string {
+	// Như lệnh bash chạy-rồi-chờ: job đã thoát mã ≠ 0 vẫn là kết quả "thành
+	// công" của tool, nhưng với người dùng là lệnh lỗi: đổi icon + ghi mã.
+	status := opts.Status
+	if exitCode != nil && *exitCode != 0 && status == ToolStatusSuccess {
+		status = ToolStatusError
+		action += ", exit=" + strconv.Itoa(*exitCode)
+	}
+	header := jobHeader(sty, status, action, shellID, description, width)
 	if opts.Compact {
 		return header
 	}

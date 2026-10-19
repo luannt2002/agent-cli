@@ -11,6 +11,7 @@ import (
 
 	"charm.land/fantasy"
 
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/filetracker"
 	"github.com/charmbracelet/crush/internal/history"
 	"github.com/charmbracelet/crush/internal/lsp"
@@ -76,6 +77,15 @@ func NewRenameTool(
 			}
 
 			affectedFiles := collectAffectedFiles(edit)
+			if sessionID != "" && permissions != nil {
+				granted, err := authorizeRenameWrites(ctx, permissions, sessionID, call.ID, affectedFiles)
+				if err != nil {
+					return fantasy.ToolResponse{}, fmt.Errorf("permission request failed: %w", err)
+				}
+				if !granted {
+					return NewPermissionDeniedResponse(), nil
+				}
+			}
 
 			if files != nil && sessionID != "" {
 				for _, path := range affectedFiles {
@@ -117,4 +127,28 @@ func NewRenameTool(
 			return fantasy.NewTextResponse(text), nil
 		},
 	)
+}
+
+// authorizeRenameWrites: yêu cầu gộp của lsp_rename không mang đường dẫn, nên khi
+// không người trực thì xin quyền ghi từng tệp để permission từ chối tệp ngoài thư
+// mục làm việc. Có người trực thì giữ một hộp thoại, không hỏi từng tệp.
+func authorizeRenameWrites(ctx context.Context, permissions permission.Service, sessionID, toolCallID string, files []string) (bool, error) {
+	if !execpolicy.Unattended() {
+		return true, nil
+	}
+	for _, path := range files {
+		granted, err := permissions.Request(ctx, permission.CreatePermissionRequest{
+			SessionID:   sessionID,
+			ToolCallID:  toolCallID,
+			ToolName:    RenameToolName,
+			Action:      "write",
+			Path:        path,
+			FilePath:    path,
+			Description: fmt.Sprintf("Write %s (rename)", path),
+		})
+		if err != nil || !granted {
+			return false, err
+		}
+	}
+	return true, nil
 }

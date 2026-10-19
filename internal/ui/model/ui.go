@@ -680,7 +680,10 @@ func New(com *common.Common, initialSessionID string, continueLast bool) *UI {
 
 	desiredState := uiLanding
 	desiredFocus := uiFocusEditor
-	if !com.Config().IsConfigured() {
+	// Model chính đã chọn mà không dùng được (provider thiếu key, không còn): không
+	// đổi provider, nên cho chọn lại như lúc chưa cấu hình.
+	large, hasLarge := com.Config().Models[config.SelectedModelTypeLarge]
+	if !com.Config().IsConfigured() || (hasLarge && !com.Config().IsModelAvailable(large.Provider, large.Model)) {
 		desiredState = uiOnboarding
 	} else if n, _ := com.Workspace.ProjectNeedsInitialization(); n {
 		desiredState = uiInitialize

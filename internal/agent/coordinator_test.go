@@ -363,6 +363,43 @@ func TestRunSubAgent(t *testing.T) {
 		assert.NotEmpty(t, setupCalledWith, "SessionSetup should have been called")
 	})
 
+	t.Run("cost propagation to parent session when the sub-agent fails", func(t *testing.T) {
+		env := testEnv(t)
+		coord := newTestCoordinator(t, env, providerID, providerCfg)
+
+		parentSession, err := env.sessions.Create(t.Context(), "Parent")
+		require.NoError(t, err)
+
+		// Agent con đã tiêu tiền rồi mới lỗi (vd trả lời rỗng sau vài lượt bị cắt):
+		// chi phí vẫn phải cộng vào session cha (soát lượt 4, R4-A4; PRB-44).
+		agent := newMockAgent(providerID, 4096, func(ctx context.Context, call SessionAgentCall) (*fantasy.AgentResult, error) {
+			childSession, err := env.sessions.Get(ctx, call.SessionID)
+			if err != nil {
+				return nil, err
+			}
+			childSession.Cost = 0.07
+			if _, err := env.sessions.Save(ctx, childSession); err != nil {
+				return nil, err
+			}
+			return nil, errors.New("the model returned an empty reply")
+		})
+
+		resp, err := coord.runSubAgent(t.Context(), subAgentParams{
+			Agent:          agent,
+			SessionID:      parentSession.ID,
+			AgentMessageID: "msg-1",
+			ToolCallID:     "call-1",
+			Prompt:         "test",
+			SessionTitle:   "Test",
+		})
+		require.NoError(t, err)
+		assert.True(t, resp.IsError)
+
+		updated, err := env.sessions.Get(t.Context(), parentSession.ID)
+		require.NoError(t, err)
+		assert.InDelta(t, 0.07, updated.Cost, 1e-9)
+	})
+
 	t.Run("cost propagation to parent session", func(t *testing.T) {
 		env := testEnv(t)
 		coord := newTestCoordinator(t, env, providerID, providerCfg)

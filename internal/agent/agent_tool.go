@@ -55,7 +55,7 @@ func (c *coordinator) agentTool(ctx context.Context) (fantasy.AgentTool, error) 
 				return fantasy.ToolResponse{}, errors.New("agent message id missing from context")
 			}
 
-			return c.runSubAgent(ctx, subAgentParams{
+			return c.runSubAgent(withLLMRole(ctx, "subagent"), subAgentParams{
 				Agent:          agent,
 				SessionID:      sessionID,
 				AgentMessageID: agentMessageID,

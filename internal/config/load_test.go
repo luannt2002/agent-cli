@@ -1937,10 +1937,10 @@ func TestConfig_configureSelectedModels(t *testing.T) {
 		cfg.Models[SelectedModelTypeLarge] = resolved.Large
 		cfg.Models[SelectedModelTypeSmall] = resolved.Small
 
-		// In-memory falls back to default.
-		require.True(t, resolved.LargeFallback)
-		require.Equal(t, "openai", cfg.Models[SelectedModelTypeLarge].Provider)
-		require.Equal(t, "large-model", cfg.Models[SelectedModelTypeLarge].Model)
+		// Provider "ghost" không có: giữ nguyên lựa chọn, không đổi sang openai.
+		require.False(t, resolved.LargeFallback)
+		require.Equal(t, "ghost", cfg.Models[SelectedModelTypeLarge].Provider)
+		require.Equal(t, "missing", cfg.Models[SelectedModelTypeLarge].Model)
 
 		// Disk remains unchanged (resolveSelectedModels never persists).
 		data, readErr := os.ReadFile(globalPath)

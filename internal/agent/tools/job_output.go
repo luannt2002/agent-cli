@@ -28,6 +28,8 @@ type JobOutputResponseMetadata struct {
 	Description      string `json:"description"`
 	Done             bool   `json:"done"`
 	WorkingDirectory string `json:"working_directory"`
+	// ExitCode chỉ có khi job đã xong (như BashResponseMetadata.ExitCode).
+	ExitCode *int `json:"exit_code,omitempty"`
 }
 
 func NewJobOutputTool(spillDir string) fantasy.AgentTool {
@@ -39,8 +41,7 @@ func NewJobOutputTool(spillDir string) fantasy.AgentTool {
 				return fantasy.NewTextErrorResponse("missing shell_id"), nil
 			}
 
-			bgManager := shell.GetBackgroundShellManager()
-			bgShell, ok := bgManager.Get(params.ShellID)
+			bgShell, ok := ownedJob(ctx, params.ShellID)
 			if !ok {
 				return fantasy.NewTextErrorResponse(fmt.Sprintf("background shell not found: %s", params.ShellID)), nil
 			}
@@ -60,13 +61,13 @@ func NewJobOutputTool(spillDir string) fantasy.AgentTool {
 			}
 
 			status := "running"
+			var exitCode *int
 			if done {
 				status = "completed"
-				if err != nil {
-					exitCode := shell.ExitCode(err)
-					if exitCode != 0 {
-						outputParts = append(outputParts, fmt.Sprintf("Exit code %d", exitCode))
-					}
+				code := shell.ExitCode(err)
+				exitCode = &code
+				if code != 0 {
+					outputParts = append(outputParts, fmt.Sprintf("Exit code %d", code))
 				}
 			}
 
@@ -79,6 +80,7 @@ func NewJobOutputTool(spillDir string) fantasy.AgentTool {
 				Description:      bgShell.Description,
 				Done:             done,
 				WorkingDirectory: bgShell.WorkingDir,
+				ExitCode:         exitCode,
 			}
 
 			if output == "" {
@@ -89,4 +91,17 @@ func NewJobOutputTool(spillDir string) fantasy.AgentTool {
 			return fantasy.WithResponseMetadata(fantasy.NewTextResponse(result), metadata), nil
 		},
 	)
+}
+
+// ownedJob trả job id nếu nó thuộc session đang gọi tool. Bảng job dùng chung
+// cả tiến trình và ID đánh số lại từ đầu sau mỗi lần khởi động, nên job của
+// session khác (hay không có chủ) coi như không có: session mở lại còn nhớ ID
+// cũ không đọc hay dừng nhầm job của session khác.
+func ownedJob(ctx context.Context, id string) (*shell.BackgroundShell, bool) {
+	bg, ok := shell.GetBackgroundShellManager().Get(id)
+	sessionID := GetSessionFromContext(ctx)
+	if !ok || sessionID == "" || bg.Owner.SessionID != sessionID {
+		return nil, false
+	}
+	return bg, true
 }

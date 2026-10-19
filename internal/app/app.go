@@ -129,6 +129,10 @@ func New(ctx context.Context, conn *sql.DB, store *config.ConfigStore, skillsMgr
 		runCompletions:     pubsub.NewBroker[notify.RunComplete](),
 	}
 
+	// Ghi App là còn sống trước khi chạm tới MCP (nhận sự kiện, khởi động): App
+	// khác đóng cùng lúc sẽ thấy App này và không đóng MCP client chung.
+	app.trackLive(store.WorkingDir())
+
 	app.setupEvents()
 
 	// Initialize clipboard support. This is best-effort; if it fails
@@ -179,7 +183,6 @@ func New(ctx context.Context, conn *sql.DB, store *config.ConfigStore, skillsMgr
 	app.cleanupFuncs = append(
 		app.cleanupFuncs,
 		func(context.Context) error { return db.Release(dataDir) },
-		func(ctx context.Context) error { return mcp.Close(ctx) },
 	)
 
 	// TODO: remove the concept of agent config, most likely.
@@ -188,7 +191,14 @@ func New(ctx context.Context, conn *sql.DB, store *config.ConfigStore, skillsMgr
 		return app, nil
 	}
 	if err := app.InitCoderAgent(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize coder agent: %w", err)
+		if !agent.SelectedModelUnavailable(err) {
+			app.releaseLive() // App lỗi không bao giờ được Shutdown: còn trong sổ thì không App nào thành App cuối nữa.
+			return nil, fmt.Errorf("failed to initialize coder agent: %w", err)
+		}
+		// Model đang chọn không dùng được: không đổi provider, nhưng vẫn khởi động
+		// không agent như lúc chưa cấu hình (`login`, màn chọn model của TUI).
+		slog.Warn("Coder agent not started: the selected model is unavailable", "error", err)
+		return app, nil
 	}
 
 	// Set up callback for LSP state updates.
@@ -393,8 +403,10 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
 	}
 
 	// Automatically approve all permission requests for this non-interactive
-	// session.
-	app.Permissions.AutoApproveSession(sess.ID)
+	// session and its sub-agent sessions.
+	permCtx, cancelPerm := context.WithCancel(ctx)
+	defer cancelPerm()
+	app.autoApproveRun(permCtx, sess.ID)
 
 	// Report session identity to herdr.
 	app.ReportCurrentSession(sess.ID)
@@ -453,7 +465,8 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
 
 		case event := <-messageEvents:
 			msg := event.Payload
-			if msg.SessionID == sess.ID && msg.Role == message.Assistant && len(msg.Parts) > 0 {
+			// Bản tự tóm tắt là tin assistant của chính session nhưng không phải câu trả lời (PRB-45).
+			if msg.SessionID == sess.ID && msg.Role == message.Assistant && !msg.IsSummaryMessage && len(msg.Parts) > 0 {
 				stopSpinner()
 
 				content := msg.Content().String()
@@ -483,6 +496,33 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
 			return ctx.Err()
 		}
 	}
+}
+
+// autoApproveRun duyệt mọi yêu cầu quyền của phiên run và các phiên con của nó
+// (agent con, agentic_fetch), như server-mode run (cmd/run.go, rootOf): không người
+// trả lời thì yêu cầu của phiên con treo tới hết giờ. Lớp chặn ghi ngoài thư mục
+// làm việc khi không người trực nằm trong Request, chạy trước bước này.
+func (app *App) autoApproveRun(ctx context.Context, sessionID string) {
+	app.Permissions.AutoApproveSession(sessionID)
+	requests := app.Permissions.Subscribe(ctx)
+	go func() {
+		for ev := range requests {
+			req := ev.Payload
+			root, err := session.RootID(req.SessionID, func(id string) (string, error) {
+				s, err := app.Sessions.Get(ctx, id)
+				return s.ParentSessionID, err
+			})
+			if err != nil {
+				// Không xác định được phiên gốc: từ chối thay vì để treo.
+				slog.Warn("Denied a permission request whose session could not be resolved", "session_id", req.SessionID, "error", err)
+				app.Permissions.Deny(req)
+				continue
+			}
+			if root == sessionID {
+				app.Permissions.Grant(req)
+			}
+		}
+	}()
 }
 
 func (app *App) UpdateAgentModel(ctx context.Context) error {
@@ -941,10 +981,23 @@ func (app *App) Shutdown() {
 		event.AppExited()
 	})
 
-	// Kill all background shells.
+	// Bảng job nền và MCP client là chung cả tiến trình: khi còn App khác sống,
+	// chỉ dừng job của workspace này; App cuối dừng mọi job và đóng MCP.
+	root, last := app.releaseLive()
 	wg.Go(func() {
-		shell.GetBackgroundShellManager().KillAll(shutdownCtx)
+		if last {
+			shell.GetBackgroundShellManager().KillAll(shutdownCtx)
+			return
+		}
+		shell.GetBackgroundShellManager().KillOwned(shutdownCtx, root)
 	})
+	if last {
+		wg.Go(func() {
+			if err := closeMCP(shutdownCtx); err != nil {
+				slog.Error("Failed to close MCP clients on shutdown", "error", err)
+			}
+		})
+	}
 
 	// Close herdr client to stop its background writer.
 	app.herdrClient.Close()
@@ -965,6 +1018,39 @@ func (app *App) Shutdown() {
 		}
 	}
 	wg.Wait()
+}
+
+// liveApps là các App còn sống trong tiến trình và gốc workspace của từng cái.
+// Server chạy nhiều workspace trong một tiến trình mà bảng job nền và MCP
+// client là chung, nên App đóng chỉ dọn phần của mình, App cuối dọn hết.
+var (
+	liveAppsMu sync.Mutex
+	liveApps   = map[*App]string{}
+)
+
+// closeMCP đóng MCP client của cả tiến trình. Biến để test đếm lần gọi: đóng
+// thật thì broker MCP không mở lại được nữa.
+var closeMCP = mcp.Close
+
+// trackLive ghi app là còn sống với gốc workspace root.
+func (app *App) trackLive(root string) {
+	liveAppsMu.Lock()
+	defer liveAppsMu.Unlock()
+	liveApps[app] = root
+}
+
+// releaseLive gỡ app khỏi liveApps, trả gốc workspace của nó và app có phải
+// App cuối còn sống không. App chưa ghi hoặc đã gỡ (Shutdown lần hai) trả
+// ("", false) để không dọn nhầm phần của App khác.
+func (app *App) releaseLive() (root string, last bool) {
+	liveAppsMu.Lock()
+	defer liveAppsMu.Unlock()
+	root, ok := liveApps[app]
+	if !ok {
+		return "", false
+	}
+	delete(liveApps, app)
+	return root, len(liveApps) == 0
 }
 
 // updateCheckEnabled cho biết có hỏi GitHub về bản mới của upstream hay không.

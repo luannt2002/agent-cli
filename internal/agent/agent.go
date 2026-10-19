@@ -55,6 +55,10 @@ const (
 	// hết ngân sách output, trong chuỗi của một prompt người dùng: model cứ
 	// viết quá dài thì dừng sau vài lần thay vì lặp mãi.
 	maxLengthContinues = 3
+	// maxAutoSummaries là số lần tối đa tự tóm tắt rồi làm tiếp trong chuỗi của
+	// một prompt người dùng: model làm lại việc sau mỗi lần tóm tắt thì không
+	// bao giờ xong và cháy token mãi.
+	maxAutoSummaries = 10
 	// lengthContinuePrompt là lời nhắc của lượt tự làm tiếp đó.
 	lengthContinuePrompt = "Your previous reply was cut off because it reached the output token limit. Continue exactly where you stopped. If you were writing a tool call or a large file, split the work into smaller steps (for example several smaller edits or writes) so each reply fits."
 
@@ -162,6 +166,16 @@ type SessionAgentCall struct {
 	// lengthContinues đếm số lần đã tự làm tiếp vì hết ngân sách output trong
 	// chuỗi của một prompt người dùng (có trần maxLengthContinues).
 	lengthContinues int
+	// afterSummary: lượt làm tiếp ngay sau một lần tự tóm tắt thành công. Bước
+	// đầu của nó mà vẫn vượt ngưỡng nghĩa là tóm tắt không giải phóng được chỗ
+	// (phần cố định của prompt đã gần đầy context): dừng với lỗi thay vì tóm tắt
+	// lại vô hạn.
+	afterSummary bool
+	// summaries đếm số lần đã tự tóm tắt trong chuỗi của một prompt người dùng
+	// (có trần maxAutoSummaries).
+	summaries int
+	// produced: chuỗi của prompt người dùng này đã ra chữ hay tool call nào chưa.
+	produced bool
 	// originalPrompt là prompt THẬT của người dùng mà chuỗi làm tiếp (tóm tắt,
 	// bị cắt output) đang phục vụ. Prompt của lượt làm tiếp chỉ là lời nhắc,
 	// nên bọc lại nó sẽ lồng "yêu cầu gốc" nhiều lớp và làm mất yêu cầu thật.
@@ -989,7 +1003,9 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 	// can take tens of seconds. Blocking Run on it delays the
 	// response to the caller. Use a detached context so the title
 	// goroutine survives Run's cancel.
-	if !hasUserTextMessage(msgs) {
+	// Session con (agent con, agentic_fetch) ẩn khỏi danh sách: không tốn lời gọi
+	// LLM đặt tên cho nó (baseline: 6/8 lời gọi tiêu đề của kịch bản đa agent).
+	if !hasUserTextMessage(msgs) && currentSession.ParentSessionID == "" {
 		titleCtx := context.WithoutCancel(ctx)
 		go a.GenerateTitle(titleCtx, call.SessionID, call.Prompt)
 	}
@@ -1012,7 +1028,8 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 	a.eventPromptSent(call.SessionID)
 
 	var stepMessages []fantasy.Message
-	var shouldSummarize bool
+	var shouldSummarize, looping, summaryCapHit bool
+	var overflow *contextOverflowError
 	sanitizedToolCalls := make(map[string]bool)
 	// Full names of tool calls that completed without error this turn.
 	// Written only from the streaming callbacks (which run sequentially)
@@ -1288,7 +1305,7 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 			return a.messages.Update(genCtx, *currentAssistant)
 		},
 		StopWhen: []fantasy.StopCondition{
-			func(_ []fantasy.StepResult) bool {
+			func(steps []fantasy.StepResult) bool {
 				cw := int64(largeModel.CatwalkCfg.ContextWindow)
 				// If context window is unknown (0), skip auto-summarize
 				// to avoid immediately truncating custom/local models.
@@ -1305,19 +1322,68 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 				}
 				_, suppressed := a.summarizeFailed.Get(call.SessionID)
 				if (remaining <= threshold) && !a.disableAutoSummarize && !suppressed {
+					if call.afterSummary && len(steps) == 1 {
+						// Bước đầu sau tóm tắt không gọi tool thì lượt tự kết thúc.
+						if currentAssistant == nil || len(currentAssistant.ToolCalls()) == 0 {
+							return false
+						}
+						// Riêng ĐẦU VÀO đã vượt ngưỡng thì tóm tắt nữa cũng không hơn:
+						// dừng với lỗi. Chỉ phần output (vd ghi tệp lớn) đẩy tổng qua
+						// ngưỡng thì tóm tắt tiếp vẫn giải phóng được chỗ.
+						if cw-currentSession.PromptTokens <= threshold {
+							overflow = &contextOverflowError{used: currentSession.PromptTokens, window: cw, threshold: threshold}
+							return true
+						}
+					}
+					// Cùng điều kiện với chỗ xếp lượt làm tiếp (gồm tool call viết dở).
+					if call.summaries >= maxAutoSummaries && currentAssistant != nil && len(currentAssistant.ToolCalls()) > 0 {
+						summaryCapHit = true
+						return true
+					}
 					shouldSummarize = true
 					return true
 				}
 				return false
 			},
 			func(steps []fantasy.StepResult) bool {
-				return hasRepeatedToolCalls(steps, loopDetectionWindowSize, loopDetectionMaxRepeats)
+				looping = hasRepeatedToolCalls(steps, loopDetectionWindowSize, loopDetectionMaxRepeats)
+				return looping
 			},
 		},
 	})
 
 	a.eventPromptResponded(call.SessionID, time.Since(startTime).Truncate(time.Second))
 
+	if err == nil && overflow != nil {
+		err = overflow
+	}
+	// Lượt dừng vì lặp cùng một tool call là thất bại, không phải xong: không có
+	// lỗi thì RunComplete báo thành công và `run` thoát 0.
+	if err == nil && looping && !shouldSummarize {
+		err = errLoopDetected
+	}
+	// produced: chuỗi của prompt này (kể cả các lượt làm tiếp) đã ra chữ hay tool
+	// call nào chưa. Chưa ra gì thì lượt không phải thành công, trừ khi bị cắt và
+	// nhánh tự làm tiếp còn lượt.
+	produced := call.produced || len(completedToolCalls) > 0 || turnProduced(result)
+	if err == nil && !produced && result != nil && len(result.Steps) > 0 {
+		switch result.Steps[len(result.Steps)-1].FinishReason {
+		case fantasy.FinishReasonContentFilter:
+			err = errRefused
+		case fantasy.FinishReasonLength:
+			// Bị cắt: nhánh tự làm tiếp lo, trừ khi hết trần, hoặc đang tự tóm tắt mà
+			// không có tool call (khi đó không lượt nào được xếp làm tiếp).
+			noContinuation := shouldSummarize && (currentAssistant == nil || len(currentAssistant.ToolCalls()) == 0)
+			if call.lengthContinues >= maxLengthContinues || noContinuation {
+				err = errEmptyReply
+			}
+		default:
+			err = errEmptyReply
+		}
+	}
+	if err == nil && summaryCapHit {
+		err = errSummaryLimit
+	}
 	if err != nil {
 		isHyper := largeModel.ModelCfg.Provider == hyper.Name
 		isCancelErr := errors.Is(err, context.Canceled)
@@ -1432,6 +1498,18 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 		linkStyle := lipgloss.NewStyle().Underline(true)
 		if isCancelErr {
 			currentAssistant.AddFinish(message.FinishReasonCanceled, "User canceled request", "")
+		} else if overflow != nil {
+			currentAssistant.AddFinish(message.FinishReasonError, "Context window too small", overflow.Error())
+		} else if errors.Is(err, errLoopDetected) {
+			currentAssistant.AddFinish(message.FinishReasonError, "Loop detected", err.Error())
+		} else if errors.Is(err, errEmptyReply) {
+			currentAssistant.AddFinish(message.FinishReasonError, "Empty reply", err.Error())
+		} else if errors.Is(err, errRefused) {
+			// Giữ lý do content_filter và để trống chữ: TUI tự viết lời hướng dẫn
+			// (REFUSED + cách xử lý) như trước.
+			currentAssistant.AddFinish(message.FinishReasonContentFilter, "", "")
+		} else if errors.Is(err, errSummaryLimit) {
+			currentAssistant.AddFinish(message.FinishReasonError, "Too many automatic summaries", err.Error())
 		} else if errors.As(err, &requestTimedOutErr) {
 			// Checked before the provider branches so a deadline our own
 			// request timeout imposed is never reported as a provider error.
@@ -1490,7 +1568,7 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 	if shouldSummarize {
 		a.activeRequests.Del(call.SessionID)
 		var summaryFailure error
-		if summarizeErr := a.summarize(genCtx, call.SessionID, call.ProviderOptions, call.OnAuthRefresh, largeModel, call.RunID); summarizeErr != nil {
+		if summarizeErr := a.summarize(genCtx, call.SessionID, call.ProviderOptions, call.OnAuthRefresh, largeModel, call.RunID, false); summarizeErr != nil {
 			if errors.Is(summarizeErr, context.Canceled) || ctx.Err() != nil {
 				// Bị huỷ lúc đang tóm tắt (riêng lượt này hoặc cả session):
 				// dừng lượt; prompt xếp hàng sau vẫn chạy (như nhánh lỗi ở trên).
@@ -1527,6 +1605,11 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 				call.Prompt = fmt.Sprintf("The previous session was interrupted because it got too long, the initial user request was: `%s`", call.originalPrompt)
 			}
 			call.continuation = true
+			call.produced = produced
+			call.afterSummary = summaryFailure == nil
+			if summaryFailure == nil {
+				call.summaries++
+			}
 			// Lượt làm tiếp là phần còn lại của việc đang chạy: chạy trước prompt
 			// mà người dùng vừa gõ thêm, không phải sau.
 			existing = append([]SessionAgentCall{call}, existing...)
@@ -1552,6 +1635,8 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 				next.lengthContinues++
 			}
 			next.continuation = true
+			next.produced = produced
+			next.afterSummary = false
 			next.originalPrompt = cmp.Or(call.originalPrompt, call.Prompt)
 			// Lịch sử còn nguyên tệp đính kèm của prompt gốc; gửi và lưu lại mỗi
 			// lần làm tiếp chỉ làm phình context.
@@ -1721,7 +1806,7 @@ func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, rema
 
 func (a *sessionAgent) Summarize(ctx context.Context, sessionID string, opts fantasy.ProviderOptions, onAuthRefresh func(context.Context, *fantasy.ProviderError) error) error {
 	// Copy mutable fields under lock to avoid races with SetModels.
-	err := a.summarize(ctx, sessionID, opts, onAuthRefresh, a.largeModel.Get(), "")
+	err := a.summarize(ctx, sessionID, opts, onAuthRefresh, a.largeModel.Get(), "", true)
 	if errors.Is(err, context.Canceled) {
 		// Người dùng huỷ lệnh tóm tắt: không phải lỗi (như trước).
 		return nil
@@ -1732,7 +1817,7 @@ func (a *sessionAgent) Summarize(ctx context.Context, sessionID string, opts fan
 // summarize tóm tắt session bằng largeModel. Run truyền model và RunID của
 // lượt đang chạy: bản tóm tắt giữa lượt không chuyển sang model khác, và
 // CancelRun theo RunID của lượt huỷ được cả bước tóm tắt.
-func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fantasy.ProviderOptions, onAuthRefresh func(context.Context, *fantasy.ProviderError) error, largeModel Model, runID string) error {
+func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fantasy.ProviderOptions, onAuthRefresh func(context.Context, *fantasy.ProviderError) error, largeModel Model, runID string, drainQueue bool) error {
 	if a.IsSessionBusy(sessionID) {
 		return ErrSessionBusy
 	}
@@ -1754,7 +1839,7 @@ func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fan
 
 	aiMsgs, _ := a.preparePrompt(msgs, largeModel.CatwalkCfg.SupportsImages)
 
-	genCtx, cancel := context.WithCancel(withRequestTimeoutScale(ctx, summaryRequestTimeoutScale))
+	genCtx, cancel := context.WithCancel(withLLMRole(withRequestTimeoutScale(ctx, summaryRequestTimeoutScale), "summary"))
 	ac := &activeCancel{cancel: cancel, runID: runID}
 	a.activeRequests.Set(sessionID, ac)
 	defer a.activeRequests.CompareAndDelete(sessionID, ac)
@@ -1848,6 +1933,16 @@ func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fan
 		}
 		return emptyErr
 	}
+	// Bị cắt vì hết ngân sách output: nửa bản tóm tắt thay cho toàn bộ lịch sử là
+	// mất dữ liệu lặng lẽ. Coi là tóm tắt hỏng như bản rỗng.
+	if resp.Response.FinishReason == fantasy.FinishReasonLength {
+		cutErr := errors.New("the summary was cut off by the output token limit")
+		summaryMessage.AddFinish(message.FinishReasonError, "Summarization Error", cutErr.Error())
+		if updateErr := a.messages.Update(ctx, summaryMessage); updateErr != nil {
+			return updateErr
+		}
+		return cutErr
+	}
 
 	summaryMessage.AddFinish(message.FinishReasonEndTurn, "", "")
 	err = a.messages.Update(genCtx, summaryMessage)
@@ -1887,7 +1982,13 @@ func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fan
 	a.activeRequests.Del(sessionID)
 	cancel()
 
-	// Process any messages that were queued while summarizing.
+	// Process any messages that were queued while summarizing. Tự tóm tắt giữa một
+	// lượt thì KHÔNG: Run xếp lượt làm tiếp lên đầu hàng đợi rồi tự chuyển tiếp, nên
+	// việc đang dở chạy trước prompt mới (và lỗi của prompt mới không bị tính là lỗi
+	// tóm tắt).
+	if !drainQueue {
+		return nil
+	}
 	queuedMessages, ok := a.messageQueue.Get(sessionID)
 	if !ok || len(queuedMessages) == 0 {
 		return nil
@@ -2174,6 +2275,25 @@ func hasUserTextMessage(msgs []message.Message) bool {
 	return false
 }
 
+// turnProduced cho biết lượt có bước nào ra chữ hay tool call không. Xét MỌI khối
+// chữ: ResponseContent.Text() chỉ trả khối đầu (có thể chỉ là khoảng trắng).
+func turnProduced(result *fantasy.AgentResult) bool {
+	if result == nil {
+		return false
+	}
+	for _, s := range result.Steps {
+		if len(s.Content.ToolCalls()) > 0 {
+			return true
+		}
+		for _, c := range s.Content {
+			if tc, ok := fantasy.AsContentType[fantasy.TextContent](c); ok && strings.TrimSpace(tc.Text) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // machineTitle cho biết title là tên do máy đặt (an toàn để tiêu đề LLM ghi
 // đè): rỗng, tên mặc định lúc tạo session, hoặc tiêu đề suy ra từ prompt. Tên
 // khác là do người dùng tự đổi nên phải giữ.
@@ -2190,6 +2310,7 @@ func (a *sessionAgent) GenerateTitle(ctx context.Context, sessionID string, user
 	if userPrompt == "" {
 		return
 	}
+	ctx = withLLMRole(ctx, "title")
 
 	// Đặt tiêu đề suy ra từ prompt NGAY LẬP TỨC: tiêu đề LLM bên dưới là
 	// best-effort, hỏng hoặc chậm thì session vẫn có tên có nghĩa suốt
@@ -2249,9 +2370,11 @@ func (a *sessionAgent) GenerateTitle(ctx context.Context, sessionID string, user
 		name  string
 		model Model
 	}
-	attempts := []modelAttempt{
-		{"small", smallModel},
-		{"large", largeModel},
+	attempts := []modelAttempt{{"small", smallModel}}
+	// Model large chỉ đáng thử khi nó khác model small (sau khi small khác provider
+	// đã được thay bằng large thì hai lần thử là một).
+	if largeModel.ModelCfg.Provider != smallModel.ModelCfg.Provider || largeModel.ModelCfg.Model != smallModel.ModelCfg.Model {
+		attempts = append(attempts, modelAttempt{"large", largeModel})
 	}
 
 	var resp *fantasy.AgentResult
@@ -2273,9 +2396,13 @@ func (a *sessionAgent) GenerateTitle(ctx context.Context, sessionID string, user
 		}
 		if err != nil {
 			slog.Error("Error generating title with "+attempt.name+" model; trying next", "err", err)
-		} else {
-			slog.Error("Title generation hit token limit with " + attempt.name + " model; trying next")
+			continue
 		}
+		// Bị cắt vì hết token (model suy luận dùng hết ngân sách để nghĩ): model
+		// kế tiếp suy luận còn dài hơn, thử nữa chỉ tốn thêm một lời gọi (baseline:
+		// 26/26 lời gọi tiêu đề kết thúc `length`). Giữ tiêu đề suy ra từ prompt.
+		slog.Warn("Title generation hit the token limit; keeping the prompt-derived title", "model", attempt.name)
+		break
 	}
 	if !success {
 		// The deferred fallback will save the default session name.

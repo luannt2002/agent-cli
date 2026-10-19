@@ -192,6 +192,15 @@ func repairInterruptedToolCalls(ctx context.Context, messages message.Service, m
 			}
 		}
 		if len(orphans) == 0 {
+			// Lời trả lời dở không có tool call (chữ viết dở, còn rỗng, bản tóm tắt
+			// dở) của tiến trình đã chết: không ai viết tiếp nữa. Đóng lại để UI thôi
+			// quay và bản tóm tắt dở (finish lỗi) không còn vào lịch sử gửi model.
+			if !msg.IsFinished() {
+				msg.AddFinishAt(message.FinishReasonError, interruptedTurnMessage, "", msg.UpdatedAt)
+				if err := messages.Update(ctx, *msg); err != nil {
+					return nil, fmt.Errorf("failed to close an unfinished reply: %w", err)
+				}
+			}
 			continue
 		}
 		// A turn can end cleanly and still lose a reply, so the finish is

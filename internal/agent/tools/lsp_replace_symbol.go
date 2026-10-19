@@ -132,17 +132,7 @@ func NewReplaceSymbolTool(
 
 			sessionID := GetSessionFromContext(ctx)
 			if sessionID != "" && permissions != nil {
-				granted, err := permissions.Request(ctx, permission.CreatePermissionRequest{
-					SessionID:   sessionID,
-					Path:        params.FilePath,
-					ToolName:    ReplaceSymbolToolName,
-					Description: fmt.Sprintf("%s symbol '%s' in %s", action, params.Symbol, params.FilePath),
-					Params: ReplaceSymbolPermissionsParams{
-						FilePath:   params.FilePath,
-						OldContent: string(content),
-						NewContent: newContent,
-					},
-				})
+				granted, err := permissions.Request(ctx, replaceSymbolPermission(sessionID, action, params, string(content), newContent))
 				if err != nil {
 					return fantasy.ToolResponse{}, fmt.Errorf("permission request failed: %w", err)
 				}
@@ -189,6 +179,24 @@ func NewReplaceSymbolTool(
 			return resp, nil
 		},
 	)
+}
+
+// replaceSymbolPermission: Action "write" + FilePath để lớp chặn ghi ngoài thư mục
+// làm việc khi không người trực xét được tệp này (tool ghi thẳng bằng os.WriteFile).
+func replaceSymbolPermission(sessionID, action string, params ReplaceSymbolParams, oldContent, newContent string) permission.CreatePermissionRequest {
+	return permission.CreatePermissionRequest{
+		SessionID:   sessionID,
+		Path:        params.FilePath,
+		FilePath:    params.FilePath,
+		ToolName:    ReplaceSymbolToolName,
+		Action:      "write",
+		Description: fmt.Sprintf("%s symbol '%s' in %s", action, params.Symbol, params.FilePath),
+		Params: ReplaceSymbolPermissionsParams{
+			FilePath:   params.FilePath,
+			OldContent: oldContent,
+			NewContent: newContent,
+		},
+	}
 }
 
 // findSymbolByName searches for a symbol by name in the document symbol tree.

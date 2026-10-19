@@ -11,7 +11,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1404,11 +1406,38 @@ func logFirstWinsMismatch(existing *Workspace, args proto.Workspace) {
 		"requested_debug", args.Debug,
 		"existing_data_dir", existingCfg.Options.DataDirectory,
 		"requested_data_dir", args.DataDir,
-		"existing_env", existing.Env,
-		"requested_env", args.Env,
+		// Chỉ TÊN biến lệch: env của client có API key đã export, log giữ 30 ngày.
+		"env_keys_differ", envKeysDiffer(existing.Env, args.Env),
 		"existing_channels", existingChannels,
 		"requested_channels", args.Channels,
 	)
+}
+
+// envKeysDiffer trả tên (đã sắp xếp) các biến có giá trị khác nhau hoặc chỉ có ở
+// một bên giữa hai env dạng KEY=VALUE. Không bao giờ trả giá trị.
+func envKeysDiffer(a, b []string) []string {
+	toMap := func(env []string) map[string]string {
+		m := make(map[string]string, len(env))
+		for _, kv := range env {
+			k, v, _ := strings.Cut(kv, "=")
+			m[k] = v
+		}
+		return m
+	}
+	ma, mb := toMap(a), toMap(b)
+	var keys []string
+	for k, v := range ma {
+		if w, ok := mb[k]; !ok || w != v {
+			keys = append(keys, k)
+		}
+	}
+	for k := range mb {
+		if _, ok := ma[k]; !ok {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // stringSlicesEqual reports whether a and b contain the same strings

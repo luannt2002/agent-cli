@@ -156,6 +156,7 @@ func Load(workingDir, dataDir string, debug bool) (*ConfigStore, error) {
 		return store, nil
 	}
 
+	configuredLarge, configuredSmall := cfg.Models[SelectedModelTypeLarge], cfg.Models[SelectedModelTypeSmall]
 	resolved, err := resolveSelectedModels(cfg, store.knownProviders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure selected models: %w", err)
@@ -163,20 +164,21 @@ func Load(workingDir, dataDir string, debug bool) (*ConfigStore, error) {
 	cfg.Models[SelectedModelTypeLarge] = resolved.Large
 	cfg.Models[SelectedModelTypeSmall] = resolved.Small
 
-	// Persist any fallback corrections while we still hold writeMu.
+	// Fallback chỉ cho tiến trình này, KHÔNG ghi xuống đĩa: ghi thì một lần provider
+	// thiếu khoá thành đổi provider vĩnh viễn (với allowlist: mọi lần mở sau bị
+	// chặn MODEL_NOT_ALLOWED). Reload đã không ghi; nay Load cũng vậy.
 	if resolved.LargeFallback {
-		if err := store.updateLocked(ScopeGlobal, func(c *Config) map[string]any {
-			return store.updatePreferredModelFields(c, SelectedModelTypeLarge, resolved.Large)
-		}); err != nil {
-			return nil, fmt.Errorf("failed to update preferred large model: %w", err)
-		}
+		slog.Warn("Selected large model is unavailable; using a fallback for this process only (not saved)",
+			"configured", configuredLarge.Provider+"/"+configuredLarge.Model, "using", resolved.Large.Provider+"/"+resolved.Large.Model)
 	}
 	if resolved.SmallFallback {
-		if err := store.updateLocked(ScopeGlobal, func(c *Config) map[string]any {
-			return store.updatePreferredModelFields(c, SelectedModelTypeSmall, resolved.Small)
-		}); err != nil {
-			return nil, fmt.Errorf("failed to update preferred small model: %w", err)
-		}
+		slog.Warn("Selected small model is unavailable; using a fallback for this process only (not saved)",
+			"configured", configuredSmall.Provider+"/"+configuredSmall.Model, "using", resolved.Small.Provider+"/"+resolved.Small.Model)
+	}
+	if resolved.LargeUnresolved || resolved.SmallUnresolved {
+		slog.Warn("Selected model's provider is unavailable (not configured or disabled); agent-cli does not switch to another provider",
+			"large", resolved.Large.Provider+"/"+resolved.Large.Model, "large_unresolved", resolved.LargeUnresolved,
+			"small", resolved.Small.Provider+"/"+resolved.Small.Model, "small_unresolved", resolved.SmallUnresolved)
 	}
 	store.SetupAgents()
 
@@ -833,13 +835,49 @@ func (c *Config) defaultModelSelection(knownProviders []catwalk.Provider) (large
 type resolvedModels struct {
 	Large         SelectedModel
 	Small         SelectedModel
-	LargeFallback bool // true if Large was corrected to a default
-	SmallFallback bool // true if Small was corrected to a default
+	LargeFallback bool // true if Large was corrected to its provider's default
+	SmallFallback bool // true if Small was corrected to its provider's default
+	// Provider của lựa chọn không dùng được: giữ nguyên, không mượn provider khác.
+	LargeUnresolved bool
+	SmallUnresolved bool
+}
+
+// providerDefaultModel trả model mặc định của CHÍNH provider đó (catalog trước,
+// rồi model đầu); false khi provider không có trong cấu hình hoặc bị tắt.
+func (c *Config) providerDefaultModel(providerID string, knownProviders []catwalk.Provider, modelType SelectedModelType) (SelectedModel, bool) {
+	providerConfig, ok := c.Providers.Get(providerID)
+	if !ok || providerConfig.Disable {
+		return SelectedModel{}, false
+	}
+	var model *catwalk.Model
+	for _, p := range knownProviders {
+		if string(p.ID) == providerID {
+			id := p.DefaultLargeModelID
+			if modelType == SelectedModelTypeSmall {
+				id = p.DefaultSmallModelID
+			}
+			model = c.GetModel(providerID, id)
+			break
+		}
+	}
+	if model == nil {
+		if len(providerConfig.Models) == 0 {
+			return SelectedModel{}, false
+		}
+		model = &providerConfig.Models[0]
+	}
+	return SelectedModel{
+		Provider:        providerID,
+		Model:           model.ID,
+		MaxTokens:       model.DefaultMaxTokens,
+		ReasoningEffort: model.DefaultReasoningEffort,
+	}, true
 }
 
 // resolveSelectedModels validates the user's configured model selections
-// against the provider catalog, falling back to defaults when a model ID is
-// invalid. It is pure resolution logic: it does not mutate the store or
+// against the provider catalog. A model ID that is gone falls back to the
+// same provider's default; a provider that is not configured is left
+// unresolved (never another provider's model). It is pure resolution logic: it does not mutate the store or
 // touch disk. The caller assigns the results to c.Models and persists any
 // fallback corrections as appropriate.
 func resolveSelectedModels(cfg *Config, knownProviders []catwalk.Provider) (resolvedModels, error) {
@@ -860,8 +898,15 @@ func resolveSelectedModels(cfg *Config, knownProviders []catwalk.Provider) (reso
 		}
 		model := cfg.GetModel(large.Provider, large.Model)
 		if model == nil {
-			large = defaultLarge
-			result.LargeFallback = true
+			if fb, ok := cfg.providerDefaultModel(large.Provider, knownProviders, SelectedModelTypeLarge); ok {
+				large = fb
+				result.LargeFallback = true
+			} else {
+				// Provider không dùng được: giữ lựa chọn để dựng agent fail closed, không đổi provider.
+				large = largeModelSelected
+				large.Provider, large.Model = cmp.Or(large.Provider, defaultLarge.Provider), cmp.Or(large.Model, defaultLarge.Model)
+				result.LargeUnresolved = true
+			}
 		} else {
 			if largeModelSelected.MaxTokens > 0 {
 				large.MaxTokens = largeModelSelected.MaxTokens
@@ -905,8 +950,14 @@ func resolveSelectedModels(cfg *Config, knownProviders []catwalk.Provider) (reso
 
 		model := cfg.GetModel(small.Provider, small.Model)
 		if model == nil {
-			small = defaultSmall
-			result.SmallFallback = true
+			if fb, ok := cfg.providerDefaultModel(small.Provider, knownProviders, SelectedModelTypeSmall); ok {
+				small = fb
+				result.SmallFallback = true
+			} else {
+				small = smallModelSelected
+				small.Provider, small.Model = cmp.Or(small.Provider, defaultSmall.Provider), cmp.Or(small.Model, defaultSmall.Model)
+				result.SmallUnresolved = true
+			}
 		} else {
 			if smallModelSelected.MaxTokens > 0 {
 				small.MaxTokens = smallModelSelected.MaxTokens
