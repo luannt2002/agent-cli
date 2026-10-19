@@ -25,8 +25,9 @@ var sendCmd = &cobra.Command{
 	Short: "Send a prompt into a session of a project that is already running",
 	Long: `Deliver a prompt to a session through the project's server, so it shows up
 in an open TUI for that project like a normal message. Without --wait it
-returns as soon as the server accepts the prompt; with --wait it blocks until
-that run finishes and prints the final text.
+returns once the server has accepted and recorded the prompt in the session
+(the run may not have started yet); with --wait it blocks until that run
+finishes and prints the final text.
 
 Needs CRUSH_CLIENT_SERVER=1 (the agent-cli launcher sets it).
 Exit codes: 0 success, 1 runtime error (--json still prints the object with

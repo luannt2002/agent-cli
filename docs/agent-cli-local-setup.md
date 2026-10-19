@@ -190,7 +190,11 @@ the running agent-cli server: <tên biến>` (chỉ tên, không giá trị). Ch
 `api_key`/`base_url`, KHÔNG được so: client vẫn gắn vào và chạy theo giá trị của client đã dựng
 server (giới hạn như allowlist chỉ so tên provider/model, không kiểm `base_url`). Phép so là so
 chuỗi thô: khác thứ tự trong allowlist, `on`/`ON`/`1`, hay khác `HOME`/`AGENT_CLI_ENV_FILE` dù
-allowlist hiệu lực bằng nhau đều bị từ chối. Lệnh không gửi prompt (`jobs`, `login`, `logout`)
+allowlist hiệu lực bằng nhau đều bị từ chối. `--yolo` (TUI, `run`, `send`, `loop` đều nhận) bị so cả
+hai chiều và lỗi nói dự án đang mở có hay không `--yolo` ("pass --yolo too" / "drop --yolo"): dự án đang giữ bởi client
+mở bằng `--yolo` thì mọi client mở không `--yolo` bị từ chối, kể cả Home và `agent-cli-tmux` (chúng mở
+dự án không kèm `--yolo`); thoát client đó hoặc mở lại không `--yolo`. Bật YOLO lúc chạy (`ctrl+y`,
+`shift+tab`) thì không bị so: client sau vào được, và cũng thành YOLO cho cả workspace. Lệnh không gửi prompt (`jobs`, `login`, `logout`)
 không bị so chính sách tin cậy và `--yolo` (vẫn bị so `--channels`; `login` khi tự nối lại sau lúc
 server mất workspace thì bị so như lệnh chạy model). Server khác bản/build mà đang bận (không thay
 được) thì lệnh chạy model bị từ chối, lệnh không prompt vẫn dùng nó. Từ tiến trình con mà Home
@@ -351,8 +355,8 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   thì tóm tắt tiếp như thường. Một prompt tự tóm tắt tối đa 10 lần khi việc
   còn dở; quá thì lượt dừng với lỗi `auto-summarized 10 times…`, gửi prompt mới để làm tiếp.
 - Server bị dừng (`kill <pid>`, SIGTERM, SIGHUP) thì dừng từng workspace trước: run đang
-  chạy bị huỷ và được ghi lại, không bỏ dở giữa chừng. Server chết đột ngột (SIGKILL, mất
-  điện) thì tool call đang chạy dở được ghi "Interrupted" khi session được mở lại (TUI,
+  chạy bị huỷ và được ghi lại, không bỏ dở giữa chừng (workspace dừng quá 15 giây thì server
+  thoát luôn, như chết đột ngột). Server chết đột ngột (SIGKILL, mất điện) thì tool call đang chạy dở được ghi "Interrupted" khi session được mở lại (TUI,
   `session show`, `run -s`), không hiện "đang chạy" mãi; session con của sub-agent chỉ được
   ghi khi session cha không còn run. Kết quả ghi cho model dặn kiểm tra trạng thái thật
   trước khi chạy lại, vì lệnh có thể đã chạy một phần (bản vá upstream `fix/dangling-tool-calls`
@@ -387,8 +391,9 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   (SIGHUP) huỷ **đúng lượt đó** theo RunID, kể cả với `run -s/-C` (lượt khác và prompt xếp
   hàng của session giữ nguyên; Ctrl+C khi prompt chưa kịp tới server thì nó bị huỷ lúc tới).
   `run` bị kill hẳn (SIGKILL, OOM) thì server huỷ lượt của nó sau detach grace, thay vì để lượt
-  chạy tiếp không ai giám sát. Server bản cũ chưa có huỷ theo RunID: `run -s/-C` chỉ thôi chờ
-  và báo `stopped waiting; the run keeps going on session <id> (this server cannot cancel a
+  chạy tiếp không ai giám sát. Server bản cũ chưa có huỷ theo RunID (qua socket unix, server khác
+  bản mà đang bận đã bị từ chối trước khi chạy model, nên nhánh này chỉ còn gặp với `--host` tcp):
+  `run -s/-C` chỉ thôi chờ và báo `stopped waiting; the run keeps going on session <id> (this server cannot cancel a
   single run)`.
 - `send --wait` thì Ctrl+C/SIGHUP chỉ thôi chờ và báo `stopped waiting; the run keeps going on
   session <id>`: `send` giao việc rồi đi, lượt của nó không gắn với client.
@@ -399,8 +404,9 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   của người khác có thể bị đọc nhầm.
 - Server đóng luồng sự kiện trước khi run xong (server chết hoặc khởi động lại): `run` và
   `send --wait` báo `event stream closed before the run completed`, mã 1, `--json` có `error`.
-- Dừng server (SIGTERM, `kill <pid>`) trong lúc nó đang giữ run cho client đã rời thì run bị
-  cắt giữa lượt và session không ghi được dấu kết thúc.
+- Dừng server (SIGTERM, SIGHUP, `kill <pid>`) trong lúc nó đang giữ run cho client đã rời thì
+  run bị huỷ và được ghi lại (dừng từng workspace trước, xem mục dừng server ở trên); SIGKILL, mất
+  điện, hoặc dừng workspace quá 15 giây thì session chờ ghi "Interrupted" lúc mở lại.
 - Chỉ nhận `-c dir`, `-cdir`, `--cwd dir`, `--cwd=dir` đứng riêng; cờ gộp kiểu `-dc dir`
   không được hiểu (launcher quay về thư mục hiện tại).
 - Kiểm launcher: `bash scripts/test-agent-cli-wrapper.sh` (cài vào thư mục tạm với binary
@@ -632,7 +638,9 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
   nạp `.env` cho riêng chúng, nên mở qua Home hay chế độ server cũng vậy.
 - Giới hạn: agent-cli gọi lồng từ một tiến trình đã nạp `.env` (lệnh `!agent-cli run …` trong TUI,
   `agent-cli loop --verify "agent-cli run …"`) chụp env của tiến trình cha, gồm biến thường của
-  `.env`, làm env gốc của nó: CLI con mà agent-cli lồng đó giao việc nhận các biến này.
+  `.env`, làm env gốc của nó: CLI con mà agent-cli lồng đó giao việc nhận các biến này khi lời gọi
+  lồng dựng server mới cho dự án hoặc chạy in-process. Dự án đã có server thì CLI con theo env gốc
+  của server đó.
 - Server dựng sau khi lệnh đã vào `--cwd` (hiện là `agent-cli loop --cwd <dir>` ở chế độ server)
   nạp `.env` của `<dir>`, không nạp `.env` của thư mục bạn đứng khi gõ lệnh.
 
@@ -970,6 +978,8 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
   khi agent-cli đang chạy") để có tiến trình mới. Có từ trước; bản sửa job nền theo workspace làm hẹp lại.
 - **Job của App mới có thể bị giết (PRB-85).** Dừng job theo gốc workspace: trong lúc App cũ của một dự án đang dừng, App
   mới cùng gốc (mở lại ngay dự án vừa đóng) có thể mất job nền của nó. Cửa sổ hẹp; sửa đúng cần chủ job theo App.
+- **MCP: chữ đi kèm ảnh/media và `read_mcp_resource` chưa có trần; ảnh kèm `isError=true` lưu `is_error=false`.**
+  Kết quả MCP dạng chữ thuần đã có trần (cắt, spill ra `<data>/shell-output/`) và giữ cờ lỗi; hai trường hợp này chưa.
 - **Context file (PRB-19, PRB-20).** Chỉ đọc ở thư mục làm việc, không ở gốc git; tên chữ thường (`agents.md`,
   `crush.md`) không được nạp trên Linux; plan mode và agent con không nhận context của dự án.
 - **`run` không có trần thời gian cho cả lượt.** Mỗi request LLM chỉ có `request-timeout` (mặc định 2 phút không có

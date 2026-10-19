@@ -87,8 +87,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 - **`scripts/eval/`: đo và cổng hồi quy bằng LLM giả.** `fakellm.py` (server tương thích OpenAI, ghi mỗi request:
   provider, model, vai trò, kích thước); `faults.sh` (tiêm lỗi provider, ca model đang chọn thiếu key); `qwen-only.sh`
   (đi qua mọi đường gọi LLM với model nhỏ cố ý ở provider khác); `workspaces.sh` (nhiều workspace, nhiều session, chế độ local);
+  `ledger.sh` (sổ ghi LLM ghi lỗi: `run --json` có `ledger_error`, lượt vẫn xong, local lẫn qua server);
+  `session-model.sh` (`run -s` không đổi model của dự án, local lẫn qua server);
   `fixtures.py`/`run.sh`/`score.py` (bộ kịch bản đo trước/sau, chạy bằng cấu hình provider thật của bạn nên tốn hạn mức). `faults.sh`, `qwen-only.sh`,
-  `workspaces.sh` thoát 1 khi hỏng.
+  `workspaces.sh`, `ledger.sh`, `session-model.sh` thoát 1 khi hỏng.
 
 ### Sửa lỗi
 
@@ -104,8 +106,9 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 - **Prompt server đã báo nhận không còn mất im lặng** (chế độ client/server, tức qua launcher: `send` không `--wait`,
   prompt xếp hàng sau lượt đang chạy, kể cả prompt gõ trong TUI). Trước đây server báo nhận trước khi ghi tin user, và
   prompt xếp hàng chỉ nằm trong RAM: server bị SIGKILL ngay sau `send` (rc 0) thì 7/8 lần session không có prompt;
-  SIGTERM khi prompt còn xếp hàng thì prompt biến mất, không có bản ghi huỷ, chưa tới LLM (binary thật, LLM giả: ca
-  T11, T13 của bộ phơi nhiễm V3). Nay server ghi tin user cùng một lời trả lời giữ chỗ TRƯỚC khi báo nhận; lượt chạy
+  SIGTERM khi prompt còn xếp hàng thì prompt biến mất, không có bản ghi huỷ, chưa tới LLM (binary thật, LLM giả; nay có test đơn vị
+  `TestSendMessage_AckPersistsUserMessageBeforeRun` và `TestSendMessage_QueuedPromptSurvivesShutdown` trong
+  `internal/backend/durable_ack_test.go`). Nay server ghi tin user cùng một lời trả lời giữ chỗ TRƯỚC khi báo nhận; lượt chạy
   tiếp quản chúng (không ghi tin user lần hai, kể cả khi prompt được gộp vào lượt đang chạy). Prompt không chạy được
   vẫn hiện trong session với đúng trạng thái: huỷ (Esc, Ctrl+C trên `run`, xoá hàng đợi, server tắt), lỗi thật (vd
   provider thiếu key hay bị tắt), hoặc "Interrupted" khi server chết (ghi lúc mở lại session, cơ chế settle sẵn có).
@@ -198,9 +201,12 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   chặn lượt đi provider `pp`). Nay client gửi chính sách tin cậy của nó (env gốc và tệp env, không theo `.env` của
   repo) và server từ chối khi khác: lỗi `trust policy differs from the running agent-cli server` nêu tên biến
   (không giá trị) và bảo thoát mọi client của dự án. `--yolo` khác workspace đang mở cũng bị từ chối thay cho cảnh
-  báo cũ; client cũ không gửi chính sách cũng bị từ chối, và lệnh chạy model không tái dùng server khác bản đang bận.
+  báo cũ, cả hai chiều, và lỗi nói dự án đang mở có hay không `--yolo` ("pass --yolo too" / "drop --yolo"); `run`, `send`, `loop` nay
+  nhận `--yolo` như TUI để khớp được. Home và `agent-cli-tmux` mở dự án không kèm `--yolo`, nên bị từ chối khi
+  dự án đang giữ bởi client mở bằng `--yolo` (thoát client đó hoặc mở lại không `--yolo`). `ctrl+y`/`shift+tab`
+  bật YOLO lúc chạy thì không bị so: client sau vào được, và cũng thành YOLO cho cả workspace. Client cũ không gửi chính sách cũng bị từ chối, và lệnh chạy model không tái dùng server khác bản đang bận.
   Chỉ lệnh chạy model (TUI, `run`, `send`, `loop`) bị so; `jobs`, `login`, `logout` thì không. Biến thường (kể cả
-  `$VAR` của `api_key`/`base_url` trong `crush.json`) không được so và vẫn theo client đã dựng server, như trước.
+  `$VAR` của `api_key`/`base_url` trong `crush.json`) không được so và vẫn theo client đã dựng server, như trước (trừ `loop --cwd`, xem mục `.env`).
   Tiến trình con mà Home dựng và lệnh `--verify` của loop không còn nhận biến tin cậy từ `.env` của repo (gõ
   `agent-cli` trong repo có `.env` đặt `AGENT_CLI_DELEGATION=on` từng bật giao việc cho workspace mở từ Home).
 - **Kết quả tool MCP dạng chữ có trần như bash và giữ cờ lỗi.** MCP trả 5 MiB từng đi nguyên vào request kế tiếp và
@@ -221,7 +227,8 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`… đặt trong `.env` từng tới CLI con (đổi endpoint
   hay khoá của nó); giá trị export ở shell vẫn tới. Workspace mà Home mở và server của dự án nay được dựng với env gốc
   và tự nạp `.env` như trước (`loop --cwd <dir>` ở chế độ server: chỉ `.env` của `<dir>`). Agent-cli gọi lồng
-  (`!agent-cli run …`) vẫn chụp biến thường của `.env` làm env gốc. Home mở lại bằng Alt+W khi chạy
+  (`!agent-cli run …`) vẫn chụp biến thường của `.env` làm env gốc; CLI con của nó nhận chúng khi lời gọi lồng dựng
+  server mới hoặc chạy in-process, còn dự án đã có server thì theo env gốc của server đó. Home mở lại bằng Alt+W khi chạy
   binary không qua launcher cũng không còn lấy `AGENT_CLI_LAUNCHER` từ `.env` (từng để `.env` chọn chương trình mà
   Home đó chạy).
 - **`-c`/`--cwd` tương đối không còn đặt workspace và DB sai chỗ.** `agent-cli -c .. run …` gọi từ `repo/internal`

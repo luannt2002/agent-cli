@@ -69,10 +69,13 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
   `run -s/-C` cũng vậy với session có sẵn. "Chưa sửa code" trong prompt chỉ là lời dặn model, không phải rào chắn. Chúng
   dùng mode hiện tại của dự án: nếu TUI để dự án ở plan mode thì `run`/`loop` chỉ đọc và lập kế hoạch.
 - YOLO (`--yolo`, `ctrl+y`, hoặc `shift+tab` tới bước "code + YOLO"): duyệt mọi thứ, áp cho cả workspace (kể cả TUI khác
-  và `send` vào dự án đó). `--yolo` lúc mở phải khớp workspace đang mở, cả hai chiều: dự án mở bằng `--yolo` thì
-  client chạy model sau đó mà không có `--yolo` (TUI, `run`, `send`, `loop`) bị từ chối; dự án mở không `--yolo` thì
-  `agent-cli --yolo` sau đó bị từ chối. `jobs`, `login`, `logout` không bị so `--yolo`; bật bằng `ctrl+y` thì không bị
-  từ chối.
+  và `send` vào dự án đó). `--yolo` (TUI, `run`, `send`, `loop` đều nhận) lúc mở phải khớp workspace đang mở, cả hai
+  chiều: client mở không `--yolo` vào dự án đang giữ bởi client mở bằng `--yolo` bị từ chối, và ngược lại; lỗi nói
+  dự án đang mở có hay không `--yolo` ("pass --yolo too" / "drop --yolo"). `send --yolo` vào dự án chưa mở thì dựng
+  workspace YOLO: lượt đó không hỏi quyền nào. Home và `agent-cli-tmux` mở dự án không kèm `--yolo`, nên bị từ
+  chối khi dự án đang giữ bởi client mở bằng `--yolo`: thoát client đó hoặc mở lại không `--yolo`. `jobs`, `login`,
+  `logout` không bị so `--yolo`; bật bằng `ctrl+y`/`shift+tab` lúc chạy thì không bị so (client sau vẫn vào được, và
+  cũng thành YOLO cho cả workspace).
 - Nút "Allow for Session" trong hộp thoại; `permissions allow <tool>` trong crushrc.
 - Muốn được hỏi: dùng TUI không bật YOLO, hoặc `agent-cli send -s <id> "..."` (gửi prompt vào session đang mở trong
   TUI; không tự duyệt, TUI đó trả lời hộp thoại; không có TUI nào mở session đó thì `send --wait` dừng với lỗi và lượt
@@ -85,7 +88,8 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
 agent-cli con cũng không nhận chúng từ `.env`; CLI con giao việc Claude Code/Codex chỉ nhận env gốc, không nhận biến nào
 của `.env`, kể cả `ANTHROPIC_BASE_URL`, `OPENAI_API_KEY`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`. Giới hạn: agent-cli gọi lồng
 từ tiến trình đã nạp `.env` (`!agent-cli run …`, `--verify "agent-cli run …"`) chụp biến thường của `.env` đó làm env gốc,
-nên CLI con của nó nhận chúng); `crush.json`, `.crush.json` và
+nên CLI con của nó nhận chúng khi lời gọi lồng dựng server mới cho dự án hoặc chạy in-process; dự án đã có server thì CLI
+con theo env gốc của server đó); `crush.json`, `.crush.json` và
 `.crush/crush.json` của repo (tệp cuối thắng mọi cấu hình khác, kể cả env) nới được quyền tool, khai hook và MCP server
 (tức là chạy lệnh; `$(...)` trong `api_key`/`base_url` chạy ngay lúc nạp), đổi model/provider hay `base_url`; context
 file (`AGENTS.md`, `CLAUDE.md`, `CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills`, `.crush/skills`,
@@ -125,8 +129,9 @@ Hyper; zai và anthropic chỉ dùng key). `alt+p` chỉ hiện provider khai b�
 (mẫu: provider chính, `openai`, `anthropic`); provider khác thì thêm dòng đó hoặc chọn bằng `-m`.
 
 **Đổi provider.** `alt+p`, hoặc `agent-cli run -s <id> -m <provider>/<model> "..."`. Cả hai đổi model của cả dự án,
-không chỉ một lượt. Đổi provider không làm mất mạch: cùng session chạy tiếp với lịch sử cũ (đã thử với LLM thật, một
-lần: bước 1 dùng model local, bước 2 `-m` sang provider khác trên cùng session).
+không chỉ một lượt (với `run -m`: ở chế độ server mặc định; chế độ local chỉ đổi trong lượt đó). Đổi provider không
+làm mất mạch: cùng session chạy tiếp với lịch sử cũ (đã thử với LLM thật, một lần: bước 1 dùng model local, bước 2
+`-m` sang provider khác trên cùng session).
 
 **Model của dự án nằm ở đâu.** Chọn model trong TUI hay `run -m` (ở chế độ server mặc định; chế độ local chỉ đổi trong
 lượt đó) ghi model vào `<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong env. Mở lại hay tiếp một
