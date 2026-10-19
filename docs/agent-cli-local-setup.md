@@ -226,7 +226,7 @@ ghi đè bản có sẵn) và in hướng dẫn. Cũng vậy khi thiếu `jq` ho
 
 ```bash
 agent-cli                      # Home: chọn workspace rồi session (xem mục Home)
-agent-cli -c /path/to/project  # vào thẳng workspace, bỏ qua Home
+agent-cli -c /path/to/project  # vào thẳng workspace, bỏ qua Home (-c tương đối tính theo thư mục hiện tại)
 agent-cli run "Đọc repo và tóm tắt kiến trúc, chưa sửa code."   # CẢNH BÁO: run TỰ DUYỆT mọi quyền (xem dưới)
 agent-cli --continue
 agent-cli login openai

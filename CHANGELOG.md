@@ -211,6 +211,20 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   (`!agent-cli run …`) vẫn chụp biến thường của `.env` làm env gốc. Home mở lại bằng Alt+W khi chạy
   binary không qua launcher cũng không còn lấy `AGENT_CLI_LAUNCHER` từ `.env` (từng để `.env` chọn chương trình mà
   Home đó chạy).
+- **`-c`/`--cwd` tương đối không còn đặt workspace và DB sai chỗ.** `agent-cli -c .. run …` gọi từ `repo/internal`
+  gửi nguyên chuỗi `..` cho server. Server tính chuỗi đó theo thư mục CỦA NÓ, tức thư mục của client đã dựng nó. Kết
+  quả: workspace thành thư mục cha của một dự án khác, `crush.db` rơi ra ngoài cả hai repo, kể cả khi đi qua launcher.
+  Ở chế độ local, `-c foo` ghi DB vào `foo/foo/foo/.crush`: chuỗi `foo` bị ghép lại sau khi đã chdir vào `foo`, rồi
+  data dir còn bị ghép gốc thêm một lần. `projects.json` lưu đường tương đối. `loop -c ..` đọc cờ hai lần nên đưa
+  agent (tự duyệt mọi tool) lên thư mục cha của repo trong khi verify chạy ở chỗ khác; ở chế độ local có lúc ra
+  `GREEN` cho một thư mục không phải repo. Nay `-c` được đổi thành đường tuyệt đối theo thư mục hiện tại của lệnh
+  trước khi dùng, một lần cho cả lệnh. Data dir chỉ ghép gốc một lần và luôn tuyệt đối. Server nhận đường tương đối
+  từ client khác thì workspace và data dir vẫn tính theo thư mục của server, chỉ không còn bị ghép gốc hai lần.
+  `-D/--data-dir` tương đối vẫn tính theo thư mục workspace (sau `-c`), nay cho cùng kết quả ở local và qua server.
+  `-c` tuyệt đối và lệnh không có `-c` không đổi.
+  **Lưu ý nâng cấp:** session đã tạo bằng `-c` tương đối nằm ở chỗ sai cũ (vd `r/foo/foo/foo/.crush`; `r/foo/foo/x`
+  khi có `-D x`; `<thư mục cha>/.crush` khi qua server) vẫn còn trên đĩa nhưng bản này không mở chúng nữa và không
+  cảnh báo. Cần thì mở lại bằng `-D <đường cũ>`.
 
 ## [0.2.0] - 2026-10-16
 

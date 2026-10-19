@@ -618,10 +618,15 @@ func (c *Config) setDefaults(workingDir, dataDir string) {
 		if path, ok := fsext.LookupClosestBounded(workingDir, projectBoundary(workingDir), defaultDataDirectory); ok {
 			c.Options.DataDirectory = path
 		} else {
-			c.Options.DataDirectory = filepath.Join(workingDir, defaultDataDirectory)
+			c.Options.DataDirectory = defaultDataDirectory
 		}
 	}
+	// Ghép gốc đúng một lần ở đây. Tuyệt đối để lần nạp lại (đưa giá trị này
+	// vào làm dataDir) không ghép thêm khi workingDir là đường tương đối.
 	c.Options.DataDirectory = filepath.Clean(filepathext.SmartJoin(workingDir, c.Options.DataDirectory))
+	if abs, err := filepath.Abs(c.Options.DataDirectory); err == nil {
+		c.Options.DataDirectory = abs
+	}
 	if c.Providers == nil {
 		c.Providers = csync.NewMap[string, ProviderConfig]()
 	}

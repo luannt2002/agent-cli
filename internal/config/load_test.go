@@ -353,6 +353,29 @@ func TestConfig_setDefaults(t *testing.T) {
 		require.Equal(t, absDir, cfg.Options.DataDirectory)
 	})
 
+	t.Run("relative working directory gets the data directory once", func(t *testing.T) {
+		// `logs -c foo` nạp config với gốc tương đối, không chdir. Data dir
+		// từng bị ghép gốc hai lần (foo/foo/.crush), và thêm lần nữa khi
+		// nạp lại vì workspace có .crush/crush.json.
+		root, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		require.NoError(t, os.Mkdir(filepath.Join(root, "foo"), 0o755))
+		t.Chdir(root)
+		want := filepath.Join(root, "foo", defaultDataDirectory)
+
+		cfg := &Config{}
+		cfg.setDefaults("foo", "")
+		got, err := filepath.Abs(cfg.Options.DataDirectory)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+
+		// Như nhánh nạp lại workspace config trong Load.
+		cfg.setDefaults("foo", cfg.Options.DataDirectory)
+		got, err = filepath.Abs(cfg.Options.DataDirectory)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	})
+
 	t.Run("workspace merge re-entry keeps an absolute data directory", func(t *testing.T) {
 		// Simulate the load and reload paths: defaults are applied
 		// twice with the data directory potentially carried through

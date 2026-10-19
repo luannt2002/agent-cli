@@ -1278,11 +1278,20 @@ func resolveWorkspaceSessionID(ctx context.Context, ws workspace.Workspace, id s
 func ResolveCwd(cmd *cobra.Command) (string, error) {
 	cwd, _ := cmd.Flags().GetString("cwd")
 	if cwd != "" {
-		err := os.Chdir(cwd)
+		// Tuyệt đối theo cwd của lệnh, trước khi chdir: server ghép đường
+		// tương đối theo cwd CỦA NÓ, nên workspace và DB rơi sai chỗ.
+		abs, err := filepath.Abs(cwd)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve directory: %v", err)
+		}
+		err = os.Chdir(abs)
 		if err != nil {
 			return "", fmt.Errorf("failed to change directory: %v", err)
 		}
-		return cwd, nil
+		// Ghi lại cờ: lệnh gọi hàm này hai lần (vd. `loop`) thì lần sau không
+		// ghép `..` thêm từ thư mục vừa chdir vào.
+		_ = cmd.Flags().Set("cwd", abs)
+		return abs, nil
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
