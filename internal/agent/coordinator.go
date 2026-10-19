@@ -45,7 +45,6 @@ import (
 	"github.com/charmbracelet/crush/internal/question"
 	"github.com/charmbracelet/crush/internal/session"
 	"github.com/charmbracelet/crush/internal/skills"
-	"golang.org/x/sync/errgroup"
 
 	"charm.land/fantasy/providers/anthropic"
 	"charm.land/fantasy/providers/azure"
@@ -176,7 +175,57 @@ type coordinator struct {
 	activeSkills []*skills.Skill // Post-filter: active skills only.
 	skillTracker *skills.Tracker
 
-	readyWg errgroup.Group
+	readyWg readyGroup
+}
+
+// readyGroup chờ việc dựng agent còn dở (system prompt, bộ tool), giống
+// errgroup.Group: Wait trả lỗi đầu tiên và giữ lỗi đó mãi. Khác errgroup, Go
+// được gọi song song với Wait vào bất kỳ lúc nào: buildAgent chạy cả từ
+// UpdateModels lẫn từ lượt khác trong lúc run đang chờ, còn sync.WaitGroup
+// cấm Add từ 0 song song với Wait (server panic "sync: WaitGroup is reused
+// before previous Wait has returned" khi nhiều `run` vào cùng lúc).
+type readyGroup struct {
+	mu      sync.Mutex
+	pending int
+	idle    chan struct{} // Đóng khi pending về 0; nil khi chưa có việc nào.
+	err     error
+}
+
+func (g *readyGroup) Go(f func() error) {
+	g.mu.Lock()
+	if g.pending == 0 {
+		g.idle = make(chan struct{})
+	}
+	g.pending++
+	g.mu.Unlock()
+
+	go func() {
+		err := f()
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		if g.err == nil {
+			g.err = err
+		}
+		g.pending--
+		if g.pending == 0 {
+			close(g.idle)
+		}
+	}()
+}
+
+// Wait chờ tới lúc không còn việc dựng nào dở, kể cả việc được Go thêm từ
+// bên trong một việc đang chạy (agentTool khi dựng bộ tool), rồi trả lỗi
+// đầu tiên nếu có.
+func (g *readyGroup) Wait() error {
+	g.mu.Lock()
+	idle := g.idle
+	g.mu.Unlock()
+	if idle != nil {
+		<-idle
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.err
 }
 
 // CoordinatorOptions holds the dependencies for NewCoordinator. Using a

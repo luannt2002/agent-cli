@@ -92,6 +92,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 
 ### Sửa lỗi
 
+- **Server không còn panic khi nhiều lượt chạy cùng lúc.** Nhiều `run` đồng thời vào một server đang chạy từng làm server
+  panic `sync: WaitGroup is reused before previous Wait has returned` (`internal/agent/coordinator.go`), kéo chết mọi
+  client của dự án: 27/200 lượt thử với 10 `run` đồng thời trước khi sửa, 0/280 sau. Nhóm chờ "agent đã dựng xong" nay an
+  toàn khi một lượt chờ trong lúc lượt khác đang dựng agent con; ngữ nghĩa giữ nguyên (lượt chưa chạy khi việc dựng còn dở).
 - **Lời gọi ẩn không còn sang provider khác.** Model nhỏ nằm ở provider khác model chính từng nhận lời gọi đặt tiêu đề
   (kèm nguyên văn prompt đầu của bạn) và `agentic_fetch`, không cảnh báo: phiên chọn Qwen local vẫn gửi prompt sang
   provider của model nhỏ. Bộ tiêm lỗi với provider giả: bản trước có lời gọi lọt ở cả 8/8 ca (kể cả khi provider
