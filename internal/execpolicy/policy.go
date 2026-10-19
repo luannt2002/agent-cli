@@ -38,6 +38,9 @@ const (
 	// mở thứ nào khác. Cả hai là biến tin cậy.
 	UnattendedEnv       = "AGENT_CLI_UNATTENDED"
 	UnattendedCommitEnv = "AGENT_CLI_UNATTENDED_COMMIT"
+	// LLMLedgerEnv là tệp sổ ghi lời gọi LLM (kích thước, hash, usage; không nội
+	// dung). Biến tin cậy để `.env` của repo không chuyển được sổ ra chỗ khác.
+	LLMLedgerEnv = "AGENT_CLI_LLM_LEDGER"
 )
 
 // Backend giao việc: CLI agent bên ngoài, gọi qua tool cùng tên.
@@ -99,7 +102,7 @@ const EnvFileEnv = "AGENT_CLI_ENV_FILE"
 // của dự án (cả hai đều os.Setenv và do repo kiểm soát). Gồm ranh giới, nơi
 // đặt tệp env (và HOME suy ra nó), cùng CLI và mức quyền của tool giao việc.
 var trustedKeys = []string{
-	AllowedModelsEnv, DelegationEnv, UnattendedEnv, UnattendedCommitEnv, EnvFileEnv, "HOME",
+	AllowedModelsEnv, DelegationEnv, UnattendedEnv, UnattendedCommitEnv, EnvFileEnv, LLMLedgerEnv, "HOME",
 	"AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_BIN",
 	"AGENT_CLI_CLAUDE_PERMISSION_MODE", "AGENT_CLI_CODEX_SANDBOX",
 }
@@ -107,6 +110,8 @@ var trustedKeys = []string{
 var (
 	snapshotOnce sync.Once
 	snapshot     map[string]string // nil: chưa chụp
+	// original là toàn bộ env lúc chụp, chỉ để đọc (OriginalEnv); không đổi ChildEnv.
+	original map[string]string
 )
 
 // Snapshot chụp các biến tin cậy từ env hiện tại. Gọi ĐẦU main, trước mọi
@@ -120,7 +125,21 @@ func Snapshot() {
 			}
 		}
 		snapshot = m
+		original = make(map[string]string)
+		for _, kv := range os.Environ() {
+			k, v, _ := strings.Cut(kv, "=")
+			original[k] = v
+		}
 	})
+}
+
+// OriginalEnv trả giá trị của key trong env gốc (trước `.env`), cho mọi key; chưa
+// chụp thì env hiện tại.
+func OriginalEnv(key string) string {
+	if snapshot != nil {
+		return original[key]
+	}
+	return os.Getenv(key)
 }
 
 // TrustedEnv trả giá trị tin cậy của biến key: theo ảnh chụp nếu key thuộc

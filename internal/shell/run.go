@@ -343,7 +343,50 @@ func blockHandler(blockFuncs []BlockFunc) execMiddleware {
 					return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
 				}
 			}
+			if blockedByGitEnv(ctx, blockFuncs, args) {
+				return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
+			}
 			return next(ctx, args)
 		}
 	}
+}
+
+// blockedByGitEnv: biến git (`GIT_DIR=x git rm`, `export GIT_DIR=x`) nằm trong env
+// chứ không trong argv, nên soi thêm một lượt với tiền tố `env NAME=...` mà
+// BlockFunc nào cũng đọc được. Lượt soát argv thô giữ nguyên quyết định cũ.
+func blockedByGitEnv(ctx context.Context, blockFuncs []BlockFunc, args []string) bool {
+	if len(blockFuncs) == 0 {
+		return false
+	}
+	env := gitRedirectEnv(interp.HandlerCtx(ctx).Env)
+	if len(env) == 0 {
+		return false
+	}
+	withEnv := append(append([]string{"env"}, env...), args...)
+	for _, blockFunc := range blockFuncs {
+		if blockFunc(withEnv) {
+			return true
+		}
+	}
+	return false
+}
+
+// gitRedirectEnv trả các biến export mà lệnh tự đặt và nhắc tới biến git trong
+// gitEnvName, ở tên hay ở giá trị (`X='GIT_DIR=…' sh -c 'eval "$X"'`). Biến có cùng
+// giá trị trong môi trường của chính agent-cli là của người khởi chạy (vd chạy
+// trong git hook), không phải của lệnh, nên bỏ qua.
+func gitRedirectEnv(env expand.Environ) []string {
+	var out []string
+	env.Each(func(name string, vr expand.Variable) bool {
+		if !vr.Exported || !vr.IsSet() || !gitEnvName.MatchString(name+"="+vr.String()) {
+			return true
+		}
+		if v, ok := os.LookupEnv(name); ok && v == vr.String() {
+			return true
+		}
+		out = append(out, name+"="+vr.String())
+		return true
+	})
+	slices.Sort(out)
+	return out
 }

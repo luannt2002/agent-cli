@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"regexp"
 	"strings"
 )
 
@@ -13,6 +14,11 @@ import (
 //
 // Cố ý KHÔNG phủ: ngôn ngữ khác (python/node tự xoá hay mở socket), `find
 // -delete`, script nạp từ tệp hoặc stdin. Xem docs trong CHANGELOG.
+//
+// Guard soi CHỮ của lệnh nên cũng không phủ: thư mục symlink (`ln -s /other r;
+// git -C r ...`), `cd` ra ngoài trước lệnh, chuyển hướng/cp ghi ra ngoài
+// (`> /other/f`), và tên biến git ghép lúc chạy (`"GIT_""DIR"`). Đây là danh sách
+// đen, không phải sandbox.
 
 // UnattendedGuard là BlockFunc chặn lệnh nguy hiểm khi enabled() trả true.
 // allowCommit() mở các lệnh tạo commit (git commit, am, cherry-pick, revert) khi
@@ -25,7 +31,12 @@ func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason strin
 		if !enabled() {
 			return false
 		}
-		reason, blocked := g.Blocked(args)
+		// Soi chữ thô trước khi bóc lớp bọc: script của sh -c, chuỗi của env -S,
+		// eval, và tiền tố `env NAME=…` mà blockHandler thêm cho biến đã export.
+		reason, blocked := gitEnvMentioned(args)
+		if !blocked {
+			reason, blocked = g.Blocked(args)
+		}
 		if blocked && onBlock != nil {
 			onBlock(reason, args)
 		}
@@ -50,6 +61,24 @@ func unattendedDenied(args []string, allowCommit bool) (string, bool) {
 		return name + " copies to or from other machines, not allowed while unattended", true
 	case outboundTools[name]:
 		return name + " talks to remote services, not allowed while unattended", true
+	}
+	return "", false
+}
+
+// gitEnvName khớp biến môi trường trỏ git sang repo/chỉ mục/kho đối tượng khác hoặc
+// nạp cấu hình: việc của -C/--git-dir/-c, mà guard thấy qua argv còn biến thì không.
+var gitEnvName = regexp.MustCompile(`\bGIT_(DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|NAMESPACE|EXEC_PATH|CONFIG_(PARAMETERS|COUNT|GLOBAL|SYSTEM|KEY_\w+|VALUE_\w+))\b`)
+
+// gitEnvMentioned chặn MỌI lệnh mà chữ của nó nhắc tới một biến trong gitEnvName,
+// bất kể giá trị và bất kể lệnh: biến đi theo tiến trình con (make, find -exec,
+// script), còn cách gán thì vô số (export trong ngoặc, gán trước khi gọi hàm, tên
+// ghép từ biến), nên soi chữ thay vì phân tích phép gán. Nghiêng về chặn: chỉ nhắc
+// tên trong một chuỗi cũng bị chặn khi không người trực.
+func gitEnvMentioned(args []string) (string, bool) {
+	for _, a := range args {
+		if m := gitEnvName.FindString(a); m != "" {
+			return "a command that sets or mentions " + m + " (it points git at another repository or injects config) is not allowed while unattended", true
+		}
 	}
 	return "", false
 }
@@ -82,6 +111,10 @@ func gitDenied(args []string, allowCommit bool) (string, bool) {
 		a := args[i]
 		if a == "-c" || strings.HasPrefix(a, "--config-env") {
 			return "git " + a + " can define aliases and hooks and is not allowed while unattended", true
+		}
+		// Trỏ ra ngoài workspace thì lệnh "chỉ đổi worktree riêng" chạy trên repo bất kỳ.
+		if dir, ok := gitRepoFlagValue(args, i); ok && leavesWorkspace(dir) {
+			return "git " + a + " " + dir + " points git outside the workspace and is not allowed while unattended", true
 		}
 		if gitGlobalValueFlags[a] {
 			i++
@@ -160,12 +193,26 @@ func gitDenied(args []string, allowCommit bool) (string, bool) {
 func hasAny(rest []string, flags ...string) bool {
 	for _, a := range rest {
 		for _, f := range flags {
-			if a == f {
+			if flagMatches(a, f) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// flagMatches: a là cờ f, kể cả khi a là tiền tố viết tắt của option dài f (git
+// nhận tiền tố duy nhất: `--har` = `--hard`) hoặc có `=giá-trị`. Tiền tố quá ngắn
+// (`--h`) cũng tính, nghiêng về chặn.
+func flagMatches(a, f string) bool {
+	if a == f {
+		return true
+	}
+	if !strings.HasPrefix(f, "--") || !strings.HasPrefix(a, "--") || len(a) < 3 {
+		return false
+	}
+	name, _, _ := strings.Cut(a, "=")
+	return len(name) >= 3 && strings.HasPrefix(f, name)
 }
 
 // hasFlagLetters báo rest có cờ dài trong long, hoặc cụm cờ ngắn (gộp được, vd
@@ -175,7 +222,7 @@ func hasFlagLetters(rest []string, letters string, long ...string) bool {
 	for _, a := range rest {
 		if strings.HasPrefix(a, "--") {
 			for _, l := range long {
-				if a == l {
+				if flagMatches(a, l) {
 					return true
 				}
 			}
@@ -195,6 +242,30 @@ func isLetters(s string) bool {
 		}
 	}
 	return true
+}
+
+// leavesWorkspace: đường dẫn có thể ra ngoài thư mục hiện tại (tuyệt đối, ~, biến
+// chưa mở rộng, thành phần ".."). Không xét `cd` trước đó.
+func leavesWorkspace(p string) bool {
+	return strings.HasPrefix(p, "/") || strings.HasPrefix(p, "~") || strings.Contains(p, "$") ||
+		strings.Contains(p, dynamicWord) || p == ".." || strings.HasPrefix(p, "../") ||
+		strings.HasSuffix(p, "/..") || strings.Contains(p, "/../")
+}
+
+// gitRepoFlagValue trả thư mục mà cờ toàn cục ở args[i] (`-C`, `--git-dir`,
+// `--work-tree`, kể cả dạng `=`) chọn cho git. Thiếu giá trị thì trả "$" để bị chặn.
+func gitRepoFlagValue(args []string, i int) (string, bool) {
+	a := args[i]
+	switch {
+	case a == "-C" || a == "--git-dir" || a == "--work-tree":
+		if i+1 < len(args) {
+			return args[i+1], true
+		}
+		return "$", true
+	case strings.HasPrefix(a, "--git-dir=") || strings.HasPrefix(a, "--work-tree="):
+		return a[strings.IndexByte(a, '=')+1:], true
+	}
+	return "", false
 }
 
 // rmDenied chặn `rm` có đích ngoài workspace, đệ quy hay không (`rm -f
@@ -229,9 +300,7 @@ func rmDenied(args []string) (string, bool) {
 		return "rm without explicit targets (they come from xargs or stdin) is not allowed while unattended", true
 	}
 	for _, t := range targets {
-		if strings.HasPrefix(t, "/") || strings.HasPrefix(t, "~") || strings.Contains(t, "$") ||
-			strings.Contains(t, dynamicWord) || t == ".." || strings.HasPrefix(t, "../") ||
-			strings.HasSuffix(t, "/..") || strings.Contains(t, "/../") {
+		if leavesWorkspace(t) {
 			return "rm with a target outside the workspace (" + t + ") is not allowed while unattended", true
 		}
 	}

@@ -64,6 +64,10 @@ func scriptDispatchHandler(blockFuncs []BlockFunc) execMiddleware {
 					return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
 				}
 			}
+			// Biến git đi theo script vào tiến trình con như mọi lệnh khác.
+			if blockedByGitEnv(ctx, blockFuncs, args) {
+				return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
+			}
 			probe, err := probeFile(scriptPath)
 			if err != nil {
 				return err

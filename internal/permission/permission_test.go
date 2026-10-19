@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -988,4 +989,104 @@ func TestAcceptEditsDoesNotWaitForOtherPrompts(t *testing.T) {
 	}
 	require.True(t, service.Grant(pending.Payload))
 	require.True(t, <-blocked)
+}
+
+// Phiên B đang chờ sau hộp thoại của phiên A phải huỷ được (Esc, Ctrl+C của
+// `run`): trước đây sync.Mutex không biết ctx nên B kẹt tới khi A được trả lời
+// (audit g2, HIGH).
+func TestWaitingRequestIsCancellable(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	service := NewPermissionService(dir, false, nil)
+	events := service.Subscribe(t.Context())
+	go func() {
+		_, _ = service.Request(t.Context(), CreatePermissionRequest{
+			SessionID: "a", ToolCallID: "call-a", ToolName: "bash", Action: "execute", Path: dir,
+		})
+	}()
+	first := <-events
+	require.Equal(t, "a", first.Payload.SessionID)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		_, err := service.Request(ctx, CreatePermissionRequest{
+			SessionID: "b", ToolCallID: "call-b", ToolName: "bash", Action: "execute", Path: dir,
+		})
+		done <- err
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(2 * time.Second):
+		t.Fatal("a cancelled request stayed blocked behind another session's prompt")
+	}
+	require.True(t, service.Grant(first.Payload))
+}
+
+// Phiên đã được tự duyệt (phiên gốc của lượt `run` cục bộ) không phải xếp hàng
+// sau hộp thoại của phiên khác.
+func TestAutoApprovedSessionDoesNotWaitForOtherPrompts(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	service := NewPermissionService(dir, false, nil)
+	events := service.Subscribe(t.Context())
+	go func() {
+		_, _ = service.Request(t.Context(), CreatePermissionRequest{
+			SessionID: "a", ToolCallID: "call-a", ToolName: "bash", Action: "execute", Path: dir,
+		})
+	}()
+	first := <-events
+	service.AutoApproveSession("b")
+	granted := make(chan bool, 1)
+	go func() {
+		ok, _ := service.Request(t.Context(), CreatePermissionRequest{
+			SessionID: "b", ToolCallID: "call-b", ToolName: "bash", Action: "execute", Path: dir,
+		})
+		granted <- ok
+	}()
+	select {
+	case ok := <-granted:
+		require.True(t, ok)
+	case <-time.After(2 * time.Second):
+		t.Fatal("an auto-approved session waited behind another session's prompt")
+	}
+	require.True(t, service.Grant(first.Payload))
+}
+
+// Không người trực (routine): tool ghi tệp không đi qua lớp chặn của bash, nên
+// permission service phải từ chối ghi ra ngoài thư mục làm việc, trước cả YOLO
+// và tự duyệt — ghi `~/.config/agent-cli/crushrc` là chạy mã ở lần mở sau
+// (verifier g5). Trong thư mục làm việc thì như cũ; đọc thì không bị chặn.
+func TestUnattendedRefusesWritesOutsideTheWorkingDir(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "crushrc")
+	execpolicy.SetUnattended(true, false)
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+
+	service := NewPermissionService(dir, true, nil) // YOLO: mọi thứ khác đều được duyệt
+	service.AutoApproveSession("s")
+	for _, req := range []CreatePermissionRequest{
+		{SessionID: "s", ToolName: "write", Action: "write", Path: filepath.Dir(outside), FilePath: outside},
+		{SessionID: "s", ToolName: "edit", Action: "write", Path: filepath.Dir(outside), FilePath: outside},
+		{SessionID: "s", ToolName: "download", Action: "download", Path: outside},
+		{SessionID: "s", ToolName: "write", Action: "write", Path: dir, FilePath: filepath.Join(dir, "..", "escape.txt")},
+	} {
+		ok, err := service.Request(t.Context(), req)
+		require.NoError(t, err)
+		require.Falsef(t, ok, "%+v must be refused while unattended", req)
+	}
+	ok, err := service.Request(t.Context(), CreatePermissionRequest{SessionID: "s", ToolName: "write", Action: "write", Path: dir, FilePath: filepath.Join(dir, "main.go")})
+	require.NoError(t, err)
+	require.True(t, ok, "writes inside the working dir still pass")
+	ok, err = service.Request(t.Context(), CreatePermissionRequest{SessionID: "s", ToolName: "view", Action: "read", Path: filepath.Dir(outside), FilePath: outside})
+	require.NoError(t, err)
+	require.True(t, ok, "reads are not blocked by this rule")
+
+	execpolicy.SetUnattended(false, false)
+	ok, err = service.Request(t.Context(), CreatePermissionRequest{SessionID: "s", ToolName: "write", Action: "write", Path: filepath.Dir(outside), FilePath: outside})
+	require.NoError(t, err)
+	require.True(t, ok, "attended YOLO behaves as before")
 }

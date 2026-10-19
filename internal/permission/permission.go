@@ -1,9 +1,11 @@
 package permission
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"github.com/charmbracelet/crush/internal/csync"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/pubsub"
 	"github.com/google/uuid"
 )
@@ -122,8 +125,9 @@ type permissionService struct {
 	skip                  atomic.Bool
 	allowedTools          []string
 
-	// used to make sure we only process one request at a time
-	requestMu       sync.Mutex
+	// Một hộp thoại xin quyền tại một thời điểm. Kênh (không phải Mutex) để người
+	// đang xếp hàng huỷ được bằng ctx thay vì kẹt tới khi phiên khác được trả lời.
+	requestSem      chan struct{}
 	activeRequest   *PermissionRequest
 	activeRequestMu sync.Mutex
 }
@@ -198,6 +202,15 @@ func (s *permissionService) Deny(permission PermissionRequest) bool {
 }
 
 func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRequest) (bool, error) {
+	// Không người trực: yêu cầu Action "write"/"download" có đích ngoài thư mục làm
+	// việc bị từ chối cứng, trước cả YOLO và tự duyệt (ghi vd ~/.config/agent-cli/crushrc
+	// là chạy mã ở lần mở sau). Chỉ phủ tool khai Action đó (write, edit, multiedit,
+	// download, lsp_replace_symbol, lsp_rename); bash (vd chuyển hướng `>`) KHÔNG đi
+	// qua kiểm tra này.
+	if execpolicy.Unattended() && s.writesOutside(opts) {
+		slog.Warn("Refused a write outside the working directory while unattended", "tool", opts.ToolName, "path", cmp.Or(opts.FilePath, opts.Path))
+		return false, nil
+	}
 	if s.skip.Load() {
 		return true, nil
 	}
@@ -212,7 +225,7 @@ func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRe
 	// with the tool call ID. Treat that as a pre-approval and skip the
 	// prompt entirely. We still publish a granted notification so the UI
 	// and audit subscribers see the outcome.
-	// Accept-edits grants here too, before requestMu, so it never waits
+	// Accept-edits grants here too, before requestSem, so it never waits
 	// behind another session's prompt.
 	if hookApproved(ctx, opts.ToolCallID) || s.acceptsEdit(opts) {
 		s.notificationBroker.Publish(pubsub.CreatedEvent, PermissionNotification{
@@ -223,19 +236,12 @@ func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRe
 		return true, nil
 	}
 
-	s.requestMu.Lock()
-	defer s.requestMu.Unlock()
-
-	// tell the UI that a permission was requested
-	s.notificationBroker.Publish(pubsub.CreatedEvent, PermissionNotification{
-		SessionID:  opts.SessionID,
-		ToolCallID: opts.ToolCallID,
-	})
-
+	// Phiên được tự duyệt (phiên gốc của lượt `run` cục bộ) không xếp hàng sau hộp
+	// thoại của phiên khác. Phiên con của nó đi đường thường; run duyệt chúng qua
+	// Subscribe (app.autoApproveRun).
 	s.autoApproveSessionsMu.RLock()
 	autoApprove := s.autoApproveSessions[opts.SessionID]
 	s.autoApproveSessionsMu.RUnlock()
-
 	if autoApprove {
 		s.notificationBroker.Publish(pubsub.CreatedEvent, PermissionNotification{
 			SessionID:  opts.SessionID,
@@ -244,6 +250,19 @@ func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRe
 		})
 		return true, nil
 	}
+
+	select {
+	case s.requestSem <- struct{}{}:
+	case <-ctx.Done():
+		return false, ctx.Err()
+	}
+	defer func() { <-s.requestSem }()
+
+	// tell the UI that a permission was requested
+	s.notificationBroker.Publish(pubsub.CreatedEvent, PermissionNotification{
+		SessionID:  opts.SessionID,
+		ToolCallID: opts.ToolCallID,
+	})
 
 	fileInfo, err := os.Stat(opts.Path)
 	dir := opts.Path
@@ -352,6 +371,16 @@ func (s *permissionService) acceptsEdit(opts CreatePermissionRequest) bool {
 	return ok && !slices.ContainsFunc(strings.Split(rel, string(filepath.Separator)), isProtectedName)
 }
 
+// writesOutside: yêu cầu ghi (Action "write" qua FilePath, "download" qua Path)
+// có đích ngoài thư mục làm việc.
+func (s *permissionService) writesOutside(opts CreatePermissionRequest) bool {
+	if opts.Action != "write" && opts.Action != "download" {
+		return false
+	}
+	_, inside := s.insideWorkingDir(cmp.Or(opts.FilePath, opts.Path))
+	return !inside
+}
+
 // insideWorkingDir returns path relative to the working dir, with symlinks
 // resolved, if it is inside it. A relative path is taken from the working
 // dir; anything that cannot be resolved, or that has a ".." component,
@@ -448,6 +477,7 @@ func NewPermissionService(workingDir string, skip bool, allowedTools []string) S
 		acceptEditsSessions: csync.NewMap[string, bool](),
 		allowedTools:        allowedTools,
 		pendingRequests:     csync.NewMap[string, chan bool](),
+		requestSem:          make(chan struct{}, 1),
 	}
 	svc.skip.Store(skip)
 	return svc

@@ -350,7 +350,29 @@ func (m *BackgroundShellManager) Cleanup() int {
 func (m *BackgroundShellManager) KillAll(ctx context.Context) {
 	shells := slices.Collect(m.shells.Seq())
 	m.shells.Reset(map[string]*BackgroundShell{})
+	killShells(ctx, shells)
+}
 
+// KillOwned dừng các job của workspace có gốc root (lọc như Jobs) và gỡ chúng
+// khỏi bảng; job của workspace khác chạy tiếp, vì server giữ nhiều workspace
+// chung bảng job này. ctx giới hạn thời gian chờ mỗi job thoát.
+func (m *BackgroundShellManager) KillOwned(ctx context.Context, root string) {
+	if root == "" {
+		return // belongsTo coi gốc rỗng là mọi job.
+	}
+	root = resolveDir(root)
+	var owned []*BackgroundShell
+	for bg := range m.shells.Seq() { // Seq duyệt bản sao: xoá trong vòng lặp an toàn.
+		if belongsTo(root, bg.Info()) {
+			m.shells.Del(bg.ID)
+			owned = append(owned, bg)
+		}
+	}
+	killShells(ctx, owned)
+}
+
+// killShells dừng các job và chờ từng job thoát, tối đa tới khi ctx hết.
+func killShells(ctx context.Context, shells []*BackgroundShell) {
 	var wg sync.WaitGroup
 	for _, shell := range shells {
 		wg.Go(func() {
