@@ -469,10 +469,7 @@ type UI struct {
 	// agentBusyCache / yoloCache memoize the workspace busy and permission
 	// probes (synchronous HTTP round-trips in client/server mode). Reads
 	// never probe; refreshes happen off-thread (see workspace_cache.go).
-	agentBusyCache ttlCache
-	// restorer cho các lần khôi phục model của session vừa mở chạy nền,
-	// lần lượt, lần sau thắng (xem model_restore.go).
-	restorer          modelRestorer
+	agentBusyCache    ttlCache
 	yoloCache         ttlCache
 	busyFetchInFlight bool
 	// agentReady / agentModel memoize the coordinator readiness and
@@ -1052,10 +1049,6 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Báo lỗi cho người dùng, và báo lại session đang thật sự hiện để
 		// workspace không giữ một ý niệm nào khác về nó.
 		cmds = append(cmds, util.ReportError(msg.err), m.reportCurrentSession(m.currentSessionID()))
-	case modelRestoredMsg:
-		if cmd := m.handleModelRestored(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
 	case loadSessionMsg:
 		if m.forceCompactMode {
 			m.isCompact = true
@@ -1113,8 +1106,12 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if cmd := m.setSessionMessages(msgs); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-		if cmd := m.restoreModelFromSession(msgs); cmd != nil {
-			cmds = append(cmds, cmd)
+		// Chỉ báo khi người dùng mở session khác (hay lúc khởi động), không
+		// khi nạp lại session đang xem sau reconnect: không đè "Reconnected…".
+		if switched {
+			if cmd := m.sessionModelNote(msgs); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
 		}
 		if cmd := m.autoExpandPillsIfReasonable(); cmd != nil {
 			cmds = append(cmds, cmd)
@@ -3008,58 +3005,6 @@ func (m *UI) fetchGitBranch() tea.Cmd {
 func (m *UI) gitBranchTicker() tea.Cmd {
 	return tea.Tick(gitBranchPollInterval, func(time.Time) tea.Msg {
 		return gitBranchPollMsg{}
-	})
-}
-
-// restoreModelFromSession checks the last assistant message in the
-// loaded session and, if it used a different provider/model than the
-// current config, restores that model/provider provided it is still
-// available. Returns a tea.Cmd that rebuilds the agent models if a
-// switch was made, or nil if no switch was needed.
-func (m *UI) restoreModelFromSession(msgs []message.Message) tea.Cmd {
-	// Đổi model chung khi session khác đang chạy là an toàn: mỗi lượt giữ
-	// model lúc nó bắt đầu (agent: pinnedModel), nên session vừa mở được dùng
-	// lại model của nó ngay cả khi session nền đang chạy.
-	var lastAssistant *message.Message
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role == message.Assistant && !msgs[i].IsSummaryMessage {
-			lastAssistant = &msgs[i]
-			break
-		}
-	}
-	if lastAssistant == nil || lastAssistant.Provider == "" || lastAssistant.Model == "" {
-		return nil
-	}
-
-	cfg := m.com.Config()
-	if cfg == nil {
-		return nil
-	}
-
-	// So với đích mới nhất đã yêu cầu nếu còn lần khôi phục chưa ghi xong:
-	// cấu hình lúc đó chưa phản ánh nó (A→B→A nhanh không được dừng ở B).
-	currentLarge := cfg.Models[config.SelectedModelTypeLarge]
-	if t := m.restorer.target(); t != nil {
-		currentLarge = *t
-	}
-	if currentLarge.Provider == lastAssistant.Provider && currentLarge.Model == lastAssistant.Model {
-		return nil
-	}
-
-	if !cfg.IsModelAvailable(lastAssistant.Provider, lastAssistant.Model) {
-		slog.Debug("Skipping model restoration: provider/model not available",
-			"provider", lastAssistant.Provider,
-			"model", lastAssistant.Model)
-		return nil
-	}
-
-	_, hasSmall := cfg.Models[config.SelectedModelTypeSmall]
-	return m.requestModelRestore(modelRestore{
-		sel: config.SelectedModel{
-			Provider: lastAssistant.Provider,
-			Model:    lastAssistant.Model,
-		},
-		needSmall: !hasSmall,
 	})
 }
 

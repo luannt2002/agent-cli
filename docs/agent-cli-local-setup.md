@@ -259,8 +259,10 @@ không `permissions deny` (crushrc mẫu chặn `sourcegraph`, `fetch`, `agentic
 
 Model chọn trong TUI (kể cả bật/tắt thinking, mức reasoning) giờ thuộc về dự án:
 được ghi vào `<project>/.crush/crush.json`, nên đổi model ở worktree này không
-đổi model ở worktree khác. Mở lại một session cũ cũng ghi model của session đó
-vào file dự án (chạy nền, không làm TUI đứng). Model, effort đổi được bất cứ lúc nào, kể cả khi
+đổi model ở worktree khác. Mở lại hay tiếp một session cũ (TUI, `run -s/-C`) không ghi
+gì: tin nhắn sau chạy model đang chọn của dự án; session từng chạy model khác thì TUI báo ở
+thanh trạng thái, `run` in ra stderr `session <id> last ran on <cũ>; continuing on the project
+model <đang chọn> (pick another with -m)`. Model, effort đổi được bất cứ lúc nào, kể cả khi
 có run ở session này hay session khác: mỗi lượt chạy giữ model và bộ tool lúc nó bắt đầu, prompt
 xếp hàng giữ model lúc gửi, nên thiết lập mới chỉ áp cho tin nhắn gửi sau, không đổi provider
 giữa chừng lượt đang chạy (agent con của lượt cũng vậy). Thứ tự gộp config, từ thấp đến cao: `~/.config/agent-cli/crush.json`
@@ -910,9 +912,9 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
   provider (mục "Model đang chọn không dùng được"): chọn model khác trong TUI, sửa key/login, hoặc sửa cấu hình.
 - **Model nhỏ ở provider khác luôn bị thay, kể cả khi chỉ định rõ.** `run --small-model <provider khác>/<model>` cũng bị
   thay bằng model chính (log ghi một lần mỗi tiến trình); không có cách cho phép model nhỏ chéo provider.
-- **Model là của cả dự án (PRB-05).** Chọn model trong TUI, mở lại session cũ, hay `run -m` qua server đều ghi model vào
-  cấu hình của dự án: mọi session sau của dự án đổi theo. TUI hiện model đang chọn, không phải model đã trả lời; model
-  thật xem ở `run --json` hoặc sổ ghi LLM.
+- **Model là của cả dự án (PRB-05).** Chọn model trong TUI hay `run -m` qua server đều ghi model vào cấu hình của dự án:
+  mọi session sau của dự án đổi theo, kể cả session cũ mở lại (chạy tiếp bằng model đang chọn, không bằng model nó
+  từng dùng). TUI hiện model đang chọn, không phải model đã trả lời; model thật xem ở `run --json` hoặc sổ ghi LLM.
 - **Allowlist chỉ so nhãn (PRB-30).** `provider:model` không ràng buộc `base_url`/`extra_body` (mục "Ranh giới provider/model"):
   ai sửa được cấu hình, kể cả `crush.json` của một repo lạ, thì trỏ được cùng tên sang endpoint khác.
 - **Nhãn provider của `run --json` không phải bằng chứng.** `provider`/`model` lấy từ tin đã lưu, có cả khi request

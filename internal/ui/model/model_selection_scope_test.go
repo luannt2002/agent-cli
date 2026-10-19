@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/csync"
-	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/ui/dialog"
 	"github.com/stretchr/testify/require"
 )
@@ -43,14 +42,6 @@ func TestModelSelectionWritesWorkspaceScope(t *testing.T) {
 		Model:     config.SelectedModel{Provider: "p", Model: "big"},
 		ModelType: config.SelectedModelTypeLarge,
 	})
-	require.Equal(t, []config.Scope{config.ScopeWorkspace, config.ScopeWorkspace}, ws.prefModelScopes)
-
-	ws.prefModelScopes = nil
-	cmd := m.restoreModelFromSession([]message.Message{{
-		Role: message.Assistant, Provider: "p", Model: "other",
-	}})
-	require.NotNil(t, cmd)
-	cmd() // Khôi phục ghi cấu hình trong Cmd, không trong Update.
 	require.Equal(t, []config.Scope{config.ScopeWorkspace, config.ScopeWorkspace}, ws.prefModelScopes)
 }
 

@@ -312,12 +312,9 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
 		}
 	}
 
-	// The reasoning effort applies to the model that will actually run.
-	// On a continued session without an explicit model override, the
-	// model is resolved later from the session's last assistant message,
-	// so the override is applied after that restore instead.
-	deferredEffort := (continueSessionID != "" || useLast) && largeModel == "" && smallModel == ""
-	if reasoningEffort != "" && !deferredEffort {
+	// Effort áp cho model lượt này chạy: model của -m hoặc của workspace
+	// (tiếp session cũ không đổi model).
+	if reasoningEffort != "" {
 		if err := app.overrideReasoningEffort(ctx, reasoningEffort); err != nil {
 			return err
 		}
@@ -384,22 +381,15 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
 	}
 	if continueSessionID != "" || useLast {
 		slog.Info("Continuing session for non-interactive run", "session_id", sess.ID)
-		// If no explicit model override was requested, restore the
-		// model/provider from the last assistant message in the
-		// session, provided it is still available.
+		// Model thuộc workspace, chỉ đổi khi người dùng chọn (-m, TUI): lượt
+		// này chạy model của workspace, kể cả khi session từng chạy model khác.
 		if largeModel == "" && smallModel == "" {
-			if err := app.restoreModelFromSession(ctx, sess.ID); err != nil {
-				slog.Warn("Failed to restore model from session", "error", err)
+			if note := app.sessionModelNote(ctx, sess.ID); note != "" {
+				fmt.Fprintf(os.Stderr, "session %s %s (pick another with -m)\n", sess.ID, note)
 			}
 		}
 	} else {
 		slog.Info("Created session for non-interactive run", "session_id", sess.ID)
-	}
-
-	if reasoningEffort != "" && deferredEffort {
-		if err := app.overrideReasoningEffort(ctx, reasoningEffort); err != nil {
-			return err
-		}
 	}
 
 	// Automatically approve all permission requests for this non-interactive
@@ -532,52 +522,30 @@ func (app *App) UpdateAgentModel(ctx context.Context) error {
 	return app.AgentCoordinator.UpdateModels(ctx)
 }
 
-// restoreModelFromSession reads the last assistant message in the
-// session and, if it used a different provider/model than the current
-// config, overrides the preferred model in-memory (non-persistent)
-// provided the provider/model is still available. This ensures that
-// continuing a session uses the same model that produced the last
-// response.
-func (app *App) restoreModelFromSession(ctx context.Context, sessionID string) error {
+// sessionModelNote đọc tin assistant cuối của session và trả SessionModelNote
+// so với model lớn của workspace (model lượt này chạy).
+func (app *App) sessionModelNote(ctx context.Context, sessionID string) string {
 	lastMsg, err := app.Messages.GetLastAssistantMessage(ctx, sessionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
+		if !errors.Is(err, sql.ErrNoRows) {
+			slog.Warn("Failed to read the session's last model", "error", err)
 		}
-		return fmt.Errorf("failed to get last assistant message: %w", err)
+		return ""
 	}
-	if lastMsg.Provider == "" || lastMsg.Model == "" {
-		return nil
-	}
+	last := config.SelectedModel{Provider: lastMsg.Provider, Model: lastMsg.Model}
+	return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
+}
 
-	cfg := app.config.Config()
-	currentLarge := cfg.Models[config.SelectedModelTypeLarge]
-	if currentLarge.Provider == lastMsg.Provider && currentLarge.Model == lastMsg.Model {
-		return nil
+// SessionModelNote nói session từng chạy model last, khác model current của
+// workspace mà lượt tới dùng; rỗng khi trùng hoặc thiếu thông tin. Mở hay tiếp
+// session không đổi model: model thuộc workspace, chỉ đổi khi người dùng chọn.
+func SessionModelNote(last, current config.SelectedModel) string {
+	if last.Provider == "" || last.Model == "" || current.Provider == "" ||
+		(last.Provider == current.Provider && last.Model == current.Model) {
+		return ""
 	}
-
-	if !cfg.IsModelAvailable(lastMsg.Provider, lastMsg.Model) {
-		slog.Debug("Skipping model restoration: provider/model not available",
-			"provider", lastMsg.Provider,
-			"model", lastMsg.Model)
-		return nil
-	}
-
-	app.config.OverridePreferredModel(config.SelectedModelTypeLarge, config.SelectedModel{
-		Provider: lastMsg.Provider,
-		Model:    lastMsg.Model,
-	})
-	if _, ok := cfg.Models[config.SelectedModelTypeSmall]; !ok {
-		smallModel := app.GetDefaultSmallModel(lastMsg.Provider)
-		app.config.OverridePreferredModel(config.SelectedModelTypeSmall, smallModel)
-	}
-	if err := app.AgentCoordinator.UpdateModels(ctx); err != nil {
-		return fmt.Errorf("failed to update agent models: %w", err)
-	}
-	slog.Info("Restored model from session",
-		"provider", lastMsg.Provider,
-		"model", lastMsg.Model)
-	return nil
+	return fmt.Sprintf("last ran on %s/%s; continuing on the project model %s/%s",
+		last.Provider, last.Model, current.Provider, current.Model)
 }
 
 // overrideModelsForNonInteractive parses the model strings and temporarily
@@ -634,8 +602,7 @@ func (app *App) overrideModelsForNonInteractive(ctx context.Context, largeModel,
 
 // overrideReasoningEffort validates the requested reasoning effort against
 // the large model in effect for this run (which may have been overridden by
-// --model or restored from a continued session) and applies it as an
-// in-memory override.
+// --model) and applies it as an in-memory override.
 func (app *App) overrideReasoningEffort(ctx context.Context, reasoningEffort string) error {
 	cfg := app.config.Config()
 	selected, ok := cfg.Models[config.SelectedModelTypeLarge]

@@ -194,6 +194,13 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `crush.db` (+5,3 MB mỗi nơi); nay cắt và spill ra `<data>/shell-output/` như bash. `isError=true` nay lưu `is_error=true`.
   Chưa sửa: chữ đi kèm ảnh/media và tool `read_mcp_resource` chưa có trần; MCP trả ảnh kèm `isError=true` vẫn lưu
   `is_error=false`.
+- **Mở hay tiếp session cũ không còn tự đổi model.** Trước: `run -s/-C` qua server và TUI mở session ghi model lượt
+  cuối của session vào `<dự án>/.crush/crush.json`, nên session khác và session mới lặng lẽ đổi provider; `run -s/-C`
+  ở chế độ local chạy model của session (đổi trong RAM). Nay mọi đường chạy model đang chọn của dự án và không ghi gì;
+  session từng chạy model khác thì báo một dòng nêu cả hai model (stderr của `run`; thanh trạng thái TUI, kèm
+  `alt+p` khi khác provider, `alt+m` khi cùng provider). Model của session không còn trong catalog nay cũng được báo
+  (trước chỉ ghi log Debug). Model chỉ đổi khi bạn chọn: `-m`, `--small-model`, `alt+p`/`alt+m`,
+  `agent-cli-tmux new --model`; thinking và effort (`alt+e`, `--reasoning-effort`) đổi tham số của model đang chọn.
 
 ## [0.2.0] - 2026-10-16
 

@@ -1,13 +1,17 @@
 package model
 
 import (
+	"strings"
 	"sync"
 	"testing"
 
 	"charm.land/catwalk/pkg/catwalk"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/message"
+	"github.com/charmbracelet/crush/internal/session"
 	"github.com/charmbracelet/crush/internal/ui/dialog"
+	"github.com/charmbracelet/crush/internal/ui/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,62 +53,58 @@ func lastAssistantFor(model string) []message.Message {
 
 func modelWithID(id string) catwalk.Model { return catwalk.Model{ID: id} }
 
-// availableModels khai các model để IsModelAvailable nhận chúng.
-func availableModels(t *testing.T, cw *countingWorkspace, ids ...string) {
-	t.Helper()
-	pc, ok := cw.cfg.Providers.Get("p")
-	require.True(t, ok)
-	pc.Models = nil
-	for _, id := range ids {
-		pc.Models = append(pc.Models, modelWithID(id))
+// Mở một session cũ (alt+s, alt+. / alt+,, --session, --continue) không ghi
+// model của session đó vào cấu hình dự án: model thuộc workspace và chỉ đổi khi
+// người dùng chọn. Model khác thì thanh trạng thái nói rõ cả hai model, kèm
+// phím đổi đúng: alt+m chỉ liệt kê model của provider đang dùng, nên khác
+// provider thì gợi ý alt+p. Nạp lại session đang xem (sau reconnect) không báo
+// lại, để không đè "Reconnected…".
+func TestOpeningSessionKeepsTheWorkspaceModel(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		session  string
+		last     message.Message
+		wantHint string // Rỗng: không có thông báo.
+	}{
+		"other provider":          {session: "s2", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}, wantHint: "alt+p"},
+		"other model":             {session: "s2", last: lastAssistantFor("b")[0], wantHint: "alt+m"},
+		"same model":              {session: "s2", last: lastAssistantFor("a")[0]},
+		"reload of shown session": {session: "s1", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m, ws := newJumpUI()
+			ws.cfg = &config.Config{
+				Providers: csync.NewMap[string, config.ProviderConfig](),
+				Models: map[config.SelectedModelType]config.SelectedModel{
+					config.SelectedModelTypeLarge: {Provider: "p", Model: "a"},
+					config.SelectedModelTypeSmall: {Provider: "p", Model: "small"},
+				},
+			}
+			ws.cfg.Providers.Set("p", config.ProviderConfig{ID: "p", Models: []catwalk.Model{modelWithID("a"), modelWithID("b")}})
+			m.userThemeSelected = true
+
+			_, next := m.Update(loadSessionMsg{session: &session.Session{ID: tc.session}, messages: []message.Message{tc.last}})
+			var notes []string
+			for _, msg := range leafMsgs(next) {
+				if info, ok := msg.(util.InfoMsg); ok && strings.Contains(info.Msg, "last ran on") {
+					notes = append(notes, info.Msg)
+				}
+			}
+
+			require.Empty(t, ws.prefModelScopes, "opening a session must not write the project model")
+			require.Equal(t, tc.session, m.currentSessionID())
+			if tc.wantHint == "" {
+				require.Empty(t, notes)
+				return
+			}
+			require.Len(t, notes, 1)
+			require.Contains(t, notes[0], tc.last.Provider+"/"+tc.last.Model, "the note names the session's last model")
+			require.Contains(t, notes[0], "p/a", "the note names the model the next message uses")
+			require.Contains(t, notes[0], tc.wantHint)
+		})
 	}
-	cw.cfg.Providers.Set("p", pc)
-}
-
-// Mở session khác lúc có run vẫn khôi phục model của session đó: lượt đang
-// chạy đã ghim model riêng nên không bị đổi provider giữa chừng.
-func TestRestoreModelFromSessionWhileBusyStillRestores(t *testing.T) {
-	m, ws := restoreUI(t)
-	availableModels(t, ws.countingWorkspace, "a", "b")
-	m.agentBusyCache.set(true)
-
-	cmd := m.restoreModelFromSession(lastAssistantFor("b"))
-	require.NotNil(t, cmd)
-	msg, ok := cmd().(modelRestoredMsg)
-	require.True(t, ok)
-	require.NoError(t, msg.err)
-	require.Equal(t, []string{"p/b"}, ws.log())
-}
-
-// Ghi cấu hình chạy nền, lần lượt; trong hàng chờ chỉ lần mới nhất được chạy.
-func TestRestoreModelLatestRequestWins(t *testing.T) {
-	m, ws := restoreUI(t)
-	first := m.requestModelRestore(modelRestore{sel: config.SelectedModel{Provider: "p", Model: "x"}})
-	require.NotNil(t, first)
-	require.Nil(t, m.requestModelRestore(modelRestore{sel: config.SelectedModel{Provider: "p", Model: "y"}}), "queued while x is written")
-	require.Nil(t, m.requestModelRestore(modelRestore{sel: config.SelectedModel{Provider: "p", Model: "z"}}), "replaces y")
-
-	next := m.handleModelRestored(first().(modelRestoredMsg))
-	require.NotNil(t, next)
-	m.handleModelRestored(next().(modelRestoredMsg))
-	require.Equal(t, []string{"p/x", "p/z"}, ws.log(), "y was superseded before it ran")
-	require.Nil(t, m.restorer.target())
-}
-
-// A→B→A nhanh: lần về A không được bị bỏ vì cấu hình (chưa ghi xong B) vẫn
-// đang là A; kết thúc phải ở model của A.
-func TestRestoreModelQuickBackAndForthEndsOnLastSession(t *testing.T) {
-	m, ws := restoreUI(t)
-	availableModels(t, ws.countingWorkspace, "a", "b")
-
-	toB := m.restoreModelFromSession(lastAssistantFor("b"))
-	require.NotNil(t, toB)
-	require.Nil(t, m.restoreModelFromSession(lastAssistantFor("a")), "queued behind the write of b")
-
-	toA := m.handleModelRestored(toB().(modelRestoredMsg))
-	require.NotNil(t, toA, "the queued restore of a must run")
-	m.handleModelRestored(toA().(modelRestoredMsg))
-	require.Equal(t, []string{"p/b", "p/a"}, ws.log())
 }
 
 // Đổi model khi có run (ở bất kỳ session nào) không còn bị chặn; thông báo

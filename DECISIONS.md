@@ -355,3 +355,10 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
 - **Vì:** red team cuối (L6): biến export thắng tệp env (`execpolicy`), nên giá trị chép vào lịch lúc in sẽ che mọi lần siết allowlist sau đó trong tệp env. Hai chủ cho một quyết định.
 - **Đã thử và bỏ:** chép allowlist vào lịch, đổi khoảng trắng thành dấu phẩy (bản trước trong đợt này).
 - **Lật lại khi:** có người dùng không có tệp env mà vẫn cần allowlist cho lượt theo lịch.
+
+## 2026-10-19 — Model thuộc workspace và chỉ đổi khi người dùng chọn; mở/tiếp session cũ không tự ghi model
+**Trạng thái:** đã làm (chưa phát hành)
+- **Chốt:** `run -s`/`run -C` (local lẫn qua server) và TUI mở session cũ không còn khôi phục model của session đó: lượt chạy model hiện tại của workspace, không ghi gì vào `.crush/crush.json`; khác model lần cuối của session thì báo một dòng nêu cả hai model (stderr ở CLI, thanh trạng thái ở TUI). Lựa chọn tường minh vẫn ghi như trước: `-m`, `--small-model`, `--reasoning-effort`, alt+p/alt+m, thinking/effort trong TUI, `agent-cli-tmux new --model`. Thay phần "khôi phục model chạy nền trong `tea.Cmd`" của mục 2026-10-15 ở trên.
+- **Vì:** đo được (phơi nhiễm T17, V3): `run -s X` qua server ghi model của X thành cấu hình dự án, mọi session sau (kể cả session đang dùng model khác) đi theo mà không ai chọn. Người dùng chốt 19/10: model thuộc workspace nhưng chỉ đổi khi người dùng chọn.
+- **Đã thử và bỏ:** (a) model riêng từng session (mục 2026-10-15, phương án c) — đúng nhất nhưng đổi API model của UI, backend, CLI và proto; (b) giữ khôi phục trong RAM cho chế độ local — làm cùng lệnh `run -s` ra provider khác nhau tuỳ local hay server.
+- **Lật lại khi:** cần model khác nhau theo session một cách bền (không chỉ "lượt giữ model lúc gửi") thì làm phương án (a).

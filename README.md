@@ -123,10 +123,11 @@ Hyper; zai và anthropic chỉ dùng key). `alt+p` chỉ hiện provider khai b�
 không chỉ một lượt. Đổi provider không làm mất mạch: cùng session chạy tiếp với lịch sử cũ (đã thử với LLM thật, một
 lần: bước 1 dùng model local, bước 2 `-m` sang provider khác trên cùng session).
 
-**Model của dự án nằm ở đâu.** Chọn model trong TUI, `run -m` (ở chế độ server mặc định; chế độ local chỉ đổi trong lượt
-đó), hay mở lại một session cũ đều ghi model vào `<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong
-env. Muốn dự án theo env trở lại: xoá `models` (và `recent_models`) trong tệp đó. `agent-cli dirs` in các thư mục cấu hình
-và dữ liệu đang dùng.
+**Model của dự án nằm ở đâu.** Chọn model trong TUI hay `run -m` (ở chế độ server mặc định; chế độ local chỉ đổi trong
+lượt đó) ghi model vào `<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong env. Mở lại hay tiếp một
+session cũ (TUI, `run -s/-C`) không ghi gì: lượt mới chạy model đang chọn của dự án, kể cả khi session đó từng chạy model
+khác; khi đó TUI báo ở thanh trạng thái, `run` in một dòng ra stderr nêu cả hai model. Muốn dự án theo env trở lại: xoá
+`models` (và `recent_models`) trong tệp đó. `agent-cli dirs` in các thư mục cấu hình và dữ liệu đang dùng.
 
 **Không gọi lén:**
 
