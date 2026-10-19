@@ -253,6 +253,12 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   server). Agent chính có MCP vẫn nhận đủ như cũ. Các khối chỉ dẫn nay xếp theo tên server: trước đây thứ tự ngẫu
   nhiên khi có từ 2 server, nên system prompt đổi giữa các lượt và prompt cache của provider bị trượt. Test:
   `TestMCPInstructionsFollowRunTools`, `TestRunMCPInstructionsFollowRunTools`, `TestMCPInstructionsOrderIsStable`.
+- **Có hook `PreToolUse`, hai bộ lọc tool MCP vẫn nhận ra tool MCP.** Hook bọc mọi tool của agent chính trong một
+  lớp, còn hai bộ lọc nhận diện tool MCP theo kiểu nên bỏ sót hết: server đã tắt bằng "Toggle MCPs" vẫn đưa tool cho
+  model và model gọi được (ca: một tiến trình agent-cli khác trên cùng repo tắt server trong khi tiến trình này còn giữ
+  kết nối); lượt từ một channel thấy cả tool gửi tin của channel khác. Đo bằng binary thật, LLM giả, MCP stub và
+  hook: bản trước gửi tool của server đã tắt trong 3/3 request và server nhận `tools/call`; bản này 0/3, 0 lần gọi.
+  Không có hook thì hành vi như cũ.
 
 ## [0.2.0] - 2026-10-16
 

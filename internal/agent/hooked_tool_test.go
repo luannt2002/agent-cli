@@ -2,12 +2,19 @@ package agent
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"charm.land/fantasy"
+	"github.com/charmbracelet/crush/internal/agent/tools"
+	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/hooks"
 	"github.com/charmbracelet/crush/internal/permission"
+	"github.com/charmbracelet/crush/internal/session"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -144,4 +151,89 @@ func TestWrapToolsWithHooks(t *testing.T) {
 		require.Equal(t, inputs, wrapToolsWithHooks(inputs, nil, false))
 		require.Equal(t, inputs, wrapToolsWithHooks(inputs, nil, true))
 	})
+}
+
+// Có hook PreToolUse thì mọi tool của agent cấp cao bị bọc trong
+// *hookedTool. Lượt từ channel "signal" vẫn không được thấy tool gửi tin của
+// channel "telegram". Ca "no hook" là đối chứng: hành vi như cũ.
+func TestFilterToolsForChannel_SeesThroughHookedTool(t *testing.T) {
+	t.Parallel()
+
+	states := map[string]mcp.ClientInfo{"signal": {Channel: true}, "telegram": {Channel: true}}
+	raw := []fantasy.AgentTool{
+		&channelTestTool{name: "signal_send", mcpName: "signal"},
+		&channelTestTool{name: "telegram_send", mcpName: "telegram"},
+		&fakeTool{name: "plain"},
+	}
+	cases := map[string][]fantasy.AgentTool{
+		"no hook":   raw,
+		"with hook": wrapToolsWithHooks(raw, newRunner(t, `exit 0`), false),
+	}
+	for name, ts := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := filterToolsForChannel(ts, "signal", states)
+			require.Equal(t, []string{"signal_send", "plain"}, toolNames(got))
+			require.Len(t, filterToolsForChannel(ts, "", states), 3, "a local turn keeps every tool")
+			requireHookKept(t, name, got)
+		})
+	}
+}
+
+// Có hook PreToolUse, server đã tắt bằng "Toggle MCPs" vẫn không được đưa
+// tool của nó cho model. Dùng *tools.Tool thật (MCP server HTTP trong tiến
+// trình) vì bộ lọc nhận diện tool MCP theo đúng kiểu đó. Ca "no hook" là đối
+// chứng. Registry MCP là toàn cục nên test này không t.Parallel và gỡ hẳn
+// server khi xong.
+func TestFilterDisabledMCPTools_SeesThroughHookedTool(t *testing.T) {
+	server := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "p2d-off"}, nil)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "send", Description: "test tool"},
+		func(context.Context, *mcpsdk.CallToolRequest, struct{}) (*mcpsdk.CallToolResult, any, error) {
+			return &mcpsdk.CallToolResult{}, nil, nil
+		})
+	srv := httptest.NewServer(mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server { return server }, nil))
+	t.Cleanup(srv.Close)
+	cfg := config.NewTestStore(&config.Config{
+		MCP:     config.MCPs{"p2d-off": {Type: config.MCPHttp, URL: srv.URL}},
+		Options: &config.Options{DataDirectory: t.TempDir()},
+	})
+	t.Cleanup(func() { mcp.Reinitialize(context.Background(), config.NewTestStore(&config.Config{})) })
+	require.NoError(t, mcp.InitializeSingle(t.Context(), "p2d-off", cfg))
+	raw := []fantasy.AgentTool{&fakeTool{name: "plain"}}
+	for _, tl := range tools.GetMCPTools(nil, cfg, t.TempDir()) {
+		raw = append(raw, tl)
+	}
+	require.Equal(t, []string{"plain", "mcp_p2d-off_send"}, toolNames(raw))
+
+	dataDir := t.TempDir()
+	t.Cleanup(func() { require.NoError(t, db.Release(dataDir)) })
+	conn, err := db.Connect(t.Context(), dataDir)
+	require.NoError(t, err)
+	sessions := session.NewService(db.New(conn), conn)
+	require.NoError(t, sessions.SetMCPServerDisabled(t.Context(), "p2d-off", true))
+	a := &sessionAgent{sessions: sessions}
+
+	cases := map[string][]fantasy.AgentTool{
+		"no hook":   raw,
+		"with hook": wrapToolsWithHooks(raw, newRunner(t, `exit 0`), false),
+	}
+	for name, ts := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := a.filterDisabledMCPTools(t.Context(), ts)
+			require.Equal(t, []string{"plain"}, toolNames(got))
+			requireHookKept(t, name, got)
+		})
+	}
+}
+
+// requireHookKept: bộ lọc chỉ được nhìn xuyên lớp bọc để nhận diện, không được
+// trả tool đã bóc, kẻo tool lọt qua mà không chạy hook PreToolUse.
+func requireHookKept(t *testing.T, name string, got []fantasy.AgentTool) {
+	t.Helper()
+	if name != "with hook" {
+		return
+	}
+	for _, x := range got {
+		require.IsType(t, &hookedTool{}, x)
+	}
 }

@@ -39,6 +39,19 @@ func wrapToolsWithHooks(tools []fantasy.AgentTool, runner *hooks.Runner, isSubAg
 	return out
 }
 
+// unwrapTool trả tool gốc dưới các lớp *hookedTool. Bộ lọc nào nhận diện tool
+// theo kiểu cụ thể (tool MCP, tool channel) phải gọi nó trước khi type-assert:
+// có hook PreToolUse thì mọi tool của agent cấp cao đều bị bọc.
+func unwrapTool(t fantasy.AgentTool) fantasy.AgentTool {
+	for {
+		h, ok := t.(*hookedTool)
+		if !ok {
+			return t
+		}
+		t = h.inner
+	}
+}
+
 func (h *hookedTool) Info() fantasy.ToolInfo {
 	return h.inner.Info()
 }
