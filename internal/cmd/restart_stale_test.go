@@ -94,12 +94,45 @@ func versionCheckCmd(t *testing.T) *cobra.Command {
 	return cmd
 }
 
+// noPromptCmd là lệnh không gửi prompt (jobs, login, logout): vẫn được tái
+// dùng server khác bản đang bận.
+func noPromptCmd(t *testing.T) *cobra.Command {
+	t.Helper()
+	cmd := versionCheckCmd(t)
+	cmd.Annotations = map[string]string{noAgentRunsAnnotation: "true"}
+	return cmd
+}
+
+// Lệnh chạy model gặp server khác bản/build mà server đang bận (không chịu tắt)
+// thì bị TỪ CHỐI rõ ràng: server bản cũ có thể không so chính sách tin cậy, tái
+// dùng nó là mở lại lỗ C5 lặng lẽ. Không lệnh tắt vô điều kiện nào được gửi.
+func TestRestartIfStale_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
+	t.Parallel()
+	for name, opts := range map[string]controlServerOpts{
+		"busy":        {vi: staleVersion(), busy: true},
+		"legacy busy": {vi: staleVersion(), legacy: true, workspaces: 3},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			hostURL, log := newControlServer(t, opts)
+			restarted, err := restartIfStale(versionCheckCmd(t), hostURL)
+			require.ErrorIs(t, err, errStaleServerBusy)
+			require.False(t, restarted)
+			require.Contains(t, err.Error(), "not-"+version.Version, "names the old server's version")
+			require.Contains(t, err.Error(), "agent-cli ps")
+			require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all())
+		})
+	}
+}
+
 // TestRestartIfStale_HonorsRefusedShutdown is the headline regression.
 // BuildID derives from the executable's mtime, so any rebuild — including
 // every `go run` — makes a second session look like an upgrade. Launching
 // it used to shut down the first session's server, taking its workspaces
 // with it and stranding it on a dead workspace ID. Now the server has the
-// final say, and a refusal means "keep using me".
+// final say, and a refusal means "keep using me" — for a command that sends
+// no prompt; a model-running command is refused instead
+// (TestRestartIfStale_RefusesModelCommandOnBusyStaleServer).
 func TestRestartIfStale_HonorsRefusedShutdown(t *testing.T) {
 	t.Parallel()
 
@@ -108,7 +141,7 @@ func TestRestartIfStale_HonorsRefusedShutdown(t *testing.T) {
 		busy: true,
 	})
 
-	restarted, err := restartIfStale(versionCheckCmd(t), hostURL)
+	restarted, err := restartIfStale(noPromptCmd(t), hostURL)
 	require.NoError(t, err)
 	require.False(t, restarted, "a refused shutdown must not be reported as a restart")
 	require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all(),
@@ -119,7 +152,8 @@ func TestRestartIfStale_HonorsRefusedShutdown(t *testing.T) {
 // case. A server predating the idleness guard rejects the conditional
 // command, and the only command it does understand is unconditional —
 // sending that would kill every session it hosts. When the server
-// reports active workspaces, it must be left alone.
+// reports active workspaces, it must be left alone (and reused by a command
+// that sends no prompt).
 func TestRestartIfStale_LeavesLegacyServerBusy(t *testing.T) {
 	t.Parallel()
 
@@ -129,7 +163,7 @@ func TestRestartIfStale_LeavesLegacyServerBusy(t *testing.T) {
 		workspaces: 3,
 	})
 
-	restarted, err := restartIfStale(versionCheckCmd(t), hostURL)
+	restarted, err := restartIfStale(noPromptCmd(t), hostURL)
 	require.NoError(t, err)
 	require.False(t, restarted, "a legacy server with workspaces must be reused, not replaced")
 	require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all(),

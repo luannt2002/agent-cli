@@ -122,6 +122,7 @@ agent-cli logout grok
 			return fmt.Errorf("unknown platform: %s", provider)
 		}
 	},
+	Annotations: map[string]string{noAgentRunsAnnotation: "true"},
 }
 
 func logoutHyper(c *client.Client, wsID string) error {

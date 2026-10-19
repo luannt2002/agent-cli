@@ -23,6 +23,7 @@ import (
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/csync"
 	"github.com/charmbracelet/crush/internal/db"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/charmbracelet/crush/internal/skills"
 	"github.com/charmbracelet/crush/internal/ui/util"
@@ -49,6 +50,10 @@ var (
 	ErrServerNotIdle           = errors.New("server is hosting live workspaces")
 	ErrClientRetired           = errors.New("client has been retired")
 	ErrChannelOptInMismatch    = errors.New("requested channels differ from the existing workspace; channels are an explicit opt-in and are not shared across duplicate creates")
+	// ErrPolicyMismatch: chính sách tin cậy của client (biến execpolicy đọc,
+	// --yolo lúc dựng workspace) khác cái server/workspace đang áp. Server nạp chính sách một lần
+	// mỗi tiến trình, nên cho qua là chạy client theo chính sách của client khác.
+	ErrPolicyMismatch = errors.New("trust policy differs from the running agent-cli server")
 )
 
 // DefaultCreateGrace is the window in which a client must open an SSE
@@ -451,6 +456,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 	if err != nil {
 		return nil, proto.Workspace{}, err
 	}
+	policyErr := checkTrustedEnv(args)
 
 	key, err := resolveWorkspaceKey(args.Path)
 	if err != nil {
@@ -461,6 +467,13 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 	if err := b.admitLocked(clientID); err != nil {
 		b.mu.Unlock()
 		return nil, proto.Workspace{}, err
+	}
+	// Sau admitLocked: server đã chốt tắt thì client nhận 503 và dựng server
+	// mới (server đó áp chính sách của client). Trước cancelShutdownLocked: client
+	// bị từ chối không giữ server sống.
+	if policyErr != nil {
+		b.mu.Unlock()
+		return nil, proto.Workspace{}, policyErr
 	}
 	// A client is arriving: cancel any pending idle shutdown so we never
 	// hand back a workspace on a server that is about to tear itself down.
@@ -476,6 +489,10 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 			if !stringSlicesEqual(ws.Cfg.Overrides().EnabledChannels, args.Channels) {
 				b.mu.Unlock()
 				return nil, proto.Workspace{}, ErrChannelOptInMismatch
+			}
+			if !args.NoAgentRuns && ws.Cfg.Overrides().SkipPermissionRequests != args.YOLO {
+				b.mu.Unlock()
+				return nil, proto.Workspace{}, policyMismatch("--yolo")
 			}
 			logFirstWinsMismatch(ws, args)
 			b.registerClient(ws, clientID)
@@ -583,6 +600,11 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 				b.mu.Unlock()
 				ws.invokeShutdown()
 				return nil, proto.Workspace{}, ErrChannelOptInMismatch
+			}
+			if !args.NoAgentRuns && existing.Cfg.Overrides().SkipPermissionRequests != args.YOLO {
+				b.mu.Unlock()
+				ws.invokeShutdown()
+				return nil, proto.Workspace{}, policyMismatch("--yolo")
 			}
 			logFirstWinsMismatch(existing, args)
 			b.registerClient(existing, clientID)
@@ -1411,6 +1433,49 @@ func logFirstWinsMismatch(existing *Workspace, args proto.Workspace) {
 		"existing_channels", existingChannels,
 		"requested_channels", args.Channels,
 	)
+}
+
+// checkTrustedEnv từ chối client có chính sách tin cậy (execpolicy.Inputs)
+// khác của chính tiến trình server: server nạp chính sách một lần và không
+// nạp lại cho client sau. Client không gửi (bản cũ) cũng bị từ chối. Client
+// không chạy model (NoAgentRuns) thì chính sách không áp, không so.
+func checkTrustedEnv(args proto.Workspace) error {
+	if args.NoAgentRuns {
+		return nil
+	}
+	if args.TrustedEnv == nil {
+		return policyMismatch("trust policy not sent (an older agent-cli client; use the same agent-cli build as the server)")
+	}
+	serverEnv, err := execpolicy.Inputs()
+	if err != nil {
+		return policyMismatch(fmt.Sprintf("the server could not load its own policy (%v)", err))
+	}
+	got := make(map[string]string, len(args.TrustedEnv))
+	for _, kv := range args.TrustedEnv {
+		k, v, _ := strings.Cut(kv, "=")
+		got[k] = v
+	}
+	// Chỉ nêu tên khoá của chính server; khoá lạ do client gửi thì chỉ đếm.
+	var keys []string
+	for _, kv := range serverEnv {
+		k, v, _ := strings.Cut(kv, "=")
+		if w, ok := got[k]; !ok || w != v {
+			keys = append(keys, k)
+		}
+		delete(got, k)
+	}
+	if len(got) > 0 {
+		keys = append(keys, fmt.Sprintf("%d key(s) this server does not know", len(got)))
+	}
+	if len(keys) > 0 {
+		return policyMismatch(strings.Join(keys, ", "))
+	}
+	return nil
+}
+
+// policyMismatch nêu cái gì lệch (tên, không giá trị) và cách sửa.
+func policyMismatch(what string) error {
+	return fmt.Errorf("%w: %s; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)", ErrPolicyMismatch, what)
 }
 
 // envKeysDiffer trả tên (đã sắp xếp) các biến có giá trị khác nhau hoặc chỉ có ở

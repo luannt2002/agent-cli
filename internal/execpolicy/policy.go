@@ -178,30 +178,69 @@ func ChildEnv(env []string) []string {
 // agent-cli (EnvFileEnv, mặc định ~/.config/agent-cli/env). Không đọc cấu
 // hình, `.env` hay `env` của dự án: một repo lạ không nới được ranh giới.
 // Đổi giá trị thì mở lại server của dự án.
-func Current() (Policy, error) { return current() }
+func Current() (Policy, error) {
+	l, err := current()
+	return l.policy, err
+}
 
-var current = sync.OnceValues(func() (Policy, error) {
+// Inputs trả chính sách tin cậy của tiến trình dạng KEY=value: đủ mọi biến
+// tin cậy theo thứ tự cố định (rỗng khi không đặt), allowlist và giao việc đã
+// gộp tệp env đúng như Current đọc, các biến còn lại theo ảnh chụp. Nạp cùng
+// lần với Current nên ở server đây đúng là chính sách server đang áp. Client
+// gửi nó khi tạo workspace; server từ chối client có Inputs khác của mình.
+func Inputs() ([]string, error) {
+	l, err := current()
+	return slices.Clone(l.inputs), err
+}
+
+// loaded là chính sách đã nạp cùng các giá trị nó dựa vào (Inputs).
+type loaded struct {
+	policy Policy
+	inputs []string
+}
+
+var current = sync.OnceValues(func() (loaded, error) {
 	if testing.Testing() {
 		// Test phải kín: không theo tệp env hay biến export của người chạy
 		// test (chính sách của máy đó sẽ chặn model giả). Test cần chính sách
 		// thì dựng bằng Parse/FromEnv.
-		return Policy{}, nil
+		return loaded{inputs: inputsOf(func(string) string { return "" })}, nil
 	}
-	return load(TrustedEnv)
+	return loadAll(TrustedEnv)
 })
 
 // load là Current với getenv cho trước (test).
 func load(getenv func(string) string) (Policy, error) {
+	l, err := loadAll(getenv)
+	return l.policy, err
+}
+
+// loadAll đọc tệp env một lần cho cả chính sách lẫn Inputs, để hai thứ khớp nhau.
+func loadAll(getenv func(string) string) (loaded, error) {
 	file, err := readEnvFile(envFilePath(getenv))
 	if err != nil {
-		return Policy{}, err
+		return loaded{}, err
 	}
-	return FromEnv(func(k string) string {
+	merged := func(k string) string {
 		if v := getenv(k); v != "" {
 			return v
 		}
 		return file[k]
-	})
+	}
+	p, err := FromEnv(merged)
+	if err != nil {
+		return loaded{}, err
+	}
+	return loaded{policy: p, inputs: inputsOf(merged)}, nil
+}
+
+// inputsOf liệt kê mọi biến tin cậy dạng KEY=value theo thứ tự trustedKeys.
+func inputsOf(getenv func(string) string) []string {
+	out := make([]string, 0, len(trustedKeys))
+	for _, k := range trustedKeys {
+		out = append(out, k+"="+getenv(k))
+	}
+	return out
 }
 
 // envFilePath là đường dẫn tệp env của agent-cli, như crushrc mẫu tính.

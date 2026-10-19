@@ -68,7 +68,10 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
   `run -s/-C` cũng vậy với session có sẵn. "Chưa sửa code" trong prompt chỉ là lời dặn model, không phải rào chắn. Chúng
   dùng mode hiện tại của dự án: nếu TUI để dự án ở plan mode thì `run`/`loop` chỉ đọc và lập kế hoạch.
 - YOLO (`--yolo`, `ctrl+y`, hoặc `shift+tab` tới bước "code + YOLO"): duyệt mọi thứ, áp cho cả workspace (kể cả TUI khác
-  và `send` vào dự án đó).
+  và `send` vào dự án đó). `--yolo` lúc mở phải khớp workspace đang mở, cả hai chiều: dự án mở bằng `--yolo` thì
+  client chạy model sau đó mà không có `--yolo` (TUI, `run`, `send`, `loop`) bị từ chối; dự án mở không `--yolo` thì
+  `agent-cli --yolo` sau đó bị từ chối. `jobs`, `login`, `logout` không bị so `--yolo`; bật bằng `ctrl+y` thì không bị
+  từ chối.
 - Nút "Allow for Session" trong hộp thoại; `permissions allow <tool>` trong crushrc.
 - Muốn được hỏi: dùng TUI không bật YOLO, hoặc `agent-cli send -s <id> "..."` (gửi prompt vào session đang mở trong
   TUI; không tự duyệt, TUI đó trả lời hộp thoại; không có TUI nào mở session đó thì `send --wait` dừng với lỗi và lượt
@@ -264,7 +267,10 @@ lần: `AGENTS.md` chứa khẳng định cũ sai và một chỉ thị độc, 
 
 Tên tệp và biến bên trong (`crush.json`, `CRUSH_*`, `.crush/`) giữ chữ Crush để dễ gộp upstream. Launcher `agent-cli`
 (wrapper ở `~/.local/bin`) đặt sẵn các biến đó, tắt metrics, tắt cập nhật catalog provider và tắt kiểm tra bản mới của
-upstream. Sửa env khi server của dự án đang chạy thì chưa có tác dụng: thoát mọi client rồi mở lại (xem
+upstream. Sửa env khi server của dự án đang chạy thì chưa có tác dụng; client chạy model mở sau với chính sách tin cậy
+khác (allowlist, giao việc, `--yolo`…; so chuỗi thô) bị từ chối, lỗi nêu tên biến; server khác bản đang bận cũng bị
+từ chối. Biến thường (kể cả `$VAR` mà `crush.json` dùng cho `api_key`/`base_url`) không được so: nó theo client đã dựng
+server. Thoát mọi client, chờ server tắt rồi mở lại (xem
 [Sửa env khi agent-cli đang chạy](docs/agent-cli-local-setup.md#sửa-env-khi-agent-cli-đang-chạy)).
 
 ## Phím tắt

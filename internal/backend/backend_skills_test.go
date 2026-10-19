@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/crush/internal/backend"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/charmbracelet/crush/internal/pubsub"
 	"github.com/charmbracelet/crush/internal/skills"
@@ -48,19 +49,22 @@ func TestBackend_WorkspaceSkillsIsolation(t *testing.T) {
 
 	cidA := uuid.New().String()
 	cidB := uuid.New().String()
+	trusted, _ := execpolicy.Inputs()
 
 	wsA, _, err := b.CreateWorkspace(proto.Workspace{
-		ClientID: cidA,
-		Path:     wdA,
-		DataDir:  filepath.Join(wdA, ".crush"),
+		ClientID:   cidA,
+		Path:       wdA,
+		DataDir:    filepath.Join(wdA, ".crush"),
+		TrustedEnv: trusted,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = b.DeleteWorkspace(wsA.ID, cidA) })
 
 	wsB, _, err := b.CreateWorkspace(proto.Workspace{
-		ClientID: cidB,
-		Path:     wdB,
-		DataDir:  filepath.Join(wdB, ".crush"),
+		ClientID:   cidB,
+		Path:       wdB,
+		DataDir:    filepath.Join(wdB, ".crush"),
+		TrustedEnv: trusted,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = b.DeleteWorkspace(wsB.ID, cidB) })

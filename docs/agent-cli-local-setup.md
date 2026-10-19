@@ -172,13 +172,34 @@ thoát hết client của dự án và mở lại. Muốn bật lại: `option a
 
 ### Sửa env khi agent-cli đang chạy
 
-Mỗi dự án có một server nền; cấu hình (crushrc, env) được nạp lại mỗi khi một workspace mới
-mở. Sửa `~/.config/agent-cli/env` (hay crushrc) KHÔNG tác dụng với workspace đang mở: còn một
+Mỗi dự án có một server nền. Cấu hình (crushrc, crush.json, khoá trong tệp env mà crushrc `source`)
+được đọc khi workspace của dự án được dựng. Chính sách tin cậy thì nạp MỘT lần cho mỗi tiến trình
+server và không bao giờ nạp lại: `AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION` (export ở shell
+hay trong `~/.config/agent-cli/env`) cùng các biến tin cậy khác (`AGENT_CLI_UNATTENDED`,
+`AGENT_CLI_LLM_LEDGER`, CLI và mức quyền của tool giao việc ở dưới), theo env của client đã dựng
+server. Sửa `~/.config/agent-cli/env` (hay crushrc) KHÔNG tác dụng với workspace đang mở: còn một
 client (TUI hay `run`) nào của dự án đó đang sống thì nó vẫn dùng giá trị cũ (đã đo: `touch
-crushrc` cũng không kích hoạt nạp lại). Để áp giá trị mới: thoát hết client của dự án đó, rồi
-mở lại; hoặc dừng thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server
-(tên socket `agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`;
-việc đang chạy ở dự án đó sẽ mất.
+crushrc` cũng không kích hoạt nạp lại). Client chạy model (TUI, `run`, `send`, `loop`) mở sau mà
+chính sách tin cậy (env gốc của nó và tệp env; `.env` của repo không tính) khác chính sách server
+đang áp, hoặc `--yolo` khác workspace đang mở, thì bị TỪ CHỐI với lỗi `trust policy differs from
+the running agent-cli server: <tên biến>` (chỉ tên, không giá trị). Chỉ 11 biến tin cậy bị so:
+`AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION`, `AGENT_CLI_UNATTENDED`,
+`AGENT_CLI_UNATTENDED_COMMIT`, `AGENT_CLI_ENV_FILE`, `AGENT_CLI_LLM_LEDGER`, `HOME`,
+`AGENT_CLI_CLAUDE_BIN`, `AGENT_CLI_CODEX_BIN`, `AGENT_CLI_CLAUDE_PERMISSION_MODE`,
+`AGENT_CLI_CODEX_SANDBOX`. Biến môi trường thường, kể cả biến mà `crush.json` dùng qua `$VAR` cho
+`api_key`/`base_url`, KHÔNG được so: client vẫn gắn vào và chạy theo giá trị của client đã dựng
+server (giới hạn như allowlist chỉ so tên provider/model, không kiểm `base_url`). Phép so là so
+chuỗi thô: khác thứ tự trong allowlist, `on`/`ON`/`1`, hay khác `HOME`/`AGENT_CLI_ENV_FILE` dù
+allowlist hiệu lực bằng nhau đều bị từ chối. Lệnh không gửi prompt (`jobs`, `login`, `logout`)
+không bị so chính sách tin cậy và `--yolo` (vẫn bị so `--channels`; `login` khi tự nối lại sau lúc
+server mất workspace thì bị so như lệnh chạy model). Server khác bản/build mà đang bận (không thay
+được) thì lệnh chạy model bị từ chối, lệnh không prompt vẫn dùng nó. Từ tiến trình con mà Home
+dựng (workspace, Home khi quay lại) tới lệnh `--verify` của loop, biến tin cậy đều lấy theo env
+gốc, `.env` của repo không chen vào được. Để áp giá trị mới: thoát hết client của dự án đó, chờ
+server tắt (khoảng 60 giây sau khi client cuối thoát, xem `agent-cli ps`) rồi mở lại; hoặc dừng
+thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server (tên socket
+`agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`; việc đang
+chạy ở dự án đó sẽ mất.
 
 Chỉ sửa tệp trên đĩa thì không nạp lại, nhưng MỌI lần ghi cấu hình của chính workspace đó (vd chọn model
 trong TUI) làm nó nạp lại toàn bộ, gồm chạy lại crushrc và `source` lại env: đã đo ở tầng cấu hình (sửa
@@ -595,10 +616,11 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
 
 Các biến trên phải có trong môi trường của tiến trình agent-cli (export ở shell, ví dụ
 `~/.bashrc`), KHÔNG đặt trong `~/.config/agent-cli/env`: tệp đó chỉ được crushrc `source`
-trong trình thông dịch riêng. Khác tệp env, chúng là env của TIẾN TRÌNH server, lấy từ client
-đã dựng server đó: mở workspace mới không nạp lại. Đổi xong phải để server cũ tắt (khoảng 60
-giây sau khi client cuối thoát, lâu hơn nếu còn run chạy nền; xem `agent-cli ps`) hoặc dừng
-nó như mục "Sửa env khi agent-cli đang chạy", rồi mở lại từ shell đã có biến mới.
+trong trình thông dịch riêng. Chúng là biến tin cậy, env của TIẾN TRÌNH server, lấy từ client
+đã dựng server đó: mở workspace mới không nạp lại, và client mở sau với giá trị khác bị từ chối
+(lỗi nêu tên biến). Đổi xong phải để server cũ tắt (khoảng 60 giây sau khi client cuối thoát, lâu
+hơn nếu còn run chạy nền; xem `agent-cli ps`) hoặc dừng nó như mục "Sửa env khi agent-cli đang
+chạy", rồi mở lại từ shell đã có biến mới.
 Codex đi kèm app ChatGPT desktop thường không nằm trong `PATH` (ví dụ
 `/usr/lib/chatgpt/resources/codex`): đặt `AGENT_CLI_CODEX_BIN` hoặc tạo symlink vào `~/.local/bin`.
 Không muốn dùng: `permissions deny claude_code codex` trong crushrc.

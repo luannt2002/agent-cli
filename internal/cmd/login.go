@@ -74,6 +74,7 @@ var loginCmd = &cobra.Command{
 			return fmt.Errorf("unknown platform: %s", args[0])
 		}
 	},
+	Annotations: map[string]string{noAgentRunsAnnotation: "true"},
 }
 
 func init() {

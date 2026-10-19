@@ -26,7 +26,6 @@ func TestFirstWinsMismatch_NeverLogsEnvValues(t *testing.T) {
 	require.NoError(t, err)
 	argsB := protoWS(cwd, dataDir, uuid.New().String())
 	argsB.Env = []string{"OPENAI_API_KEY=sk-secret-BBB", "SAME=1", "ONLY_B=x"}
-	argsB.YOLO = true
 	_, _, err = b.CreateWorkspace(argsB)
 	require.NoError(t, err)
 

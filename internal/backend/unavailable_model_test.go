@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/crush/internal/backend"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,8 @@ func TestCreateWorkspaceStartsWhenSelectedModelIsUnavailable(t *testing.T) {
 	require.NoError(t, err)
 	b := backend.New(t.Context(), srvCfg, nil)
 	cid := uuid.New().String()
-	ws, _, err := b.CreateWorkspace(proto.Workspace{ClientID: cid, Path: wd, DataDir: filepath.Join(wd, ".crush")})
+	trusted, _ := execpolicy.Inputs()
+	ws, _, err := b.CreateWorkspace(proto.Workspace{ClientID: cid, Path: wd, DataDir: filepath.Join(wd, ".crush"), TrustedEnv: trusted})
 	require.NoError(t, err, "the workspace must come up so login and the model picker still work")
 	t.Cleanup(func() { _ = b.DeleteWorkspace(ws.ID, cid) })
 	require.Nil(t, ws.AgentCoordinator, "no agent built on another provider")

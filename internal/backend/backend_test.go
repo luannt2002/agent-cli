@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/crush/internal/csync"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -471,13 +472,15 @@ func TestPathDedupe_FirstWinsKeepsOriginalEnv(t *testing.T) {
 	require.Equal(t, originalEnv, protoA.Env)
 
 	argsB := protoWS(cwd, dataDir, uuid.New().String())
-	argsB.YOLO = false
+	// Cùng --yolo với A: --yolo khác thì bị từ chối (TestCreateWorkspace_TrustPolicyMismatch),
+	// ở đây chỉ kiểm Env/Debug theo first-wins.
+	argsB.YOLO = true
 	argsB.Debug = true
 	argsB.Env = []string{"BAZ=qux"}
 	_, protoB, err := b.CreateWorkspace(argsB)
 	require.NoError(t, err)
 	require.Equal(t, protoA.ID, protoB.ID)
-	require.True(t, protoB.YOLO, "first wins: YOLO must remain true")
+	require.True(t, protoB.YOLO, "YOLO matches the originating client")
 	require.Equal(t, originalEnv, protoB.Env, "proto must carry the originating client's Env")
 	require.Equal(t, wsA.Cfg.Overrides().SkipPermissionRequests, true)
 }
@@ -639,7 +642,9 @@ func drainBackend(t *testing.T, b *Backend) {
 }
 
 func protoWS(path, dataDir, clientID string) proto.Workspace {
-	return proto.Workspace{Path: path, DataDir: dataDir, ClientID: clientID}
+	// Chính sách tin cậy như client thật gửi (trong test: mọi biến rỗng, khớp server).
+	trusted, _ := execpolicy.Inputs()
+	return proto.Workspace{Path: path, DataDir: dataDir, ClientID: clientID, TrustedEnv: trusted}
 }
 
 // syncBuffer is a thread-safe buffer that can be safely read and written
@@ -686,19 +691,16 @@ func xdgIsolated(t *testing.T) {
 }
 
 // TestFirstWinsMismatch_LogsOnFlagDifferences verifies that the
-// debug mismatch line is emitted when any of YOLO, Debug, DataDir,
-// or Env differs between the first and second CreateWorkspace at
-// the same path, and that the existing workspace's Debug flag is
-// not overwritten.
+// debug mismatch line is emitted when any of Debug, DataDir, or Env
+// differs between the first and second CreateWorkspace at the same
+// path, and that the existing workspace's Debug flag is not
+// overwritten. A differing YOLO is refused instead
+// (TestCreateWorkspace_TrustPolicyMismatch).
 func TestFirstWinsMismatch_LogsOnFlagDifferences(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(*proto.Workspace)
 	}{
-		{
-			name:   "yolo",
-			mutate: func(p *proto.Workspace) { p.YOLO = true },
-		},
 		{
 			name:   "debug",
 			mutate: func(p *proto.Workspace) { p.Debug = true },

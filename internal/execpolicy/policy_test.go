@@ -243,6 +243,55 @@ func TestChildEnvUsesTheSnapshot(t *testing.T) {
 	require.Empty(t, TrustedEnv(DelegationEnv), "set after the snapshot: ignored")
 }
 
+// Inputs là chính sách tin cậy client gửi server để so: đủ mọi biến tin cậy,
+// allowlist/giao việc đã gộp tệp env như Current, và `.env` của repo (nạp sau
+// ảnh chụp) không đổi được nó.
+func TestInputsUseSnapshotAndEnvFile(t *testing.T) {
+	// Không parallel: đổi ảnh chụp cấp gói và env tiến trình.
+	prev := snapshot
+	t.Cleanup(func() { snapshot = prev })
+	dir := t.TempDir()
+	envFile := filepath.Join(dir, "env")
+	require.NoError(t, os.WriteFile(envFile, []byte("AGENT_CLI_API_KEY='secret'\nAGENT_CLI_ALLOWED_MODELS=zai:glm-5.3\nAGENT_CLI_DELEGATION=on\n"), 0o600))
+	snapshot = map[string]string{EnvFileEnv: envFile, "AGENT_CLI_CODEX_SANDBOX": "read-only"}
+	// `.env` của repo nạp sau ảnh chụp: không được chọn chính sách.
+	t.Setenv(AllowedModelsEnv, "pp:m-pp")
+	t.Setenv(DelegationEnv, "off")
+
+	l, err := loadAll(TrustedEnv)
+	require.NoError(t, err)
+	require.Len(t, l.inputs, len(trustedKeys), "every trusted key, set or not")
+	require.Contains(t, l.inputs, AllowedModelsEnv+"=zai:glm-5.3", "from the env file, not the repo's .env")
+	require.Contains(t, l.inputs, DelegationEnv+"=on")
+	require.Contains(t, l.inputs, "AGENT_CLI_CODEX_SANDBOX=read-only")
+	require.Contains(t, l.inputs, "HOME=", "unset keys are sent empty")
+	require.NotContains(t, strings.Join(l.inputs, "\n"), "secret", "only trusted keys, never other env file lines")
+	require.True(t, l.policy.AllowsModel("zai", "glm-5.3"))
+
+	// Biến export trong env gốc thắng tệp, như Current.
+	snapshot[AllowedModelsEnv] = "qwen:m-qwen"
+	l, err = loadAll(TrustedEnv)
+	require.NoError(t, err)
+	require.Contains(t, l.inputs, AllowedModelsEnv+"=qwen:m-qwen")
+}
+
+// Trong test, Inputs kín như Current (mọi biến rỗng), để client và server
+// cùng tiến trình test luôn khớp nhau.
+func TestInputsHermeticInTests(t *testing.T) {
+	t.Parallel()
+	in, err := Inputs()
+	require.NoError(t, err)
+	require.Len(t, in, len(trustedKeys))
+	for _, kv := range in {
+		require.True(t, strings.HasSuffix(kv, "="), kv)
+	}
+	// Người gọi sửa slice trả về không được đổi chính sách đã nạp.
+	in[0] = "TAMPERED=1"
+	again, err := Inputs()
+	require.NoError(t, err)
+	require.NotContains(t, again, "TAMPERED=1")
+}
+
 func TestExternalAgentCommandInterpreterLiterals(t *testing.T) {
 	t.Parallel()
 	for _, args := range [][]string{

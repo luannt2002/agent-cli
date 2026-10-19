@@ -18,6 +18,7 @@ import (
 
 	"github.com/charmbracelet/crush/internal/client"
 	"github.com/charmbracelet/crush/internal/db"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/gitutil"
 	homedir "github.com/charmbracelet/crush/internal/home"
 	"github.com/charmbracelet/crush/internal/projects"
@@ -106,7 +107,8 @@ func homeLoop(pick func() (home.Choice, error), run func(home.Choice) (int, erro
 // homeLauncher is what Home starts workspaces with: the launcher when
 // agent-cli was started through it, else this binary.
 func homeLauncher() (string, error) {
-	if exe := os.Getenv(launcherEnv); exe != "" {
+	// Env gốc: `.env` của repo (main nạp sau ảnh chụp) không được chọn chương trình Home chạy.
+	if exe := execpolicy.OriginalEnv(launcherEnv); exe != "" {
 		return exec.LookPath(exe)
 	}
 	return os.Executable()
@@ -124,9 +126,13 @@ func homeChildCmd(exe string, c home.Choice, debug bool) *exec.Cmd {
 	// Not tied to a context: the TUI owns the terminal and its signals.
 	cmd := exec.Command(exe, args...) //nolint:noctx
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	cmd.Env = append(os.Environ(), homeChildEnv+"=1")
+	cmd.Env = append(homeEnv(), homeChildEnv+"=1")
 	return cmd
 }
+
+// homeEnv là env cho tiến trình agent-cli mà Home dựng (workspace, Home khi quay
+// lại): biến tin cậy theo ảnh chụp env gốc, không theo `.env` mà main đã nạp.
+func homeEnv() []string { return execpolicy.ChildEnv(os.Environ()) }
 
 // runChild runs c and returns its exit status; death by a signal counts as
 // a failure.
@@ -151,7 +157,7 @@ func execHome(dir string) error {
 	if err != nil {
 		return err
 	}
-	return syscall.Exec(exe, []string{exe}, os.Environ())
+	return syscall.Exec(exe, []string{exe}, homeEnv())
 }
 
 // workspaceKey is the 8 hex digits the launcher names a workspace's server

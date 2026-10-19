@@ -53,6 +53,7 @@ agent-cli jobs kill 01A
 			return printJobs(os.Stdout, jobs, asJSON, time.Now())
 		})
 	},
+	Annotations: map[string]string{noAgentRunsAnnotation: "true"},
 }
 
 var jobsOutputCmd = &cobra.Command{

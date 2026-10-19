@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/backend"
 	"github.com/charmbracelet/crush/internal/db"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/permission"
 	"github.com/charmbracelet/crush/internal/proto"
@@ -145,6 +146,8 @@ func newRealCreateHarness(t *testing.T) *e2eHarness {
 // workspace ID.
 func (h *e2eHarness) postWorkspace(t *testing.T, args proto.Workspace) proto.Workspace {
 	t.Helper()
+	// Như client thật (client.CreateWorkspace): gửi chính sách tin cậy.
+	args.TrustedEnv, _ = execpolicy.Inputs()
 	body, err := json.Marshal(args)
 	require.NoError(t, err)
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,

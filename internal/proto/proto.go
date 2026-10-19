@@ -22,6 +22,14 @@ type Workspace struct {
 	ClientID string         `json:"client_id,omitempty"`
 	Config   *config.Config `json:"config,omitempty"`
 	Env      []string       `json:"env,omitempty"`
+	// TrustedEnv là chính sách tin cậy của client gửi khi tạo workspace
+	// (execpolicy.Inputs, dạng KEY=value, đủ mọi biến tin cậy): server từ chối
+	// khi khác chính sách của chính nó. Server không trả lại trường này.
+	TrustedEnv []string `json:"trusted_env,omitempty"`
+	// NoAgentRuns: client không gửi prompt nào (jobs, login, logout), nên
+	// server không so TrustedEnv và --yolo với nó. Lời khai của client, không
+	// phải ranh giới quyền.
+	NoAgentRuns bool `json:"no_agent_runs,omitempty"`
 	// Channels lists the MCP servers opted in as channels for this workspace
 	// (from the --channels flag).
 	Channels []string `json:"channels,omitempty"`

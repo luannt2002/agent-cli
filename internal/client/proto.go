@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/charmbracelet/crush/internal/pubsub"
@@ -41,6 +42,17 @@ func (c *Client) ListWorkspaces(ctx context.Context) ([]proto.Workspace, error) 
 // CreateWorkspace creates a new workspace on the server.
 func (c *Client) CreateWorkspace(ctx context.Context, ws proto.Workspace) (*proto.Workspace, error) {
 	ws.ClientID = c.clientID
+	// Chính sách tin cậy của tiến trình này (env gốc + tệp env, không theo
+	// `.env` của repo): server từ chối khi nó khác chính sách server đang áp.
+	// Lệnh không gửi prompt không bị so nên không đọc (tệp env hỏng không làm
+	// hỏng `jobs kill`/`logout`).
+	if !ws.NoAgentRuns {
+		trusted, err := execpolicy.Inputs()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create workspace: %w", err)
+		}
+		ws.TrustedEnv = trusted
+	}
 	rsp, err := c.post(ctx, "/workspaces", nil, jsonBody(ws), http.Header{"Content-Type": []string{"application/json"}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)

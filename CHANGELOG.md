@@ -174,6 +174,17 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
+- **Client không còn lặng lẽ chạy theo chính sách tin cậy của client khác.** Server của dự án nạp chính sách
+  (`AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION` và các biến tin cậy khác) một lần, theo client đã dựng nó;
+  client mở sau với chính sách khác từng chạy theo chính sách cũ mà không cảnh báo (allowlist `qwen` của nó không
+  chặn lượt đi provider `pp`). Nay client gửi chính sách tin cậy của nó (env gốc và tệp env, không theo `.env` của
+  repo) và server từ chối khi khác: lỗi `trust policy differs from the running agent-cli server` nêu tên biến
+  (không giá trị) và bảo thoát mọi client của dự án. `--yolo` khác workspace đang mở cũng bị từ chối thay cho cảnh
+  báo cũ; client cũ không gửi chính sách cũng bị từ chối, và lệnh chạy model không tái dùng server khác bản đang bận.
+  Chỉ lệnh chạy model (TUI, `run`, `send`, `loop`) bị so; `jobs`, `login`, `logout` thì không. Biến thường (kể cả
+  `$VAR` của `api_key`/`base_url` trong `crush.json`) không được so và vẫn theo client đã dựng server, như trước.
+  Tiến trình con mà Home dựng và lệnh `--verify` của loop không còn nhận biến tin cậy từ `.env` của repo (gõ
+  `agent-cli` trong repo có `.env` đặt `AGENT_CLI_DELEGATION=on` từng bật giao việc cho workspace mở từ Home).
 
 ## [0.2.0] - 2026-10-16
 

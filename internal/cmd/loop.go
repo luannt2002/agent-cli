@@ -20,6 +20,7 @@ import (
 
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/event"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/loop"
 	"github.com/charmbracelet/crush/internal/shell"
 	"github.com/charmbracelet/crush/internal/workspace"
@@ -268,7 +269,8 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
 		var buf tailBuffer
 		start := time.Now()
 		// pipefail: đuôi `| cat`/`| tee log` không được che mã lỗi của lệnh trước nó.
-		err := shell.Run(vctx, shell.RunOptions{Command: "set -o pipefail\n" + cmd, Cwd: cwd, Env: os.Environ(), Stdout: &buf, Stderr: &buf})
+		// ChildEnv: verify có thể chạy agent-cli; biến tin cậy không được lấy từ `.env` của repo.
+		err := shell.Run(vctx, shell.RunOptions{Command: "set -o pipefail\n" + cmd, Cwd: cwd, Env: execpolicy.ChildEnv(os.Environ()), Stdout: &buf, Stderr: &buf})
 		res := loop.VerifyResult{Output: string(buf.b), Duration: time.Since(start)}
 		switch exit, isExit := errors.AsType[interp.ExitStatus](err); {
 		case err == nil:

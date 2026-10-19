@@ -536,6 +536,35 @@ func setupClientServerWorkspace(cmd *cobra.Command) (workspace.Workspace, func()
 	return clientWs, clientWs.Shutdown, nil
 }
 
+// errStaleServerBusy: server của dự án khác bản/build mà đang bận nên không thay
+// được.
+var errStaleServerBusy = errors.New("this project's agent-cli server is another build and is busy")
+
+// staleServerBusy quyết khi server khác bản/build không chịu tắt (đang bận):
+// lệnh không gửi prompt vẫn dùng nó; lệnh chạy model thì bị từ chối, vì server
+// bản khác có thể không so chính sách tin cậy của client (trusted_env).
+func staleServerBusy(cmd *cobra.Command, vi *proto.VersionInfo) error {
+	if runsNoAgent(cmd) {
+		return nil
+	}
+	return fmt.Errorf("%w: the server is %s (build %s), this agent-cli is %s (build %s), and an agent run is never sent to a server of another build: exit every agent-cli client of this project, wait for its server to exit (about a minute later, see agent-cli ps), then reopen",
+		errStaleServerBusy, vi.Version, vi.BuildID, version.Version, version.BuildID)
+}
+
+// noAgentRunsAnnotation đánh dấu lệnh không gửi prompt nào (xem/dừng job, đăng
+// nhập/xuất): server không so chính sách tin cậy và --yolo với client của nó.
+const noAgentRunsAnnotation = "agent-cli.no-agent-runs"
+
+// runsNoAgent cho biết cmd (hoặc lệnh cha của nó) mang noAgentRunsAnnotation.
+func runsNoAgent(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Annotations[noAgentRunsAnnotation] != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // connectToServer ensures the server is running, creates a client and
 // workspace, and returns a cleanup function that deletes the workspace.
 func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func(), error) {
@@ -563,14 +592,16 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
 		return nil, nil, nil, err
 	}
 
+	noAgent := runsNoAgent(cmd)
 	wsReq := proto.Workspace{
-		Path:     cwd,
-		DataDir:  dataDir,
-		Debug:    debug,
-		YOLO:     yolo,
-		Channels: channels,
-		Version:  version.Version,
-		Env:      os.Environ(),
+		Path:        cwd,
+		DataDir:     dataDir,
+		Debug:       debug,
+		YOLO:        yolo,
+		Channels:    channels,
+		Version:     version.Version,
+		Env:         os.Environ(),
+		NoAgentRuns: noAgent,
 	}
 
 	ws, err := createWorkspaceOnLiveServer(cmd.Context(), c, wsReq, func() error {
@@ -582,7 +613,7 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
 	// Workspace đã có trên server (client khác mở trước, hoặc còn run mồ côi)
 	// giữ cờ của lần tạo đầu: nói rõ khi YOLO khác ý người gọi, vì nó quyết
 	// định có hỏi quyền hay không.
-	if msg := yoloMismatchWarning(yolo, ws.YOLO); msg != "" {
+	if msg := yoloMismatchWarning(yolo, ws.YOLO); msg != "" && !noAgent {
 		fmt.Fprintln(os.Stderr, msg)
 		slog.Warn(msg)
 	}
@@ -630,7 +661,7 @@ func createWorkspaceOnLiveServer(
 			return ws, nil
 		}
 		if !errors.Is(err, client.ErrServerShuttingDown) || attempt == maxStaleServerRetries-1 {
-			return nil, fmt.Errorf("failed to create workspace: %v", err)
+			return nil, err // client.CreateWorkspace đã gắn "failed to create workspace".
 		}
 		slog.Warn("Server is shutting down; retrying against a replacement",
 			"attempt", attempt+1, "error", err)
@@ -697,6 +728,9 @@ func ensureServer(cmd *cobra.Command, hostURL *url.URL) error {
 				}
 			}
 			restarted, err := restartIfStale(cmd, hostURL)
+			if errors.Is(err, errStaleServerBusy) {
+				return err
+			}
 			if err != nil {
 				slog.Warn("Failed to check server version", "error", err)
 			}
@@ -931,7 +965,9 @@ func probeHealth(ctx context.Context, h *http.Client, reqURL string, hostURL *ur
 // idle, and the next client then finds no socket and spawns a current one.
 //
 // It returns restarted=true only when the server accepted the shutdown and
-// the caller must spawn a replacement.
+// the caller must spawn a replacement. When the server is kept, a command
+// that runs the agent gets errStaleServerBusy instead: a server of another
+// build may not check the client's trust policy.
 func restartIfStale(cmd *cobra.Command, hostURL *url.URL) (restarted bool, err error) {
 	c, err := client.NewClient("", hostURL.Scheme, hostURL.Host)
 	if err != nil {
@@ -950,19 +986,19 @@ func restartIfStale(cmd *cobra.Command, hostURL *url.URL) (restarted bool, err e
 		"server_build_id", vi.BuildID,
 		"client_build_id", version.BuildID,
 	}
-	// Every refusal — in use, too old to be asked, or unreachable — leads to
-	// the same safe outcome: keep using the running server. The wrapped
-	// error says which it was.
+	// Every refusal — in use, too old to be asked, or unreachable — leaves
+	// the running server in place: a command that sends no prompt keeps
+	// using it, one that runs the agent is refused (staleServerBusy).
 	if err := c.ShutdownServerIfIdle(cmd.Context()); err != nil {
 		if !errors.Is(err, client.ErrUnsupported) {
 			slog.Warn("Server version differs but it will not stand down; reusing it",
 				append(versionFields, "error", err)...)
-			return false, nil
+			return false, staleServerBusy(cmd, vi)
 		}
 		// The server predates shutdown_if_idle. Fall back to the
 		// unconditional command, but only after verifying it is idle.
 		if !shutdownLegacyStaleServer(cmd.Context(), c, versionFields) {
-			return false, nil
+			return false, staleServerBusy(cmd, vi)
 		}
 	}
 	slog.Info("Stale server accepted shutdown, restarting", versionFields...)
