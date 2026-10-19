@@ -249,7 +249,18 @@ func DiscoverWithStates(paths []string) ([]*Skill, []*SkillState) {
 				addState("", path, StateError, err)
 				return nil
 			}
-			if d.IsDir() || d.Name() != SkillFileName {
+			// Thư mục ẩn bên dưới gốc (`.trash` của trình quản lý skill, `.git`) chứa
+			// bản đã xoá hoặc không dành cho agent; gốc thì có thể nằm trong thư mục
+			// ẩn (~/.agents/skills). Kiểm cả đường dẫn tệp vì symlink thư mục không
+			// đi qua nhánh IsDir.
+			if d.IsDir() {
+				// So bằng Rel: fastwalk làm sạch gốc ("/" cuối), base thì chưa.
+				if rel, _ := filepath.Rel(base, path); rel != "." && strings.HasPrefix(d.Name(), ".") {
+					return fastwalk.SkipDir
+				}
+				return nil
+			}
+			if d.Name() != SkillFileName || underHiddenDir(base, path) {
 				return nil
 			}
 			mu.Lock()
@@ -292,6 +303,21 @@ func DiscoverWithStates(paths []string) ([]*Skill, []*SkillState) {
 	})
 
 	return skills, states
+}
+
+// underHiddenDir: giữa gốc base và tệp có một thư mục tên bắt đầu bằng ".".
+func underHiddenDir(base, path string) bool {
+	rel, err := filepath.Rel(base, path)
+	if err != nil {
+		return false
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	for _, p := range parts[:len(parts)-1] {
+		if strings.HasPrefix(p, ".") && p != "." && p != ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // ToPromptXML generates XML for injection into the system prompt.
