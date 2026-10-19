@@ -296,11 +296,7 @@ func mcpInstructions(states map[string]mcp.ClientInfo, agentTools []fantasy.Agen
 		case tools.ListMCPResourcesToolName, tools.ReadMCPResourceToolName:
 			allServers = true
 		}
-		// hookedTool (PreToolUse) không lộ MCP() của tool bên trong.
-		if h, ok := t.(*hookedTool); ok {
-			t = h.inner
-		}
-		if m, ok := t.(interface{ MCP() string }); ok {
+		if m, ok := unwrapTool(t).(interface{ MCP() string }); ok {
 			reach[m.MCP()] = true
 		}
 	}
