@@ -68,6 +68,10 @@ var nameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 // dấu nối lệnh (chống chèn dòng).
 var safeText = regexp.MustCompile(`^[A-Za-z0-9 .,:*/\-_+@=]+$`)
 
+// safeEnv: biến môi trường ghi vào unit/crontab, dạng KEY=giá-trị không có ký tự shell
+// (dấu phẩy cho danh sách model được phép).
+var safeEnv = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*=[A-Za-z0-9/._:+,-]+$`)
+
 // Parse đọc một định nghĩa, từ chối trường lạ (gõ sai tên trường không bị bỏ qua
 // lặng lẽ) và nội dung thừa; trả về cả sha256 của nguyên văn tệp để ghim.
 func Parse(data []byte) (Definition, string, error) {
@@ -163,7 +167,7 @@ func (d Definition) Limits() (maxRepairs int, maxDuration, runTimeout, verifyTim
 // tự sửa crontab hay timer: agent bị cấm lệnh đó). bin là đường dẫn agent-cli,
 // sum là sha256 của định nghĩa (lượt chạy từ chối khi tệp đã đổi), path là PATH
 // tường minh (cron/systemd có env gần như rỗng).
-func (d Definition) ScheduleText(bin, sum, path string) (string, error) {
+func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, error) {
 	if d.Mode != ModeMaintenance {
 		return "", fmt.Errorf("only mode %q routines can be scheduled", ModeMaintenance)
 	}
@@ -172,6 +176,11 @@ func (d Definition) ScheduleText(bin, sum, path string) (string, error) {
 	}
 	if err := d.Validate(); err != nil {
 		return "", err
+	}
+	for _, kv := range env {
+		if !safeEnv.MatchString(kv) {
+			return "", fmt.Errorf("environment value %q has characters that cannot go into a unit or crontab", kv)
+		}
 	}
 	s := d.Schedule
 	_, maxDur, _, _, _ := d.Limits()
@@ -190,6 +199,9 @@ func (d Definition) ScheduleText(bin, sum, path string) (string, error) {
 		fmt.Fprintf(&b, "# --- systemd user units: ~/.config/systemd/user/agent-cli-routine-%s.service\n", d.Name)
 		fmt.Fprintf(&b, "[Unit]\nDescription=agent-cli routine %s\n\n[Service]\nType=oneshot\n", d.Name)
 		fmt.Fprintf(&b, "Environment=HOME=%%h\nEnvironment=PATH=%s\n", path)
+		for _, kv := range env {
+			fmt.Fprintf(&b, "Environment=%s\n", kv)
+		}
 		if s.Timezone != "" {
 			fmt.Fprintf(&b, "Environment=TZ=%s\n", s.Timezone)
 		}
@@ -206,11 +218,14 @@ func (d Definition) ScheduleText(bin, sum, path string) (string, error) {
 	}
 	if s.Cron != "" {
 		fmt.Fprintf(&b, "# --- crontab line (crontab -e). cron has an almost empty environment: HOME/PATH/TZ are explicit.\n")
-		env := ""
+		vars := ""
 		if s.Timezone != "" {
-			env += " TZ=" + s.Timezone
+			vars += " TZ=" + s.Timezone
 		}
-		fmt.Fprintf(&b, "%s%s PATH=%s %s\n", s.Cron, env, path, cmdline)
+		for _, kv := range env {
+			vars += " " + kv
+		}
+		fmt.Fprintf(&b, "%s%s PATH=%s %s\n", s.Cron, vars, path, cmdline)
 	}
 	return b.String(), nil
 }

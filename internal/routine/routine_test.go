@@ -95,7 +95,7 @@ func TestScheduleText_SystemdAndCron(t *testing.T) {
 	t.Parallel()
 	d, sum, err := Parse([]byte(goodDef))
 	require.NoError(t, err)
-	out, err := d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin")
+	out, err := d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin", nil)
 	require.NoError(t, err)
 	for _, want := range []string{
 		"agent-cli-routine-nightly.service",
@@ -113,7 +113,7 @@ func TestScheduleText_SystemdAndCron(t *testing.T) {
 	}
 
 	d.Schedule = &Schedule{Cron: "0 9 * * 1-5", Timezone: "Asia/Ho_Chi_Minh"}
-	out, err = d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin")
+	out, err = d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin", nil)
 	require.NoError(t, err)
 	require.Contains(t, out, "0 9 * * 1-5 TZ=Asia/Ho_Chi_Minh PATH=/usr/bin:/bin /usr/local/bin/agent-cli routine run nightly --scheduled --expect-sha "+sum)
 	require.NotContains(t, out, "OnCalendar=", "chỉ khai cron thì không sinh timer systemd")
@@ -123,17 +123,17 @@ func TestScheduleText_RefusesWhatCannotBeScheduled(t *testing.T) {
 	t.Parallel()
 	d, sum, _ := Parse([]byte(goodDef))
 	d.Mode = ModeGoal
-	_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin")
+	_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", nil)
 	require.ErrorContains(t, err, "maintenance")
 
 	d, _, _ = Parse([]byte(goodDef))
 	d.Schedule = nil
-	_, err = d.ScheduleText("/bin/agent-cli", sum, "/bin")
+	_, err = d.ScheduleText("/bin/agent-cli", sum, "/bin", nil)
 	require.ErrorContains(t, err, "schedule")
 
 	d, _, _ = Parse([]byte(goodDef))
-	_, err = d.ScheduleText("/bin/agent cli", sum, "/bin")
+	_, err = d.ScheduleText("/bin/agent cli", sum, "/bin", nil)
 	require.NoError(t, err)
-	out, _ := d.ScheduleText("/bin/agent cli", sum, "/bin")
+	out, _ := d.ScheduleText("/bin/agent cli", sum, "/bin", nil)
 	require.Contains(t, out, `ExecStart="/bin/agent cli" routine run`, "đường dẫn có khoảng trắng phải được bọc nháy")
 }

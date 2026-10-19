@@ -80,6 +80,28 @@ func TestRunStream_RunCompleteExits(t *testing.T) {
 	require.Equal(t, "VERDICT: APPROVED", buf.String())
 }
 
+// Bản tự tóm tắt giữa lượt là tin assistant của chính session nhưng không phải
+// câu trả lời: stdout (và `text` của --json) chỉ có câu trả lời (PRB-45).
+func TestRunStream_SkipsTheAutoSummary(t *testing.T) {
+	t.Parallel()
+
+	buf := &bytes.Buffer{}
+	s := &runStream{sessionID: "S", out: buf, read: map[string]int{}}
+	for _, m := range []proto.Message{
+		{ID: "sum", SessionID: "S", Role: proto.Assistant, IsSummaryMessage: true,
+			Parts: []proto.ContentPart{proto.TextContent{Text: "## Current State\nSUMMARY"}, proto.Finish{Reason: proto.FinishReasonEndTurn}}},
+		{ID: "m2", SessionID: "S", Role: proto.Assistant,
+			Parts: []proto.ContentPart{proto.TextContent{Text: "DONE"}, proto.Finish{Reason: proto.FinishReasonEndTurn}}},
+	} {
+		_, err := s.handle(pubsub.Event[proto.Message]{Payload: m}, nil)
+		require.NoError(t, err)
+	}
+	done, err := s.handle(pubsub.Event[proto.RunComplete]{Payload: proto.RunComplete{SessionID: "S", MessageID: "m2", Text: "DONE"}}, nil)
+	require.NoError(t, err)
+	require.True(t, done)
+	require.Equal(t, "DONE", buf.String())
+}
+
 // TestRunStream_ReconcilesOnOutOfOrderRunComplete is the worst-case
 // ordering scenario: RunComplete reaches the client BEFORE any of
 // the streaming assistant message events for the turn (the pubsub

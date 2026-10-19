@@ -201,3 +201,23 @@ func TestRunJSONPreRunFailuresStillPrintJSON(t *testing.T) {
 	require.Error(t, err)
 	require.Empty(t, out)
 }
+
+// run --json nói provider/model của câu trả lời cuối; không biết thì bỏ hẳn hai trường.
+func TestRunJSONReportsProviderAndModel(t *testing.T) {
+	t.Parallel()
+	var w bytes.Buffer
+	store := map[string]sessionUsage{
+		"s1": {promptTokens: 1, provider: "openai", model: "gpt-5"},
+		"s2": {promptTokens: 1},
+	}
+	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("s1", "x", nil)))
+	m := decodeOne(t, w.Bytes())
+	require.Equal(t, "openai", m["provider"])
+	require.Equal(t, "gpt-5", m["model"])
+
+	w.Reset()
+	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("s2", "x", nil)))
+	m = decodeOne(t, w.Bytes())
+	require.NotContains(t, m, "provider")
+	require.NotContains(t, m, "model")
+}

@@ -34,6 +34,7 @@ type Stop string
 
 const (
 	StopGreen      Stop = "GREEN"       // verify thoát 0 sau một lượt agent
+	StopNoChange   Stop = "NO_CHANGE"   // verify xanh từ trước VÀ cây không đổi: không chứng minh gì
 	StopMaxRepairs Stop = "MAX_REPAIRS" // hết số lần sửa mà verify vẫn đỏ
 	StopStalled    Stop = "STALLED"     // cùng lỗi, cây làm việc không đổi
 	StopTimeout    Stop = "TIMEOUT"     // quá MaxDuration, kiểm trước mỗi lượt agent
@@ -85,6 +86,11 @@ type Result struct {
 	Attempts   int // số lượt agent đã chạy
 	SessionIDs []string
 	Last       VerifyResult
+	// BaselinePass: verify đã xanh trước mọi thay đổi (cổng có thể không đo mục tiêu).
+	BaselinePass bool
+	// Unchanged: verify xanh mà dấu vân tay cây làm việc y như lúc baseline (agent không
+	// đổi gì). False khi không biết dấu vân tay.
+	Unchanged bool
 }
 
 // tailLines là số dòng cuối của output verify đưa lại cho agent và ghi vào journal.
@@ -131,6 +137,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	note := ""
 	if base.Status == StatusPass {
 		note = "verify already passes before any change: the gate may not measure this goal"
+		res.BaselinePass = true
 	}
 	if err := emit(Event{Kind: "baseline", Status: string(base.Status), ExitCode: base.ExitCode,
 		Output: tail(base.Output, tailLines), Fingerprint: baseFP, Note: note}); err != nil {
@@ -196,7 +203,20 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 
 		switch v.Status {
 		case StatusPass:
-			return stop(StopGreen, "")
+			// GREEN không đi kèm thay đổi nào thì phải nói ra, không chỉ nằm trong journal.
+			res.Unchanged = fp != "" && fp == baseFP
+			if res.BaselinePass && res.Unchanged {
+				// Xanh trước và sau, cây y nguyên: cổng không đo việc này hoặc việc đã xong sẵn.
+				return stop(StopNoChange, "verify already passed before any change and the working tree did not change: nothing proves the agent's work")
+			}
+			var warn []string
+			if res.BaselinePass {
+				warn = append(warn, "verify already passed before any change")
+			}
+			if res.Unchanged {
+				warn = append(warn, "the working tree did not change")
+			}
+			return stop(StopGreen, strings.Join(warn, "; "))
 		case StatusUnmeasured:
 			return stop(StopUnmeasured, "cannot run the verify command: "+tail(v.Output, 5))
 		}

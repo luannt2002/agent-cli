@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/format"
 	"github.com/charmbracelet/crush/internal/herdr"
+	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/charmbracelet/crush/internal/pubsub"
 	"github.com/charmbracelet/crush/internal/session"
@@ -192,7 +193,16 @@ agent-cli run --json "Summarize this repo"
 					if err != nil {
 						return sessionUsage{}, err
 					}
-					return sessionUsage{sess.PromptTokens, sess.CompletionTokens, sess.Cost}, nil
+					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
+					if msgs, err := c.ListMessages(ctx, ws.ID, id); err == nil {
+						for i := len(msgs) - 1; i >= 0; i-- {
+							if m := msgs[i]; m.Role == proto.Assistant && !m.IsSummaryMessage && m.Model != "" {
+								u.provider, u.model = m.Provider, m.Model
+								break
+							}
+						}
+					}
+					return u, nil
 				},
 				func(out io.Writer, onSession func(string)) error {
 					return runNonInteractive(ctx, c, ws, out, onSession, prompt, largeModel, smallModel, reasoningEffort, quiet || verbose, sessionID, useLast)
@@ -231,7 +241,16 @@ agent-cli run --json "Summarize this repo"
 				if err != nil {
 					return sessionUsage{}, err
 				}
-				return sessionUsage{sess.PromptTokens, sess.CompletionTokens, sess.Cost}, nil
+				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
+				if msgs, err := appWs.App().Messages.List(ctx, id); err == nil {
+					for i := len(msgs) - 1; i >= 0; i-- {
+						if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" {
+							u.provider, u.model = m.Provider, m.Model
+							break
+						}
+					}
+				}
+				return u, nil
 			},
 			func(out io.Writer, onSession func(string)) error {
 				return appWs.App().RunNonInteractive(ctx, out, onSession, prompt, largeModel, smallModel, reasoningEffort, quiet || verbose, sessionID, useLast)
@@ -266,11 +285,16 @@ type runJSONResult struct {
 	PromptTokens     int64   `json:"prompt_tokens"`
 	CompletionTokens int64   `json:"completion_tokens"`
 	Cost             float64 `json:"cost"`
+	// Provider/model của câu trả lời cuối (tin assistant đã lưu), không phải model
+	// "đang chọn": script biết chắc model nào đã trả lời.
+	Provider string `json:"provider,omitempty"`
+	Model    string `json:"model,omitempty"`
 }
 
 type sessionUsage struct {
 	promptTokens, completionTokens int64
 	cost                           float64
+	provider, model                string
 }
 
 // runMaybeJSON runs the prompt, streaming to stdout, or in JSON mode
@@ -321,6 +345,7 @@ func runJSON(
 			err = fmt.Errorf("failed to read session usage: %w", uerr)
 		}
 		res.PromptTokens, res.CompletionTokens, res.Cost = u.promptTokens, u.completionTokens, u.cost
+		res.Provider, res.Model = u.provider, u.model
 	}
 	if err != nil {
 		res.Error = err.Error()
@@ -719,7 +744,7 @@ func (s *runStream) handle(ev any, stopSpinner func()) (done bool, err error) {
 	switch e := ev.(type) {
 	case pubsub.Event[proto.Message]:
 		msg := e.Payload
-		if msg.SessionID != s.sessionID || msg.Role != proto.Assistant || len(msg.Parts) == 0 {
+		if msg.SessionID != s.sessionID || msg.Role != proto.Assistant || msg.IsSummaryMessage || len(msg.Parts) == 0 {
 			return false, nil
 		}
 		if s.runID != "" {

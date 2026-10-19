@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -163,8 +164,9 @@ func init() {
 				"lock":     routineLockPath(routineDataDir(), d.Name),
 				"runs_dir": filepath.Join(routineDataDir(), d.Name, "runs"),
 			}
-			if rep, ok := lastReport(routineDataDir(), d.Name); ok {
-				out["last_run"] = rep
+			if runs := listRuns(routineDataDir(), d.Name); len(runs) > 0 {
+				out["last_run"] = runs[0]
+				out["runs"] = runs
 			}
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
@@ -188,10 +190,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			text, err := d.ScheduleText(bin, sum, schedulePATH())
+			text, err := d.ScheduleText(bin, sum, schedulePATH(), scheduleEnv())
 			if err != nil {
 				return &usageError{err}
 			}
+			warnAllowlistNotScheduled(cmd.ErrOrStderr())
 			_, err = io.WriteString(cmd.OutOrStdout(), text)
 			return err
 		},
@@ -201,9 +204,10 @@ func init() {
 	runCmd := &cobra.Command{
 		Use:   "run NAME|FILE",
 		Short: "Run a routine once, in its own worktree, with a lock",
-		Long: `Run a routine once. Exit codes: 0 GREEN, 1 any other stop reason or failure,
-2 bad usage (including --scheduled on a goal routine or a changed definition),
-75 another run of this routine holds the lock.`,
+		Long: `Run a routine once. Exit codes: 0 GREEN (or NO_CHANGE for a maintenance routine:
+nothing to do), 1 any other stop reason or failure, 2 bad usage (including
+--scheduled on a goal routine or a changed definition), 75 another run of this
+routine holds the lock.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := rejectCwdFlag(cmd); err != nil {
@@ -234,10 +238,7 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if out.Result.Reason != loop.StopGreen {
-				return fmt.Errorf("routine stopped: %s", out.Result.Reason)
-			}
-			return nil
+			return routineExitErr(d.Mode, out.Result.Reason)
 		},
 	}
 	runCmd.Flags().Bool("scheduled", false, "Mark the run as started by a schedule (refused for goal routines)")
@@ -246,6 +247,24 @@ func init() {
 
 	routineCmd.AddCommand(newCmd, listCmd, showCmd, scheduleCmd, runCmd)
 	rootCmd.AddCommand(routineCmd)
+}
+
+// routineExitErr: NO_CHANGE ở routine bảo trì là "không có việc", kết quả hợp lệ của
+// lượt theo lịch; ở goal mode là việc chưa được chứng minh nên thoát 1.
+func routineExitErr(mode string, r loop.Stop) error {
+	if r == loop.StopGreen || (r == loop.StopNoChange && mode == routine.ModeMaintenance) {
+		return nil
+	}
+	return fmt.Errorf("routine stopped: %s", r)
+}
+
+// warnAllowlistNotScheduled: allowlist cố ý không vào lịch (biến export thắng tệp
+// env, sẽ lấn việc siết allowlist sau này), nên nhắc người dùng chuyển nó vào tệp env.
+func warnAllowlistNotScheduled(w io.Writer) {
+	if execpolicy.OriginalEnv(execpolicy.AllowedModelsEnv) != "" {
+		fmt.Fprintf(w, "warning: %s is set in your shell but is not copied into the schedule; put the allowlist in your agent-cli env file (%s) so scheduled runs use it\n",
+			execpolicy.AllowedModelsEnv, execpolicy.EnvFileEnv+" or ~/.config/agent-cli/env")
+	}
 }
 
 // rejectCwdFlag: `routine run` làm việc trong worktree của nó; --cwd/-c sẽ đưa
@@ -306,6 +325,24 @@ func schedulePATH() string {
 		return p
 	}
 	return "/usr/local/bin:/usr/bin:/bin"
+}
+
+// scheduleEnv là các biến mà launcher `agent-cli` đặt để chỉ chỗ cấu hình/dữ liệu,
+// cộng tệp env của người dùng: allowlist model đọc từ tệp đó, không chép vào lịch
+// (biến export thắng tệp env, siết allowlist sau này sẽ bị bỏ qua). cron và systemd
+// chạy với env gần rỗng: thiếu CRUSH_GLOBAL_CONFIG thì lần chạy theo lịch tìm định
+// nghĩa ở ~/.config/crush và thoát 2. Đọc env GỐC: `.env`
+// của thư mục hiện tại do repo kiểm soát, không được chen vào lịch.
+func scheduleEnv() []string {
+	var env []string
+	for _, k := range []string{"CRUSH_GLOBAL_CONFIG", "CRUSH_GLOBAL_DATA", "CRUSH_CACHE_DIR",
+		"CRUSH_DISABLE_METRICS", "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "CRUSH_DISABLE_UPDATE_CHECK",
+		execpolicy.EnvFileEnv} {
+		if v := execpolicy.OriginalEnv(k); v != "" {
+			env = append(env, k+"="+v)
+		}
+	}
+	return env
 }
 
 // loadRoutine đọc và kiểm một định nghĩa theo tên (trong defsDir) hoặc đường dẫn tệp.
@@ -395,21 +432,60 @@ func listRoutines(defsDir, dataDir string) []routineListEntry {
 	return out
 }
 
-// lastReport đọc báo cáo của lượt chạy mới nhất (tên thư mục là dấu thời gian).
+// lastReport là trạng thái của lượt chạy mới nhất (tên thư mục là dấu thời gian).
+// Lượt mới nhất luôn thắng, kể cả khi nó chết dở: không bao giờ lùi về lượt cũ hơn.
 func lastReport(dataDir, name string) (routineReport, bool) {
+	runs := listRuns(dataDir, name)
+	if len(runs) == 0 {
+		return routineReport{}, false
+	}
+	return runs[0], true
+}
+
+// listRuns trả mọi lượt chạy, mới nhất trước. Lượt chết giữa chừng (bị kill, OOM,
+// máy khởi động lại) thành ABANDONED: hoặc không có báo cáo, hoặc báo cáo còn
+// RUNNING mà không ai giữ khoá (khoá tự nhả khi tiến trình chết).
+func listRuns(dataDir, name string) []routineReport {
 	dirs, _ := filepath.Glob(filepath.Join(dataDir, name, "runs", "*"))
-	sort.Strings(dirs)
-	for i := len(dirs) - 1; i >= 0; i-- {
-		raw, err := os.ReadFile(filepath.Join(dirs[i], "report.json"))
-		if err != nil {
+	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
+	var out []routineReport
+	for i, dir := range dirs {
+		var rep routineReport
+		raw, err := os.ReadFile(filepath.Join(dir, "report.json"))
+		// Chỉ thử khoá khi cần (routineLockHeld có cửa sổ làm lượt khác thoát 75).
+		if err != nil || json.Unmarshal(raw, &rep) != nil {
+			// Lượt mới nhất giữ khoá mà chưa có báo cáo là vừa khởi động, chưa chết.
+			if i == 0 && routineLockHeld(dataDir, name) {
+				out = append(out, routineReport{Routine: name, Reason: "RUNNING",
+					Detail: "starting: no report written yet; run dir " + dir})
+				continue
+			}
+			rep = routineReport{Routine: name, Reason: "ABANDONED",
+				Detail: "no report: the run died before writing one; run dir " + dir}
+			out = append(out, rep)
 			continue
 		}
-		var rep routineReport
-		if json.Unmarshal(raw, &rep) == nil {
-			return rep, true
+		if rep.Reason == "RUNNING" {
+			if i > 0 || !routineLockHeld(dataDir, name) {
+				rep.Reason = "ABANDONED"
+				rep.Detail = "the run stopped before finishing (killed, crashed or the machine restarted); its worktree and branch are kept: " + rep.Worktree
+			}
 		}
+		out = append(out, rep)
 	}
-	return routineReport{}, false
+	return out
+}
+
+// routineLockHeld thử khoá của routine rồi nhả ngay. shortcut: trong vài micro giây
+// đó một lượt chạy mới khởi động cùng lúc sẽ thấy khoá bận và thoát 75; nâng lên
+// kiểm PID khi điều này gây phiền thật.
+func routineLockHeld(dataDir, name string) bool {
+	release, err := lock.TryFile(routineLockPath(dataDir, name))
+	if err != nil {
+		return errors.Is(err, lock.ErrContended)
+	}
+	release()
+	return false
 }
 
 // routineOpts là đầu vào một lượt chạy routine.
@@ -449,6 +525,53 @@ type routineReport struct {
 	VerifyStatus     string    `json:"verify_status,omitempty"`
 	VerifyExitCode   int       `json:"verify_exit_code"`
 	Journal          string    `json:"journal,omitempty"`
+	// Cờ "xanh mà chưa chắc đã làm": cổng xanh sẵn từ trước, hoặc cây không đổi.
+	BaselinePass bool `json:"baseline_pass,omitempty"`
+	Unchanged    bool `json:"unchanged_tree,omitempty"`
+	// Tệp đổi so với base (đã theo dõi + chưa theo dõi), và cờ khi trong đó có
+	// test hay tệp mà lệnh verify gọi tới: GREEN nhờ sửa cổng là thành công giả.
+	ChangedFiles []string `json:"changed_files,omitempty"`
+	TouchedTests bool     `json:"touched_tests,omitempty"`
+	TouchedGate  bool     `json:"touched_gate,omitempty"`
+}
+
+// testPath nhận đường dẫn test theo quy ước phổ biến (Go, JS/TS, Python, thư mục test).
+var testPath = regexp.MustCompile(`(_test\.go$|\.(test|spec)\.[cm]?[jt]sx?$|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)(tests?|__tests__|spec|testdata)/)`)
+
+// gateScript: tệp chạy được mà lệnh verify có thể gọi.
+var gateScript = regexp.MustCompile(`\.(sh|bash|py|js|mjs|cjs|ts|rb|pl|mk)$`)
+
+// changedFiles liệt kê tệp trong worktree khác với base: diff (cả commit lẫn chưa
+// commit) cộng tệp chưa theo dõi. Không chạy chương trình do cấu hình repo chỉ định.
+func changedFiles(ctx context.Context, worktree, base string) []string {
+	run := func(args ...string) []string {
+		c := exec.CommandContext(ctx, "git", append([]string{"-C", worktree, "-c", "core.fsmonitor=false"}, args...)...)
+		out, err := c.Output()
+		if err != nil {
+			return nil
+		}
+		return strings.Fields(strings.TrimSpace(string(out)))
+	}
+	files := append(run("diff", "--no-ext-diff", "--no-textconv", "--name-only", base),
+		run("ls-files", "--others", "--exclude-standard")...)
+	sort.Strings(files)
+	return slices.Compact(files)
+}
+
+// markChanges điền tệp đã đổi và hai cờ test/cổng vào báo cáo.
+func markChanges(rep *routineReport, files []string, verify string) {
+	rep.ChangedFiles = files
+	for _, f := range files {
+		if testPath.MatchString(f) {
+			rep.TouchedTests = true
+		}
+		// Cổng là thứ verify CHẠY (script có tên trong lệnh, Makefile của `make`); tệp
+		// được kiểm như `test -f done.txt` là sản phẩm, không phải cổng.
+		if strings.Contains(verify, f) && gateScript.MatchString(f) ||
+			filepath.Base(f) == "Makefile" && strings.HasPrefix(strings.TrimSpace(verify), "make") {
+			rep.TouchedGate = true
+		}
+	}
 }
 
 type routineOutcome struct {
@@ -510,26 +633,46 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 		return routineOutcome{}, fmt.Errorf("repo %s is not a git repository with at least one commit: %s", def.Repo, base)
 	}
 
+	repairs, maxDur, runTO, verifyTO, err := def.Limits()
+	if err != nil {
+		return routineOutcome{}, &usageError{err}
+	}
+
 	started := now()
 	stamp := started.UTC().Format("20060102-150405")
 	branch := "routine/" + def.Name + "-" + stamp
 	worktree := filepath.Join(routineDir, "wt", stamp)
 	runDir := filepath.Join(routineDir, "runs", stamp)
-	if err := os.MkdirAll(filepath.Dir(worktree), 0o700); err != nil {
-		return routineOutcome{}, err
-	}
 	if err := os.MkdirAll(runDir, 0o700); err != nil {
 		return routineOutcome{}, err
 	}
+	// Báo cáo RUNNING ghi ngay khi có thư mục lượt, trước mọi bước có thể hỏng:
+	// lượt bị kill vẫn để lại dấu (ABANDONED khi khoá đã nhả), lượt lỗi sớm có ERROR.
+	running := routineReport{
+		Routine: def.Name, Mode: def.Mode, DefinitionSHA256: o.Sum, Scheduled: o.Scheduled,
+		Started: started, Repo: def.Repo, Worktree: worktree, Branch: branch, BaseSHA: base,
+		Commit: def.Commit, Reason: "RUNNING",
+	}
+	// fail ghi đè RUNNING bằng ERROR mang lý do thật; worktree trống vì nó không còn.
+	fail := func(err error) (routineOutcome, error) {
+		rep := running
+		rep.Worktree, rep.Finished, rep.Reason, rep.Detail = "", now(), "ERROR", err.Error()
+		out := routineOutcome{Report: rep, RunDir: runDir}
+		if werr := writeReport(runDir, rep); werr != nil {
+			return out, errors.Join(err, werr)
+		}
+		return out, err
+	}
+	if err := writeReport(runDir, running); err != nil {
+		return fail(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(worktree), 0o700); err != nil {
+		return fail(err)
+	}
 	if out, err := git("worktree", "add", "-b", branch, worktree, "HEAD"); err != nil {
-		return routineOutcome{}, fmt.Errorf("create the worktree: %s", out)
+		return fail(fmt.Errorf("create the worktree: %s", out))
 	}
 	fmt.Fprintf(stderr, "[routine] %s: worktree %s on branch %s (base %s)\n", def.Name, worktree, branch, shortSHA(base))
-
-	repairs, maxDur, runTO, verifyTO, err := def.Limits()
-	if err != nil {
-		return routineOutcome{}, &usageError{err}
-	}
 
 	execpolicy.SetUnattended(true, def.Commit)
 	defer execpolicy.SetUnattended(false, false)
@@ -537,20 +680,12 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 
 	agent, cleanup, err := d.NewAgent(worktree)
 	if err != nil {
-		// Chưa có việc nào được làm: dọn worktree và nhánh vừa tạo (một timer hằng ngày
-		// sẽ dồn chúng dần), nhưng để lại báo cáo ERROR để routine hỏng không im lặng.
+		// Chưa có việc nào được làm: dọn worktree và nhánh vừa tạo, nhưng để lại báo
+		// cáo ERROR để routine hỏng không im lặng. (Không có bộ dọn tự động nào khác:
+		// worktree của lượt đã chạy được giữ lại để duyệt.)
 		_, _ = git("worktree", "remove", "--force", worktree)
 		_, _ = git("branch", "-D", branch)
-		rep := routineReport{
-			Routine: def.Name, Mode: def.Mode, DefinitionSHA256: o.Sum, Scheduled: o.Scheduled,
-			Started: started, Finished: now(), Repo: def.Repo, Branch: branch, BaseSHA: base,
-			Commit: def.Commit, Reason: "ERROR", Detail: err.Error(),
-		}
-		out := routineOutcome{Report: rep, RunDir: runDir}
-		if werr := writeReport(runDir, rep); werr != nil {
-			return out, errors.Join(err, werr)
-		}
-		return out, err
+		return fail(err)
 	}
 	defer cleanup()
 
@@ -566,10 +701,14 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 		BaseSHA: base, Commit: def.Commit, Reason: string(res.Result.Reason), Detail: res.Result.Detail,
 		Attempts: res.Result.Attempts, SessionIDs: res.Result.SessionIDs,
 		VerifyStatus: string(res.Result.Last.Status), VerifyExitCode: res.Result.Last.ExitCode,
-		Journal: res.JournalPath,
+		Journal: res.JournalPath, BaselinePass: res.Result.BaselinePass, Unchanged: res.Result.Unchanged,
 	}
 	if loopErr != nil {
 		rep.Reason, rep.Detail = "ERROR", loopErr.Error()
+	}
+	markChanges(&rep, changedFiles(ctx, worktree, base), def.Verify)
+	if rep.Reason == string(loop.StopGreen) && (rep.TouchedTests || rep.TouchedGate) {
+		fmt.Fprintf(stderr, "[routine] %s: warning: GREEN, but the run changed test files or files the verify command uses; review them before trusting it\n", def.Name)
 	}
 	out := routineOutcome{Result: res.Result, Report: rep, RunDir: runDir, JournalPath: res.JournalPath}
 	if err := writeReport(runDir, rep); err != nil {
@@ -590,10 +729,16 @@ func shortSHA(s string) string {
 	return s
 }
 
+// writeReport ghi báo cáo qua tệp tạm rồi đổi tên: bị kill giữa lúc ghi thì báo
+// cáo cũ (RUNNING) còn nguyên thay vì thành JSON cụt.
 func writeReport(dir string, rep routineReport) error {
 	data, err := json.MarshalIndent(rep, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "report.json"), append(data, '\n'), 0o600)
+	tmp := filepath.Join(dir, "report.json.tmp")
+	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, filepath.Join(dir, "report.json"))
 }

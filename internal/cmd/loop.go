@@ -39,6 +39,8 @@ verify output), so a failed attempt does not pollute the next one. The loop stop
 with one of:
 
   GREEN        the verify command exited 0 after an agent turn
+  NO_CHANGE    the verify command passed before any change and the working tree
+               did not change: nothing proves the agent's work
   MAX_REPAIRS  still failing after --max-repairs repair turns (default 2)
   STALLED      the same failure and an unchanged working tree after a repair turn
   TIMEOUT      --max-duration reached (checked before each agent turn)
@@ -112,11 +114,16 @@ agent-cli loop --verify "npm test" --max-duration 2h --json "Make the new endpoi
 				return err
 			}
 		}
-		if outcome.Result.Reason != loop.StopGreen {
-			return fmt.Errorf("loop stopped: %s", outcome.Result.Reason)
-		}
-		return nil
+		return loopExitErr(outcome.Result.Reason)
 	},
+}
+
+// loopExitErr: mọi lý do dừng trừ GREEN là thoát 1 (kể cả NO_CHANGE: không chứng minh gì).
+func loopExitErr(r loop.Stop) error {
+	if r != loop.StopGreen {
+		return fmt.Errorf("loop stopped: %s", r)
+	}
+	return nil
 }
 
 func init() {
@@ -260,7 +267,8 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
 		}
 		var buf tailBuffer
 		start := time.Now()
-		err := shell.Run(vctx, shell.RunOptions{Command: cmd, Cwd: cwd, Env: os.Environ(), Stdout: &buf, Stderr: &buf})
+		// pipefail: đuôi `| cat`/`| tee log` không được che mã lỗi của lệnh trước nó.
+		err := shell.Run(vctx, shell.RunOptions{Command: "set -o pipefail\n" + cmd, Cwd: cwd, Env: os.Environ(), Stdout: &buf, Stderr: &buf})
 		res := loop.VerifyResult{Output: string(buf.b), Duration: time.Since(start)}
 		switch exit, isExit := errors.AsType[interp.ExitStatus](err); {
 		case err == nil:
@@ -270,6 +278,10 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
 			res.Output += fmt.Sprintf("\nverify command timed out after %s", timeout)
 		case isExit && exit != 126 && exit != 127:
 			res.Status, res.ExitCode = loop.StatusFail, int(exit)
+			if exit == 141 {
+				// Vẫn FAIL (pipefail là cố ý), nhưng nói rõ: thường là đuôi đọc rồi thoát sớm.
+				res.Output += "\nexit 141 = SIGPIPE: a reader like head or grep -q exited early; with pipefail that counts as failure; drop the early-exit reader"
+			}
 		case isExit:
 			res.Status, res.ExitCode = loop.StatusUnmeasured, int(exit)
 		default:

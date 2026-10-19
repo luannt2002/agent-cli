@@ -220,5 +220,18 @@ reason="$(jget "$t/show4.json" last_run.reason)"
 flock -n "$data/slow/slow.lock" true; rc=$?
 [ "$rc" -eq 0 ]; check "sau khi bị huỷ khoá đã được nhả (flock rc=$rc)" $?
 
+# ---- 8: SIGKILL giữa lượt -> ABANDONED, không bị che sau báo cáo cũ (CANCELLED ở trên) ---
+(cd "$t" && exec "$bin" routine run slow) >/dev/null 2>"$t/slow2.err" &
+ps_=$!
+sleep 6
+kill -9 "$ps_" 2>/dev/null
+wait "$ps_" 2>/dev/null
+"$bin" routine show slow >"$t/show5.json" 2>/dev/null
+reason="$(jget "$t/show5.json" last_run.reason)"
+[ "$reason" = ABANDONED ]; check "SIGKILL giữa lượt -> lượt cuối ABANDONED, không hiện báo cáo CANCELLED cũ ($reason)" $?
+# Tiến trình thay thế (khác danh tính) nhận lại được: khoá đã nhả khi tiến trình chết.
+flock -n "$data/slow/slow.lock" true; rc=$?
+[ "$rc" -eq 0 ]; check "sau SIGKILL khoá đã nhả, lượt khác chạy được (flock rc=$rc)" $?
+
 if [ "$fail" -eq 0 ]; then echo PASS; else echo "FAILED"; fi
 exit "$fail"
