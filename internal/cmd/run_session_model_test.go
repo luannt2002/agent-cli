@@ -120,7 +120,7 @@ func runOnSessionX(t *testing.T, o sessionModelRun) ([]config.SelectedModel, str
 		continueID = ""
 	}
 	ws := &proto.Workspace{ID: "ws", Config: cfg}
-	err = runNonInteractive(t.Context(), c, ws, io.Discard, nil, "P", o.largeModel, "", o.effort, true, continueID, o.useLast)
+	err = runNonInteractive(t.Context(), c, ws, io.Discard, nil, nil, "P", o.largeModel, "", o.effort, true, continueID, o.useLast)
 	require.NoError(t, err)
 	mu.Lock()
 	defer mu.Unlock()
