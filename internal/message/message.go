@@ -1,9 +1,11 @@
 package message
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -21,6 +23,9 @@ import (
 const defaultUpdateDebounce = 33 * time.Millisecond
 
 type CreateMessageParams struct {
+	// ID đặt sẵn ID cho tin, để tin khác trong cùng WriteBatch trỏ tới nó.
+	// Rỗng thì sinh mới.
+	ID               string
 	Role             MessageRole
 	Parts            []ContentPart
 	Model            string
@@ -57,6 +62,10 @@ type Service interface {
 	GetLastAssistantMessage(ctx context.Context, sessionID string) (Message, error)
 	Delete(ctx context.Context, id string) error
 	DeleteSessionMessages(ctx context.Context, sessionID string) error
+	// WriteBatch tạo các tin trong create (theo thứ tự, ít nhất một) rồi xoá
+	// các tin deleteIDs trong một transaction: trọn vẹn hoặc không gì. ID không
+	// còn thì bỏ qua. Sự kiện phát sau khi commit.
+	WriteBatch(ctx context.Context, sessionID string, create []CreateMessageParams, deleteIDs []string) ([]Message, error)
 
 	// Flush synchronously drains any pending debounced state for the
 	// given message ID, performs the SQL write, and publishes the
@@ -172,23 +181,96 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	// Drop any pending coalesced state for this ID. We never want to
-	// flush back over a deleted row.
-	s.mu.Lock()
-	if p, ok := s.pending[id]; ok {
-		if p.timer != nil {
-			p.timer.Stop()
-		}
-		delete(s.pending, id)
-	}
-	s.mu.Unlock()
+	s.dropPending(id)
 	// Clone the message before publishing to avoid race conditions with
 	// concurrent modifications to the Parts slice.
 	s.Publish(pubsub.DeletedEvent, message.Clone())
 	return nil
 }
 
+// dropPending drops any pending coalesced state for id. We never want to
+// flush back over a deleted row.
+func (s *service) dropPending(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if p, ok := s.pending[id]; ok {
+		if p.timer != nil {
+			p.timer.Stop()
+		}
+		delete(s.pending, id)
+	}
+}
+
+func (s *service) WriteBatch(ctx context.Context, sessionID string, create []CreateMessageParams, deleteIDs []string) ([]Message, error) {
+	// Câu đầu của transaction phải là câu ghi: transaction mở bằng câu đọc rồi
+	// mới nâng lên ghi có thể gặp SQLITE_BUSY khi tiến trình khác đang ghi.
+	if len(create) == 0 {
+		return nil, errors.New("message: WriteBatch needs at least one message to create")
+	}
+	queries, ok := s.q.(*db.Queries)
+	if !ok {
+		return nil, errors.New("message: batch writes need *db.Queries")
+	}
+	tx, err := queries.BeginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+	qtx := queries.WithTx(tx)
+
+	created := make([]Message, 0, len(create))
+	for _, params := range create {
+		m, err := s.insert(ctx, qtx, sessionID, params)
+		if err != nil {
+			return nil, err
+		}
+		created = append(created, m)
+	}
+	var deleted []Message
+	for _, id := range deleteIDs {
+		item, err := qtx.GetMessage(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		m, err := s.fromDBItem(item)
+		if err != nil {
+			return nil, err
+		}
+		if err := qtx.DeleteMessage(ctx, id); err != nil {
+			return nil, err
+		}
+		deleted = append(deleted, m)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
+	}
+	for _, m := range created {
+		s.Publish(pubsub.CreatedEvent, m.Clone())
+	}
+	for _, m := range deleted {
+		s.dropPending(m.ID)
+		s.Publish(pubsub.DeletedEvent, m.Clone())
+	}
+	return created, nil
+}
+
 func (s *service) Create(ctx context.Context, sessionID string, params CreateMessageParams) (Message, error) {
+	message, err := s.insert(ctx, s.q, sessionID, params)
+	if err != nil {
+		return Message{}, err
+	}
+	// Clone the message before publishing to avoid race conditions with
+	// concurrent modifications to the Parts slice.
+	s.Publish(pubsub.CreatedEvent, message.Clone())
+	return message, nil
+}
+
+// insert writes one message through q (the shared connection or a
+// transaction) without publishing.
+func (s *service) insert(ctx context.Context, q db.Querier, sessionID string, params CreateMessageParams) (Message, error) {
 	if params.Role != Assistant {
 		params.Parts = append(params.Parts, Finish{
 			Reason: "stop",
@@ -202,8 +284,8 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 	if params.IsSummaryMessage {
 		isSummary = 1
 	}
-	dbMessage, err := s.q.CreateMessage(ctx, db.CreateMessageParams{
-		ID:               uuid.New().String(),
+	dbMessage, err := q.CreateMessage(ctx, db.CreateMessageParams{
+		ID:               cmp.Or(params.ID, uuid.New().String()),
 		SessionID:        sessionID,
 		Role:             string(params.Role),
 		Parts:            string(partsJSON),
@@ -214,14 +296,7 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 	if err != nil {
 		return Message{}, err
 	}
-	message, err := s.fromDBItem(dbMessage)
-	if err != nil {
-		return Message{}, err
-	}
-	// Clone the message before publishing to avoid race conditions with
-	// concurrent modifications to the Parts slice.
-	s.Publish(pubsub.CreatedEvent, message.Clone())
-	return message, nil
+	return s.fromDBItem(dbMessage)
 }
 
 func (s *service) DeleteSessionMessages(ctx context.Context, sessionID string) error {

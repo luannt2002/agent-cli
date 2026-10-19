@@ -139,6 +139,9 @@ type Coordinator interface {
 	CancelRun(sessionID, runID string)
 	CancelAll()
 	IsSessionBusy(sessionID string) bool
+	// HasPendingPrompts: session còn prompt đã nhận hay đang xếp hàng mà
+	// chưa chạy (xem SettleBusy).
+	HasPendingPrompts(sessionID string) bool
 	IsBusy() bool
 	QueuedPrompts(sessionID string) int
 	QueuedPromptsList(sessionID string) []string
@@ -1584,6 +1587,10 @@ func (c *coordinator) IsBusy() bool {
 
 func (c *coordinator) IsSessionBusy(sessionID string) bool {
 	return c.currentAgent().IsSessionBusy(sessionID)
+}
+
+func (c *coordinator) HasPendingPrompts(sessionID string) bool {
+	return c.currentAgent().HasPendingPrompts(sessionID)
 }
 
 func (c *coordinator) Model() Model {

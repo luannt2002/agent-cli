@@ -101,7 +101,7 @@ func (b *Backend) ListSessionMessages(ctx context.Context, workspaceID, sessionI
 	// so skipping the settle showed interrupted calls as still running.
 	var busy agent.SessionBusyFunc
 	if coord := ws.AgentCoordinator; coord != nil {
-		busy = agent.BusyWithAncestors(ctx, ws.Sessions, coord.IsSessionBusy)
+		busy = agent.BusyWithAncestors(ctx, ws.Sessions, agent.SettleBusy(coord))
 	}
 	return agent.ReadSettledMessages(ctx, ws.Messages, busy, sessionID)
 }

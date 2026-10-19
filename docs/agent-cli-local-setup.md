@@ -494,7 +494,12 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"   
   `run`; khi đó không có TUI nào để duyệt quyền, nên nhắm vào dự án đã mở.
   `send` chỉ khởi tạo agent khi server chưa có; server đã sẵn sàng thì giữ nguyên (không thay
   coordinator đang chạy của TUI).
-- Không `--wait`: về ngay khi server nhận prompt; stdout là `session_id` (hoặc `{"session_id":"..."}`).
+- Không `--wait`: về ngay khi server đã nhận và ghi prompt vào session; stdout là `session_id` (hoặc
+  `{"session_id":"..."}`). Lượt đó không chạy được (server tắt hay chết, bị huỷ, hàng đợi bị xoá, lỗi trước khi
+  chạy như provider thiếu key) thì prompt vẫn còn trong session, hiện là huỷ, lỗi đó, hoặc "Interrupted" khi mở lại;
+  không tự chạy lại và không vào lịch sử gửi model của lượt sau. Prompt chưa chạy được lưu kèm một lời trả lời giữ
+  chỗ: `session show --json` hiện nó là tin `assistant` có `provider` `agent-cli-pending` và `model` là ID tin user
+  của prompt đó (không phải model nào).
 - `--wait`: đợi đúng run của lần gửi này (khớp session và run ID, run khác trên cùng session bị
   bỏ qua), rồi in text cuối. `--json` in cùng dạng với `run --json`: `session_id`, `text`,
   `error`, `prompt_tokens`, `completion_tokens`, `cost`. Token là usage của bước cuối, không phải tổng; `cost` là
@@ -956,8 +961,9 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
   `crush.md`) không được nạp trên Linux; plan mode và agent con không nhận context của dự án.
 - **`run` không có trần thời gian cho cả lượt.** Mỗi request LLM chỉ có `request-timeout` (mặc định 2 phút không có
   dữ liệu); script cần trần thì tự bọc `timeout`. `loop`/`routine` có `--run-timeout`.
-- **Server bị SIGKILL (PRB-16).** Tiến trình job còn lại không được theo dõi nữa, prompt đang xếp hàng mất không dấu
-  vết, TUI không tự dựng lại server.
+- **Server bị SIGKILL (PRB-16).** Tiến trình job còn lại không được theo dõi nữa, TUI không tự dựng lại server. Prompt
+  đang xếp hàng (chế độ client/server) không còn mất không dấu vết: nó vẫn ở trong session và hiện là "Interrupted"
+  khi mở lại; không tự chạy lại và không vào lịch sử gửi model.
 - **Routine chạy mã cấu hình của repo (PRB-68).** `crushrc`, `$(...)` và hook của repo chạy ngoài lớp chặn không người
   trực: chỉ chạy routine trên repo bạn tin. Worktree và nhánh của các lượt tích luỹ cho tới khi bạn dọn.
 

@@ -56,6 +56,7 @@ func (c *blockingCoordinator) CancelRun(string, string)                         
 func (c *blockingCoordinator) Cancel(string)                                     {}
 func (c *blockingCoordinator) CancelAll()                                        {}
 func (c *blockingCoordinator) IsBusy() bool                                      { return c.busy }
+func (c *blockingCoordinator) HasPendingPrompts(string) bool                     { return false }
 func (c *blockingCoordinator) IsSessionBusy(string) bool                         { return false }
 func (c *blockingCoordinator) QueuedPrompts(string) int                          { return 0 }
 func (c *blockingCoordinator) QueuedPromptsList(string) []string                 { return nil }

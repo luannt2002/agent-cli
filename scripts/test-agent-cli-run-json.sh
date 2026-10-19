@@ -265,7 +265,9 @@ done
 sleep 3 # để prompt đã gỡ có cơ hội chạy nếu lỡ còn trong hàng đợi
 send_all="$(replies "$h0" "$send_sid" | tr '\n' ';')"
 [[ "$h0_state" == canceled\|* ]]; check "clientserver: client run bị SIGKILL giữa run -> server huỷ lượt của nó (quan sát: $h0_state)" $?
-[[ "$send_all" == "end_turn|ECHO("*"SLOW send;" ]]; check "clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s (quan sát: $send_all)" $?
+# Prompt của run -s đã được server nhận nên có dấu vết: gỡ khỏi hàng đợi thì
+# hiện là lời trả lời bị huỷ ngay sau nó, không biến mất.
+[[ "$send_all" == "end_turn|ECHO("*"SLOW send;canceled|;" ]]; check "clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s, prompt đã gỡ hiện là huỷ (quan sát: $send_all)" $?
 [[ "$send_all" != *"queued from run"* ]]; check "clientserver: prompt xếp hàng của run -s đã bị gỡ, không chạy (quan sát: $send_all)" $?
 
 # Server idle-timeout 1s phải tự thoát; không để lại tiến trình hay socket.

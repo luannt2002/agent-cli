@@ -71,10 +71,11 @@ func (s *runCoordinator) RunAccepted(ctx context.Context, accept *agent.Accepted
 func (s *runCoordinator) BeginAccepted(sessionID string) *agent.AcceptedRun {
 	return nil
 }
-func (s *runCoordinator) CancelRun(string, string) {}
-func (s *runCoordinator) Cancel(string)            {}
-func (s *runCoordinator) CancelAll()               {}
-func (s *runCoordinator) IsBusy() bool             { return s.busy }
+func (s *runCoordinator) CancelRun(string, string)      {}
+func (s *runCoordinator) Cancel(string)                 {}
+func (s *runCoordinator) CancelAll()                    {}
+func (s *runCoordinator) IsBusy() bool                  { return s.busy }
+func (s *runCoordinator) HasPendingPrompts(string) bool { return false }
 func (s *runCoordinator) IsSessionBusy(string) bool {
 	return false
 }

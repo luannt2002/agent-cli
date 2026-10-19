@@ -17,30 +17,36 @@ import (
 )
 
 // SendMessage validates and accepts a prompt for the workspace's agent,
-// then dispatches the run on a goroutine bound to the workspace context
-// and returns immediately. It does not wait for the LLM turn to
-// complete: the run's lifetime is owned by the workspace, not by the
-// caller. Errors from the dispatched run reach observers through the
-// agent event channels (a notify.TypeAgentError notification), not
-// through this return value.
+// records it durably (the user message plus a pending reply that the run
+// takes over, see agent.AcceptedRun.Record), then dispatches the run on a
+// goroutine bound to the workspace context and returns. It does not wait
+// for the LLM turn to complete: the run's lifetime is owned by the
+// workspace, not by the caller. Errors from the dispatched run reach
+// observers through the agent event channels (a notify.TypeAgentError
+// notification), not through this return value. A nil return therefore
+// means the prompt is in the database: if it never runs (server stopped or
+// killed, canceled, queue cleared) it reads as canceled or Interrupted
+// rather than vanishing.
 //
 // SendMessage returns synchronously when the request cannot be accepted:
 // ErrWorkspaceNotFound if the workspace is missing, ErrAgentNotInitialized
 // if its coordinator is nil, the structural validation errors from
 // agent.ValidateCall (ErrEmptyPrompt, ErrSessionMissing) when the prompt
-// or session is missing, and ErrWorkspaceClosing if the workspace is
-// being torn down.
+// or session is missing, ErrWorkspaceClosing if the workspace is being
+// torn down, and the write error when the prompt could not be recorded.
 func (b *Backend) SendMessage(workspaceID string, msg proto.AgentMessage) error {
 	ws, err := b.GetWorkspace(workspaceID)
 	if err != nil {
 		return err
 	}
 
-	if err := agent.ValidateCall(agent.SessionAgentCall{
-		SessionID:   msg.SessionID,
-		Prompt:      msg.Prompt,
-		Attachments: proto.AttachmentsToMessage(msg.Attachments),
-	}); err != nil {
+	call := agent.SessionAgentCall{
+		SessionID:         msg.SessionID,
+		Prompt:            msg.Prompt,
+		Attachments:       proto.AttachmentsToMessage(msg.Attachments),
+		HiddenUserMessage: msg.HiddenUserMessage,
+	}
+	if err := agent.ValidateCall(call); err != nil {
 		return err
 	}
 
@@ -63,10 +69,16 @@ func (b *Backend) SendMessage(workspaceID string, msg proto.AgentMessage) error 
 	ws.inflightRuns.Add(1)
 	ws.runMu.Unlock()
 
+	accept := coord.BeginAccepted(msg.SessionID)
+	if err := accept.Record(ws.ctx, call); err != nil {
+		accept.Close()
+		ws.inflightRuns.Add(-1)
+		ws.runWG.Done()
+		return err
+	}
 	if msg.BindToClient != "" && msg.RunID != "" {
 		ws.bindRun(msg.BindToClient, boundRun{sessionID: msg.SessionID, runID: msg.RunID})
 	}
-	accept := coord.BeginAccepted(msg.SessionID)
 	go b.runAgent(ws, msg, accept)
 	return nil
 }
@@ -133,6 +145,9 @@ func (b *Backend) runAgent(ws *Workspace, msg proto.AgentMessage, accept *agent.
 	if err == nil || errors.Is(err, context.Canceled) {
 		return
 	}
+	// Lượt hỏng trước khi sessionAgent.Run tiếp quản prompt: ghi lỗi thật vào
+	// tin giữ chỗ (no-op nếu lượt đã tiếp quản hay đã đóng nó).
+	accept.Fail(err)
 
 	ws.AgentNotifications().Publish(pubsub.CreatedEvent, notify.Notification{
 		SessionID: msg.SessionID,

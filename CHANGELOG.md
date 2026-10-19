@@ -101,6 +101,19 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   session) bị xoá. Nay mọi session BUSY/WAITING trong worktree (gốc hoặc thư mục con, kể cả qua `/` cuối hay symlink) đều
   chặn (rc 3), và `rm` đóng cả
   window tmux mở ở thư mục con của worktree, không chỉ window ở gốc.
+- **Prompt server đã báo nhận không còn mất im lặng** (chế độ client/server, tức qua launcher: `send` không `--wait`,
+  prompt xếp hàng sau lượt đang chạy, kể cả prompt gõ trong TUI). Trước đây server báo nhận trước khi ghi tin user, và
+  prompt xếp hàng chỉ nằm trong RAM: server bị SIGKILL ngay sau `send` (rc 0) thì 7/8 lần session không có prompt;
+  SIGTERM khi prompt còn xếp hàng thì prompt biến mất, không có bản ghi huỷ, chưa tới LLM (binary thật, LLM giả: ca
+  T11, T13 của bộ phơi nhiễm V3). Nay server ghi tin user cùng một lời trả lời giữ chỗ TRƯỚC khi báo nhận; lượt chạy
+  tiếp quản chúng (không ghi tin user lần hai, kể cả khi prompt được gộp vào lượt đang chạy). Prompt không chạy được
+  vẫn hiện trong session với đúng trạng thái: huỷ (Esc, Ctrl+C trên `run`, xoá hàng đợi, server tắt), lỗi thật (vd
+  provider thiếu key hay bị tắt), hoặc "Interrupted" khi server chết (ghi lúc mở lại session, cơ chế settle sẵn có).
+  Không tự chạy lại. Prompt chưa từng tới model không vào lịch sử gửi model của các lượt sau (như trước khi có bản
+  sửa, khi nó biến mất), và không lọt vào request hay bản tóm tắt của lượt khác. Prompt xếp hàng nay hiện trong
+  session ngay khi gửi, kèm lời trả lời đang chờ. Chế độ in-process (`CRUSH_CLIENT_SERVER=0`) không đổi. Lời trả lời
+  đang chờ được lưu với provider `agent-cli-pending`: thống kê theo model và thời gian phản hồi không tính nó, và
+  config báo lỗi nếu có provider tự đặt trùng ID này.
 - **Lời gọi ẩn không còn sang provider khác.** Model nhỏ nằm ở provider khác model chính từng nhận lời gọi đặt tiêu đề
   (kèm nguyên văn prompt đầu của bạn) và `agentic_fetch`, không cảnh báo: phiên chọn Qwen local vẫn gửi prompt sang
   provider của model nhỏ. Bộ tiêm lỗi với provider giả: bản trước có lời gọi lọt ở cả 8/8 ca (kể cả khi provider

@@ -196,12 +196,7 @@ agent-cli run --json "Summarize this repo"
 					}
 					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
 					if msgs, err := c.ListMessages(ctx, ws.ID, id); err == nil {
-						for i := len(msgs) - 1; i >= 0; i-- {
-							if m := msgs[i]; m.Role == proto.Assistant && !m.IsSummaryMessage && m.Model != "" {
-								u.provider, u.model = m.Provider, m.Model
-								break
-							}
-						}
+						u.provider, u.model = lastReplyModel(protoReplies(msgs))
 					}
 					return u, nil
 				},
@@ -244,12 +239,7 @@ agent-cli run --json "Summarize this repo"
 				}
 				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
 				if msgs, err := appWs.App().Messages.List(ctx, id); err == nil {
-					for i := len(msgs) - 1; i >= 0; i-- {
-						if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" {
-							u.provider, u.model = m.Provider, m.Model
-							break
-						}
-					}
+					u.provider, u.model = lastReplyModel(msgs)
 				}
 				return u, nil
 			},
@@ -290,6 +280,27 @@ type runJSONResult struct {
 	// "đang chọn": script biết chắc model nào đã trả lời.
 	Provider string `json:"provider,omitempty"`
 	Model    string `json:"model,omitempty"`
+}
+
+// lastReplyModel trả provider/model của lời trả lời thật cuối cùng trong
+// session: bỏ bản tóm tắt, tin không có model và tin giữ chỗ của prompt chưa
+// chạy (cột model của nó là ID tin user, không phải model).
+func lastReplyModel(msgs []message.Message) (provider, model string) {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" && !message.IsPromptPlaceholder(m) {
+			return m.Provider, m.Model
+		}
+	}
+	return "", ""
+}
+
+// protoReplies chép từ tin của server các trường lastReplyModel cần.
+func protoReplies(msgs []proto.Message) []message.Message {
+	out := make([]message.Message, len(msgs))
+	for i, m := range msgs {
+		out[i] = message.Message{Role: message.MessageRole(m.Role), IsSummaryMessage: m.IsSummaryMessage, Provider: m.Provider, Model: m.Model}
+	}
+	return out
 }
 
 type sessionUsage struct {

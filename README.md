@@ -202,7 +202,7 @@ MODEL NÓI XONG ≠ AGENT-CLI ĐÃ XONG.
 | Lệnh | Thoát 0 | Thoát 1 | Khác |
 |---|---|---|---|
 | `run`, `send --wait` | lượt chạy hết, không lỗi runtime (không có nghĩa là đúng) | lỗi | 2: sai cú pháp |
-| `send` (không `--wait`) | server đã nhận prompt (lượt có thể chưa chạy xong) | lỗi | 2: sai cú pháp |
+| `send` (không `--wait`) | server đã nhận và đã ghi prompt vào session (lượt có thể chưa chạy; không chạy được thì prompt hiện là huỷ, lỗi hoặc Interrupted) | lỗi | 2: sai cú pháp |
 | `loop` | `GREEN` | mọi lý do dừng khác | 2: sai cú pháp |
 | `routine run` | `GREEN`; `NO_CHANGE` của `maintenance` | lý do khác; `NO_CHANGE` của `goal` | 2: sai cú pháp, hoặc định nghĩa đã đổi so với lịch; 75: lượt khác đang giữ khoá |
 

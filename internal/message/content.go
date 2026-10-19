@@ -675,3 +675,15 @@ func (m *Message) ToAIMessage() []fantasy.Message {
 	}
 	return messages
 }
+
+// PendingReplyProvider đánh dấu (cột provider) tin trợ lý giữ chỗ của một
+// prompt đã nhận mà chưa chạy; cột model của nó là ID tin user của prompt đó.
+// Lời trả lời thật luôn mang provider của lượt, và config không cho provider
+// nào dùng ID này.
+const PendingReplyProvider = "agent-cli-pending"
+
+// IsPromptPlaceholder cho biết m là tin giữ chỗ của một prompt chưa chạy, không
+// phải lời trả lời của model nào.
+func IsPromptPlaceholder(m Message) bool {
+	return m.Role == Assistant && m.Provider == PendingReplyProvider
+}

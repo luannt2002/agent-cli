@@ -117,7 +117,7 @@ func (w *AppWorkspace) RoutesChannelEvents() bool { return false }
 func (w *AppWorkspace) ListMessages(ctx context.Context, sessionID string) ([]message.Message, error) {
 	var busy agent.SessionBusyFunc
 	if w.app.AgentCoordinator != nil {
-		busy = agent.BusyWithAncestors(ctx, w.app.Sessions, w.app.AgentCoordinator.IsSessionBusy)
+		busy = agent.BusyWithAncestors(ctx, w.app.Sessions, agent.SettleBusy(w.app.AgentCoordinator))
 	}
 	return agent.ReadSettledMessages(ctx, w.app.Messages, busy, sessionID)
 }

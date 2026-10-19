@@ -17,6 +17,7 @@ SELECT
     COUNT(*) as message_count
 FROM messages
 WHERE role = 'assistant'
+  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
 GROUP BY model, provider
 ORDER BY message_count DESC;
 
@@ -69,6 +70,7 @@ SELECT
     CAST(COALESCE(AVG(finished_at - created_at), 0) AS INTEGER) as avg_response_seconds
 FROM messages
 WHERE role = 'assistant'
+  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
   AND finished_at IS NOT NULL
   AND finished_at > created_at;
 

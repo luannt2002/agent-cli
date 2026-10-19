@@ -41,3 +41,13 @@ func BusyWithAncestors(ctx context.Context, sessions session.Service, busy Sessi
 		return true
 	}
 }
+
+// SettleBusy là hàm bận cho settle: ngoài lượt đang chạy, prompt đã nhận hay
+// đang xếp hàng mà chưa chạy cũng còn sống (lúc chờ readiness, khe giữa hai
+// lượt, lúc tự tóm tắt), nên tin giữ chỗ của nó không được đóng là
+// "Interrupted".
+func SettleBusy(c Coordinator) SessionBusyFunc {
+	return func(sessionID string) bool {
+		return c.IsSessionBusy(sessionID) || c.HasPendingPrompts(sessionID)
+	}
+}

@@ -37,9 +37,22 @@ func NewCoordinator(
 	sessions session.Service,
 	messages message.Service,
 ) (agent.Coordinator, error) {
+	coord, _, err := NewCoordinatorWithConfig(ctx, workingDir, sessions, messages)
+	return coord, err
+}
+
+// NewCoordinatorWithConfig là NewCoordinator kèm config store của nó, để test
+// đổi cấu hình provider sau khi dựng (vd tắt provider: lượt hỏng trước khi
+// chạy như khi thiếu key).
+func NewCoordinatorWithConfig(
+	ctx context.Context,
+	workingDir string,
+	sessions session.Service,
+	messages message.Service,
+) (agent.Coordinator, *config.ConfigStore, error) {
 	cfg, err := config.Init(workingDir, "", false)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	const (
@@ -64,10 +77,11 @@ func NewCoordinator(
 	coderCfg.AllowedTools = nil
 	cfg.Config().Agents[config.AgentCoder] = coderCfg
 
-	return agent.NewCoordinator(ctx, agent.CoordinatorOptions{
+	coord, err := agent.NewCoordinator(ctx, agent.CoordinatorOptions{
 		Config:      cfg,
 		Sessions:    sessions,
 		Messages:    messages,
 		Permissions: permission.NewPermissionService(workingDir, true, nil),
 	})
+	return coord, cfg, err
 }

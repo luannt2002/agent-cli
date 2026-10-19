@@ -27,6 +27,7 @@ import (
 	"github.com/charmbracelet/crush/internal/filepathext"
 	"github.com/charmbracelet/crush/internal/fsext"
 	"github.com/charmbracelet/crush/internal/home"
+	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/shellconfig"
 	powernapConfig "github.com/charmbracelet/x/powernap/pkg/config"
 	"github.com/qjebbs/go-jsons"
@@ -457,6 +458,9 @@ func (c *Config) configureProviders(ctx context.Context, store *ConfigStore, env
 	for id, providerConfig := range c.Providers.Seq2() {
 		if knownProviderNames[id] {
 			continue
+		}
+		if id == message.PendingReplyProvider {
+			return fmt.Errorf("provider ID %q is reserved by agent-cli for prompts that have not run; rename the provider", id)
 		}
 
 		// Make sure the provider ID is set.

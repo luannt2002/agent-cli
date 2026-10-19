@@ -46,6 +46,7 @@ import (
 	"github.com/charmbracelet/crush/internal/session"
 	"github.com/charmbracelet/crush/internal/stringext"
 	"github.com/charmbracelet/crush/internal/version"
+	"github.com/google/uuid"
 )
 
 const (
@@ -180,6 +181,20 @@ type SessionAgentCall struct {
 	// bị cắt output) đang phục vụ. Prompt của lượt làm tiếp chỉ là lời nhắc,
 	// nên bọc lại nó sẽ lồng "yêu cầu gốc" nhiều lớp và làm mất yêu cầu thật.
 	originalPrompt string
+	// recorded: cặp tin AcceptedRun.Record đã ghi cho prompt này trước khi
+	// người gửi được báo nhận. Run lấy nó từ Accepted; lượt chạy hay bước
+	// gộp tiếp quản cặp tin thay vì ghi tin user mới, đường bỏ hàng đợi đóng
+	// nó là huỷ. Nil với người gọi trong tiến trình: giữ nguyên đường cũ.
+	recorded *recordedPrompt
+}
+
+// recordedPrompt là dấu vết bền của một prompt đã nhận mà chưa chạy: tin
+// user và, ngay sau nó, một tin trợ lý giữ chỗ chưa xong. Tiến trình chết
+// hay tắt khi prompt còn chờ thì tin giữ chỗ còn dở, và ReadSettledMessages
+// đóng nó là "Interrupted" khi mở lại session (settle.go).
+type recordedPrompt struct {
+	userMsgID    string
+	pendingMsgID string
 }
 
 // sameModel cho biết hai lựa chọn có cùng provider và model hay không.
@@ -278,6 +293,8 @@ type SessionAgent interface {
 	CancelRun(sessionID, runID string)
 	CancelAll()
 	IsSessionBusy(sessionID string) bool
+	// HasPendingPrompts: session còn prompt đã nhận hay đang xếp hàng mà chưa chạy.
+	HasPendingPrompts(sessionID string) bool
 	IsBusy() bool
 	QueuedPrompts(sessionID string) int
 	QueuedPromptsList(sessionID string) []string
@@ -437,6 +454,31 @@ type AcceptedRun struct {
 	// never poisoned by it.
 	seq  uint64
 	done atomic.Bool
+	// recorded: dấu vết Record đã ghi, Run chép sang call.
+	recorded *recordedPrompt
+}
+
+// Record ghi bền prompt của lượt đã nhận, để người gửi chỉ được báo nhận
+// (backend.SendMessage trả nil) khi prompt đã có dấu vết trong DB: tin user
+// và một tin trợ lý giữ chỗ chưa xong ngay sau nó. Gọi trước khi dispatch.
+// Handle nil (coordinator giả trong test) thì không có gì để ghi.
+func (r *AcceptedRun) Record(ctx context.Context, call SessionAgentCall) (err error) {
+	if r == nil {
+		return nil
+	}
+	_, r.recorded, err = r.agent.recordPrompt(ctx, call)
+	return err
+}
+
+// Fail đóng tin giữ chỗ của prompt đã ghi bằng err khi lượt hỏng trước khi
+// tới sessionAgent.Run (readiness, MCP, model/provider không dùng được), để
+// prompt không quay mãi rồi thành "Interrupted". Không có gì để đóng (handle
+// nil, chưa ghi, lượt đã tiếp quản hay đã đóng) thì không làm gì.
+func (r *AcceptedRun) Fail(err error) {
+	if r == nil || r.recorded == nil {
+		return
+	}
+	r.agent.failRecordedPrompt(r.sessionID, r.recorded.pendingMsgID, err)
 }
 
 // Close decrements the accept counter for this reservation. It is safe
@@ -589,9 +631,10 @@ func (a *sessionAgent) enqueueCall(call SessionAgentCall) {
 // observed inconsistently.
 //
 // Calls covered by a pending cancel are dropped; the dropped ones that
-// carry a RunID are returned in canceledWithRunID so the caller can
-// publish their terminal cancelled RunComplete (a caller waiting on that
-// RunID, e.g. `crush run`, would otherwise hang). Uncanceled calls without
+// carry a RunID or a recorded prompt are returned in canceled so the caller
+// can publish their terminal cancelled RunComplete (a caller waiting on that
+// RunID, e.g. `crush run`, would otherwise hang) and close their recorded
+// trace as canceled (publishCanceledQueueDrops). Uncanceled calls without
 // a RunID are returned in fold to be folded into the active turn,
 // preserving the existing follow-up behavior. Uncanceled calls that carry
 // a RunID are left in the queue so each runs as its own turn via the
@@ -600,7 +643,7 @@ func (a *sessionAgent) enqueueCall(call SessionAgentCall) {
 // absorbed into another turn. Calls pinned to a model other than runModel
 // (the active turn's model) are left queued too. fold is processed by the
 // caller without the lock held.
-func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.SelectedModel) (fold, canceledWithRunID []SessionAgentCall) {
+func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.SelectedModel) (fold, canceled []SessionAgentCall) {
 	dispatchLock := a.sessionMu(sessionID)
 	dispatchLock.Lock()
 	defer dispatchLock.Unlock()
@@ -608,8 +651,8 @@ func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.Selec
 	var keep []SessionAgentCall
 	for _, queued := range queuedCalls {
 		if a.canceledBySeq(sessionID, queued.acceptSeq) {
-			if queued.RunID != "" {
-				canceledWithRunID = append(canceledWithRunID, queued)
+			if queued.RunID != "" || queued.recorded != nil {
+				canceled = append(canceled, queued)
 			}
 			continue
 		}
@@ -631,7 +674,7 @@ func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.Selec
 	} else {
 		a.messageQueue.Set(sessionID, keep)
 	}
-	return fold, canceledWithRunID
+	return fold, canceled
 }
 
 // publishCanceledQueueDrops emits a terminal cancelled RunComplete for
@@ -639,24 +682,26 @@ func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.Selec
 // from the queue without ever running — covered by a pending cancel, or
 // cleared by Cancel/ClearQueue — would otherwise leave a caller blocked on
 // that RunID: `crush run` ignores live message events and exits only on a
-// RunComplete whose RunID matches. Calls without a RunID had no such waiter
-// and are dropped silently as before. A detached, bounded context keeps the
+// RunComplete whose RunID matches. A dropped call with a recorded prompt
+// (acked by backend.SendMessage) first gets its trace closed as canceled,
+// so the prompt the sender was told was accepted reads as canceled rather
+// than vanishing. Other calls had no waiter and no trace and are dropped
+// silently as before. A detached, bounded context keeps the writes and the
 // must-deliver publish alive even when the run context that triggered the
 // drop is already canceled.
 func (a *sessionAgent) publishCanceledQueueDrops(drops []SessionAgentCall) {
-	var hasRunID bool
-	for _, d := range drops {
-		if d.RunID != "" {
-			hasRunID = true
-			break
-		}
-	}
-	if !hasRunID {
+	if !slices.ContainsFunc(drops, func(d SessionAgentCall) bool { return d.RunID != "" || d.recorded != nil }) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, d := range drops {
+		if d.recorded != nil {
+			if err := a.persistCanceledTurn(ctx, d, true); err != nil {
+				slog.Error("Failed to record a dropped queued prompt as canceled",
+					"session_id", d.SessionID, "error", err)
+			}
+		}
 		if d.RunID == "" {
 			continue
 		}
@@ -668,17 +713,15 @@ func (a *sessionAgent) publishCanceledQueueDrops(drops []SessionAgentCall) {
 	}
 }
 
-// clearQueueAndNotify removes all queued prompts for the session and
-// publishes a terminal cancelled RunComplete for any that carried a RunID,
-// so callers waiting on those RunIDs (e.g. `crush run`) are not left
-// hanging when their queued prompt is discarded without running.
-func (a *sessionAgent) clearQueueAndNotify(sessionID string) {
-	queued, ok := a.messageQueue.Get(sessionID)
+// takeQueue removes all queued prompts for the session and returns them.
+// The caller hands them to publishCanceledQueueDrops after releasing the
+// session's dispatch mutex, so callers waiting on their RunIDs (e.g.
+// `crush run`) are not left hanging and recorded prompts read as canceled,
+// without DB I/O under the lock.
+func (a *sessionAgent) takeQueue(sessionID string) []SessionAgentCall {
+	queued, _ := a.messageQueue.Get(sessionID)
 	a.messageQueue.Del(sessionID)
-	if !ok {
-		return
-	}
-	a.publishCanceledQueueDrops(queued)
+	return queued
 }
 
 // clearPendingCancel removes any pending-cancel mark for sessionID. It
@@ -713,12 +756,21 @@ func (a *sessionAgent) canceledBySeq(sessionID string, seq uint64) bool {
 // was canceled before (or just as) streaming would have produced them.
 // It creates the user message only when it was not already created by an
 // earlier createUserMessage call (userMsgCreated), then writes an
-// assistant message with FinishReasonCanceled. Both writes use
-// context.WithoutCancel(ctx) so workspace shutdown (which cancels the run
-// context) can't drop them.
+// assistant message with FinishReasonCanceled. A call with a recorded
+// prompt already has both records, so its placeholder is closed instead.
+// All writes use context.WithoutCancel(ctx) so workspace shutdown (which
+// cancels the run context) can't drop them.
 func (a *sessionAgent) persistCanceledTurn(ctx context.Context, call SessionAgentCall, userMsgCreated bool) error {
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
+	if call.recorded != nil {
+		pending, err := a.messages.Get(writeCtx, call.recorded.pendingMsgID)
+		if err != nil {
+			return err
+		}
+		pending.AddFinish(message.FinishReasonCanceled, "User canceled request", "")
+		return a.messages.Update(writeCtx, pending)
+	}
 	if !userMsgCreated {
 		if _, err := a.createUserMessage(writeCtx, call); err != nil {
 			return err
@@ -778,6 +830,15 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 	if err := ValidateCall(call); err != nil {
 		return nil, err
 	}
+	if call.recorded == nil && call.Accepted != nil {
+		call.recorded = call.Accepted.recorded
+	}
+	// Lượt hỏng trước khi có lời trả lời: tin giữ chỗ mang lỗi thật.
+	defer func() {
+		if call.recorded != nil && retErr != nil && !errors.Is(retErr, context.Canceled) {
+			a.failRecordedPrompt(call.SessionID, call.recorded.pendingMsgID, retErr)
+		}
+	}()
 
 	if call.Channel != "" && call.channelMeta == nil {
 		call.channelMeta, _ = parseChannelMeta(call.Prompt)
@@ -998,6 +1059,17 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session messages: %w", err)
 	}
+	// Cặp tin của prompt lượt này nằm cuối session (sau nó chỉ còn prompt
+	// khác đang chờ) thì giữ chỗ; không thì phải dời xuống cuối.
+	unsent := unsentPrompt(msgs)
+	var recordedAtTail bool
+	if r := call.recorded; r != nil {
+		i := slices.IndexFunc(msgs, func(m message.Message) bool { return m.ID == r.userMsgID })
+		recordedAtTail = i >= 0 && !slices.ContainsFunc(msgs[i+1:], func(m message.Message) bool { return !unsent(m) })
+	}
+	// Prompt chưa từng tới model (kể cả của lượt này: nó đi riêng ở Prompt)
+	// không thuộc lịch sử, và không làm session trông như đã có prompt.
+	msgs = slices.DeleteFunc(msgs, unsent)
 
 	// Generate title from the first real (non-shell) user prompt.
 	// can take tens of seconds. Blocking Run on it delays the
@@ -1010,8 +1082,18 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 		go a.GenerateTitle(titleCtx, call.SessionID, call.Prompt)
 	}
 
-	// Add the user message to the session.
-	_, err = a.createUserMessage(ctx, call)
+	// Add the user message to the session. Prompt đã ghi lúc nhận thì tin
+	// user đã có: chỉ chuyển cặp tin xuống cuối khi tin khác đã vượt qua nó.
+	// Tin giữ chỗ còn đứng tới khi lời trả lời của lượt có (PrepareStep).
+	if call.recorded == nil {
+		_, err = a.createUserMessage(ctx, call)
+	} else if !recordedAtTail {
+		// Dời hỏng thì cặp cũ còn nguyên (rollback): giữ nó để defer ghi lỗi.
+		var moved *recordedPrompt
+		if _, moved, err = a.moveRecordedPrompt(ctx, call); err == nil {
+			call.recorded = moved
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1090,11 +1172,33 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 			// into this turn; uncanceled prompts with a RunID are left
 			// queued so each runs as its own turn (with its own
 			// RunComplete) via the recursive run path below.
-			fold, canceledRunIDs := a.drainQueueForStep(call.SessionID, largeModel.ModelCfg)
-			a.publishCanceledQueueDrops(canceledRunIDs)
+			fold, canceledDrops := a.drainQueueForStep(call.SessionID, largeModel.ModelCfg)
+			a.publishCanceledQueueDrops(canceledDrops)
+			// Tin giữ chỗ của các prompt gộp ở bước này: xoá cùng lần tạo lời
+			// trả lời, hay mang lỗi nếu bước hỏng trước đó.
+			var foldPending []string
+			failFolded := func(err error) {
+				for _, id := range foldPending {
+					a.failRecordedPrompt(call.SessionID, id, err)
+				}
+			}
 			for _, queued := range fold {
-				userMessage, createErr := a.createUserMessage(callContext, queued)
+				var userMessage message.Message
+				var createErr error
+				if queued.recorded != nil {
+					var moved *recordedPrompt
+					userMessage, moved, createErr = a.moveRecordedPrompt(callContext, queued)
+					if createErr == nil {
+						foldPending = append(foldPending, moved.pendingMsgID)
+					} else {
+						// Dời hỏng thì cặp cũ còn nguyên (rollback): nó mang lỗi.
+						a.failRecordedPrompt(call.SessionID, queued.recorded.pendingMsgID, createErr)
+					}
+				} else {
+					userMessage, createErr = a.createUserMessage(callContext, queued)
+				}
 				if createErr != nil {
+					failFolded(createErr)
 					return callContext, prepared, createErr
 				}
 				prepared.Messages = append(prepared.Messages, userMessage.ToAIMessage()...)
@@ -1127,15 +1231,32 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 			sessionLock.Unlock()
 
 			var assistantMsg message.Message
-			assistantMsg, err = a.messages.Create(callContext, call.SessionID, message.CreateMessageParams{
+			reply := message.CreateMessageParams{
 				Role:     message.Assistant,
 				Parts:    []message.ContentPart{},
 				Model:    largeModel.ModelCfg.Model,
 				Provider: largeModel.ModelCfg.Provider,
-			})
+			}
+			// Lời trả lời thật thay tin giữ chỗ của prompt lượt này (bước đầu)
+			// và của các prompt vừa gộp trong cùng một lần ghi: không bao giờ
+			// có hai bản trả lời, cũng không có prompt trần.
+			replaced := foldPending
+			if call.recorded != nil {
+				replaced = append(slices.Clone(foldPending), call.recorded.pendingMsgID)
+			}
+			if len(replaced) == 0 {
+				assistantMsg, err = a.messages.Create(callContext, call.SessionID, reply)
+			} else {
+				var created []message.Message
+				if created, err = a.messages.WriteBatch(callContext, call.SessionID, []message.CreateMessageParams{reply}, replaced); err == nil {
+					assistantMsg = created[0]
+				}
+			}
 			if err != nil {
+				failFolded(err)
 				return callContext, prepared, err
 			}
+			call.recorded = nil
 			callContext = context.WithValue(callContext, tools.MessageIDContextKey, assistantMsg.ID)
 			callContext = context.WithValue(callContext, tools.ChannelContextKey, call.Channel)
 			callContext = context.WithValue(callContext, tools.SupportsImagesContextKey, largeModel.CatwalkCfg.SupportsImages)
@@ -1421,6 +1542,9 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 				if persistErr := a.persistCanceledTurn(ctx, call, userMsgCreated); persistErr != nil {
 					return nil, persistErr
 				}
+			} else if call.recorded != nil {
+				// afterError có thể trả lỗi của lượt kế: ghi lỗi của lượt này ngay.
+				a.failRecordedPrompt(call.SessionID, call.recorded.pendingMsgID, err)
 			}
 			return afterError(result, err)
 		}
@@ -1761,6 +1885,8 @@ func owesOwnRunComplete(call, next SessionAgentCall, remaining []SessionAgentCal
 // Session đã có run khác đang chạy, hoặc còn prompt đang chuyển vào Run,
 // thì không lấy: chúng tự chạy tiếp hàng đợi (lấy ở đây sẽ đảo thứ tự).
 func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, remaining []SessionAgentCall, ok bool) {
+	var canceledDrops []SessionAgentCall
+	defer func() { a.publishCanceledQueueDrops(canceledDrops) }() // sau khi nhả khoá
 	mu := a.sessionMu(sessionID)
 	mu.Lock()
 	defer mu.Unlock()
@@ -1770,11 +1896,10 @@ func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, rema
 	queuedMessages, _ := a.messageQueue.Get(sessionID)
 	if mark, ok := a.cancelMark.Get(sessionID); ok && mark > 0 && len(queuedMessages) > 0 {
 		var kept []SessionAgentCall
-		var canceledRunIDDrops []SessionAgentCall
 		for _, q := range queuedMessages {
 			if q.acceptSeq == 0 || q.acceptSeq <= mark {
-				if q.RunID != "" {
-					canceledRunIDDrops = append(canceledRunIDDrops, q)
+				if q.RunID != "" || q.recorded != nil {
+					canceledDrops = append(canceledDrops, q)
 				}
 				continue
 			}
@@ -1784,8 +1909,8 @@ func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, rema
 		a.messageQueue.Set(sessionID, kept)
 		// A dropped prompt carrying a RunID must still publish its
 		// terminal cancelled RunComplete so a caller waiting on that
-		// RunID does not hang.
-		a.publishCanceledQueueDrops(canceledRunIDDrops)
+		// RunID does not hang; a recorded one is closed as canceled.
+		// Both happen in the deferred publish, after the unlock.
 	}
 	if len(queuedMessages) == 0 {
 		a.messageQueue.Del(sessionID)
@@ -1832,6 +1957,7 @@ func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fan
 	if err != nil {
 		return err
 	}
+	msgs = slices.DeleteFunc(msgs, unsentPrompt(msgs))
 	if len(msgs) == 0 {
 		// Nothing to summarize.
 		return nil
@@ -2029,17 +2155,75 @@ func sessionHeaders(sessionID string) map[string]string {
 	}
 }
 
-func (a *sessionAgent) createUserMessage(ctx context.Context, call SessionAgentCall) (message.Message, error) {
-	parts := []message.ContentPart{message.TextContent{Text: call.Prompt, Hidden: call.HiddenUserMessage}}
-	var attachmentParts []message.ContentPart
-	for _, attachment := range call.Attachments {
-		attachmentParts = append(attachmentParts, message.BinaryContent{Path: attachment.FilePath, MIMEType: attachment.MimeType, Data: attachment.Content})
+// recordPrompt ghi cặp tin của một prompt đã nhận mà chưa chạy trong một
+// transaction: tin user và tin giữ chỗ trỏ về nó (xem recordedPrompt). Các tin
+// deleteIDs (cặp cũ khi dời) bị xoá trong cùng lần ghi.
+func (a *sessionAgent) recordPrompt(ctx context.Context, call SessionAgentCall, deleteIDs ...string) (message.Message, *recordedPrompt, error) {
+	user := userMessageParams(call)
+	user.ID = uuid.NewString()
+	created, err := a.messages.WriteBatch(ctx, call.SessionID, []message.CreateMessageParams{user, {
+		Role:     message.Assistant,
+		Parts:    []message.ContentPart{},
+		Provider: message.PendingReplyProvider,
+		Model:    user.ID,
+	}}, deleteIDs)
+	if err != nil {
+		return message.Message{}, nil, fmt.Errorf("failed to record prompt: %w", err)
 	}
-	parts = append(parts, attachmentParts...)
-	msg, err := a.messages.Create(ctx, call.SessionID, message.CreateMessageParams{
-		Role:  message.User,
-		Parts: parts,
-	})
+	return created[0], &recordedPrompt{userMsgID: created[0].ID, pendingMsgID: created[1].ID}, nil
+}
+
+// unsentPrompt trả hàm cho biết một tin thuộc prompt chưa từng tới model: tin
+// giữ chỗ (đang chờ, hay đã đóng huỷ, lỗi, Interrupted) và tin user mà một tin
+// giữ chỗ trỏ về. Dựa vào liên kết lưu trong DB chứ không vào vị trí, nên đúng
+// dưới mọi thứ tự xen kẽ của các lần ghi và cả sau khi tiến trình chết. Chỉ
+// áp cho lịch sử gửi model; transcript (UI) vẫn hiện chúng.
+func unsentPrompt(msgs []message.Message) func(message.Message) bool {
+	linked := make(map[string]bool)
+	for _, m := range msgs {
+		if message.IsPromptPlaceholder(m) {
+			linked[m.Model] = true
+		}
+	}
+	return func(m message.Message) bool {
+		return message.IsPromptPlaceholder(m) || (m.Role == message.User && linked[m.ID])
+	}
+}
+
+// moveRecordedPrompt ghi lại cặp tin của prompt ở cuối session và xoá cặp cũ
+// trong cùng một transaction, khi prompt đã chờ sau tin khác: thứ tự trong DB
+// khớp thứ tự model thấy, như khi tin user chỉ được ghi lúc chạy. Lỗi thì cặp
+// cũ còn nguyên.
+func (a *sessionAgent) moveRecordedPrompt(ctx context.Context, call SessionAgentCall) (message.Message, *recordedPrompt, error) {
+	return a.recordPrompt(ctx, call, call.recorded.userMsgID, call.recorded.pendingMsgID)
+}
+
+// failRecordedPrompt đóng tin giữ chỗ pendingID còn mở bằng err. Tin đã đóng
+// (huỷ, lỗi, Interrupted) hay đã bị xoá (lượt đã có lời trả lời) thì giữ nguyên.
+func (a *sessionAgent) failRecordedPrompt(sessionID, pendingID string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	pending, getErr := a.messages.Get(ctx, pendingID)
+	if getErr != nil || pending.IsFinished() {
+		return
+	}
+	pending.AddFinish(message.FinishReasonError, "Prompt not run", err.Error())
+	if updateErr := a.messages.Update(ctx, pending); updateErr != nil {
+		slog.Error("Failed to record why a prompt did not run", "session_id", sessionID, "error", updateErr)
+	}
+}
+
+// userMessageParams dựng tin user của call: prompt và tệp đính kèm.
+func userMessageParams(call SessionAgentCall) message.CreateMessageParams {
+	parts := []message.ContentPart{message.TextContent{Text: call.Prompt, Hidden: call.HiddenUserMessage}}
+	for _, attachment := range call.Attachments {
+		parts = append(parts, message.BinaryContent{Path: attachment.FilePath, MIMEType: attachment.MimeType, Data: attachment.Content})
+	}
+	return message.CreateMessageParams{Role: message.User, Parts: parts}
+}
+
+func (a *sessionAgent) createUserMessage(ctx context.Context, call SessionAgentCall) (message.Message, error) {
+	msg, err := a.messages.Create(ctx, call.SessionID, userMessageParams(call))
 	if err != nil {
 		return message.Message{}, fmt.Errorf("failed to create user message: %w", err)
 	}
@@ -2598,6 +2782,9 @@ func (a *sessionAgent) Cancel(sessionID string) {
 	// request, an accepted run (recorded as a pending cancel), or a
 	// queue entry it then clears. If none of those hold, an idle Escape
 	// is a true no-op and must not poison the next prompt.
+	var drops []SessionAgentCall
+	// Đăng ký trước Unlock nên chạy sau khi nhả khoá: không ghi DB dưới khoá.
+	defer func() { a.publishCanceledQueueDrops(drops) }()
 	mu := a.sessionMu(sessionID)
 	mu.Lock()
 	defer mu.Unlock()
@@ -2643,7 +2830,7 @@ func (a *sessionAgent) Cancel(sessionID string) {
 
 	if a.QueuedPrompts(sessionID) > 0 {
 		slog.Debug("Clearing queued prompts", "session_id", sessionID)
-		a.clearQueueAndNotify(sessionID)
+		drops = a.takeQueue(sessionID)
 	}
 }
 
@@ -2660,6 +2847,8 @@ func (a *sessionAgent) CancelRun(sessionID, runID string) {
 	if runID == "" {
 		return
 	}
+	var drops []SessionAgentCall
+	defer func() { a.publishCanceledQueueDrops(drops) }() // sau khi nhả khoá
 	mu := a.sessionMu(sessionID)
 	mu.Lock()
 	defer mu.Unlock()
@@ -2678,7 +2867,7 @@ func (a *sessionAgent) CancelRun(sessionID, runID string) {
 			} else {
 				a.messageQueue.Set(sessionID, rest)
 			}
-			a.publishCanceledQueueDrops([]SessionAgentCall{dropped})
+			drops = []SessionAgentCall{dropped}
 			return
 		}
 	}
@@ -2702,12 +2891,14 @@ func (a *sessionAgent) takeCanceledRun(runID string) bool {
 }
 
 func (a *sessionAgent) ClearQueue(sessionID string) {
+	var drops []SessionAgentCall
+	defer func() { a.publishCanceledQueueDrops(drops) }() // sau khi nhả khoá
 	mu := a.sessionMu(sessionID)
 	mu.Lock()
 	defer mu.Unlock()
 	if a.QueuedPrompts(sessionID) > 0 {
 		slog.Debug("Clearing queued prompts", "session_id", sessionID)
-		a.clearQueueAndNotify(sessionID)
+		drops = a.takeQueue(sessionID)
 	}
 }
 
@@ -2744,6 +2935,16 @@ func (a *sessionAgent) IsBusy() bool {
 func (a *sessionAgent) IsSessionBusy(sessionID string) bool {
 	_, busy := a.activeRequests.Get(sessionID)
 	return busy
+}
+
+func (a *sessionAgent) HasPendingPrompts(sessionID string) bool {
+	if a.QueuedPrompts(sessionID) > 0 {
+		return true
+	}
+	a.acceptedMu.Lock()
+	defer a.acceptedMu.Unlock()
+	n, _ := a.acceptedRuns.Get(sessionID)
+	return n > 0
 }
 
 func (a *sessionAgent) QueuedPrompts(sessionID string) int {

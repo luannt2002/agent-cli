@@ -162,6 +162,7 @@ func (c *recordingCoordinator) CancelRun(string, string)                      {}
 func (c *recordingCoordinator) Cancel(string)                                 {}
 func (c *recordingCoordinator) CancelAll()                                    {}
 func (c *recordingCoordinator) IsBusy() bool                                  { return false }
+func (c *recordingCoordinator) HasPendingPrompts(string) bool                 { return false }
 func (c *recordingCoordinator) IsSessionBusy(string) bool                     { return false }
 func (c *recordingCoordinator) QueuedPrompts(string) int                      { return 0 }
 func (c *recordingCoordinator) QueuedPromptsList(string) []string             { return nil }
