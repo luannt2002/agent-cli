@@ -598,8 +598,9 @@ func (c *Client) InitiateAgentProcessing(ctx context.Context, id string, interac
 		return fmt.Errorf("failed to initiate session agent processing: %w", err)
 	}
 	defer rsp.Body.Close()
-	if rsp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to initiate session agent processing: status code %d", rsp.StatusCode)
+	// Giữ nội dung lỗi của server (vd model đang chọn không dùng được, nêu provider/model).
+	if err := checkStatus(rsp); err != nil {
+		return fmt.Errorf("failed to initiate session agent processing: %w", err)
 	}
 	return nil
 }

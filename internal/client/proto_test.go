@@ -144,6 +144,25 @@ func TestSendMessageDecodesErrorBody(t *testing.T) {
 	require.Contains(t, err.Error(), "session id is required")
 }
 
+// Dựng agent thất bại phía server (vd model đang chọn không dùng được) thì client phải
+// giữ nội dung lỗi: thiếu nó, `run`/`loop`/`send` qua server chỉ in "status code 500",
+// không nêu provider/model (soát vòng 7).
+func TestInitiateAgentProcessingDecodesErrorBody(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(proto.Error{Message: `provider "openai", model "gpt-4o" is unavailable`})
+	}))
+	defer srv.Close()
+
+	c := captureClient(t, srv)
+	err := c.InitiateAgentProcessing(context.Background(), "ws1", false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "status code 500")
+	require.Contains(t, err.Error(), `provider "openai"`)
+}
+
 func TestSendMessageFallsBackOnMalformedErrorBody(t *testing.T) {
 	t.Parallel()
 
