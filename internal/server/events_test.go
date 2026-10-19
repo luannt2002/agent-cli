@@ -132,6 +132,8 @@ func TestRunCompleteToProto_RoundTrip(t *testing.T) {
 			Text:      "VERDICT: APPROVED",
 			Error:     "",
 			Cancelled: false,
+			// run --json đọc lỗi ghi sổ ghi LLM từ đây khi chạy qua server.
+			LedgerError: "write /dev/full: no space left on device",
 		},
 	}
 
@@ -150,6 +152,7 @@ func TestRunCompleteToProto_RoundTrip(t *testing.T) {
 	require.Equal(t, "VERDICT: APPROVED", decoded.Payload.Text)
 	require.Empty(t, decoded.Payload.Error)
 	require.False(t, decoded.Payload.Cancelled)
+	require.Equal(t, "write /dev/full: no space left on device", decoded.Payload.LedgerError)
 }
 
 // TestAgentErrorToProto_PreservesRunID verifies that an async agent

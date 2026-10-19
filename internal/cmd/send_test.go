@@ -293,3 +293,20 @@ func TestSendJSONShapes(t *testing.T) {
 	require.JSONEq(t, `{"session_id":"s1","text":"hi","prompt_tokens":1,"completion_tokens":2,"cost":0.5}`,
 		b(sendJSON(runJSONResult{SessionID: "s1", Text: "hi", PromptTokens: 1, CompletionTokens: 2, Cost: 0.5}, true)))
 }
+
+// send --wait --json báo lỗi ghi sổ ghi LLM của chính lượt, như run --json.
+func TestSendWaitReportsLedgerError(t *testing.T) {
+	t.Parallel()
+	f := newFakeSendClient(proto.Session{ID: "s1"})
+	f.onSend = func(sessionID, runID string) {
+		other := runComplete(sessionID, "someone-elses-run", "x", "")
+		other.Payload.LedgerError = "foreign"
+		f.events <- other
+		own := runComplete(sessionID, runID, "done", "")
+		own.Payload.LedgerError = "write /dev/full: no space left on device"
+		f.events <- own
+	}
+	res, err := runSend(t.Context(), f, "ws", sendOptions{sessionID: "s1", prompt: "p", wait: true}, &bytes.Buffer{})
+	require.NoError(t, err)
+	require.Equal(t, "write /dev/full: no space left on device", res.LedgerError)
+}

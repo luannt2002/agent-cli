@@ -542,3 +542,22 @@ func TestRunStream_PromptOnOtherSessionIgnored(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"child"}, granted)
 }
+
+// Qua server, lỗi ghi sổ của lượt tới client trong RunComplete của CHÍNH lượt đó.
+func TestRunStream_KeepsTheLedgerErrorOfItsOwnRun(t *testing.T) {
+	t.Parallel()
+	s := &runStream{sessionID: "S", runID: "mine", out: &bytes.Buffer{}, read: map[string]int{}}
+	done, err := s.handle(pubsub.Event[proto.RunComplete]{Payload: proto.RunComplete{
+		SessionID: "S", RunID: "other", LedgerError: "foreign",
+	}}, nil)
+	require.NoError(t, err)
+	require.False(t, done)
+	require.Empty(t, s.ledgerError, "another turn's ledger error is not ours")
+
+	done, err = s.handle(pubsub.Event[proto.RunComplete]{Payload: proto.RunComplete{
+		SessionID: "S", RunID: "mine", LedgerError: "write /dev/full: no space left on device",
+	}}, nil)
+	require.NoError(t, err)
+	require.True(t, done)
+	require.Equal(t, "write /dev/full: no space left on device", s.ledgerError)
+}

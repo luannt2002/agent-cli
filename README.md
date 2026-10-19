@@ -311,10 +311,14 @@ Tên đặt bằng `f2` không bị tiêu đề do model sinh ghi đè. Terminal
   chữ assistant của lượt nối lại, kể cả câu dẫn trước tool call; bản tự tóm tắt không có ở cả hai), `error`, `provider`/`model` (ghi trên tin trả
   lời cuối đã lưu: model agent-cli đã định gọi, có cả khi request lỗi; bằng chứng provider ID nào đã được gọi là sổ ghi
   LLM),
-  `prompt_tokens` và `completion_tokens` (của bước cuối, không phải tổng), `cost` (cộng dồn của session).
+  `prompt_tokens` và `completion_tokens` (của bước cuối, không phải tổng), `cost` (cộng dồn của session), `ledger_error`
+  (chỉ có khi sổ ghi LLM bật mà lượt có lời gọi không ghi được vào sổ).
 - Sổ ghi LLM (opt-in): `AGENT_CLI_LLM_LEDGER=<tệp>` ghi mỗi lời gọi LLM một dòng JSON: vai trò, provider, model, kích
   thước, token. Không chép nội dung prompt. Biến này KHÔNG đọc từ `~/.config/agent-cli/env` và lịch routine không mang
-  theo: export ở shell trước khi server của dự án khởi động.
+  theo: export ở shell trước khi server của dự án khởi động. Ghi sổ lỗi (vd đĩa đầy) thì lượt vẫn chạy, log có WARN mỗi
+  prompt, `run --json` và `send --wait --json` có `ledger_error`: lượt đó thiếu dòng trong sổ, đừng dùng sổ làm bằng
+  chứng cho nó. `send` không `--wait`, `loop`, `routine` và `run` dạng chữ chỉ có WARN trong log (khi đĩa đầy thật, log
+  cũng có thể không ghi được). Giới hạn khác: [docs/agent-cli-local-setup.md](docs/agent-cli-local-setup.md), mục sổ ghi LLM.
 
 ## Giới hạn còn lại
 

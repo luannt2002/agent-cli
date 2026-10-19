@@ -62,6 +62,11 @@ type ledgerEntry struct {
 var (
 	ledgerMu    sync.Mutex
 	ledgerFiles = map[string]*os.File{}
+	// ledgerWriteErrs: session ID → lỗi ghi sổ đầu tiên của prompt gần nhất, gồm
+	// các lượt tự làm tiếp của nó (xoá khi session bắt đầu prompt mới), để cảnh
+	// báo một lần mỗi prompt và để lượt báo lỗi qua RunComplete / run --json.
+	// Mỗi session lỗi giữ một mục tới prompt kế của nó.
+	ledgerWriteErrs = map[string]string{}
 )
 
 // ledgerPath là tệp sổ ghi đang bật, đọc từ env tin cậy (chụp đầu main) nên
@@ -84,9 +89,37 @@ func writeLedger(path string, e ledgerEntry) {
 		}
 		ledgerFiles[path] = f // nil khi lỗi: chỉ cảnh báo một lần
 	}
-	if f != nil {
-		_, _ = f.Write(append(line, '\n'))
+	if f == nil {
+		return
 	}
+	if _, err := f.Write(append(line, '\n')); err != nil {
+		// Lời gọi không gắn session (tiêu đề) thì cảnh báo mỗi lần: mỗi session
+		// mới chỉ có một lời gọi như vậy.
+		if _, seen := ledgerWriteErrs[e.SessionID]; seen && e.SessionID != "" {
+			return
+		}
+		if e.SessionID != "" {
+			ledgerWriteErrs[e.SessionID] = err.Error()
+		}
+		slog.Warn("Failed to write the LLM ledger; calls of this turn are missing from it",
+			"path", path, "session_id", e.SessionID, "role", e.Role, "error", err)
+	}
+}
+
+// resetLedgerTurn quên lỗi ghi sổ của prompt trước khi session bắt đầu prompt mới.
+func resetLedgerTurn(sessionID string) {
+	ledgerMu.Lock()
+	defer ledgerMu.Unlock()
+	delete(ledgerWriteErrs, sessionID)
+}
+
+// LedgerWriteError trả lỗi ghi sổ đầu tiên trong prompt gần nhất của session
+// ("" khi sổ tắt hoặc ghi đủ). Chỉ tính lời gọi gắn chính session đó: lời gọi
+// của session con (agent con) và lời gọi tiêu đề chỉ có cảnh báo trong log.
+func LedgerWriteError(sessionID string) string {
+	ledgerMu.Lock()
+	defer ledgerMu.Unlock()
+	return ledgerWriteErrs[sessionID]
 }
 
 // ledgerModel bọc model để ghi sổ mỗi lời gọi. provider/model là nhãn cấu hình

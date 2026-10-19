@@ -90,6 +90,8 @@ type RunComplete struct {
 	Text      string `json:"text,omitempty"`
 	Error     string `json:"error,omitempty"`
 	Cancelled bool   `json:"cancelled,omitempty"`
+	// LedgerError: lỗi ghi sổ ghi LLM của lượt (notify.RunComplete.LedgerError).
+	LedgerError string `json:"ledger_error,omitempty"`
 }
 
 // SkillInfo describes a visible skill exposed to a frontend.

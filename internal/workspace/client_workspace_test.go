@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/crush/internal/agent/notify"
 	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
 	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/client"
@@ -1298,4 +1299,20 @@ func TestPermissionSkipRequestsTimesOut(t *testing.T) {
 	require.Error(t, err, "a timed-out probe is an error, not 'off'")
 	require.Error(t, ws.PermissionSetSkipRequests(true), "a timed-out write reports the failure")
 	require.Less(t, time.Since(start), 2*time.Second, "both calls must give up at the timeout")
+}
+
+// RunComplete từ server về dạng domain không rơi trường nào, kể cả lỗi ghi sổ
+// ghi LLM của lượt.
+func TestTranslateEvent_RunCompleteKeepsLedgerError(t *testing.T) {
+	t.Parallel()
+
+	w := NewClientWorkspace(nil, proto.Workspace{})
+	out := w.translateEvent(pubsub.Event[proto.RunComplete]{
+		Type:    pubsub.UpdatedEvent,
+		Payload: proto.RunComplete{SessionID: "S", RunID: "R", LedgerError: "write /dev/full: no space left on device"},
+	})
+	got, ok := out.(pubsub.Event[notify.RunComplete])
+	require.True(t, ok, "expected pubsub.Event[notify.RunComplete], got %T", out)
+	require.Equal(t, "R", got.Payload.RunID)
+	require.Equal(t, "write /dev/full: no space left on device", got.Payload.LedgerError)
 }

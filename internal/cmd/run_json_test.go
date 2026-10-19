@@ -221,3 +221,22 @@ func TestRunJSONReportsProviderAndModel(t *testing.T) {
 	require.NotContains(t, m, "provider")
 	require.NotContains(t, m, "model")
 }
+
+// Sổ ghi LLM không ghi được trong lượt: run --json có ledger_error mà lượt vẫn
+// xong (không có error, thoát 0); sổ ổn thì không có trường này.
+func TestRunJSONReportsLedgerError(t *testing.T) {
+	t.Parallel()
+	var w bytes.Buffer
+	store := map[string]sessionUsage{
+		"bad": {promptTokens: 1, ledgerError: "write /dev/full: no space left on device"},
+		"ok":  {promptTokens: 1},
+	}
+	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("bad", "x", nil)))
+	m := decodeOne(t, w.Bytes())
+	require.Equal(t, "write /dev/full: no space left on device", m["ledger_error"])
+	require.NotContains(t, m, "error")
+
+	w.Reset()
+	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("ok", "x", nil)))
+	require.NotContains(t, decodeOne(t, w.Bytes()), "ledger_error")
+}

@@ -936,6 +936,11 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 		call.Accepted.Close()
 	}
 	sessMu.Unlock()
+	if !call.continuation {
+		// Lỗi ghi sổ tính cho cả prompt, gồm các lượt tự làm tiếp của nó. Ngoài
+		// sessMu: ledgerMu bị giữ trong lúc ghi đĩa.
+		resetLedgerTurn(call.SessionID)
+	}
 
 	defer cancel()
 	// Conditional cleanup: only remove our entry if it hasn't been replaced
@@ -983,7 +988,7 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 		if skipRunComplete {
 			return
 		}
-		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID}
+		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID, LedgerError: LedgerWriteError(call.SessionID)}
 		if currentAssistant != nil {
 			complete.MessageID = currentAssistant.ID
 			complete.Text = currentAssistant.Content().String()
@@ -1823,7 +1828,7 @@ func (a *sessionAgent) handOff(ctx context.Context, call SessionAgentCall, assis
 		return false, nil, nil
 	}
 	if !ownPublished && owesOwnRunComplete(call, next, remaining) {
-		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID}
+		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID, LedgerError: LedgerWriteError(call.SessionID)}
 		if assistant != nil {
 			complete.MessageID = assistant.ID
 			complete.Text = assistant.Content().String()

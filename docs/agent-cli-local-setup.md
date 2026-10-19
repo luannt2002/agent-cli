@@ -503,7 +503,7 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"   
 - `--wait`: đợi đúng run của lần gửi này (khớp session và run ID, run khác trên cùng session bị
   bỏ qua), rồi in text cuối. `--json` in cùng dạng với `run --json`: `session_id`, `text`,
   `error`, `prompt_tokens`, `completion_tokens`, `cost`. Token là usage của bước cuối, không phải tổng; `cost` là
-  tổng cộng dồn của session. `send` không điền `provider`/`model`.
+  tổng cộng dồn của session. `send` không điền `provider`/`model`; có `ledger_error` như `run --json` (mục sổ ghi LLM).
   `--timeout` (mặc định 0 = không giới hạn) hoặc Ctrl-C ngắt việc đợi; `send` không gửi lệnh huỷ run, và run
   sống tiếp khi client cuối thoát (đã kiểm: `scripts/test-agent-cli-run-json.sh`, client bị SIGKILL giữa run mà run
   vẫn xong; trần thời gian xem "Đã biết" ở mục Home: 30 phút khi kẹt chờ duyệt/trả lời, 6 giờ khi vẫn chạy).
@@ -793,6 +793,17 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
   `~/.config/agent-cli/env`. Export ở shell (hoặc đặt trước lệnh) trước khi server của dự án khởi động; server đang
   chạy thì dừng hẳn rồi mở lại.
 - Đếm theo provider và vai trò: `jq -r '.provider + " " + .role' <tệp> | sort | uniq -c`.
+- Ghi sổ lỗi (đĩa đầy, `/dev/full`): lượt vẫn chạy và thoát 0, nhưng sổ thiếu dòng. Mỗi prompt bị ảnh hưởng (gồm các
+  lượt tự làm tiếp sau tự tóm tắt hay khi trả lời bị cắt) có một dòng log WARN `Failed to write the LLM ledger…`
+  (`agent-cli logs`; khi đĩa đầy thật, log cũng có thể không ghi được). `run --json` và `send --wait --json` có
+  `ledger_error`. Có trường này thì đừng dùng sổ làm bằng chứng cho lượt đó. Không có trường này vẫn chưa chắc sổ đủ:
+  - `ledger_error` chỉ tính lời gọi gắn chính session của lượt. Lỗi ghi riêng ở agent con, hay ở lời gọi đặt tiêu đề
+    (không gắn session; mỗi lần một dòng WARN), chỉ có trong log.
+  - Stop hook chặn rồi chạy lại: lỗi của lần chạy trước bị xoá khi lần chạy lại bắt đầu.
+  - Hiếm: một prompt mới vào cùng session đúng lúc lượt vừa xong có thể xoá lỗi trước khi lượt kịp báo.
+  - `send` không `--wait`, `loop`, `routine`, `run` dạng chữ: chỉ có WARN trong log.
+  - Không mở được tệp (vd thư mục không ghi được): chỉ cảnh báo một lần mỗi tiến trình, không có `ledger_error`.
+- Kiểm: `scripts/eval/ledger.sh <thư-mục-mới> <binary>` (sổ là `/dev/full` rồi tệp thường, local và qua server).
 
 **`run --json`.**
 
@@ -805,6 +816,8 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
   cả hai chế độ.
 - `provider`/`model` là nhãn ghi trên tin trả lời: có cả khi request lỗi trước khi tới provider (vd provider chết: 0
   request vẫn có `"provider"`). Bằng chứng đã gọi tới provider nào là sổ ghi LLM.
+- `ledger_error`: chỉ có khi sổ ghi LLM bật mà lượt có lời gọi không ghi được vào sổ (mục trên). Không làm lượt lỗi:
+  không có `error`, mã thoát vẫn 0.
 
 **Loop: verify và cảnh báo khi GREEN.**
 

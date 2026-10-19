@@ -1322,6 +1322,8 @@ func (w *ClientWorkspace) translateEvent(ev any) tea.Msg {
 				Text:      e.Payload.Text,
 				Error:     e.Payload.Error,
 				Cancelled: e.Payload.Cancelled,
+				// Chép đủ trường, kể cả lỗi ghi sổ ghi LLM của lượt.
+				LedgerError: e.Payload.LedgerError,
 			},
 		}
 	case pubsub.Event[proto.SkillsEvent]:

@@ -299,6 +299,7 @@ func waitForRun(ctx context.Context, events <-chan any, sessionID, runID string,
 					continue
 				}
 				res.Text = p.Text
+				res.LedgerError = p.LedgerError
 				switch {
 				case p.Cancelled:
 					return errors.New("run cancelled")

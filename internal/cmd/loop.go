@@ -406,7 +406,7 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
 				text bytes.Buffer
 			)
 			err := runNonInteractive(ctx, c, ws, io.MultiWriter(out, &text),
-				func(id string) { info.SessionID = id },
+				func(id string) { info.SessionID = id }, nil,
 				prompt, p.Model, "", p.ReasoningEffort, true, "", false)
 			info.Text = text.String()
 			return info, err

@@ -80,6 +80,7 @@
 | E2E loop / routine | `AGENT_CLI_BIN=<binary> bash scripts/test-agent-cli-loop.sh`, `… scripts/test-agent-cli-routine.sh` | ĐÃ CHẠY 16/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả |
 | Model khi tiếp session cũ | `bash scripts/eval/session-model.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 19/10 (nhánh POC) | Local và server: `run -s` session cũ chạy model của workspace, không ghi `crush.json`; thoát 1 khi hỏng |
 | Cô lập provider, tiêm lỗi | `bash scripts/eval/faults.sh <thư-mục-mới> <binary>`, `bash scripts/eval/qwen-only.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 16/10 | LLM giả đếm request theo provider. Thoát 1 khi: request lọt sang provider khác, model đang chọn thiếu key mà không dừng, `text` lẫn bản tóm tắt, loop có cổng xanh sẵn mà không ra `NO_CHANGE` |
+| Sổ ghi LLM lỗi ghi | `bash scripts/eval/ledger.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 19/10 (nhánh POC) | Sổ trỏ `/dev/full`: `run --json` có `ledger_error`, WARN mỗi lượt, rc 0; local và server; thoát 1 khi hỏng |
 | Launcher + installer | `bash scripts/test-agent-cli-wrapper.sh` | ĐÃ CHẠY 14/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
 | Giao việc thật | `bash scripts/test-agent-cli-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
 | Lint | `task lint` | CHƯA CHẠY | |

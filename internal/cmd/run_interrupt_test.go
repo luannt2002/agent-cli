@@ -98,7 +98,7 @@ func runInLoop(t *testing.T, o interruptRun) (interrupt func(), done <-chan erro
 	ctx, cancel := context.WithCancel(t.Context())
 	ch := make(chan error, 1)
 	go func() {
-		ch <- runNonInteractive(ctx, c, ws, io.Discard, nil, "SLOW", "", "", "", true, o.continueID, false)
+		ch <- runNonInteractive(ctx, c, ws, io.Discard, nil, nil, "SLOW", "", "", "", true, o.continueID, false)
 	}()
 	select {
 	case <-inLoop:
@@ -282,7 +282,7 @@ func TestRunQueuedBehindOtherTurnLeavesItsPromptsAlone(t *testing.T) {
 						Type: pubsub.CreatedEvent, Payload: proto.QuestionRequest{ID: "q1", SessionID: "S"},
 					})
 					emit(pubsub.PayloadTypeRunComplete, pubsub.Event[proto.RunComplete]{
-						Type: pubsub.UpdatedEvent, Payload: proto.RunComplete{SessionID: "S", RunID: runID, Text: "done"},
+						Type: pubsub.UpdatedEvent, Payload: proto.RunComplete{SessionID: "S", RunID: runID, Text: "done", LedgerError: "write /dev/full: no space left on device"},
 					})
 					w.(http.Flusher).Flush()
 					<-r.Context().Done()
@@ -297,11 +297,15 @@ func TestRunQueuedBehindOtherTurnLeavesItsPromptsAlone(t *testing.T) {
 
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
-			err = runNonInteractive(ctx, c, ws, io.Discard, nil, "PROMPT", "", "", "", true, "S", false)
+			ledgerErr := "<not reported>"
+			err = runNonInteractive(ctx, c, ws, io.Discard, nil, func(e string) { ledgerErr = e }, "PROMPT", "", "", "", true, "S", false)
 			if tc.wantErr == "" {
 				require.NoError(t, err)
+				// Lỗi ghi sổ ghi LLM trong RunComplete của lượt tới được run --json.
+				require.Equal(t, "write /dev/full: no space left on device", ledgerErr)
 			} else {
 				require.ErrorContains(t, err, tc.wantErr)
+				require.Empty(t, ledgerErr, "no RunComplete of this run, so no ledger error")
 			}
 
 			mu.Lock()
@@ -346,6 +350,6 @@ func TestRunEventStreamClosedEarlyFails(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	err = runNonInteractive(ctx, c, ws, io.Discard, nil, "P", "", "", "", true, "", false)
+	err = runNonInteractive(ctx, c, ws, io.Discard, nil, nil, "P", "", "", "", true, "", false)
 	require.EqualError(t, err, "event stream closed before the run completed")
 }

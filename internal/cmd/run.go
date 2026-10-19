@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/charmbracelet/crush/internal/agent"
 	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/client"
 	"github.com/charmbracelet/crush/internal/config"
@@ -71,7 +72,9 @@ agent-cli run --session {session-id} "Follow up on your last response"
 agent-cli run --continue "Follow up on your last response"
 
 # Machine-readable result: one JSON object on stdout with session_id,
-# text, error, prompt_tokens, completion_tokens and cost
+# text, error, prompt_tokens, completion_tokens, cost, provider, model and
+# ledger_error (only when AGENT_CLI_LLM_LEDGER is set and a call of this
+# turn could not be written to it; the run still exits 0)
 agent-cli run --json "Summarize this repo"
 
 # run auto-approves every tool permission request of its own session, both
@@ -188,20 +191,22 @@ agent-cli run --json "Summarize this repo"
 				slog.SetDefault(slog.New(log.New(os.Stderr)))
 			}
 
+			// Lỗi ghi sổ ghi LLM nằm ở server: tới đây qua RunComplete của lượt.
+			var ledgerErr string
 			return runOrJSON(ctx, jsonOut,
 				func(ctx context.Context, id string) (sessionUsage, error) {
 					sess, err := c.GetSession(ctx, ws.ID, id)
 					if err != nil {
 						return sessionUsage{}, err
 					}
-					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
+					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost, ledgerError: ledgerErr}
 					if msgs, err := c.ListMessages(ctx, ws.ID, id); err == nil {
 						u.provider, u.model = lastReplyModel(protoReplies(msgs))
 					}
 					return u, nil
 				},
 				func(out io.Writer, onSession func(string)) error {
-					return runNonInteractive(ctx, c, ws, out, onSession, prompt, largeModel, smallModel, reasoningEffort, quiet || verbose, sessionID, useLast)
+					return runNonInteractive(ctx, c, ws, out, onSession, func(e string) { ledgerErr = e }, prompt, largeModel, smallModel, reasoningEffort, quiet || verbose, sessionID, useLast)
 				})
 		}
 
@@ -237,7 +242,7 @@ agent-cli run --json "Summarize this repo"
 				if err != nil {
 					return sessionUsage{}, err
 				}
-				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
+				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost, ledgerError: agent.LedgerWriteError(id)}
 				if msgs, err := appWs.App().Messages.List(ctx, id); err == nil {
 					u.provider, u.model = lastReplyModel(msgs)
 				}
@@ -257,7 +262,7 @@ func init() {
 	runCmd.Flags().String("reasoning-effort", "", "Reasoning effort for the model (e.g. low, medium, high). Levels depend on the model; unsupported values are rejected with the accepted values listed")
 	runCmd.Flags().StringP("session", "s", "", "Continue a previous session by ID")
 	runCmd.Flags().BoolP("continue", "C", false, "Continue the most recent session")
-	runCmd.Flags().Bool("json", false, "Print one JSON object (session_id, text, error, token usage) to stdout instead of streaming text")
+	runCmd.Flags().Bool("json", false, "Print one JSON object (session_id, text, error, token usage, provider, model, ledger_error) to stdout instead of streaming text")
 	runCmd.MarkFlagsMutuallyExclusive("session", "continue")
 	runCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return &usageError{err}
@@ -280,6 +285,10 @@ type runJSONResult struct {
 	// "đang chọn": script biết chắc model nào đã trả lời.
 	Provider string `json:"provider,omitempty"`
 	Model    string `json:"model,omitempty"`
+	// LedgerError: sổ ghi LLM bật mà có lời gọi của lượt không ghi được vào sổ.
+	// Lượt vẫn chạy (không có error, thoát 0) nhưng sổ thiếu dòng: đừng dùng
+	// sổ làm bằng chứng cho lượt này.
+	LedgerError string `json:"ledger_error,omitempty"`
 }
 
 // lastReplyModel trả provider/model của lời trả lời thật cuối cùng trong
@@ -302,6 +311,7 @@ type sessionUsage struct {
 	promptTokens, completionTokens int64
 	cost                           float64
 	provider, model                string
+	ledgerError                    string
 }
 
 // runMaybeJSON runs the prompt, streaming to stdout, or in JSON mode
@@ -353,6 +363,7 @@ func runJSON(
 		}
 		res.PromptTokens, res.CompletionTokens, res.Cost = u.promptTokens, u.completionTokens, u.cost
 		res.Provider, res.Model = u.provider, u.model
+		res.LedgerError = u.ledgerError
 	}
 	if err != nil {
 		res.Error = err.Error()
@@ -375,13 +386,15 @@ var (
 
 // runNonInteractive executes the agent via the server and streams output
 // to out. onSession, when non-nil, receives the ID of the session used or
-// created, as soon as it is resolved.
+// created, as soon as it is resolved. onLedgerError, when non-nil, receives
+// the run's LLM ledger write error ("" when none) once the run ends.
 func runNonInteractive(
 	ctx context.Context,
 	c *client.Client,
 	ws *proto.Workspace,
 	out io.Writer,
 	onSession func(sessionID string),
+	onLedgerError func(string),
 	prompt, largeModel, smallModel, reasoningEffort string,
 	hideSpinner bool,
 	continueSessionID string,
@@ -524,6 +537,9 @@ func runNonInteractive(
 	if continueSessionID != "" || useLast {
 		stream.queued = promptQueued(ctx, c, ws.ID, sess.ID, prompt)
 	}
+	if onLedgerError != nil {
+		defer func() { onLedgerError(stream.ledgerError) }()
+	}
 
 	// Start herdr integration when running inside a herdr pane.
 	hc := herdr.Init()
@@ -650,6 +666,8 @@ type runStream struct {
 	// queue, so the active turn is someone else's. Nil means the active
 	// turn is this run's (a session the run created).
 	queued func() bool
+	// ledgerError là lỗi ghi sổ ghi LLM mà RunComplete của lượt này mang về.
+	ledgerError string
 }
 
 // needsInputError reports that the run is blocked on a prompt a
@@ -789,6 +807,7 @@ func (s *runStream) handle(ev any, stopSpinner func()) (done bool, err error) {
 			return false, nil
 		}
 		stop()
+		s.ledgerError = e.Payload.LedgerError
 		if e.Payload.Error != "" && !e.Payload.Cancelled {
 			return true, fmt.Errorf("agent run failed: %s", e.Payload.Error)
 		}

@@ -150,6 +150,8 @@ func wrapEvent(ev any) *pubsub.Payload {
 				Text:      e.Payload.Text,
 				Error:     e.Payload.Error,
 				Cancelled: e.Payload.Cancelled,
+				// Lỗi ghi sổ ghi LLM của lượt tới client (run --json).
+				LedgerError: e.Payload.LedgerError,
 			},
 		})
 	case pubsub.Event[proto.ConfigChanged]:

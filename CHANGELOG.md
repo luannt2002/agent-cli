@@ -238,6 +238,14 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   **Lưu ý nâng cấp:** session đã tạo bằng `-c` tương đối nằm ở chỗ sai cũ (vd `r/foo/foo/foo/.crush`; `r/foo/foo/x`
   khi có `-D x`; `<thư mục cha>/.crush` khi qua server) vẫn còn trên đĩa nhưng bản này không mở chúng nữa và không
   cảnh báo. Cần thì mở lại bằng `-D <đường cũ>`.
+- **Sổ ghi LLM ghi lỗi không còn im lặng.** Bật `AGENT_CLI_LLM_LEDGER` mà ghi lỗi (đĩa đầy; đo bằng `/dev/full`) thì
+  trước đây lượt chạy tiếp không một dấu hiệu: sổ thiếu dòng mà vẫn trông như bằng chứng. Nay mỗi prompt bị ảnh hưởng
+  (gồm các lượt tự làm tiếp của nó) có một dòng log WARN `Failed to write the LLM ledger…` (một lần mỗi prompt, không
+  phải mỗi lời gọi; lời gọi đặt tiêu đề không gắn session nên mỗi lần một dòng). `run --json` (chạy local lẫn qua server)
+  và `send --wait --json` có trường `ledger_error`. Lượt vẫn chạy và thoát 0: sổ là công cụ phụ, không dừng việc chính.
+  Không mở được tệp sổ (vd thư mục không ghi được) thì giữ như cũ: cảnh báo một lần mỗi tiến trình, không có
+  `ledger_error`. Kiểm: `scripts/eval/ledger.sh <thư-mục-mới> <binary>` (binary thật, LLM giả; thoát 1 khi thiếu
+  cảnh báo hay trường).
 
 ## [0.2.0] - 2026-10-16
 
