@@ -283,18 +283,13 @@ type runJSONResult struct {
 }
 
 // lastReplyModel trả provider/model của lời trả lời thật cuối cùng trong
-// session: bỏ bản tóm tắt, tin không có model và tin giữ chỗ của prompt chưa
-// chạy (cột model của nó là ID tin user, không phải model).
+// session (message.LastReply), rỗng khi chưa có.
 func lastReplyModel(msgs []message.Message) (provider, model string) {
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" && !message.IsPromptPlaceholder(m) {
-			return m.Provider, m.Model
-		}
-	}
-	return "", ""
+	m, _ := message.LastReply(msgs)
+	return m.Provider, m.Model
 }
 
-// protoReplies chép từ tin của server các trường lastReplyModel cần.
+// protoReplies chép từ tin của server các trường message.LastReply cần.
 func protoReplies(msgs []proto.Message) []message.Message {
 	out := make([]message.Message, len(msgs))
 	for i, m := range msgs {

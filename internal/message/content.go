@@ -687,3 +687,14 @@ const PendingReplyProvider = "agent-cli-pending"
 func IsPromptPlaceholder(m Message) bool {
 	return m.Role == Assistant && m.Provider == PendingReplyProvider
 }
+
+// LastReply trả lời trả lời thật cuối cùng trong msgs: bỏ bản tóm tắt, tin
+// không có model và tin giữ chỗ của prompt chưa chạy. ok là false khi chưa có.
+func LastReply(msgs []Message) (Message, bool) {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if m := msgs[i]; m.Role == Assistant && !m.IsSummaryMessage && m.Model != "" && !IsPromptPlaceholder(m) {
+			return m, true
+		}
+	}
+	return Message{}, false
+}

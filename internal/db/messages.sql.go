@@ -91,6 +91,7 @@ const getLastAssistantMessageBySession = `-- name: GetLastAssistantMessageBySess
 SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at, provider, is_summary_message, prism_model_id, prism_model_name, prism_hypercredit_savings, prism_dollar_savings
 FROM messages
 WHERE session_id = ? AND role = 'assistant' AND is_summary_message = 0
+  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
 ORDER BY created_at DESC
 LIMIT 1
 `

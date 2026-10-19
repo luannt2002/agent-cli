@@ -524,22 +524,20 @@ func (app *App) UpdateAgentModel(ctx context.Context) error {
 
 // sessionModelNote đọc lời trả lời thật cuối của session và trả
 // SessionModelNote so với model lớn của workspace (model lượt này chạy). Đọc
-// cả danh sách tin vì GetLastAssistantMessage trả cả tin giữ chỗ của prompt
-// chưa chạy (DB do server ghi, chế độ local đọc lại), mà tin đó không phải
-// lời trả lời.
+// cả danh sách tin để chọn bằng message.LastReply, cùng một quy tắc với TUI
+// và CLI qua server.
 func (app *App) sessionModelNote(ctx context.Context, sessionID string) string {
 	msgs, err := app.Messages.List(ctx, sessionID)
 	if err != nil {
 		slog.Warn("Failed to read the session's last model", "error", err)
 		return ""
 	}
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && !message.IsPromptPlaceholder(m) {
-			last := config.SelectedModel{Provider: m.Provider, Model: m.Model}
-			return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
-		}
+	reply, ok := message.LastReply(msgs)
+	if !ok {
+		return ""
 	}
-	return ""
+	last := config.SelectedModel{Provider: reply.Provider, Model: reply.Model}
+	return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
 }
 
 // SessionModelNote nói session từng chạy model last, khác model current của
