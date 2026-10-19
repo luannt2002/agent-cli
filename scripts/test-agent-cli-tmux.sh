@@ -219,10 +219,32 @@ echo '[]' > "$work/ps.json"; touch "$work/ps-stderr"
 rc_of rm busy --repo "$proj"
 [[ $rc == 3 && -e $wtd/busy/.git && $(nwin busy) == 1 ]] || fail "N5 ps stderr một phần: rc=$rc"
 rm -f "$work/ps-stderr"
+# (d) BUSY ở THƯ MỤC CON của worktree (thẳng / có / cuối / qua symlink) -> --force vẫn phải từ chối (ca T4 của eval/exposure.sh)
+mkdir -p "$wtd/busy/sub"
+for p in "$wtd/busy/sub" "$wtd/busy/sub/" "$work/busy-link/sub"; do
+  echo '[{"path":"'"$p"'","busy":true,"waiting":false}]' > "$work/ps.json"
+  rc_of rm busy --repo "$proj" --force
+  [[ $rc == 3 && -e $wtd/busy/.git && $(nwin busy) == 1 ]] || fail "N5 thư mục con '$p': rc=$rc: $(cat "$work/err")"
+  grep -q 'BUSY/WAITING' "$work/err" || fail "N5 thư mục con '$p': từ chối sai lý do: $(cat "$work/err")"
+done
 echo '[{"path":"'"$wtd/busy"'","busy":false,"waiting":false}]' > "$work/ps.json"  # IDLE -> được xoá
 rc_of rm busy --repo "$proj"; [[ $rc == 0 && ! -e $wtd/busy ]] || fail "N5 idle: rc=$rc: $(cat "$work/err")"
 echo '[]' > "$work/ps.json"
 [[ ! -e $work/host-seen ]] || fail "N5: script đưa --host cho agent-cli ps"
+# (e) biên tên: BUSY ở worktree trùng tiền tố (pfx2, cả thư mục con) không được chặn oan rm pfx, cũng không đóng window pfx2
+rc_of new pfx --repo "$proj"; rc_of new pfx2 --repo "$proj"; mkdir -p "$wtd/pfx2/sub"
+echo '[{"path":"'"$wtd/pfx2"'","busy":true,"waiting":false},{"path":"'"$wtd/pfx2/sub"'","busy":true,"waiting":false}]' > "$work/ps.json"
+rc_of rm pfx --repo "$proj" --force
+[[ $rc == 0 && ! -e $wtd/pfx && -e $wtd/pfx2/.git && $(nwin pfx2) == 1 ]] || fail "N5 biên pfx/pfx2: rc=$rc, pfx2 window=$(nwin pfx2): $(cat "$work/err")"
+echo '[]' > "$work/ps.json"
+# (f) window mở ở thư mục con của worktree (agent-cli-tmux <wt>/sub) cũng bị đóng khi rm, không để agent sống trong thư mục đã xoá
+rc_of new subw --repo "$proj"; mkdir -p "$wtd/subw/sub"
+run "$wtd/subw/sub"
+subd=$(cd "$wtd/subw/sub" && pwd -P)
+nsub() { tmux list-windows -t =agents -F '#{@agent_dir}' | grep -cxF -- "$subd" || true; }
+[[ $(nsub) == 1 ]] || fail "window thư mục con: không mở được window ở $subd"
+rc_of rm subw --repo "$proj"
+[[ $rc == 0 && ! -e $wtd/subw && $(nwin subw) == 0 && $(nsub) == 0 ]] || fail "window thư mục con: rc=$rc, window sub còn=$(nsub): $(cat "$work/err")"
 
 # N1: agent ghi file lúc SIGHUP (window bị kill) -> git remove phải từ chối, file còn (showUntrackedFiles=no vẫn đang bật)
 rc_of new late --repo "$proj"

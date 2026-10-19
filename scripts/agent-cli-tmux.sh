@@ -13,10 +13,10 @@ if [[ $# -eq 0 || "$1" == -h || "$1" == --help ]]; then
   [[ $# -gt 0 ]] && exit 0 || exit 2
 fi
 
-# Tìm window theo @agent_dir (đường dẫn vật lý), in window_id.
+# Tìm window theo @agent_dir (đường dẫn vật lý), in window_id. Có $2 (rm): in MỌI window ở $1 hoặc thư mục con của nó.
 find_window() {
   tmux has-session -t "=$session" 2>/dev/null || return 0
-  tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" '$2 == d { print $1; exit }'
+  tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" -v all="${2:-}" '$2 == d || (all != "" && index($2, d "/") == 1) { print $1; if (all == "") exit }'
 }
 
 die() { echo "agent-cli-tmux: $2" >&2; exit "$1"; }
@@ -103,16 +103,18 @@ if [[ -n $cmd ]]; then
           p=${p#P:} # tiền tố P: để hàng BUSY có path rỗng vẫn thành một dòng, không bị nuốt
           [[ $p == /* ]] || die 3 "session đang chạy có path không tuyệt đối ('$p'), từ chối xoá: $wt"
           c=$(cd -- "$p" 2>/dev/null && pwd -P) || die 3 "session đang chạy có path không phân giải được ('$p'), từ chối xoá: $wt"
-          [[ $c != "$abs" ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+          # Session ở thư mục con ($wt/sub) cũng mất lịch sử khi xoá: so "nằm trong", "$abs"/ để /a/wt không khớp /a/wt2.
+          [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
         done <<< "$rows"
       else
         echo "agent-cli-tmux: không thấy agent-cli trên PATH, bỏ qua kiểm session đang chạy" >&2
       fi
       # Đóng window và đợi tiến trình pane thoát (nó có thể ghi nốt file lúc SIGHUP) rồi mới để git kiểm lại.
-      id=$(find_window "$abs")
-      if [[ -n $id ]]; then
-        pids=$(tmux list-panes -t "$id" -F '#{pane_pid}')
-        tmux kill-window -t "$id"
+      # Cả window mở ở thư mục con (agent-cli-tmux $wt/sub): bỏ sót thì agent sống tiếp trong thư mục đã xoá.
+      ids=$(find_window "$abs" all)
+      if [[ -n $ids ]]; then
+        pids=$(for id in $ids; do tmux list-panes -t "$id" -F '#{pane_pid}'; done)
+        for id in $ids; do tmux kill-window -t "$id"; done
         for _ in $(seq 30); do
           alive=
           for pid in $pids; do kill -0 "$pid" 2>/dev/null && alive=1; done

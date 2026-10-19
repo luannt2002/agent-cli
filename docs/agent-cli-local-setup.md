@@ -452,11 +452,11 @@ luôn có `.crush/` (DB session và log). Chỉ khi chắc chắn bỏ cả lị
   khởi động lại mới nhận.
 - `rm <name> [--repo dir] [--force]`: worktree còn thay đổi chưa commit (kể cả file chưa theo dõi, bất kể
   `status.showUntrackedFiles`) hoặc không đọc được trạng thái git thì in lý do, mã 3, không
-  xoá gì. Worktree còn session BUSY hoặc WAITING (theo `agent-cli ps --json --all`, so path đã chuẩn hoá `pwd -P`; ps lỗi, có stderr, JSON
+  xoá gì. Worktree còn session BUSY hoặc WAITING ở gốc hoặc thư mục con (theo `agent-cli ps --json --all`, so path đã chuẩn hoá `pwd -P`; ps lỗi, có stderr, JSON
   hỏng, hoặc hàng BUSY có path không phân giải được đều bị coi là không an toàn và từ chối) cũng bị từ
   chối, mã 3: dưới `CRUSH_CLIENT_SERVER=1` agent chạy ở server riêng nên đóng window KHÔNG
   dừng nó ngay (xem "Đã biết" ở mục trên về detach grace và trần mồ côi); thiếu `agent-cli` trên
-  PATH thì bỏ qua kiểm này và cảnh báo. Sạch thì đóng window `<name>`, đợi tiến trình pane
+  PATH thì bỏ qua kiểm này và cảnh báo. Sạch thì đóng window `<name>` và mọi window mở ở thư mục con của worktree, đợi tiến trình pane
   thoát, gỡ worktree (git kiểm lại, kể cả file agent vừa ghi) và in `branch agent/<name> kept`. Script KHÔNG bao giờ xoá branch; bỏ hẳn thì tự chạy
   `git branch -d agent/<name>` (hoặc `-D` nếu chưa merge).
 - `rm` từ chối (mã 3) khi worktree có file bị gitignore, gồm `.crush/` (DB session và log của

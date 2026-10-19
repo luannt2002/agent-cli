@@ -96,6 +96,11 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   panic `sync: WaitGroup is reused before previous Wait has returned` (`internal/agent/coordinator.go`), kéo chết mọi
   client của dự án: 27/200 lượt thử với 10 `run` đồng thời trước khi sửa, 0/280 sau. Nhóm chờ "agent đã dựng xong" nay an
   toàn khi một lượt chờ trong lúc lượt khác đang dựng agent con; ngữ nghĩa giữ nguyên (lượt chưa chạy khi việc dựng còn dở).
+- **`agent-cli-tmux rm --force` không còn xoá worktree khi session đang chạy ở thư mục con của nó.** Trước đây chỉ session
+  BUSY/WAITING ở đúng gốc worktree chặn được `rm`; session mở ở `$wt/sub` không chặn, nên worktree và `.crush/` (lịch sử
+  session) bị xoá. Nay mọi session BUSY/WAITING trong worktree (gốc hoặc thư mục con, kể cả qua `/` cuối hay symlink) đều
+  chặn (rc 3), và `rm` đóng cả
+  window tmux mở ở thư mục con của worktree, không chỉ window ở gốc.
 - **Lời gọi ẩn không còn sang provider khác.** Model nhỏ nằm ở provider khác model chính từng nhận lời gọi đặt tiêu đề
   (kèm nguyên văn prompt đầu của bạn) và `agentic_fetch`, không cảnh báo: phiên chọn Qwen local vẫn gửi prompt sang
   provider của model nhỏ. Bộ tiêm lỗi với provider giả: bản trước có lời gọi lọt ở cả 8/8 ca (kể cả khi provider
