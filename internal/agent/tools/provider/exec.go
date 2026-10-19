@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/herdr"
 )
 
@@ -32,7 +32,10 @@ func runCommand(ctx context.Context, dir, name string, args ...string) ([]byte, 
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = childEnv(os.Environ())
+	// Env gốc, không phải env sau `.env` của repo hay `env` của cấu hình dự án: các thứ đó
+	// không được lái endpoint, khoá hay thư mục cấu hình của CLI con (ANTHROPIC_BASE_URL,
+	// OPENAI_API_KEY, CLAUDE_CONFIG_DIR, CODEX_HOME...). Biến người dùng export thì giữ.
+	cmd.Env = childEnv(execpolicy.OriginalEnviron())
 	// CLI con hay bật tiến trình cháu (dev server, test watcher) giữ pipe
 	// stdout: huỷ/hết giờ thì dừng cả nhóm, và sau waitDelay đóng pipe để
 	// Run trả về thay vì treo quá hạn.

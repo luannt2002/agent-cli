@@ -194,8 +194,11 @@ allowlist hiệu lực bằng nhau đều bị từ chối. Lệnh không gửi 
 không bị so chính sách tin cậy và `--yolo` (vẫn bị so `--channels`; `login` khi tự nối lại sau lúc
 server mất workspace thì bị so như lệnh chạy model). Server khác bản/build mà đang bận (không thay
 được) thì lệnh chạy model bị từ chối, lệnh không prompt vẫn dùng nó. Từ tiến trình con mà Home
-dựng (workspace, Home khi quay lại) tới lệnh `--verify` của loop, biến tin cậy đều lấy theo env
-gốc, `.env` của repo không chen vào được. Để áp giá trị mới: thoát hết client của dự án đó, chờ
+dựng (workspace, Home khi quay lại, kể cả launcher mà Home đó chạy) tới lệnh `--verify` của loop
+và lệnh `!` bạn gõ trong TUI (local lẫn server), biến tin cậy đều lấy theo env gốc, `.env` của
+repo không chen vào được (biến thường của `.env` thì vẫn tới các lệnh đó; verify của `routine run`
+nhận công tắc không người trực của chính lượt chạy). Để áp giá trị mới: thoát hết client của dự
+án đó, chờ
 server tắt (khoảng 60 giây sau khi client cuối thoát, xem `agent-cli ps`) rồi mở lại; hoặc dừng
 thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server (tên socket
 `agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`; việc đang
@@ -615,6 +618,18 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
   gắn với một phiên Claude Code khác (`CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`,
   `CLAUDE_CODE_SESSION_ID`, socket nhắn tin…), nên mở agent-cli từ trong Claude Code thì CLI con
   vẫn chạy như ở terminal thường; biến cấu hình của bạn (khoá, provider) giữ nguyên.
+- CLI con nhận env GỐC của agent-cli: env lúc tiến trình khởi động, trước khi nạp `.env` của
+  thư mục hiện tại và `env` trong `crush.json`. Biến lái endpoint, khoá hay thư mục cấu hình của
+  CLI con (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
+  `CLAUDE_CONFIG_DIR`, `CODEX_HOME`...) đặt trong `.env` của repo, hay `env` của `crush.json` (kể
+  cả `crush.json` toàn cục của bạn), không tới CLI con; muốn CLI con dùng chúng thì export ở shell
+  (ví dụ `~/.bashrc`). Workspace mà Home mở và server của dự án cũng được dựng với env gốc rồi tự
+  nạp `.env` cho riêng chúng, nên mở qua Home hay chế độ server cũng vậy.
+- Giới hạn: agent-cli gọi lồng từ một tiến trình đã nạp `.env` (lệnh `!agent-cli run …` trong TUI,
+  `agent-cli loop --verify "agent-cli run …"`) chụp env của tiến trình cha, gồm biến thường của
+  `.env`, làm env gốc của nó: CLI con mà agent-cli lồng đó giao việc nhận các biến này.
+- Server dựng sau khi lệnh đã vào `--cwd` (hiện là `agent-cli loop --cwd <dir>` ở chế độ server)
+  nạp `.env` của `<dir>`, không nạp `.env` của thư mục bạn đứng khi gõ lệnh.
 
 Các biến trên phải có trong môi trường của tiến trình agent-cli (export ở shell, ví dụ
 `~/.bashrc`), KHÔNG đặt trong `~/.config/agent-cli/env`: tệp đó chỉ được crushrc `source`

@@ -131,8 +131,10 @@ func homeChildCmd(exe string, c home.Choice, debug bool) *exec.Cmd {
 }
 
 // homeEnv là env cho tiến trình agent-cli mà Home dựng (workspace, Home khi quay
-// lại): biến tin cậy theo ảnh chụp env gốc, không theo `.env` mà main đã nạp.
-func homeEnv() []string { return execpolicy.ChildEnv(os.Environ()) }
+// lại): env GỐC, không biến nào của `.env` mà main đã nạp. Con chụp env này làm env
+// gốc của nó (biến tin cậy, launcher, và env mà CLI con giao việc nhận); nó chạy cùng
+// cwd nên tự nạp lại đúng `.env` đó.
+func homeEnv() []string { return execpolicy.OriginalEnviron() }
 
 // runChild runs c and returns its exit status; death by a signal counts as
 // a failure.

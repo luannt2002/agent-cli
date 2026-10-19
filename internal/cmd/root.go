@@ -1055,6 +1055,14 @@ func awaitSocketGone(ctx context.Context, hostURL *url.URL) error {
 
 var safeNameRegexp = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
 
+// serverEnv là env của server dự án mà client dựng. Server không báo trạng thái về
+// pane herdr của client đã dựng nó: client TUI báo thay qua luồng sự kiện; hai nguồn
+// cùng pane thì tranh nhau. Env GỐC (ảnh chụp đầu main), không theo env đã bị
+// `.env`/cấu hình dự án đổi: biến tin cậy (ranh giới, CLI giao việc) và cả env gốc
+// của server, thứ mà CLI con giao việc nhận. Server chạy ở cwd của client (không
+// đặt c.Dir) và tự nạp `.env` ở đó như mọi tiến trình (main).
+func serverEnv() []string { return herdr.StripEnv(execpolicy.OriginalEnviron()) }
+
 func startDetachedServer(cmd *cobra.Command, hostURL *url.URL) error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -1076,11 +1084,7 @@ func startDetachedServer(cmd *cobra.Command, hostURL *url.URL) error {
 	// DETACHED_PROCESS on windows) is what truly detaches the child from
 	// this process's lifetime.
 	c := exec.CommandContext(context.Background(), exe, cmdArgs...)
-	// Server không báo trạng thái về pane herdr của client đã dựng nó: client
-	// TUI báo thay qua luồng sự kiện; hai nguồn cùng pane thì tranh nhau.
-	// Biến tin cậy (ranh giới, CLI giao việc) theo ảnh chụp đầu main, không theo
-	// env đã bị `.env`/cấu hình dự án đổi.
-	c.Env = execpolicy.ChildEnv(herdr.StripEnv(os.Environ()))
+	c.Env = serverEnv()
 	stdoutPath := filepath.Join(chDir, "stdout.log")
 	stderrPath := filepath.Join(chDir, serverStderrLogName)
 	detachProcess(c)

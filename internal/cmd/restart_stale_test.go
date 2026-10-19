@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/charmbracelet/crush/internal/client"
 	"github.com/charmbracelet/crush/internal/proto"
+	"github.com/charmbracelet/crush/internal/server"
 	"github.com/charmbracelet/crush/internal/version"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -30,6 +34,8 @@ type controlServerOpts struct {
 	// used by the legacy fallback to decide whether it is safe to send
 	// the unconditional shutdown. Defaults to 0 (idle).
 	workspaces int
+	// unix serves on a unix socket, the launcher's per-project host, instead of tcp.
+	unix bool
 }
 
 // controlLog records the control commands a server received.
@@ -47,7 +53,7 @@ func (l *controlLog) all() []string {
 func newControlServer(t *testing.T, opts controlServerOpts) (*url.URL, *controlLog) {
 	t.Helper()
 	log := &controlLog{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/version":
 			require.NoError(t, json.NewEncoder(w).Encode(opts.vi))
@@ -72,7 +78,22 @@ func newControlServer(t *testing.T, opts controlServerOpts) (*url.URL, *controlL
 			w.WriteHeader(http.StatusOK)
 		}
 	}))
+	if opts.unix {
+		dir, err := os.MkdirTemp("", "ac") // Ngắn: đường dẫn socket unix giới hạn ~108 byte.
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		ln, err := net.Listen("unix", filepath.Join(dir, "s.sock"))
+		require.NoError(t, err)
+		_ = srv.Listener.Close()
+		srv.Listener = ln
+	}
+	srv.Start()
 	t.Cleanup(srv.Close)
+	if opts.unix {
+		u, err := server.ParseHostURL("unix://" + srv.Listener.Addr().String())
+		require.NoError(t, err)
+		return u, log
+	}
 	u, err := url.Parse(srv.URL)
 	require.NoError(t, err)
 	return &url.URL{Scheme: "tcp", Host: u.Host}, log
@@ -121,6 +142,27 @@ func TestRestartIfStale_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
 			require.Contains(t, err.Error(), "not-"+version.Version, "names the old server's version")
 			require.Contains(t, err.Error(), "agent-cli ps")
 			require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all())
+		})
+	}
+}
+
+// ensureServer trên socket unix (đường của launcher): server khác build đang bận
+// thì lệnh chạy model bị TỪ CHỐI, không rơi xuống nhánh dựng server mới rồi gắn
+// lại vào chính server cũ; lệnh không prompt vẫn dùng nó. Không lệnh tắt vô điều
+// kiện nào được gửi. Không parallel: đặt env.
+func TestEnsureServer_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
+	isolateServerCache(t)
+	for name, opts := range map[string]controlServerOpts{
+		"busy":        {vi: staleVersion(), busy: true, unix: true},
+		"legacy busy": {vi: staleVersion(), legacy: true, workspaces: 3, unix: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			hostURL, log := newControlServer(t, opts)
+			err := ensureServer(versionCheckCmd(t), hostURL)
+			require.ErrorIs(t, err, errStaleServerBusy)
+			require.NoError(t, ensureServer(noPromptCmd(t), hostURL))
+			require.Equal(t, []string{proto.ServerControlShutdownIfIdle, proto.ServerControlShutdownIfIdle}, log.all())
+			require.FileExists(t, hostURL.Host, "the busy server keeps its socket")
 		})
 	}
 }

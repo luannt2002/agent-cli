@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +14,7 @@ import (
 	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/commands"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/gitutil"
 	"github.com/charmbracelet/crush/internal/history"
 	"github.com/charmbracelet/crush/internal/lsp"
@@ -154,9 +156,11 @@ func (w *AppWorkspace) AgentRunShellCommand(ctx context.Context, sessionID, comm
 		}
 	}
 
+	// Lệnh `!` có thể là `agent-cli run …`: biến tin cậy theo env gốc, không theo `.env` của repo.
 	opts := shell.RunOptions{
 		Command:   command,
 		Cwd:       w.store.WorkingDir(),
+		Env:       execpolicy.ChildEnv(os.Environ()),
 		TermWidth: termWidth,
 	}
 

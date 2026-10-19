@@ -37,8 +37,8 @@ func TestUnattendedSwitch(t *testing.T) {
 	require.False(t, Unattended(), "mở commit không bật chế độ")
 }
 
-// Hai biến là biến tin cậy: ChildEnv phải mang chúng sang server con theo ảnh
-// chụp, không theo env đã bị repo đổi.
+// Hai biến là biến tin cậy: tiến trình con nhận chúng theo ảnh chụp (hoặc theo trạng
+// thái không người trực hiện hành), không theo env đã bị repo đổi.
 func TestUnattendedKeysAreTrusted(t *testing.T) {
 	t.Parallel()
 	require.True(t, slices.Contains(trustedKeys, UnattendedEnv))
@@ -68,4 +68,20 @@ func TestSelfAgentSubcommandsIncludeLoopAndRoutine(t *testing.T) {
 		_, ok := ExternalAgentCommand(args)
 		require.Falsef(t, ok, "%q không chạy agent, không được chặn", args)
 	}
+}
+
+// Tiến trình con dựng qua ChildEnv (verify của routine/loop...) mang trạng thái không người
+// trực HIỆN HÀNH của tiến trình (SetUnattended, đúng như exportUnattendedEnv xuất: commit
+// "1" hoặc "0"), không theo env: `.env` của repo đặt giá trị nào cũng không bật được.
+// Không parallel: đổi ảnh chụp và công tắc cấp gói.
+func TestChildEnvCarriesTheCurrentUnattendedState(t *testing.T) {
+	prev := snapshot
+	t.Cleanup(func() { snapshot = prev; SetUnattended(false, false) })
+	snapshot = map[string]string{}
+	dotenv := []string{UnattendedEnv + "=1", UnattendedCommitEnv + "=1"}
+	require.Empty(t, ChildEnv(dotenv), "not unattended: a .env value does not turn it on")
+	SetUnattended(true, false)
+	require.ElementsMatch(t, []string{UnattendedEnv + "=1", UnattendedCommitEnv + "=0"}, ChildEnv(dotenv))
+	SetUnattended(true, true)
+	require.ElementsMatch(t, []string{UnattendedEnv + "=1", UnattendedCommitEnv + "=1"}, ChildEnv(nil))
 }

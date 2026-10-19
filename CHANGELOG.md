@@ -201,6 +201,16 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `alt+p` khi khác provider, `alt+m` khi cùng provider). Model của session không còn trong catalog nay cũng được báo
   (trước chỉ ghi log Debug). Model chỉ đổi khi bạn chọn: `-m`, `--small-model`, `alt+p`/`alt+m`,
   `agent-cli-tmux new --model`; thinking và effort (`alt+e`, `--reasoning-effort`) đổi tham số của model đang chọn.
+- **`.env` của repo không còn lái lệnh `!` và CLI con giao việc.** Lệnh `!` gõ trong TUI (local lẫn server) nhận
+  biến tin cậy theo env gốc: `!agent-cli run …` từng nhận `AGENT_CLI_DELEGATION`, allowlist hay tệp env từ `.env`.
+  Claude Code/Codex được giao việc nhận env gốc của agent-cli (trước `.env` và `env` của `crush.json`, kể cả
+  `crush.json` toàn cục), cả khi mở qua Home và ở chế độ server: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`,
+  `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`… đặt trong `.env` từng tới CLI con (đổi endpoint
+  hay khoá của nó); giá trị export ở shell vẫn tới. Workspace mà Home mở và server của dự án nay được dựng với env gốc
+  và tự nạp `.env` như trước (`loop --cwd <dir>` ở chế độ server: chỉ `.env` của `<dir>`). Agent-cli gọi lồng
+  (`!agent-cli run …`) vẫn chụp biến thường của `.env` làm env gốc. Home mở lại bằng Alt+W khi chạy
+  binary không qua launcher cũng không còn lấy `AGENT_CLI_LAUNCHER` từ `.env` (từng để `.env` chọn chương trình mà
+  Home đó chạy).
 
 ## [0.2.0] - 2026-10-16
 

@@ -110,7 +110,7 @@ var trustedKeys = []string{
 var (
 	snapshotOnce sync.Once
 	snapshot     map[string]string // nil: chưa chụp
-	// original là toàn bộ env lúc chụp, chỉ để đọc (OriginalEnv); không đổi ChildEnv.
+	// original là toàn bộ env lúc chụp, chỉ để đọc (OriginalEnv, OriginalEnviron); không đổi ChildEnv.
 	original map[string]string
 )
 
@@ -142,6 +142,24 @@ func OriginalEnv(key string) string {
 	return os.Getenv(key)
 }
 
+// OriginalEnviron trả env gốc (trước `.env` và `env` của cấu hình dự án) dạng KEY=value,
+// cho các biến còn trong env hiện tại: biến tiến trình đã gỡ (AGENT_CLI_HOME_CHILD) không
+// quay lại, biến `.env` thêm thì không có, biến bị đè thì về giá trị gốc. Chưa chụp thì
+// env hiện tại.
+func OriginalEnviron() []string {
+	if snapshot == nil {
+		return os.Environ()
+	}
+	var out []string
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		if v, ok := original[k]; ok {
+			out = append(out, k+"="+v)
+		}
+	}
+	return out
+}
+
 // TrustedEnv trả giá trị tin cậy của biến key: theo ảnh chụp nếu key thuộc
 // danh sách và đã chụp, không thì env hiện tại (test, tiện ích không qua main).
 func TrustedEnv(key string) string {
@@ -151,8 +169,10 @@ func TrustedEnv(key string) string {
 	return os.Getenv(key)
 }
 
-// ChildEnv sửa env cho tiến trình agent-cli con (server của dự án): các biến
-// tin cậy lấy theo ảnh chụp, không theo env đã bị `.env`/cấu hình dự án đổi.
+// ChildEnv sửa env cho tiến trình con có thể chạy agent-cli (Home, verify của loop,
+// lệnh `!`): các biến tin cậy lấy theo ảnh chụp, không theo env đã bị `.env`/cấu hình
+// dự án đổi. Riêng công tắc không người trực theo trạng thái HIỆN HÀNH khi tiến trình
+// đang trong lượt không người trực (SetUnattended, như exportUnattendedEnv xuất).
 // Chưa chụp thì trả nguyên env.
 func ChildEnv(env []string) []string {
 	if snapshot == nil {
@@ -166,7 +186,19 @@ func ChildEnv(env []string) []string {
 		}
 	}
 	for _, k := range trustedKeys {
-		if v, ok := snapshot[k]; ok {
+		v, ok := snapshot[k]
+		if unattendedOn.Load() {
+			switch k {
+			case UnattendedEnv:
+				v, ok = "1", true
+			case UnattendedCommitEnv:
+				v, ok = "0", true // "0" rõ ràng: giá trị mở commit trong ảnh chụp không lọt sang
+				if unattendedCommit.Load() {
+					v = "1"
+				}
+			}
+		}
+		if ok {
 			out = append(out, k+"="+v)
 		}
 	}

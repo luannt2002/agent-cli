@@ -243,6 +243,27 @@ func TestChildEnvUsesTheSnapshot(t *testing.T) {
 	require.Empty(t, TrustedEnv(DelegationEnv), "set after the snapshot: ignored")
 }
 
+// Env gốc cho tiến trình con: biến thêm sau ảnh chụp (`.env`) không có, biến bị đè
+// (`env` của cấu hình dự án) về giá trị gốc, biến tiến trình đã gỡ không quay lại.
+func TestOriginalEnvironDropsLaterChanges(t *testing.T) {
+	// Không parallel: đổi ảnh chụp cấp gói và env tiến trình.
+	prevSnap, prevOrig := snapshot, original
+	t.Cleanup(func() { snapshot, original = prevSnap, prevOrig })
+	snapshot = map[string]string{}
+	original = map[string]string{"P02B_KEPT": "orig", "P02B_OVERRIDDEN": "orig", "P02B_REMOVED": "1"}
+	t.Setenv("P02B_KEPT", "orig")
+	t.Setenv("P02B_OVERRIDDEN", "changed")
+	t.Setenv("P02B_ADDED", "dotenv")
+
+	var got []string
+	for _, kv := range OriginalEnviron() {
+		if strings.HasPrefix(kv, "P02B_") {
+			got = append(got, kv)
+		}
+	}
+	require.ElementsMatch(t, []string{"P02B_KEPT=orig", "P02B_OVERRIDDEN=orig"}, got)
+}
+
 // Inputs là chính sách tin cậy client gửi server để so: đủ mọi biến tin cậy,
 // allowlist/giao việc đã gộp tệp env như Current, và `.env` của repo (nạp sau
 // ảnh chụp) không đổi được nó.

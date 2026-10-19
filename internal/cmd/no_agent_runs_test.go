@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -39,6 +40,7 @@ func TestRunsNoAgentExactCommandSet(t *testing.T) {
 // connectToServer gửi đúng cờ của lệnh lên dây: lệnh chạy model gửi
 // no_agent_runs=false (bị so), lệnh không prompt (kể cả lệnh con) gửi true.
 func TestConnectToServerSendsNoAgentRuns(t *testing.T) {
+	isolateServerCache(t)
 	var mu sync.Mutex
 	var bodies []proto.Workspace
 	dataDir := t.TempDir()
@@ -80,4 +82,15 @@ func TestConnectToServerSendsNoAgentRuns(t *testing.T) {
 		// Lệnh chạy model mang chính sách tin cậy để server so.
 		require.Equal(t, !tc.want, last.TrustedEnv != nil, tc.cmd.CommandPath())
 	}
+}
+
+// isolateServerCache trỏ thư mục cache toàn cục (log server-<host> mà ensureServer
+// dựng, khoá spawn) vào thư mục tạm của test thay vì ~/.cache thật, và trả lại
+// logger mặc định khi test xong: crushlog.Setup chỉ chạy một lần mỗi tiến trình, test
+// sau mà còn ghi vào tệp đó sẽ dựng lại thư mục tạm đã xoá. Không parallel: đặt env.
+func isolateServerCache(t *testing.T) {
+	t.Helper()
+	t.Setenv("CRUSH_CACHE_DIR", t.TempDir())
+	prev := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(prev) })
 }

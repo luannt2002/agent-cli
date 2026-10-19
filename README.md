@@ -21,7 +21,8 @@ agent-cli --version                        # bản vừa cài
 Cần `git`, Go ≥ 1.27 (theo `go.mod`); `sha1sum`/`shasum` cho launcher; `jq` cho installer và `agent-cli-tmux` (bản
 mở agent-cli trong tmux); `tmux` cho `agent-cli-tmux`; `python3` và `script` để chạy các script kiểm. Installer in
 sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pull --ff-only && bash scripts/install-agent-cli.sh`, rồi
-thoát mọi client của các dự án đang mở (xem `agent-cli ps`) để server nền dựng lại bằng bản mới.
+thoát mọi client của các dự án đang mở (xem `agent-cli ps`) để server nền dựng lại bằng bản mới; trước đó, lệnh chạy
+model mới (TUI, `run`, `send`, `loop`) của dự án có server bản cũ đang bận bị từ chối.
 
 **Lần chạy đầu:**
 
@@ -80,7 +81,11 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
   Không phím chữ nào cấp quyền.
 
 **Repo lạ:** mở một repo là chạy `crushrc`/`.crushrc` của nó như Bash; `.env` của thư mục bạn đứng khi chạy agent-cli
-được nạp vào môi trường của nó (trừ allowlist và các biến ranh giới, đã chụp từ trước); `crush.json`, `.crush.json` và
+được nạp vào môi trường của nó (trừ allowlist và các biến ranh giới, đã chụp từ trước: lệnh `!` bạn gõ và tiến trình
+agent-cli con cũng không nhận chúng từ `.env`; CLI con giao việc Claude Code/Codex chỉ nhận env gốc, không nhận biến nào
+của `.env`, kể cả `ANTHROPIC_BASE_URL`, `OPENAI_API_KEY`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`. Giới hạn: agent-cli gọi lồng
+từ tiến trình đã nạp `.env` (`!agent-cli run …`, `--verify "agent-cli run …"`) chụp biến thường của `.env` đó làm env gốc,
+nên CLI con của nó nhận chúng); `crush.json`, `.crush.json` và
 `.crush/crush.json` của repo (tệp cuối thắng mọi cấu hình khác, kể cả env) nới được quyền tool, khai hook và MCP server
 (tức là chạy lệnh; `$(...)` trong `api_key`/`base_url` chạy ngay lúc nạp), đổi model/provider hay `base_url`; context
 file (`AGENTS.md`, `CLAUDE.md`, `CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills`, `.crush/skills`,

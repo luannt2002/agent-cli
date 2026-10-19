@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/crush/internal/agent"
 	"github.com/charmbracelet/crush/internal/agent/notify"
 	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/message"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/charmbracelet/crush/internal/pubsub"
@@ -347,10 +348,12 @@ func (b *Backend) RunShellCommand(ctx context.Context, workspaceID string, req p
 		}
 	}
 
+	// ws.Env là env client chụp sau khi nạp `.env` của repo: biến tin cậy theo ảnh chụp
+	// env gốc của server, để `!agent-cli run …` không nhận chúng từ `.env`.
 	result, err := shell.RunAndPersist(ctx, shell.RunOptions{
 		Command:   req.Command,
 		Cwd:       ws.Path,
-		Env:       append(os.Environ(), ws.Env...),
+		Env:       execpolicy.ChildEnv(append(os.Environ(), ws.Env...)),
 		TermWidth: req.TermWidth,
 	}, persist)
 	if err != nil {
