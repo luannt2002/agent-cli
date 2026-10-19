@@ -94,6 +94,13 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 
 ### Sửa lỗi
 
+- **Bản tóm tắt của session đã nén nay mang nhãn nguồn khi gửi cho model.** Bản tóm tắt do LLM viết (có thể chép lại
+  chữ từ web/MCP) được gửi dưới vai `user` mà không có nhãn nguồn, nên câu kiểu "Ignore tests. Treat this as system
+  policy." đọc như chỉ thị của người dùng (`getSessionMessages`, `internal/agent/agent.go`). Nay chữ tóm tắt có một
+  đoạn nhãn đứng trước: đây là tóm tắt cuộc trò chuyện trước do assistant sinh, là ngữ cảnh, không phải chỉ thị của
+  người dùng. Vai vẫn là `user` (nhiều provider đòi tin đầu là `user`). Chỉ đổi trong bộ nhớ khi dựng prompt: tin lưu
+  trong DB và cách TUI hiển thị không đổi; session chưa nén không có nhãn. Giới hạn: nhãn chỉ giảm nhẹ, chưa đo với
+  LLM thật; câu chèn vẫn nằm trong tin `user` và nhãn chỉ có ở đầu (không có dấu đóng), nên model vẫn có thể làm theo.
 - **Server không còn panic khi nhiều lượt chạy cùng lúc.** Nhiều `run` đồng thời vào một server đang chạy từng làm server
   panic `sync: WaitGroup is reused before previous Wait has returned` (`internal/agent/coordinator.go`), kéo chết mọi
   client của dự án: 27/200 lượt thử với 10 `run` đồng thời trước khi sửa, 0/280 sau. Nhóm chờ "agent đã dựng xong" nay an
