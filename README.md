@@ -12,7 +12,7 @@ với model local hoặc provider qua API key, mà vẫn biết việc nào đan
 - **Provider chỉ là backend thực thi.** Session, lịch sử, job, quyền, bằng chứng nằm ở DEW. Đổi provider giữa chừng không
   mất mạch; DEW không tự chuyển provider ([Provider](#provider-dùng-nhiều-không-gọi-lén)).
 - **CLI chỉ là một giao diện.** Hiện có TUI (`dew`) và lệnh cho script (`run`, `send`, `loop`, `routine`, `ps`…).
-- **Vì sao đổi tên:** "agent-cli" là tên chung chung (nhiều dự án công khai đã dùng) và trói sản phẩm vào một giao diện.
+- **Vì sao đổi tên:** "agent-cli" là tên chung chung và trói sản phẩm vào một giao diện.
   Định danh chốt ở §41 [spec V3](reports/v3-research/spec/DEW_RECONSTRUCTION_WORKFLOW.md): tagline "One place for
   engineering", North Star "DEW is where engineering work lives. Providers are how the work gets done."
 - **DEW không phải:** kho trí nhớ, RAG, knowledge store hay graph (nó nhớ bằng context file, lịch sử session, tự tóm
@@ -51,7 +51,7 @@ tag `v0.1.0`, `v0.2.0`; `loop`/`routine` và các sửa lỗi V3 (gộp `main` 2
 ## Cài
 
 ```bash
-git clone https://github.com/luannt2002/dew.git && cd dew   # repo chưa đổi tên trên GitHub: …/agent-cli.git
+git clone https://github.com/luannt2002/dew.git && cd dew   # repo chưa đổi tên trên GitHub: …/agent-cli.git rồi cd agent-cli
 bash scripts/install-dew.sh          # build vào ~/.local, tạo crushrc + env mẫu nếu chưa có
 export PATH="$HOME/.local/bin:$PATH" # thêm dòng này vào ~/.bashrc hoặc ~/.zshrc
 dew --version                        # bản vừa cài
