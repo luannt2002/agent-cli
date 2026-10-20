@@ -61,14 +61,16 @@ for g in faults qwen-only workspaces session-model ledger; do
   bash "scripts/eval/$g.sh" "$E-$g" "$out/bin" > "$out/gate-$g.log" 2>&1; sum "gate-$g" $?
 done
 
-# 5. Phơi nhiễm: chép tạm 5 tệp unit + exposure.sh từ nhánh v3-exposure, chạy, gỡ.
-files=$(git -C "$SRC" diff --name-only v2-final v3-exposure)
-for f in $files; do mkdir -p "$(dirname "$f")"; git -C "$SRC" show "v3-exposure:$f" > "$f"; done
-chmod +x scripts/eval/exposure.sh
+# 5. Phơi nhiễm: chép tạm 5 tệp unit (lưu ở reports/…/_exposure-tests, ngoài gói Go để `go test ./...`
+#    không đỏ vì C9) vào đúng gói của commit đang kiểm, chạy, gỡ; harness lấy từ repo chứa công cụ.
+REPO=$(cd "$TOOLS/../../.." && pwd)  # repo chứa công cụ (có thể khác commit đang kiểm)
+X=$REPO/reports/v3-research/experiments/_exposure-tests
+files=$(cd "$X" && find . -name '*_test.go' | sed 's|^\./||')
+for f in $files; do cp -p "$X/$f" "$f"; done
 waitram
 flock $LOCK env $GOENV go test -count=1 -p 2 -v -run 'TestV3Exposure' ./internal/backend/ ./internal/agent/ ./internal/agent/tools/ \
   ./internal/permission/ ./internal/shell/ > "$out/exposure-unit.log" 2>&1; sum exposure-unit $?
-bash scripts/eval/exposure.sh "$E-exp" "$out/bin" > "$out/exposure-bin.log" 2>&1; sum exposure-bin $?
+bash "$REPO/scripts/eval/exposure.sh" "$E-exp" "$out/bin" > "$out/exposure-bin.log" 2>&1; sum exposure-bin $?
 for f in $files; do rm -f "$f"; done
 git status --short | sed 's/^/dirty: /' | tee -a "$out/SUMMARY.txt"
 grep -E "^(T[0-9]+[A-Za-z]*|C[0-9]+):" "$out/exposure-bin.log" | tee -a "$out/SUMMARY.txt"

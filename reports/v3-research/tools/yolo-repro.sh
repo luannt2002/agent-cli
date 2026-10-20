@@ -6,7 +6,7 @@ set -u
 OUT=$1; BIN=$2
 [ -e "$OUT" ] && { echo "exists: $OUT" >&2; exit 2; }
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
-R=${R:?đặt R = worktree có scripts/eval/exposure.sh (nhánh v3-exposure)}
+R=${R:-$(cd "$(dirname "$0")/../../.." && pwd)}  # gốc repo (có scripts/eval/exposure.sh)
 eval "$(sed -n '/^verdict()/,/^mcp_cfg()/p' "$R/scripts/eval/exposure.sh")"
 
 one() { # one <tên> <cờ run> <cờ TUI...>
