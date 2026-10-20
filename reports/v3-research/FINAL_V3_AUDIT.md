@@ -3,7 +3,7 @@
 **Trạng thái đề xuất (spec §77, chọn đúng một): `V3 PARTIALLY ADOPTED — VERIFIED`** — CHỐT sau khi chạy nốt phần phơi nhiễm binary (T4…C5) trên `300c8dd1`; xem `HANDOFF_2026-10-20.md`.
 
 - Ngày 20/10/2026. Ứng viên: `300c8dd1` (19 commit trên V2 `7cba42ff`); đã gộp vào `main` local theo yêu cầu người
-  dùng (tua nhanh, cùng `reports/`), CHƯA push, CHƯA cài.
+  dùng (tua nhanh, cùng `reports/`), đã push và cài trên máy người dùng 20/10; chưa gắn tag phát hành.
 - "Adopted": các bất biến rút từ lỗi của ba dự án ngoài, mỗi bất biến ép ở chủ sẵn có của agent-cli. Mỗi cái có test
   tái hiện đỏ trên V2 và xanh trên ứng viên, cộng một lượt soát độc lập DAT.
 - "Partially": mọi lớp trí nhớ/kiến trúc mới của giả thuyết Minimum-V3 bị DEFER hoặc REJECT (§B Q22–Q28). Một phần T6
@@ -450,7 +450,7 @@ docs cuối sau P2-c: chưa có lượt soát docs riêng sau P2-c; CHANGELOG/do
 
 - Không chọn ADOPTED vì:
   - các lớp kiến trúc của giả thuyết V3 không được làm, đúng theo số đo;
-  - ứng viên mới gộp ở `main` local, chưa push, chưa cài, chưa có ngày dùng thật;
+  - ứng viên mới gộp vào `main` (đã push, đã cài 20/10), chưa có ngày dùng thật, chưa gắn tag phát hành;
   - một phần T6 bị chặn.
 - Không chọn DEFERRED/REJECTED vì có cải thiện đo được và đã kiểm.
 - Không chọn REGRESSED vì không có hồi quy còn mở; hồi quy INTEG3 đã sửa.

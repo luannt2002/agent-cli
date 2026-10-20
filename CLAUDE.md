@@ -20,7 +20,7 @@
 ### P1. Mục tiêu sản phẩm và quyền thực hiện
 
 - **Bài toán:** fork cá nhân của Crush (TUI coding agent bằng Go). User làm FE/BE/devops, cần làm nhiều session và nhiều dự án song song trong một terminal, với model local hoặc provider qua API key. ĐÃ XÁC MINH: `AGENTS.md`, roadmap.
-- **Giai đoạn:** Phase 1 core MVP đã gộp và phát hành (tag `v0.1.0`, `v0.2.0` trên `main`). `agent-cli loop`/`routine` (Phase 4 của roadmap) ra sớm sau `v0.2.0`, chưa phát hành (DECISIONS.md, các mục 16/10). V3 (14 POC sửa lỗi + docs; báo cáo ở `reports/v3-research/`, đọc trước `HANDOFF_2026-10-20.md`) gộp vào `main` local 20/10, chưa push, chưa phát hành.
+- **Giai đoạn:** Phase 1 core MVP đã gộp và phát hành (tag `v0.1.0`, `v0.2.0` trên `main`). `agent-cli loop`/`routine` (Phase 4 của roadmap) ra sớm sau `v0.2.0`, chưa phát hành (DECISIONS.md, các mục 16/10). V3 (14 POC sửa lỗi + docs; báo cáo ở `reports/v3-research/`, đọc trước `HANDOFF_2026-10-20.md`) gộp vào `main` 20/10 (đã push), chưa gắn tag phát hành.
 - **Thành công:** đạt cổng WIN ở roadmap mục 5. Nghĩa là user đi trọn daily workflow trên launcher thật với provider thật. Unit test xanh chưa đủ.
 - **Ngoài phạm vi:** phần còn lại của Phase 2–5 (trừ `loop`/`routine` đã ra sớm); remote SSH picker; GUI/RAG/team; dashboard chi phí; switcher Alt+Tab, phím index, framework keybinding mới, mode quyền mới (đã DEFER).
 - **Quyền agent:**
