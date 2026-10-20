@@ -233,6 +233,30 @@ func TestLoadRefusesLeftoverOldEnvFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// ~/.config/agent-cli là symlink tương thích trỏ tới ~/.config/dew: hai đường là MỘT tệp, không
+// từ chối (lời nhắn "xoá tệp cũ" sẽ xoá chính tệp env mới). Hai tệp thật khác nhau thì vẫn từ chối,
+// và lời nhắn chỉ lối thoát DEW_ENV_FILE và thư mục cũ, không bảo xoá tệp.
+func TestLegacyEnvFileSymlinkToNewIsFine(t *testing.T) {
+	t.Parallel()
+	home := t.TempDir()
+	cfg := filepath.Join(home, ".config")
+	require.NoError(t, os.MkdirAll(filepath.Join(cfg, "dew"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(cfg, "dew", "env"), []byte("DEW_DELEGATION=on\n"), 0o600))
+	require.NoError(t, os.Symlink("dew", filepath.Join(cfg, "agent-cli")))
+	_, err := load(env(map[string]string{"HOME": home}))
+	require.NoError(t, err)
+
+	home2 := t.TempDir()
+	for _, d := range []string{"dew", "agent-cli"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(home2, ".config", d), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(home2, ".config", d, "env"), []byte("# "+d+"\n"), 0o600))
+	}
+	_, err = load(env(map[string]string{"HOME": home2}))
+	require.ErrorContains(t, err, EnvFileEnv+"=")
+	require.ErrorContains(t, err, filepath.Join(home2, ".config", "agent-cli")+" is not a symlink")
+	require.NotContains(t, err.Error(), "delete the old one")
+}
+
 func TestShellValue(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{

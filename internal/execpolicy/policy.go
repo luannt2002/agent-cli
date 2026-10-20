@@ -305,17 +305,23 @@ func inputsOf(getenv func(string) string) []string {
 
 // legacyEnvFile từ chối khi không đặt EnvFileEnv mà tệp env tên cũ (~/.config/agent-cli/env)
 // vẫn còn: allowlist và giao việc trong đó sẽ bị bỏ lặng lẽ (máy chưa chuyển, hoặc trình cài
-// thấy cả hai thư mục nên không gộp). Không xét được (lỗi khác "không có") cũng từ chối.
+// thấy cả hai thư mục nên không gộp). Cùng một tệp với tệp mới (symlink tương thích
+// ~/.config/agent-cli -> dew) thì không sao. Không xét được (lỗi khác "không có") cũng từ chối.
 func legacyEnvFile(getenv func(string) string) error {
 	home := getenv("HOME")
 	if getenv(EnvFileEnv) != "" || home == "" {
 		return nil
 	}
-	old := filepath.Join(home, ".config", "agent-cli", "env")
-	if _, err := os.Lstat(old); errors.Is(err, fs.ErrNotExist) {
+	oldDir := filepath.Join(home, ".config", "agent-cli")
+	old, cur := filepath.Join(oldDir, "env"), envFilePath(getenv)
+	oldInfo, err := os.Stat(old)
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
-	return fmt.Errorf("%s still exists but dew reads %s since the rename (20/10/2026): run scripts/install-dew.sh to move it, or move what you need into the new file and delete the old one", old, envFilePath(getenv))
+	if curInfo, cerr := os.Stat(cur); err == nil && cerr == nil && os.SameFile(oldInfo, curInfo) {
+		return nil
+	}
+	return fmt.Errorf("%s still exists but dew reads %s since the rename (20/10/2026): run scripts/install-dew.sh to move it, or set %s=<file> to pick one explicitly, or check that %s is not a symlink to %s and then delete or rename that old directory", old, cur, EnvFileEnv, oldDir, filepath.Dir(cur))
 }
 
 // envFilePath là đường dẫn tệp env của dew, như crushrc mẫu tính.
