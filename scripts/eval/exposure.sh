@@ -7,7 +7,7 @@
 # Đây là bộ ĐO, không phải cổng: thoát 0 khi chạy đủ các ca bất kể kết quả; thoát 2 khi sai cách dùng.
 # Bằng chứng thô của từng ca nằm trong <thư-mục>/<ca>/ (summary.txt, log/requests.jsonl, log/sys-*.txt...).
 # Cô lập như faults.sh: mỗi ca HOME/XDG/CRUSH_GLOBAL_*/DEW_RUNTIME_DIR riêng trong thư mục ca, socket riêng,
-# tmux riêng (T4), không LLM thật. Launcher thật (install-agent-cli.sh) cài vào <thư-mục>/_launcher với
+# tmux riêng (T4), không LLM thật. Launcher thật (install-dew.sh) cài vào <thư-mục>/_launcher với
 # DEW_SKIP_BUILD=1 và một shim gọi <binary>.
 # Dùng: bash scripts/eval/exposure.sh <thư-mục-mới, ≤ 70 byte> <binary> [ca...]
 set -u
@@ -27,12 +27,12 @@ verdict() { printf '%s: %s — %s\n' "$1" "$2" "$3" | tee -a "$OUT/verdicts.txt"
 install_launcher() {
   [ -x "$L/inst/bin/agent-cli" ] && return 0
   mkdir -p "$L/fake/scripts" "$L/inst/lib/agent-cli" "$L/home" "$L/rt"
-  cp "$R/scripts/install-agent-cli.sh" "$R/scripts/agent-cli-tmux.sh" "$L/fake/scripts/"
-  cp "$R/agent-cli.crushrc.example" "$R/agent-cli.env.example" "$L/fake/"
+  cp "$R/scripts/install-dew.sh" "$R/scripts/dew-tmux.sh" "$L/fake/scripts/"
+  cp "$R/dew.crushrc.example" "$R/dew.env.example" "$L/fake/"
   printf '#!/bin/sh\nexec %s "$@"\n' "$BIN" > "$L/inst/lib/agent-cli/crush"
   chmod 755 "$L/inst/lib/agent-cli/crush"
   env -i PATH=/usr/bin:/bin HOME="$L/home" DEW_RUNTIME_DIR="$L/rt" DEW_INSTALL_DIR="$L/inst" DEW_SKIP_BUILD=1 \
-    bash "$L/fake/scripts/install-agent-cli.sh" > "$L/install.log" 2>&1
+    bash "$L/fake/scripts/install-dew.sh" > "$L/install.log" 2>&1
 }
 
 # begin <ca> <luật fakellm JSON> <provider large> [mcp JSON]: thư mục ca, LLM giả, cấu hình global theo đúng
@@ -194,7 +194,7 @@ PY
 #   a   server dùng chung, do một client khác dựng từ thư mục A không liên quan;
 #   b1  client tự dựng server (socket mới), repo chưa có .crush;
 #   b2  như b1 nhưng repo đã có .crush (đã mở một lần);
-#   c   launcher thật: socket theo git root như install-agent-cli.sh:115-135; server của repo đã được dựng từ gốc repo;
+#   c   launcher thật: socket theo git root như install-dew.sh:115-135; server của repo đã được dựng từ gốc repo;
 #   ctl đối chứng của a: cùng server dùng chung, client hai dùng `-c <repo tuyệt đối>`.
 t2() {
   begin T2 '[{"match":"T2-two","steps":[{"sleep":4,"text":"two done"}]}]' qwen
@@ -304,7 +304,7 @@ t3() {
 
 # ---------------------------------------------------------------------------------------------------------
 # T4 (C6): `agent-cli-tmux rm <tên> --force` khi worktree còn session BUSY. Launcher thật + agent-cli-tmux thật,
-# tmux server riêng (wrapper -S như scripts/test-agent-cli-tmux.sh). Bất biến: rm từ chối khi có session BUSY ở
+# tmux server riêng (wrapper -S như scripts/test-dew-tmux.sh). Bất biến: rm từ chối khi có session BUSY ở
 # BẤT KỲ đâu trong worktree. Đối chứng: session BUSY ở đúng gốc worktree phải bị từ chối.
 t4() {
   begin T4 '[{"match":"T4-busy","steps":[{"sleep":12,"text":"busy done"}]}]' qwen

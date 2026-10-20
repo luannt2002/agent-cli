@@ -17,7 +17,7 @@ import (
 
 // TestLoadShellConfig_StderrReasonInError kiểm tra lý do crushrc in ra stderr đi
 // theo lỗi trả về, cả khi stderr thường lẫn khi chuyển hướng `2>/dev/stderr`
-// (dạng mà agent-cli.crushrc.example dùng).
+// (dạng mà dew.crushrc.example dùng).
 func TestLoadShellConfig_StderrReasonInError(t *testing.T) {
 	t.Parallel()
 
@@ -180,7 +180,7 @@ func TestLoadShellConfig_StderrOnSuccessIsNotAnError(t *testing.T) {
 // crushrc khi thiếu DEW_BASE_URL: lỗi phải nêu tên biến, đây là đúng lỗi
 // người dùng gặp khi cài mới mà chưa điền tệp env.
 func TestLoadShellConfig_ExampleCrushrcNamesMissingVariable(t *testing.T) {
-	example := filepath.Join("..", "..", "agent-cli.crushrc.example")
+	example := filepath.Join("..", "..", "dew.crushrc.example")
 	src, err := os.ReadFile(example)
 	if err != nil {
 		t.Skipf("example crushrc not found: %v", err)

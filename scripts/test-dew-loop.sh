@@ -3,7 +3,7 @@
 # client/server. Chứng minh: xanh khi lệnh verify thoát 0, STALLED / MAX_REPAIRS /
 # UNMEASURED / CANCELLED đúng lý do và đúng số lượt agent, thiếu --verify thoát 2.
 # Mọi thứ nằm trong thư mục tạm; không đụng repo hay cấu hình thật.
-# Dùng: scripts/test-agent-cli-loop.sh   (DEW_BIN=... để bỏ qua build)
+# Dùng: scripts/test-dew-loop.sh   (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclloop.XXXXXX)"

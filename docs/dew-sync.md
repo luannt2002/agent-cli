@@ -22,7 +22,7 @@ Chỉ có một nhánh dùng chung là `main`, lịch sử thẳng (không merge
 
 ```bash
 git pull --ff-only
-bash scripts/install-agent-cli.sh   # build lại và cài; in sẵn lệnh quay về bản cũ
+bash scripts/install-dew.sh   # build lại và cài; in sẵn lệnh quay về bản cũ
 ```
 
 - Sau khi cài, thoát mọi client của các dự án đang mở (`agent-cli ps`) để server nền dựng lại bằng bản mới.

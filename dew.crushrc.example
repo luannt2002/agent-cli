@@ -1,6 +1,6 @@
 # Cấu hình chính của agent-cli (crushrc, cú pháp Bash). Installer chép tệp này
 # thành ~/.config/agent-cli/crushrc nếu chưa có. Provider/model đọc từ biến
-# DEW_* trong tệp env (xem agent-cli.env.example), không viết cứng ở đây.
+# DEW_* trong tệp env (xem dew.env.example), không viết cứng ở đây.
 
 # Nạp biến; bỏ qua nếu tệp không có (khi đó biến phải có sẵn trong môi trường).
 env_file="${DEW_ENV_FILE:-$HOME/.config/agent-cli/env}"

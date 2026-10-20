@@ -8,8 +8,8 @@ trap 'rm -rf "$t"' EXIT
 
 # Repo giả để install script không tạo .crush.json trong repo thật.
 mkdir -p "$t/fake/scripts" "$t/inst/lib/agent-cli" "$t/home"
-cp "$here/scripts/install-agent-cli.sh" "$here/scripts/agent-cli-tmux.sh" "$t/fake/scripts/"
-cp "$here"/agent-cli.crushrc.example "$here"/agent-cli.env.example "$t/fake/"
+cp "$here/scripts/install-dew.sh" "$here/scripts/dew-tmux.sh" "$t/fake/scripts/"
+cp "$here"/dew.crushrc.example "$here"/dew.env.example "$t/fake/"
 cat > "$t/inst/lib/agent-cli/crush" <<'STUB'
 #!/usr/bin/env bash
 echo "CS=${CRUSH_CLIENT_SERVER-unset}"
@@ -17,7 +17,7 @@ echo "L=${DEW_LAUNCHER-unset}"
 printf 'ARG=%s\n' "$@"
 STUB
 chmod 755 "$t/inst/lib/agent-cli/crush"
-install1() { HOME="$t/home" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
+install1() { HOME="$t/home" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1; }
 msg_first="$(install1)"
 wrapper="$t/inst/bin/agent-cli"
 
@@ -187,7 +187,7 @@ mkdir -p "$t/gobin" "$t/inst2/lib/agent-cli"
 # go giả giữ đúng hợp đồng của go build: sinh tệp -o (installer build ra tệp tạm rồi mv).
 printf '#!/bin/sh\ntouch "%s/go-called"\necho "CGO_ENABLED=$CGO_ENABLED GOEXPERIMENT=$GOEXPERIMENT" > "%s/go-env"\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && cp "%s" "$2"; shift; done\n' "$t" "$t" "$t/inst/lib/agent-cli/crush" > "$t/gobin/go"; chmod 755 "$t/gobin/go"
 cp "$t/inst/lib/agent-cli/crush" "$t/inst2/lib/agent-cli/crush"
-inst2() { HOME="$t/home" PATH="$t/gobin:$PATH" DEW_INSTALL_DIR="$t/inst2" DEW_SKIP_BUILD="$1" bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
+inst2() { HOME="$t/home" PATH="$t/gobin:$PATH" DEW_INSTALL_DIR="$t/inst2" DEW_SKIP_BUILD="$1" bash "$t/fake/scripts/install-dew.sh" 2>&1; }
 rm -f "$t/go-called" "$t/go-env"; msg="$(CGO_ENABLED=1 GOEXPERIMENT=nogreenteagc inst2 0)"
 check "DEW_SKIP_BUILD=0 vẫn build" "$([[ -e "$t/go-called" ]] && ! grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
 check "build như bản chính thức: CGO_ENABLED=0 GOEXPERIMENT=greenteagc (đè biến của user)" "$([[ "$(cat "$t/go-env")" == "CGO_ENABLED=0 GOEXPERIMENT=greenteagc" ]]; echo $?)"
@@ -196,8 +196,8 @@ check "DEW_SKIP_BUILD=1 bỏ build và báo" "$([[ ! -e "$t/go-called" ]] && gre
 
 # Cài đặt cấu hình chung: crushrc + env mẫu, không .crush.json, không ghi đè lần hai.
 cfg="$t/home/.config/agent-cli"
-check "cài lần đầu tạo crushrc từ mẫu" "$(cmp -s "$here/agent-cli.crushrc.example" "$cfg/crushrc"; echo $?)"
-check "cài lần đầu tạo env từ mẫu, mode 600" "$(cmp -s "$here/agent-cli.env.example" "$cfg/env" && [[ "$(stat -c %a "$cfg/env")" == 600 ]]; echo $?)"
+check "cài lần đầu tạo crushrc từ mẫu" "$(cmp -s "$here/dew.crushrc.example" "$cfg/crushrc"; echo $?)"
+check "cài lần đầu tạo env từ mẫu, mode 600" "$(cmp -s "$here/dew.env.example" "$cfg/env" && [[ "$(stat -c %a "$cfg/env")" == 600 ]]; echo $?)"
 check "cài đặt không tạo .crush.json" "$([[ ! -e "$t/fake/.crush.json" && ! -e "$cfg/crush.json" ]]; echo $?)"
 check "không có crush.json cũ -> không in hướng dẫn chuyển đổi" "$(! grep -q 'crush.json cũ' <<<"$msg_first"; echo $?)"
 echo '# của user' >> "$cfg/crushrc"; echo 'DEW_MODEL=mine' >> "$cfg/env"
@@ -206,8 +206,8 @@ check "cài lần hai không ghi đè crushrc" "$(tail -1 "$cfg/crushrc" | grep 
 check "cài lần hai không ghi đè env" "$(tail -1 "$cfg/env" | grep -qx 'DEW_MODEL=mine'; echo $?)"
 check "cài lần đầu (tệp = mẫu) -> không in gợi ý diff" "$(! grep -q 'diff -u' <<<"$msg_first"; echo $?)"
 # repo giả là $t/fake nên mẫu trong gợi ý nằm ở đó.
-check "cài lần hai, crushrc khác mẫu -> gợi ý diff -u crushrc mẫu" "$(grep -F 'diff -u' <<<"$msg_second" | grep -F "$cfg/crushrc" | grep -qF "$t/fake/agent-cli.crushrc.example"; echo $?)"
-check "cài lần hai, env khác mẫu -> gợi ý diff -u env mẫu" "$(grep -F 'diff -u' <<<"$msg_second" | grep -F "$cfg/env" | grep -qF "$t/fake/agent-cli.env.example"; echo $?)"
+check "cài lần hai, crushrc khác mẫu -> gợi ý diff -u crushrc mẫu" "$(grep -F 'diff -u' <<<"$msg_second" | grep -F "$cfg/crushrc" | grep -qF "$t/fake/dew.crushrc.example"; echo $?)"
+check "cài lần hai, env khác mẫu -> gợi ý diff -u env mẫu" "$(grep -F 'diff -u' <<<"$msg_second" | grep -F "$cfg/env" | grep -qF "$t/fake/dew.env.example"; echo $?)"
 check "gợi ý diff chỉ là gợi ý: hai tệp của user vẫn nguyên" "$(tail -1 "$cfg/crushrc" | grep -qx '# của user' && tail -1 "$cfg/env" | grep -qx 'DEW_MODEL=mine'; echo $?)"
 echo '{}' > "$cfg/crush.json"
 msg_old="$(install1)"
@@ -222,7 +222,7 @@ chmod 755 "$cfg"; install1 >/dev/null
 check "thư mục cấu hình mở rộng (755) được siết về 700" "$([[ "$(stat -c %a "$cfg")" == 700 ]]; echo $?)"
 
 # crush.json đang khai provider thì không tạo crushrc/env (crushrc sẽ ghi đè nó); chỉ để bản .example.
-install_in() { HOME="$1" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
+install_in() { HOME="$1" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1; }
 mkdir -p "$t/hp/.config/agent-cli"; cj='{"providers":{"mine":{"type":"openai-compat"}},"models":{"large":{"provider":"mine","model":"x"}}}'
 printf '%s' "$cj" > "$t/hp/.config/agent-cli/crush.json"
 msg_p="$(install_in "$t/hp")"; c="$t/hp/.config/agent-cli"
@@ -251,22 +251,22 @@ check "thiếu jq (PATH không có jq) -> không tạo crushrc, in hướng dẫ
 
 # agent-cli-tmux được chép (install -m 755), không còn symlink vào checkout.
 tmux_inst="$t/inst/bin/agent-cli-tmux"
-check "agent-cli-tmux là bản chép (không symlink), mode 755, giống tệp trong repo" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" && "$(stat -c %a "$tmux_inst")" == 755 ]] && cmp -s "$here/scripts/agent-cli-tmux.sh" "$tmux_inst"; echo $?)"
-mv "$t/fake/scripts/agent-cli-tmux.sh" "$t/fake/scripts/agent-cli-tmux.sh.away"
+check "agent-cli-tmux là bản chép (không symlink), mode 755, giống tệp trong repo" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" && "$(stat -c %a "$tmux_inst")" == 755 ]] && cmp -s "$here/scripts/dew-tmux.sh" "$tmux_inst"; echo $?)"
+mv "$t/fake/scripts/dew-tmux.sh" "$t/fake/scripts/dew-tmux.sh.away"
 out="$(bash "$tmux_inst" --help 2>&1)" || true
 check "agent-cli-tmux đã cài vẫn chạy khi tệp trong repo biến mất" "$(grep -q 'Dùng:' <<<"$out"; echo $?)"
-mv "$t/fake/scripts/agent-cli-tmux.sh.away" "$t/fake/scripts/agent-cli-tmux.sh"
+mv "$t/fake/scripts/dew-tmux.sh.away" "$t/fake/scripts/dew-tmux.sh"
 # Bản cài cũ là symlink vào repo: cài lại phải thay chính symlink, không ghi xuyên vào tệp trong repo.
-rm -f "$tmux_inst"; ln -s "$t/fake/scripts/agent-cli-tmux.sh" "$tmux_inst"
-before_sum="$(cksum < "$t/fake/scripts/agent-cli-tmux.sh")"
+rm -f "$tmux_inst"; ln -s "$t/fake/scripts/dew-tmux.sh" "$tmux_inst"
+before_sum="$(cksum < "$t/fake/scripts/dew-tmux.sh")"
 install1 >/dev/null
 check "cài lại thay symlink agent-cli-tmux của bản cài cũ bằng bản chép" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" ]]; echo $?)"
-check "thay symlink không ghi xuyên vào tệp trong repo" "$([[ "$(cksum < "$t/fake/scripts/agent-cli-tmux.sh")" == "$before_sum" ]]; echo $?)"
+check "thay symlink không ghi xuyên vào tệp trong repo" "$([[ "$(cksum < "$t/fake/scripts/dew-tmux.sh")" == "$before_sum" ]]; echo $?)"
 
 # DEW_INSTALL_DIR tương đối: wrapper phải ghi đường dẫn binary tuyệt đối.
 mkdir -p "$t/relcwd/rel-inst/lib/agent-cli"
 cp "$t/inst/lib/agent-cli/crush" "$t/relcwd/rel-inst/lib/agent-cli/crush"
-(cd "$t/relcwd" && HOME="$t/home" DEW_INSTALL_DIR=rel-inst DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" >/dev/null 2>&1)
+(cd "$t/relcwd" && HOME="$t/home" DEW_INSTALL_DIR=rel-inst DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1)
 check "DEW_INSTALL_DIR tương đối -> wrapper ghi đường dẫn binary tuyệt đối" "$(grep -Fqx "exec \"$t/relcwd/rel-inst/lib/agent-cli/crush\" \"\$@\"" "$t/relcwd/rel-inst/bin/agent-cli"; echo $?)"
 out="$(cd / && HOME="$t/home" "$t/relcwd/rel-inst/bin/agent-cli" run x 2>&1)" || true
 check "wrapper cài bằng đường dẫn tương đối chạy được từ thư mục khác" "$(grep -qx 'ARG=run' <<<"$out"; echo $?)"

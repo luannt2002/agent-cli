@@ -44,16 +44,16 @@ if [[ -e "$config_dir/crush.json" ]]; then
   [[ "$n" != 0 ]] && legacy_providers=1
 fi
 if [[ ! -e "$config_dir/crushrc" && -n "$legacy_providers" ]]; then
-  [[ -e "$config_dir/crushrc.example" ]] || install -m 644 "$repo_dir/agent-cli.crushrc.example" "$config_dir/crushrc.example"
-  [[ -e "$config_dir/env.example" ]] || install -m 644 "$repo_dir/agent-cli.env.example" "$config_dir/env.example"
+  [[ -e "$config_dir/crushrc.example" ]] || install -m 644 "$repo_dir/dew.crushrc.example" "$config_dir/crushrc.example"
+  [[ -e "$config_dir/env.example" ]] || install -m 644 "$repo_dir/dew.env.example" "$config_dir/env.example"
   echo "Có $config_dir/crush.json đang khai provider: KHÔNG tạo crushrc (nó sẽ ghi đè provider đó). Đã để crushrc.example và env.example cạnh nó; để chuyển sang biến DEW_*, xoá 'providers' và 'models' khỏi crush.json (giữ theme), rồi đổi tên: crushrc.example -> crushrc, env.example -> env (chmod 600) và điền giá trị."
 else
   if [[ ! -e "$config_dir/crushrc" ]]; then
-    install -m 644 "$repo_dir/agent-cli.crushrc.example" "$config_dir/crushrc"
+    install -m 644 "$repo_dir/dew.crushrc.example" "$config_dir/crushrc"
     echo "Đã tạo $config_dir/crushrc."
   fi
   if [[ ! -e "$config_dir/env" ]]; then
-    install -m 600 "$repo_dir/agent-cli.env.example" "$config_dir/env"
+    install -m 600 "$repo_dir/dew.env.example" "$config_dir/env"
     echo "Đã tạo $config_dir/env (mode 600); điền DEW_BASE_URL, DEW_MODEL, DEW_API_KEY trước khi gọi AI."
   fi
   if [[ -e "$config_dir/crush.json" || -L "$config_dir/crush.json" ]]; then
@@ -159,7 +159,7 @@ mv -f -- "$wrapper_path.tmp" "$wrapper_path"
 # agent-cli-tmux: chép (không symlink) để bản cài không phụ thuộc thư mục checkout (đổi nhánh, di
 # chuyển hay xoá repo không làm hỏng nó). Ghi tệp tạm rồi mv: thay được cả symlink của bản cài cũ
 # mà không ghi xuyên qua nó vào tệp trong repo.
-install -m 755 "$repo_dir/scripts/agent-cli-tmux.sh" "$install_dir/bin/agent-cli-tmux.tmp"
+install -m 755 "$repo_dir/scripts/dew-tmux.sh" "$install_dir/bin/agent-cli-tmux.tmp"
 mv -f -- "$install_dir/bin/agent-cli-tmux.tmp" "$install_dir/bin/agent-cli-tmux"
 # In lệnh quay lại TRƯỚC khi chạy thử: bản mới hỏng ngay ở --version mới là lúc cần nó.
 if [[ -n "$backup_dir" ]]; then
@@ -172,7 +172,7 @@ echo "Thêm $install_dir/bin vào PATH nếu terminal chưa nhận agent-cli."
 # Mẫu trong repo có thể đã thêm biến hoặc chú thích mới so với tệp bạn đang dùng. Không bao giờ
 # ghi đè tệp của user: chỉ gợi ý lệnh để tự xem khác biệt rồi gộp tay.
 diff_hints=()
-for pair in "crushrc:agent-cli.crushrc.example" "env:agent-cli.env.example"; do
+for pair in "crushrc:dew.crushrc.example" "env:dew.env.example"; do
   live="$config_dir/${pair%%:*}" example="$repo_dir/${pair#*:}"
   if [[ -f "$live" ]] && ! cmp -s -- "$live" "$example"; then
     diff_hints+=("diff -u $(printf %q "$live") $(printf %q "$example")")

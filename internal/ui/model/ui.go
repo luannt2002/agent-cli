@@ -4956,7 +4956,7 @@ func (m *UI) bangPromptFunc(info textarea.PromptInfo) string {
 
 // acceptEditsInShiftTab puts code+accept-edits into the Shift+Tab cycle.
 // Off in Phase 1: the roadmap needs no new permission mode yet and its path
-// guard still has known gaps (docs/agent-cli-local-setup.md). Tests flip it.
+// guard still has known gaps (docs/dew-local-setup.md). Tests flip it.
 var acceptEditsInShiftTab bool
 
 func (m *UI) toggleInputMode() tea.Cmd {

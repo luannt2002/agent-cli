@@ -33,7 +33,7 @@ unset TMUX
 tmux kill-server 2>/dev/null || true
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
-run() { bash "$repo_dir/scripts/agent-cli-tmux.sh" "$@"; }
+run() { bash "$repo_dir/scripts/dew-tmux.sh" "$@"; }
 windows() { tmux list-windows -t =agents | wc -l | tr -d ' '; }
 
 run "$work/a" "$work/b"
@@ -78,7 +78,7 @@ for d in "a#S b" "x#(touch $marker)"; do
 done
 
 # F2: thiếu agent-cli trên PATH -> rc=1 và có thông báo.
-rc=0; PATH="$work/bin-empty:/usr/bin:/bin" bash "$repo_dir/scripts/agent-cli-tmux.sh" "$work/a" 2>"$work/err" || rc=$?
+rc=0; PATH="$work/bin-empty:/usr/bin:/bin" bash "$repo_dir/scripts/dew-tmux.sh" "$work/a" 2>"$work/err" || rc=$?
 [[ $rc == 1 && -s "$work/err" ]] || fail "thiếu agent-cli: rc=$rc"
 
 # --- new | rm | ls: repo git tạm (1 commit), worktree nằm cạnh repo trong $work/proj-agents ---
@@ -141,12 +141,12 @@ rc_of new x --repo "$work/a"; [[ $rc == 2 && -s $work/err ]] || fail "not-git: r
 
 # F4/F5: thiếu agent-cli hoặc jq -> rc=1 và KHÔNG tạo worktree/branch
 b0=$(nbr)
-rc=0; PATH="$work/bin-empty:/usr/bin:/bin" bash "$repo_dir/scripts/agent-cli-tmux.sh" new nocli --repo "$proj" 2>"$work/err" >/dev/null || rc=$?
+rc=0; PATH="$work/bin-empty:/usr/bin:/bin" bash "$repo_dir/scripts/dew-tmux.sh" new nocli --repo "$proj" 2>"$work/err" >/dev/null || rc=$?
 [[ $rc == 1 && -s $work/err && ! -e $wtd/nocli && $(nbr) == "$b0" ]] || fail "new thiếu agent-cli: rc=$rc, đã tạo worktree/branch"
 mkdir -p "$work/bin-nojq"
 for t in git sed dirname basename awk grep; do ln -sf "$(command -v $t)" "$work/bin-nojq/$t"; done
 ln -sf "$work/bin/agent-cli" "$work/bin-nojq/agent-cli"
-rc=0; PATH="$work/bin-nojq" "$(command -v bash)" "$repo_dir/scripts/agent-cli-tmux.sh" new nojq --repo "$proj" --model a/b 2>"$work/err" >/dev/null || rc=$?
+rc=0; PATH="$work/bin-nojq" "$(command -v bash)" "$repo_dir/scripts/dew-tmux.sh" new nojq --repo "$proj" --model a/b 2>"$work/err" >/dev/null || rc=$?
 [[ $rc == 1 && $(cat "$work/err") == *jq* && ! -e $wtd/nojq && $(nbr) == "$b0" ]] || fail "new --model thiếu jq: rc=$rc, $(cat "$work/err")"
 
 # F2: new chạy từ TRONG một worktree con vẫn đặt ở <repo chính>-agents, không lồng

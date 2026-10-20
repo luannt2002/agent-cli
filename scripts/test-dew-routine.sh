@@ -4,7 +4,7 @@
 # không người trực trong khi `run` cùng lệnh đó push được (ca đối chứng), khoá chống
 # chạy chồng (mã 75), từ chối --scheduled cho việc có đích và định nghĩa đã đổi,
 # huỷ bằng SIGTERM, và `schedule --print` chỉ in.
-# Mọi thứ nằm trong thư mục tạm. Dùng: scripts/test-agent-cli-routine.sh
+# Mọi thứ nằm trong thư mục tạm. Dùng: scripts/test-dew-routine.sh
 # (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

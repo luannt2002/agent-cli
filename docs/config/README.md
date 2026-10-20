@@ -14,7 +14,7 @@
 
 > [!NOTE]
 > agent-cli (this fork): global config lives in `~/.config/agent-cli/` (the `agent-cli` launcher sets
-> `CRUSH_GLOBAL_CONFIG`) and the command is `agent-cli`, not `crush`; see [agent-cli-local-setup.md](../agent-cli-local-setup.md).
+> `CRUSH_GLOBAL_CONFIG`) and the command is `agent-cli`, not `crush`; see [dew-local-setup.md](../dew-local-setup.md).
 
 Crush is configured with Bash via a set of Crush-specific builtin commands. By
 default, global config lives at `~/.config/crush/crushrc` on Unix-like systems

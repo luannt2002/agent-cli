@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// runExampleCrushrc chạy chính tệp agent-cli.crushrc.example ở gốc repo với env
+// runExampleCrushrc chạy chính tệp dew.crushrc.example ở gốc repo với env
 // cho sẵn. Mọi biến DEW_* khác bị xoá và tệp env trỏ tới chỗ không tồn
 // tại, để test không bao giờ đọc cấu hình (và khoá) thật của người chạy.
 func runExampleCrushrc(t *testing.T, env map[string]string) (map[string]any, error) {
 	t.Helper()
-	script, err := os.ReadFile(filepath.Join("..", "..", "agent-cli.crushrc.example"))
+	script, err := os.ReadFile(filepath.Join("..", "..", "dew.crushrc.example"))
 	require.NoError(t, err)
 
 	t.Setenv("DEW_ENV_FILE", filepath.Join(t.TempDir(), "no-env-file"))

@@ -61,29 +61,29 @@
 
 | Luồng | Trigger | Xử lý → kết quả | Lỗi/quyền quan trọng | Nguồn |
 |---|---|---|---|---|
-| Khởi động | Lệnh `agent-cli` (wrapper) | Wrapper đặt env, mỗi dự án một server (`--host` socket theo hash), rồi vào TUI. Mở từ thư mục con của repo thì workspace, data dir và cwd đều là gốc repo (một workspace/DB mỗi repo, mọi chế độ). Home khi không có tham số là MỤC TIÊU, đang làm (H2) | Không tự dựng server chỉ để hiển thị Home. Client chạy model có chính sách tin cậy hoặc `--yolo` khác workspace đang mở của dự án thì bị từ chối (lỗi nêu tên biến); `jobs`/`login`/`logout` không bị so | `scripts/install-agent-cli.sh`, `internal/cmd/root.go`, `internal/ui/home/` |
+| Khởi động | Lệnh `agent-cli` (wrapper) | Wrapper đặt env, mỗi dự án một server (`--host` socket theo hash), rồi vào TUI. Mở từ thư mục con của repo thì workspace, data dir và cwd đều là gốc repo (một workspace/DB mỗi repo, mọi chế độ). Home khi không có tham số là MỤC TIÊU, đang làm (H2) | Không tự dựng server chỉ để hiển thị Home. Client chạy model có chính sách tin cậy hoặc `--yolo` khác workspace đang mở của dự án thì bị từ chối (lỗi nêu tên biến); `jobs`/`login`/`logout` không bị so | `scripts/install-dew.sh`, `internal/cmd/root.go`, `internal/ui/home/` |
 | Prompt → run → tool | Gửi tin trong TUI, `run`, `send` | Coordinator → session agent → tool → permission. Hook PreToolUse/Stop là opt-in | Bash tự duyệt theo tiền tố, chỉ khi không có ký tự nối lệnh/chuyển hướng; BlockFunc ở lớp thực thi (trước cả YOLO) chặn giết tiến trình agent-cli, gọi thẳng CLI agent khác, tắt máy (`internal/shell/protect.go`) | `internal/agent/`, `internal/agent/tools/safe.go`, `bash.go`, `internal/permission/` |
 | Vòng đời server/workspace | Client rời hoặc gắn lại; server nhận SIGTERM/SIGHUP | Còn run thì hoãn teardown, kiểm lại mỗi 5s; trần mồ côi 30 phút khi kẹt chờ duyệt/trả lời, 6 giờ khi vẫn chạy; init không thay coordinator khi còn run. Server bị dừng thì dừng từng workspace (ghi lại việc dở); tool call mà tiến trình chết bỏ dở được ghi "Interrupted" khi mở session | Ctrl+C trên `run` huỷ đúng lượt của nó theo RunID (prompt xếp hàng phía sau vẫn chạy) | `internal/backend/backend.go`, `agent.go`, `internal/cmd/run.go` |
 | CLI cho script | `run --json`, `send --wait`, `ps --all`, `logs`, `jobs` | JSON một object trên stdout; rc 0 = xong, 1 = lỗi chạy, 2 = sai cú pháp; `run --json` có `ledger_error` khi sổ ghi LLM ghi lỗi (lượt vẫn xong) | `send --wait` + Ctrl+C chỉ thôi chờ, không huỷ run; `send` chỉ báo nhận sau khi đã ghi prompt vào session | `internal/cmd/{run,send,ps,logs,jobs}.go` |
-| Giao việc Claude Code/Codex | Model chính gọi tool `claude_code`/`codex` | Mặc định TẮT (`internal/execpolicy`, đọc env gốc chụp đầu `main` rồi tệp env; `.env`/`env` của dự án không đổi được): chỉ đăng ký khi `AGENT_CLI_DELEGATION=on`, backend có model cụ thể trong `AGENT_CLI_ALLOWED_MODELS` và có CLI; luôn truyền model; hỏi quyền mỗi lần; CLI con chạy headless, trả session/thread ID để `resume`. Danh sách có provider chính thì model chính/nhỏ ngoài danh sách bị chặn | `run` tự duyệt; mức quyền CLI con: `AGENT_CLI_CLAUDE_PERMISSION_MODE`, `AGENT_CLI_CODEX_SANDBOX` (export ở shell) | `internal/agent/tools/provider/`, `docs/agent-cli-local-setup.md` |
-| Cấu hình provider | Nạp crushrc/crush.json + env của launcher | Biến `AGENT_CLI_*` dùng chung; crush.json chỉ expand `api_key`/`base_url` | Không ghi secret vào docs hay log | `agent-cli.crushrc.example`, `agent-cli.env.example`, `internal/config/load.go`, `docs/agent-cli-local-setup.md` |
+| Giao việc Claude Code/Codex | Model chính gọi tool `claude_code`/`codex` | Mặc định TẮT (`internal/execpolicy`, đọc env gốc chụp đầu `main` rồi tệp env; `.env`/`env` của dự án không đổi được): chỉ đăng ký khi `AGENT_CLI_DELEGATION=on`, backend có model cụ thể trong `AGENT_CLI_ALLOWED_MODELS` và có CLI; luôn truyền model; hỏi quyền mỗi lần; CLI con chạy headless, trả session/thread ID để `resume`. Danh sách có provider chính thì model chính/nhỏ ngoài danh sách bị chặn | `run` tự duyệt; mức quyền CLI con: `AGENT_CLI_CLAUDE_PERMISSION_MODE`, `AGENT_CLI_CODEX_SANDBOX` (export ở shell) | `internal/agent/tools/provider/`, `docs/dew-local-setup.md` |
+| Cấu hình provider | Nạp crushrc/crush.json + env của launcher | Biến `AGENT_CLI_*` dùng chung; crush.json chỉ expand `api_key`/`base_url` | Không ghi secret vào docs hay log | `dew.crushrc.example`, `dew.env.example`, `internal/config/load.go`, `docs/dew-local-setup.md` |
 
 ### P5. Lệnh và môi trường kiểm tra
 
 | Mục đích | Lệnh (chạy ở gốc repo) | Thực thi | Kết quả / giới hạn |
 |---|---|---|---|
-| Mọi lệnh Go | `GOMAXPROCS=2 go <args>`, build/test thêm `-p 2` (như `scripts/install-agent-cli.sh`) | quy ước | Máy dùng chung 12 luồng (CPU 0-11): một lệnh Go nặng một lúc |
+| Mọi lệnh Go | `GOMAXPROCS=2 go <args>`, build/test thêm `-p 2` (như `scripts/install-dew.sh`) | quy ước | Máy dùng chung 12 luồng (CPU 0-11): một lệnh Go nặng một lúc |
 | Test toàn kho | `GOMAXPROCS=2 go test ./... -count=1 -p 2` | ĐÃ CHẠY 20/10 (`300c8dd1`) | So theo TÊN với v2-final `7cba42ff`: 4.637 → 4.782 tên, 0 FAIL hai bên, 155 tên mới, 10 tên mất đều do POC V3 xoá có chủ đích (`reports/v3-research/experiments/final-verify/r3/`). Lệnh dùng `go test -json -count=1 -p 2 ./...` + `reports/v3-research/tools/cmp.py`. `go vet` (14/10) chỉ báo `internal/csync/maps.go:156` (mã upstream) |
 | Race | `GOMAXPROCS=2 go test -race -count=1 -p 2 ./internal/backend/... ./internal/agent/... ./internal/cmd/... ./internal/ui/... ./internal/workspace/... ./internal/projects/... ./internal/permission/... ./internal/server/...` | ĐÃ CHẠY 20/10 (`300c8dd1`) | 0 data race, 31 package (danh sách lệnh + mọi package V3 chạm: `reports/v3-research/experiments/final-verify/r3/race-pkgs.txt`) |
 | Cassette agent | `GOMAXPROCS=2 go test ./internal/agent -run TestCoderAgent -count=1` | ĐÃ CHẠY 20/10 (trong lần chạy toàn kho) | Xanh. Từ v0.2.0 test tự ghim giới hạn ls (không còn phụ thuộc cwd có phải cây git) |
-| E2E run/send | `bash scripts/test-agent-cli-run-json.sh` | ĐÃ CHẠY 20/10 | Binary + server thật với LLM giả |
-| E2E loop / routine | `AGENT_CLI_BIN=<binary> bash scripts/test-agent-cli-loop.sh`, `… scripts/test-agent-cli-routine.sh` | ĐÃ CHẠY 20/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả |
+| E2E run/send | `bash scripts/test-dew-run-json.sh` | ĐÃ CHẠY 20/10 | Binary + server thật với LLM giả |
+| E2E loop / routine | `AGENT_CLI_BIN=<binary> bash scripts/test-dew-loop.sh`, `… scripts/test-dew-routine.sh` | ĐÃ CHẠY 20/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả |
 | Model khi tiếp session cũ | `bash scripts/eval/session-model.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 20/10 | Local và server: `run -s` session cũ chạy model của workspace, không ghi `crush.json`; thoát 1 khi hỏng |
 | Cô lập provider, tiêm lỗi | `bash scripts/eval/faults.sh <thư-mục-mới> <binary>`, `bash scripts/eval/qwen-only.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 20/10 | LLM giả đếm request theo provider. Thoát 1 khi: request lọt sang provider khác, model đang chọn thiếu key mà không dừng, `text` lẫn bản tóm tắt, loop có cổng xanh sẵn mà không ra `NO_CHANGE` |
 | Sổ ghi LLM lỗi ghi | `bash scripts/eval/ledger.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 20/10 | Sổ trỏ `/dev/full`: `run --json` có `ledger_error`, WARN mỗi lượt, rc 0; local và server; thoát 1 khi hỏng |
 | Phơi nhiễm V3 + kiểm toàn bộ một commit | `SRC=$PWD BASE=<v2-suite.json> bash reports/v3-research/tools/verify-final.sh <commit> <thư-mục-mới>` (harness `scripts/eval/exposure.sh`) | MỘT PHẦN 20/10 | Phơi nhiễm là phép đo, không phải cổng: in EXPOSED/NOT_EXPOSED từng ca. Trên `300c8dd1` đã chạy unit + T1M/T2/T3; các ca sau T3 chưa (`reports/v3-research/HANDOFF_2026-10-20.md`) |
-| Launcher + installer | `bash scripts/test-agent-cli-wrapper.sh` | ĐÃ CHẠY 20/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
-| Giao việc thật | `bash scripts/test-agent-cli-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
+| Launcher + installer | `bash scripts/test-dew-wrapper.sh` | ĐÃ CHẠY 20/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
+| Giao việc thật | `bash scripts/test-dew-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
 | Lint | `task lint` | CHƯA CHẠY | |
 
 - **Máy:** luannt-pc, Intel i7-8750H 6 nhân/12 luồng, RAM 15,5 GiB, swap 8 GiB (đo 16/10 bằng `lscpu`, `/proc/meminfo`; bản ghi 14/10 là Ryzen 9700X 16 luồng/60 GiB, không khớp nữa; `nproc` 16/10 = 12). Tối đa 3 agent cùng lúc; Go nặng chạy một lệnh một lúc, chờ RAM trống ≥3 GB.
@@ -97,12 +97,12 @@
 - **Phát hành = cài local:**
   - Binary ở `~/.local/lib/agent-cli/crush`, wrapper ở `~/.local/bin/agent-cli`.
   - Smoke sau khi cài: `agent-cli --version`, rồi một prompt thật (không in secret).
-  - Quay lại: lệnh `cp -p` mà `scripts/install-agent-cli.sh` in ra (sao lưu ở `~/.local/lib/agent-cli/backup-<thời điểm>/`, giữ 3 bản).
+  - Quay lại: lệnh `cp -p` mà `scripts/install-dew.sh` in ra (sao lưu ở `~/.local/lib/agent-cli/backup-<thời điểm>/`, giữ 3 bản).
 - **Log:**
   - Chế độ server: `~/.cache/agent-cli/server-<host>/crush.log`.
   - Chế độ local: `<data dir>/logs/crush.log`.
   - Đọc bằng `agent-cli logs`.
-- **Môi trường:** chỉ LOCAL | `scripts/install-agent-cli.sh` | cấu hình ở `~/.config/agent-cli/`, dữ liệu ở `~/.local/share/agent-cli/`, cache ở `~/.cache/agent-cli/` | ĐÃ XÁC MINH 15:16.
+- **Môi trường:** chỉ LOCAL | `scripts/install-dew.sh` | cấu hình ở `~/.config/agent-cli/`, dữ liệu ở `~/.local/share/agent-cli/`, cache ở `~/.cache/agent-cli/` | ĐÃ XÁC MINH 15:16.
 
 ### P7. Định tuyến docs, skill và mã mẫu
 
@@ -112,7 +112,7 @@
 | Phím tắt | Roadmap P1.3a | `internal/ui/model/keys.go` | Core gồm Alt+W/S/N/M. Thêm 15/10 (DECISIONS.md): Alt+P chọn provider, Alt+M chỉ hiện model của provider đó, Alt+E chọn effort, Alt+. / Alt+, đổi session. Alt+J mở Jobs (job bash: xem output, dừng có hỏi lại). Alt+Tab bị hệ điều hành chiếm. Ctrl+P là đường phụ |
 | Quyền / bash | `internal/agent/tools/*.md` | `safe.go`, `bash_autoapprove_test.go` (permission luôn từ chối) | Mọi thay đổi tự duyệt phải có test chứng minh vẫn hỏi quyền |
 | Hook | `docs/hooks/README.md` | `internal/agent/stop_hook.go` | Không sửa dòng `description:` của SKILL.md builtin |
-| Cấu hình / launcher | `docs/agent-cli-local-setup.md` | `scripts/install-agent-cli.sh` + `scripts/test-agent-cli-wrapper.sh` | Không đụng `~/.config/agent-cli` thật của user |
+| Cấu hình / launcher | `docs/dew-local-setup.md` | `scripts/install-dew.sh` + `scripts/test-dew-wrapper.sh` | Không đụng `~/.config/agent-cli` thật của user |
 | Giao việc cho agent | — | — | Brief ngắn: mục tiêu, ràng buộc, tệp được sửa, lệnh chứng minh xong |
 | Tool giao việc Claude Code/Codex | `internal/agent/tools/provider/doc.go` | `delegate.go` (cổng quyền chung), `delegate_test.go` | Cờ CLI phải thử với CLI thật: unit test chỉ so với chính mã |
 
@@ -121,9 +121,9 @@
 | Điểm | Tác động | Cách kiểm | Trạng thái |
 |---|---|---|---|
 | LLM chính thật (GLM/API) trên bản mới | Cổng WIN | Điền `~/.config/agent-cli/env`, chạy 1 prompt có tool call | ĐÃ 15/10: GLM qua provider `zai` của catalog; `run` trả PONG, một việc code có tool call chạy đúng |
-| Giao việc Claude Code/Codex với CLI thật | Lát 1 | `scripts/test-agent-cli-delegation.sh` | ĐÃ 14/10 (local + server): tạo tệp, resume, prompt bắt đầu bằng `-`, mức quyền có hiệu lực |
+| Giao việc Claude Code/Codex với CLI thật | Lát 1 | `scripts/test-dew-delegation.sh` | ĐÃ 14/10 (local + server): tạo tệp, resume, prompt bắt đầu bằng `-`, mức quyền có hiệu lực |
 | Mức quyền mặc định toàn quyền của CLI con | An ninh | Chạy `claude_code`/`codex` không đặt `AGENT_CLI_*_MODE/SANDBOX` | CHƯA chạy thật: bộ phân loại an toàn của Claude Code chặn phiên Claude tự chạy agent toàn quyền; chỉ unit test |
-| Job nền có owner; tool call bỏ dở sau khi server chết (P1.4, P1.5) | Cổng WIN | `scripts/test-agent-cli-run-json.sh`; server SIGKILL giữa tool call rồi mở lại | ĐÃ 15/10: `agent-cli jobs` thấy job đang chạy kèm session; mở lại thấy "Interrupted", model nhận lời dặn kiểm trạng thái. Màn Alt+J kiểm trong TUI thật (agent con), người dùng chưa dùng |
+| Job nền có owner; tool call bỏ dở sau khi server chết (P1.4, P1.5) | Cổng WIN | `scripts/test-dew-run-json.sh`; server SIGKILL giữa tool call rồi mở lại | ĐÃ 15/10: `agent-cli jobs` thấy job đang chạy kèm session; mở lại thấy "Interrupted", model nhận lời dặn kiểm trạng thái. Màn Alt+J kiểm trong TUI thật (agent con), người dùng chưa dùng |
 | Ranh giới provider/model (`internal/execpolicy`) | An ninh | Unit test + chạy thật với tệp env | ĐÃ 15/10: model ngoài danh sách dừng lúc khởi tạo (`MODEL_NOT_ALLOWED`); lượt `run` không còn tool `claude_code`/`codex` dù CLI có trên máy; GLM chạy với danh sách của người dùng. Giao việc bật (`AGENT_CLI_DELEGATION=on`) chưa chạy thật với CLI thật |
 | Hộp thoại xin quyền của `claude_code`/`codex` trong TUI thật | An ninh | Mở TUI, model gọi tool, xem hộp thoại | Unit test đã chứng minh có hỏi và từ chối thì không chạy; chưa xem bằng mắt |
 | Commit `d73a6e42` (revert luật bash) thuộc upstream hay fork | Khi merge upstream có thể mất bản vá S1 | `git fetch upstream` rồi `merge-base --is-ancestor` | ĐÃ 15/10: của upstream (revert `1fdb081d`, PR #3565), là tổ tiên của điểm fork `a73e1bfa`; upstream main vẫn dùng safe-list theo tiền tố, bản vá S1 của fork nằm trên nền đó. Nhánh upstream `super-yolo` sẽ thay S1 khi được merge (xem `docs/reviews/2026-10-15-audit-herdr-crush-agent-cli.md`) |

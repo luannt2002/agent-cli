@@ -11,7 +11,7 @@ import (
 // everforestDarkV2Name là khoá của theme trong options.tui.active_theme (và
 // trong hộp thoại Themes). Đây là theme mặc định của fork (DefaultThemeName);
 // theme cũ "charmtone-panther" không bị sửa, nên quay lại bản cũ chỉ cần chọn
-// nó trong Themes (xem docs/agent-cli-local-setup.md, mục "Theme").
+// nó trong Themes (xem docs/dew-local-setup.md, mục "Theme").
 const everforestDarkV2Name = "luannt-theme-everforest-dark"
 
 // everforestTokens là bộ semantic token của "Everforest Dark v2": mọi màu của

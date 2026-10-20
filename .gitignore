@@ -64,4 +64,6 @@ completions/crush.*sh
 /crushrc
 /.crushrc
 /env
+/dew.env
+# tên cũ (trước 20/10/2026): giữ để tệp env cũ còn ở gốc repo không lọt vào git
 /agent-cli.env

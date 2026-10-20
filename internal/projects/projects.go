@@ -113,7 +113,7 @@ var lockTimeout = 5 * time.Second
 
 // NormalizeWorkspace returns the canonical workspace root of dir: its resolved
 // path, then the git toplevel when inside a repository. This must match the
-// root the launcher (scripts/install-agent-cli.sh) derives, so Home and the
+// root the launcher (scripts/install-dew.sh) derives, so Home and the
 // per-project server agree. A linked git worktree is its own workspace (its
 // toplevel is itself); a directory outside git is its own root.
 func NormalizeWorkspace(dir string) (string, error) {

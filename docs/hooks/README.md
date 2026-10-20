@@ -238,7 +238,7 @@ That config is only re-read from disk when a reload happens (any config write
 made by the running workspace, such as choosing a model, triggers one), so
 editing `crush.json` or `crushrc` on disk does not by itself change what the
 next turn sees. In agent-cli, close every client of the project and reopen it
-(see "Sửa env khi agent-cli đang chạy" in `docs/agent-cli-local-setup.md`).
+(see "Sửa env khi agent-cli đang chạy" in `docs/dew-local-setup.md`).
 
 Known limits:
 

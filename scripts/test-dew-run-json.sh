@@ -2,7 +2,7 @@
 # E2E cho `agent-cli run --json` với server OpenAI-compat giả, cả đường local
 # lẫn client/server (CRUSH_CLIENT_SERVER=1). Chứng minh mỗi tiến trình trả
 # đúng session ID của nó. Mọi thứ nằm trong thư mục tạm; không đụng repo.
-# Dùng: scripts/test-agent-cli-run-json.sh   (DEW_BIN=... để bỏ qua build)
+# Dùng: scripts/test-dew-run-json.sh   (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclijson.XXXXXX)"

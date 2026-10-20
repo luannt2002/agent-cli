@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Các test dưới đây chạy chính agent-cli.crushrc.example qua config.Load, với
+// Các test dưới đây chạy chính dew.crushrc.example qua config.Load, với
 // cấu trúc thư mục như bản cài thật: crushrc nằm ở thư mục cấu hình toàn cục,
 // còn token đăng nhập (dew login) nằm ở crush.json trong thư mục dữ liệu
 // toàn cục, được gộp SAU crushrc.
@@ -28,7 +28,7 @@ const loginToken = "login-access-token"
 // liệu toàn cục (rỗng = chưa đăng nhập gì).
 func loadExampleCrushrc(t *testing.T, env map[string]string, storedData string) (*ConfigStore, error) {
 	t.Helper()
-	script, err := os.ReadFile(filepath.Join("..", "..", "agent-cli.crushrc.example"))
+	script, err := os.ReadFile(filepath.Join("..", "..", "dew.crushrc.example"))
 	require.NoError(t, err)
 
 	isolated := t.TempDir()

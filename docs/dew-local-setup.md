@@ -13,13 +13,13 @@ Cần sẵn:
   xem "Chuyển từ `crush.json` cũ"); `agent-cli-tmux new --model` và `agent-cli-tmux rm` cũng cần.
 - `tmux`: chỉ cho `agent-cli-tmux`.
 - Chạy các script kiểm trong `scripts/`: thêm `python3` (server LLM giả của
-  `test-agent-cli-run-json.sh` và `test-agent-cli-delegation.sh`) và lệnh `script` của util-linux
-  (ca terminal của `test-agent-cli-wrapper.sh`; thiếu thì ca đó bị bỏ qua).
+  `test-dew-run-json.sh` và `test-dew-delegation.sh`) và lệnh `script` của util-linux
+  (ca terminal của `test-dew-wrapper.sh`; thiếu thì ca đó bị bỏ qua).
 
 ```bash
 git clone https://github.com/luannt2002/agent-cli.git
 cd agent-cli
-bash scripts/install-agent-cli.sh
+bash scripts/install-dew.sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
@@ -31,7 +31,7 @@ theo mục dưới. Tệp env nằm ngoài repo; không commit key hoặc OAuth 
 thật riêng bằng kênh an toàn.
 
 Installer cài hai lệnh: `agent-cli` (wrapper, trỏ tới binary `lib/agent-cli/crush`) và `agent-cli-tmux`
-(**bản chép** của `scripts/agent-cli-tmux.sh`, không phải symlink vào thư mục checkout; muốn lấy bản mới
+(**bản chép** của `scripts/dew-tmux.sh`, không phải symlink vào thư mục checkout; muốn lấy bản mới
 thì chạy lại installer). Cuối lần chạy, nếu `crushrc` hoặc `env` đang dùng khác mẫu trong repo (mẫu có thể
 đã thêm biến hay chú thích mới), installer in sẵn lệnh `diff -u <tệp của bạn> <mẫu>` để bạn tự xem và gộp
 tay; nó không bao giờ ghi đè tệp của bạn (với env, `diff` hiện cả key: đừng chạy khi chia sẻ màn hình).
@@ -50,11 +50,11 @@ Biến môi trường của installer, launcher và crushrc:
 ## Cấu hình model
 
 Provider và model được cấu hình bằng biến dùng chung `AGENT_CLI_*` trong
-`~/.config/agent-cli/env`. `crushrc` (bản mẫu: `agent-cli.crushrc.example`) `source` tệp này
+`~/.config/agent-cli/env`. `crushrc` (bản mẫu: `dew.crushrc.example`) `source` tệp này
 (đổi đường dẫn bằng `AGENT_CLI_ENV_FILE`; bỏ qua nếu tệp không có) rồi khai provider chính cùng
 model lớn/nhỏ: hoặc một provider tên `main` tự khai bằng `AGENT_CLI_BASE_URL` (cách 1 và 2 bên
 dưới), hoặc một provider dựng sẵn trong catalog chọn bằng `AGENT_CLI_PROVIDER_ID` (cách 3). Mẫu env:
-`agent-cli.env.example`, chỉ chứa placeholder.
+`dew.env.example`, chỉ chứa placeholder.
 
 | Biến | Ý nghĩa | Mặc định |
 |---|---|---|
@@ -385,7 +385,7 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   một khoảng detach grace, mặc định 10 giây (`backend.DefaultDetachGrace`, đổi bằng
   `CRUSH_SERVER_DETACH_GRACE`); thoát sạch thì bỏ qua grace.
 - Hết grace mà workspace còn run thì server không dọn: kiểm lại mỗi 5 giây, dọn khi run
-  xong (kiểm bằng `scripts/test-agent-cli-run-json.sh`: client bị SIGKILL giữa run, run vẫn
+  xong (kiểm bằng `scripts/test-dew-run-json.sh`: client bị SIGKILL giữa run, run vẫn
   xong). Hai trần thời gian:
   - `CRUSH_SERVER_ORPHAN_RUN_TIMEOUT` (giây, mặc định 1800; `0` = dọn ngay như cũ) chỉ tính
     khi run **kẹt**: đang chờ duyệt quyền hoặc trả lời câu hỏi mà không còn client nào. Run
@@ -415,7 +415,7 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   điện, hoặc dừng workspace quá 15 giây thì session chờ ghi "Interrupted" lúc mở lại.
 - Chỉ nhận `-c dir`, `-cdir`, `--cwd dir`, `--cwd=dir` đứng riêng; cờ gộp kiểu `-dc dir`
   không được hiểu (launcher quay về thư mục hiện tại).
-- Kiểm launcher: `bash scripts/test-agent-cli-wrapper.sh` (cài vào thư mục tạm với binary
+- Kiểm launcher: `bash scripts/test-dew-wrapper.sh` (cài vào thư mục tạm với binary
   giả, in `PASS`).
 
 ## Nhiều dự án trong một cửa sổ terminal
@@ -432,11 +432,11 @@ ngoài tmux thì `attach`.
 
 - `prefix+w` liệt kê các window (dự án) để chọn; `prefix+n`/`prefix+p` chuyển nhanh.
 - Đổi tên session: `AGENT_CLI_TMUX_SESSION=tên`. Không attach: `AGENT_CLI_TMUX_NO_ATTACH=1`.
-- Installer chép `scripts/agent-cli-tmux.sh` thành `~/.local/bin/agent-cli-tmux` (bản chép mode 755, không
+- Installer chép `scripts/dew-tmux.sh` thành `~/.local/bin/agent-cli-tmux` (bản chép mode 755, không
   symlink: đổi nhánh hay xoá checkout không làm hỏng nó; chạy lại installer để lấy bản mới). Bản cài cũ là
   symlink thì được thay bằng bản chép, không ghi xuyên vào tệp trong repo.
 - Mỗi window là một client nối vào server của dự án đó (xem mục trên). Thoát agent-cli thì window đóng.
-- Kiểm: `bash scripts/test-agent-cli-tmux.sh` (tmux server riêng qua `-S <socket trong thư mục tạm>` và
+- Kiểm: `bash scripts/test-dew-tmux.sh` (tmux server riêng qua `-S <socket trong thư mục tạm>` và
   agent-cli giả, in `PASS`; không đụng tmux thật của bạn).
 
 ### Mỗi việc một worktree: `new` / `rm` / `ls`
@@ -517,7 +517,7 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"   
   `error`, `prompt_tokens`, `completion_tokens`, `cost`. Token là usage của bước cuối, không phải tổng; `cost` là
   tổng cộng dồn của session. `send` không điền `provider`/`model`; có `ledger_error` như `run --json` (mục sổ ghi LLM).
   `--timeout` (mặc định 0 = không giới hạn) hoặc Ctrl-C ngắt việc đợi; `send` không gửi lệnh huỷ run, và run
-  sống tiếp khi client cuối thoát (đã kiểm: `scripts/test-agent-cli-run-json.sh`, client bị SIGKILL giữa run mà run
+  sống tiếp khi client cuối thoát (đã kiểm: `scripts/test-dew-run-json.sh`, client bị SIGKILL giữa run mà run
   vẫn xong; trần thời gian xem "Đã biết" ở mục Home: 30 phút khi kẹt chờ duyệt/trả lời, 6 giờ khi vẫn chạy).
   Lỗi run: mã 1, JSON vẫn có `error`.
 - Run cần duyệt quyền hoặc trả lời câu hỏi mà không có TUI nào đang xem session đó: `--wait`
@@ -1001,10 +1001,10 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
 
 ```bash
 git pull --ff-only
-bash scripts/install-agent-cli.sh   # cuối lần chạy in gợi ý diff -u nếu crushrc/env của bạn khác mẫu mới
+bash scripts/install-dew.sh   # cuối lần chạy in gợi ý diff -u nếu crushrc/env của bạn khác mẫu mới
 agent-cli --version
 agent-cli models                    # kiểm cấu hình nạp được, không gọi model
-bash scripts/test-agent-cli-wrapper.sh   # tuỳ chọn: kiểm launcher + installer trong thư mục tạm, in PASS
+bash scripts/test-dew-wrapper.sh   # tuỳ chọn: kiểm launcher + installer trong thư mục tạm, in PASS
 ```
 
 (`git diff --check` chỉ dùng để soát khoảng trắng trong thay đổi CỦA BẠN trước khi commit; sau

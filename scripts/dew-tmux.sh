@@ -22,7 +22,7 @@ find_window() {
 die() { echo "agent-cli-tmux: $2" >&2; exit "$1"; }
 
 need_agent_cli() {
-  command -v agent-cli >/dev/null || die 1 "không thấy agent-cli trên PATH (chạy scripts/install-agent-cli.sh và thêm ~/.local/bin vào PATH)."
+  command -v agent-cli >/dev/null || die 1 "không thấy agent-cli trên PATH (chạy scripts/install-dew.sh và thêm ~/.local/bin vào PATH)."
 }
 
 # Phân nhánh con: new|rm|ls. Thư mục tên "new"/"rm"/"ls" thì viết ./new.

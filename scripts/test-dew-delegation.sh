@@ -4,7 +4,7 @@
 # (khoảng 10 lượt gọi). Mọi thứ nằm trong thư mục tạm; không đụng repo hay cấu
 # hình agent-cli thật.
 #
-# Dùng: scripts/test-agent-cli-delegation.sh [ca...]   (ca: claude codex sandbox registry)
+# Dùng: scripts/test-dew-delegation.sh [ca...]   (ca: claude codex sandbox registry)
 #   DEW_BIN=...   dùng binary có sẵn thay vì build
 #   MODES="local server" chế độ chạy (mặc định server, như launcher)
 #   DEW_CODEX_BIN=... khi codex không nằm trong PATH (vd app ChatGPT desktop)

@@ -11,26 +11,26 @@ Fork tồn tại để một người làm FE/BE/devops chạy nhiều dự án 
 hoặc provider qua API key, mà vẫn biết việc nào đang chạy, chạy bằng model nào, và đã kiểm chứng tới đâu.
 
 Giấy phép FSL-1.1-MIT của upstream giữ nguyên ([LICENSE.md](LICENSE.md)). README gốc: [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
-Hướng dẫn đầy đủ (cấu hình, server, loop/routine, giới hạn): [docs/agent-cli-local-setup.md](docs/agent-cli-local-setup.md).
+Hướng dẫn đầy đủ (cấu hình, server, loop/routine, giới hạn): [docs/dew-local-setup.md](docs/dew-local-setup.md).
 
 ## Cài
 
 ```bash
 git clone https://github.com/luannt2002/dew.git && cd dew
-bash scripts/install-agent-cli.sh          # build vào ~/.local, tạo crushrc + env mẫu nếu chưa có
+bash scripts/install-dew.sh          # build vào ~/.local, tạo crushrc + env mẫu nếu chưa có
 export PATH="$HOME/.local/bin:$PATH"       # thêm dòng này vào ~/.bashrc hoặc ~/.zshrc
 agent-cli --version                        # bản vừa cài
 ```
 
 Cần `git`, Go ≥ 1.27 (theo `go.mod`); `sha1sum`/`shasum` cho launcher; `jq` cho installer và `agent-cli-tmux` (bản
 mở agent-cli trong tmux); `tmux` cho `agent-cli-tmux`; `python3` và `script` để chạy các script kiểm. Installer in
-sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pull --ff-only && bash scripts/install-agent-cli.sh`, rồi
+sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pull --ff-only && bash scripts/install-dew.sh`, rồi
 thoát mọi client của các dự án đang mở (xem `agent-cli ps`) để server nền dựng lại bằng bản mới; trước đó, lệnh chạy
 model mới (TUI, `run`, `send`, `loop`) của dự án có server bản cũ đang bận bị từ chối.
 
 **Lần chạy đầu:**
 
-1. Điền provider, model, key vào `~/.config/agent-cli/env` (mẫu và chú thích: `agent-cli.env.example`; ví dụ ở mục
+1. Điền provider, model, key vào `~/.config/agent-cli/env` (mẫu và chú thích: `dew.env.example`; ví dụ ở mục
    [Provider](#provider-dùng-nhiều-không-gọi-lén)).
 2. Kiểm cấu hình, không gọi model: `agent-cli models` liệt kê model của các provider đã biết; provider của bạn phải
    hiện mà không kèm `(not configured)`.
@@ -242,7 +242,7 @@ agent-cli routine list                                           # lượt cuố
   của định nghĩa: sửa định nghĩa thì in và cài lại. Allowlist đặt trong tệp env: lịch không chép allowlist
   từ shell.
 - Chế độ không người trực không phải sandbox: chỉ chạy routine trên repo và máy bạn tin. Chi tiết và ví dụ:
-  [Loop và Routine](docs/agent-cli-local-setup.md#loop-và-routine).
+  [Loop và Routine](docs/dew-local-setup.md#loop-và-routine).
 
 ## Memory: không có kho riêng
 
@@ -273,9 +273,9 @@ lần: `AGENTS.md` chứa khẳng định cũ sai và một chỉ thị độc, 
 
 | Việc | Ở đâu |
 |---|---|
-| Provider, model, key, allowlist | biến `AGENT_CLI_*` trong `~/.config/agent-cli/env` (mode 600, mẫu: `agent-cli.env.example`); key ghi thẳng thì đặt trong nháy đơn (`'sk-…'`), hoặc `"$(pass show <entry> \| head -n1)"` |
+| Provider, model, key, allowlist | biến `AGENT_CLI_*` trong `~/.config/agent-cli/env` (mode 600, mẫu: `dew.env.example`); key ghi thẳng thì đặt trong nháy đơn (`'sk-…'`), hoặc `"$(pass show <entry> \| head -n1)"` |
 | Model đã chọn cho một dự án | `<dự án>/.crush/crush.json` (thắng env; mục [Provider](#provider-dùng-nhiều-không-gọi-lén)) |
-| Cấu hình chính, quyền công cụ | `~/.config/agent-cli/crushrc` (mẫu: `agent-cli.crushrc.example`) |
+| Cấu hình chính, quyền công cụ | `~/.config/agent-cli/crushrc` (mẫu: `dew.crushrc.example`) |
 | Màu giao diện | `~/.config/agent-cli/themes/*.json`, chọn bằng `options.tui.active_theme` |
 | Dữ liệu phiên | `~/.local/share/agent-cli`, và `.crush/` trong từng dự án (tự có `.gitignore` bỏ qua mọi thứ bên trong) |
 | Log | `agent-cli logs` (đọc đúng tệp log của dự án); `agent-cli dirs` in các thư mục đang dùng |
@@ -286,7 +286,7 @@ upstream. Sửa env khi server của dự án đang chạy thì chưa có tác d
 khác (allowlist, giao việc, `--yolo`…; so chuỗi thô) bị từ chối, lỗi nêu tên biến; server khác bản đang bận cũng bị
 từ chối. Biến thường (kể cả `$VAR` mà `crush.json` dùng cho `api_key`/`base_url`) không được so: nó theo client đã dựng
 server. Thoát mọi client, chờ server tắt rồi mở lại (xem
-[Sửa env khi agent-cli đang chạy](docs/agent-cli-local-setup.md#sửa-env-khi-agent-cli-đang-chạy)).
+[Sửa env khi agent-cli đang chạy](docs/dew-local-setup.md#sửa-env-khi-agent-cli-đang-chạy)).
 
 ## Phím tắt
 
@@ -327,11 +327,11 @@ Tên đặt bằng `f2` không bị tiêu đề do model sinh ghi đè. Terminal
   theo: export ở shell trước khi server của dự án khởi động. Ghi sổ lỗi (vd đĩa đầy) thì lượt vẫn chạy, log có WARN mỗi
   prompt, `run --json` và `send --wait --json` có `ledger_error`: lượt đó thiếu dòng trong sổ, đừng dùng sổ làm bằng
   chứng cho nó. `send` không `--wait`, `loop`, `routine` và `run` dạng chữ chỉ có WARN trong log (khi đĩa đầy thật, log
-  cũng có thể không ghi được). Giới hạn khác: [docs/agent-cli-local-setup.md](docs/agent-cli-local-setup.md), mục sổ ghi LLM.
+  cũng có thể không ghi được). Giới hạn khác: [docs/dew-local-setup.md](docs/dew-local-setup.md), mục sổ ghi LLM.
 
 ## Giới hạn còn lại
 
-Danh sách ở [docs/agent-cli-local-setup.md, mục "Giới hạn đã biết"](docs/agent-cli-local-setup.md#giới-hạn-đã-biết).
+Danh sách ở [docs/dew-local-setup.md, mục "Giới hạn đã biết"](docs/dew-local-setup.md#giới-hạn-đã-biết).
 Lớn nhất: mở repo lạ là chạy cấu hình của nó (mục [trên](#khi-nào-không-có-hộp-thoại-quyền)); model chọn trong TUI hay
 `run -m` là của cả dự án, không riêng một session; allowlist chỉ so tên provider/model; context file chỉ nạp ở thư mục
 mở agent-cli; `run` không có trần thời gian riêng (bọc `timeout` nếu cần); chế độ không người trực là danh sách chặn,
@@ -341,7 +341,7 @@ không phải sandbox.
 
 - Tên và giao diện agent-cli; không gọi GitHub kiểm bản mới (chỉ bật khi chạy thẳng binary với `CRUSH_DISABLE_UPDATE_CHECK=false`).
 - Crushrc mẫu tắt dòng `Assisted-by: Crush` / `Generated with Crush` trong commit và PR
-  ([cách bật lại](docs/agent-cli-local-setup.md#attribution-trong-commit-và-pr)).
+  ([cách bật lại](docs/dew-local-setup.md#attribution-trong-commit-và-pr)).
 - Nhiều session/dự án trong một terminal, run sống khi đóng TUI, `loop`/`routine`, ranh giới provider, hộp thoại quyền mặc định Deny.
 - Chưa đổi: tên module Go, system prompt (còn tự xưng "Crush"), skill và tool nội bộ `crush-config`, `crush_info`.
 
