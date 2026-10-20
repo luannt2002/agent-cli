@@ -639,6 +639,13 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
 		return nil, nil, nil, fmt.Errorf("invalid host URL: %v", err)
 	}
 
+	// Chính sách tin cậy hỏng (vd biến tên cũ AGENT_CLI_*) thì dừng TRƯỚC khi dựng server: server
+	// dựng ra mang env đó, chưa có workspace nào nên không bao giờ tự tắt, và từ chối mọi client sau.
+	if !runsNoAgent(cmd) {
+		if _, err := execpolicy.Inputs(); err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to create workspace: %w", err)
+		}
+	}
 	if err := ensureServer(cmd, hostURL); err != nil {
 		return nil, nil, nil, err
 	}

@@ -270,6 +270,17 @@ send_all="$(replies "$h0" "$send_sid" | tr '\n' ';')"
 [[ "$send_all" == "end_turn|ECHO("*"SLOW send;canceled|;" ]]; check "clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s, prompt đã gỡ hiện là huỷ (quan sát: $send_all)" $?
 [[ "$send_all" != *"queued from run"* ]]; check "clientserver: prompt xếp hàng của run -s đã bị gỡ, không chạy (quan sát: $send_all)" $?
 
+# Biến tin cậy tên cũ (AGENT_CLI_*, trước khi đổi tên dew) trong env gốc: dừng trước khi gọi model,
+# lỗi nêu TÊN biến, không lộ giá trị (canary). Cả local lẫn qua server (socket riêng, cleanup phủ).
+legacy_case() { # legacy_case <chế độ> <biến> -- <cờ...>
+  local mode="$1" var="$2" out rc; shift 3
+  out="$(env "$var=CANARY_LEGACY_4q9" "$bin" "$@" run --json "legacy-$mode" 2>&1)"; rc=$?
+  [ "$rc" -ne 0 ] && [[ "$out" == *"$var"* && "$out" != *CANARY_LEGACY_4q9* ]] && ! grep -q "^legacy-$mode|" "$t/requests.log"
+  check "$mode: $var tên cũ trong env -> rc!=0, nêu tên biến, không lộ giá trị, không gọi model (rc=$rc)" $?
+}
+CRUSH_CLIENT_SERVER=0 legacy_case local AGENT_CLI_ALLOWED_MODELS --
+legacy_case clientserver AGENT_CLI_CLAUDE_PERMISSION_MODE -- --host "unix://$t/s.sock-legacy"
+
 # Server idle-timeout 1s phải tự thoát; không để lại tiến trình hay socket.
 for _ in $(seq 30); do [ -z "$(server_pids)" ] && break; sleep 0.5; done
 [ -z "$(server_pids)" ]; check "không còn server process" $?
