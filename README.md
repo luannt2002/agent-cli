@@ -23,8 +23,8 @@ với model local hoặc provider qua API key, mà vẫn biết việc nào đan
 ## Tên cũ: agent-cli
 
 Đổi 20/10/2026: `agent-cli`/`agent-cli-tmux` → `dew`/`dew-tmux`; `~/.config|.local/share|.cache|.local/lib/agent-cli` →
-`…/dew`; `AGENT_CLI_*` → `DEW_*`. Không có alias, dew không đọc song song tên cũ. Repo `luannt2002/dew` (có thể vẫn tên
-`luannt2002/agent-cli` tới khi chủ repo đổi trên GitHub; đổi xong thì URL cũ được chuyển hướng). Máy đang dùng agent-cli:
+`…/dew`; `AGENT_CLI_*` → `DEW_*`. Không có alias, dew không đọc song song tên cũ. Repo `luannt2002/dew` (trước là
+`luannt2002/agent-cli`, đổi trên GitHub 20/10; URL cũ được chuyển hướng). Máy đang dùng agent-cli:
 
 1. Thoát mọi client `agent-cli` (TUI, `run`, `loop`), chờ server cũ tự tắt (khoảng một phút); còn tiến trình chạy binary
    trong `~/.local/lib/agent-cli/` thì trình cài dừng, chưa đổi gì.
@@ -51,7 +51,7 @@ tag `v0.1.0`, `v0.2.0`; `loop`/`routine` và các sửa lỗi V3 (gộp `main` 2
 ## Cài
 
 ```bash
-git clone https://github.com/luannt2002/dew.git && cd dew   # repo chưa đổi tên trên GitHub: …/agent-cli.git rồi cd agent-cli
+git clone https://github.com/luannt2002/dew.git && cd dew
 bash scripts/install-dew.sh          # build vào ~/.local, tạo crushrc + env mẫu nếu chưa có
 export PATH="$HOME/.local/bin:$PATH" # thêm dòng này vào ~/.bashrc hoặc ~/.zshrc
 dew --version                        # bản vừa cài

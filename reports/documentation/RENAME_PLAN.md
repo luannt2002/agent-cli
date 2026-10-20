@@ -40,13 +40,10 @@ chuyển đổi.
 - Thêm `docs/dew-sync.md`: lấy code, đồng bộ, đổi remote cho bản clone cũ.
 - `CLAUDE.md` P3 trỏ đường mới.
 
-## Cần người dùng làm
+## Repo trên GitHub
 
-1. Đổi tên repo trên GitHub: `luannt2002/agent-cli` → `dew`. Máy này không có `gh`, và lệnh đẩy lên GitHub bị bộ phân
-   loại quyền chặn.
-2. Sau đó, trên máy này:
-   `git remote set-url origin https://github.com/luannt2002/dew.git`, rồi push qua alias SSH
-   `git@github.com-luannt2002:luannt2002/dew.git`.
+Đã đổi `luannt2002/agent-cli` → `luannt2002/dew` (người dùng làm trên GitHub, 20/10); `origin` trỏ
+`https://github.com/luannt2002/dew.git`, push qua alias SSH `git@github.com-luannt2002:luannt2002/dew.git`.
 
 ## Đã làm ở pha DEW (20/10, nhánh `dew-rename`)
 

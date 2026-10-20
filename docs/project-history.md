@@ -377,8 +377,8 @@ Không có giai đoạn alias: lệnh `agent-cli` bị gỡ khi cài. Tên cũ c
 an ninh (`selfNames`, `protect.go`, phòng thủ) và giá trị DB `agent-cli-pending`.
 
 **Giữ nguyên có chủ ý** (invariant P3, dữ liệu người dùng): module `github.com/charmbracelet/crush`, `crush.json`,
-`CRUSH_*`, system prompt "You are Crush", `.crush/crush.db`. Đổi tên repo trên GitHub là việc của người dùng; ngày 20/10
-remote `origin` vẫn trỏ `luannt2002/agent-cli.git` (`git remote -v`).
+`CRUSH_*`, system prompt "You are Crush", `.crush/crush.db`. Repo GitHub đổi thành `luannt2002/dew` ngày 20/10 (người dùng
+làm trên GitHub); remote `origin` trỏ theo.
 
 ## 6. Dữ kiện thiếu hoặc chưa chắc
 
