@@ -522,6 +522,10 @@ var externalAgentPackages = []string{"claude-code", "@openai/codex", "@google/ge
 // còn sót trên PATH của máy chưa chuyển.
 var selfNames = map[string]bool{"dew": true, "agent-cli": true, "crush": true}
 
+// selfLaunchers mở hay đóng phiên dew trong tmux (dew-tmux <dir>, new, rm, ls): chặn mọi lần
+// gọi, như dew lồng. "agent-cli-tmux" là tên cũ (trước 20/10/2026).
+var selfLaunchers = map[string]bool{"dew-tmux": true, "dew-tmux.sh": true, "agent-cli-tmux": true}
+
 // selfAgentSubcommands là lệnh con của dew chạy agent.
 var selfAgentSubcommands = map[string]bool{"run": true, "send": true, "server": true, "loop": true, "routine": true}
 
@@ -578,6 +582,9 @@ func externalAgentCommand(args []string, depth int) (string, bool) {
 	for i := 0; i < len(args); i++ {
 		name := normalizeName(args[i])
 		if externalAgents[name] {
+			return name, true
+		}
+		if selfLaunchers[name] {
 			return name, true
 		}
 		if selfNames[name] {

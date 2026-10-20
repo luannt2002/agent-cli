@@ -129,6 +129,10 @@ func TestExternalAgentCommand(t *testing.T) {
 		{"dew", "run", "--yolo", "x"},
 		{"agent-cli", "run", "--yolo", "x"},
 		{"crush", "server", "--host", "unix:///tmp/s"},
+		{"dew-tmux", "new", "x", "--model", "a/b"},
+		{"/home/u/.local/bin/dew-tmux", "/w/p"},
+		{"./scripts/dew-tmux.sh", "ls"},
+		{"agent-cli-tmux", "rm", "x"},
 	}
 	for _, a := range hits {
 		_, ok := ExternalAgentCommand(a)
