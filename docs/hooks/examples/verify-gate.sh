@@ -23,7 +23,8 @@
 # Đặt `export` ở shell trước khi mở server cũng được, nhưng chỉ có hiệu lực lúc
 # server được dựng. Đặt "timeout" đủ lớn cho cả bộ verify: hook quá hạn thì lượt
 # được kết thúc như bình thường (hook không quyết định được).
-# Không đặt biến thì cổng tự bỏ qua (exit 0) và in cảnh báo ra stderr.
+# Không đặt biến thì cổng tự bỏ qua (exit 0) và in cảnh báo ra stderr. Còn đặt tên cũ
+# AGENT_CLI_VERIFY_CMD (trước khi đổi tên dew) thì CHẶN: cổng người dùng đã bật không được tắt lặng lẽ.
 #
 # Giao thức Stop hook (xem docs/hooks/README.md):
 #   - exit 0, không in gì  -> cho kết thúc.
@@ -33,7 +34,25 @@
 
 set -uo pipefail
 
+# block in quyết định chặn: reason thành prompt kế. jq nếu có (thoát JSON an toàn); không có thì tự
+# thoát tối thiểu.
+block() {
+	if command -v jq >/dev/null 2>&1; then
+		jq -cn --arg r "$1" '{decision:"block", reason:$r}'
+	else
+		local esc="${1//\\/\\\\}"
+		esc="${esc//\"/\\\"}"
+		esc="${esc//$'\n'/\\n}"
+		printf '{"decision":"block","reason":"%s"}\n' "$esc"
+	fi
+	exit 0
+}
+
 cmd="${DEW_VERIFY_CMD:-}"
+if [[ -z "$cmd" && -n "${AGENT_CLI_VERIFY_CMD:-}" ]]; then
+	echo "verify-gate: AGENT_CLI_VERIFY_CMD là tên cũ, cổng chặn" >&2
+	block "$(printf 'VERDICT: NOT READY\nverify-gate: lệnh hook đặt AGENT_CLI_VERIFY_CMD (tên cũ trước khi đổi tên dew) nên cổng không chạy được. Báo người dùng đổi thành DEW_VERIFY_CMD trong lệnh hook Stop.')"
+fi
 if [[ -z "$cmd" ]]; then
 	# Chưa cấu hình cổng: không cản, nhưng nói rõ để không tưởng cổng đang chạy.
 	echo "verify-gate: DEW_VERIFY_CMD rỗng, cổng KHÔNG chạy (xem hướng dẫn đầu tệp)" >&2
@@ -55,13 +74,4 @@ fi
 tail_out="$(printf '%s\n' "$out" | tail -n 40)"
 reason="$(printf 'VERDICT: NOT READY\nLệnh verify (%s) thoát với mã %d. Sửa cho xanh rồi mới kết thúc.\n\n%s' "$cmd" "$code" "$tail_out")"
 
-# jq nếu có (thoát JSON an toàn); không có thì tự thoát tối thiểu.
-if command -v jq >/dev/null 2>&1; then
-	jq -cn --arg r "$reason" '{decision:"block", reason:$r}'
-else
-	esc="${reason//\\/\\\\}"
-	esc="${esc//\"/\\\"}"
-	esc="${esc//$'\n'/\\n}"
-	printf '{"decision":"block","reason":"%s"}\n' "$esc"
-fi
-exit 0
+block "$reason"

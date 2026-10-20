@@ -173,6 +173,12 @@ mapfile -t old_vars < <(compgen -e | grep '^AGENT_CLI_' || true)
 if ((${#old_vars[@]} > 0)); then
   echo "Cảnh báo: shell còn export biến tên cũ (dew không đọc; biến của chính sách tin cậy làm dew dừng với lỗi nêu tên): ${old_vars[*]}. Đổi AGENT_CLI_ thành DEW_ trong ~/.bashrc (hoặc nơi export), mở shell mới." >&2
 fi
+mapfile -t old_rc < <(grep -l -s -a -e AGENT_CLI_ -e agent-cli -- "$HOME"/.bashrc "$HOME"/.bash_profile "$HOME"/.bash_login \
+  "$HOME"/.bash_aliases "$HOME"/.profile "$HOME"/.zshrc "$HOME"/.zshenv "$HOME"/.zprofile "$HOME"/.config/fish/config.fish || true)
+if ((${#old_rc[@]} > 0)); then
+  echo "Cảnh báo: tệp khởi động shell còn nhắc AGENT_CLI_/agent-cli (installer không sửa; đổi tay thành DEW_/dew):" >&2
+  printf '  %s\n' "${old_rc[@]}" >&2
+fi
 mapfile -t old_units < <(grep -l -s -- agent-cli "$HOME"/.config/systemd/user/*.service "$HOME"/.config/systemd/user/*.timer || true)
 if ((${#old_units[@]} > 0)); then
   echo "Cảnh báo: unit systemd còn nhắc agent-cli (installer không sửa; in lại bằng dew routine schedule <tên> --print):" >&2

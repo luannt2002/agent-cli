@@ -300,6 +300,7 @@ export AGENT_CLI_ALLOWED_MODELS="zai:glm-5.3"
 MY_AGENT_CLI_KEEP=1
 ENV
 printf '%s\n' '{"providers":{"p":{"api_key":"$AGENT_CLI_API_KEY"}}}' > "$old_cfg/crush.json"
+echo 'export AGENT_CLI_MODEL=CANARY_RC_5e2' > "$mh/.bashrc"
 cp -p "$old_cfg/env" "$m/env.orig"; cp -p "$old_cfg/crushrc" "$m/crushrc.orig"
 mkdir -p "$mh/.local/share/agent-cli/routines/r1/wt" "$mh/.cache/agent-cli/server-x"
 echo log > "$mh/.cache/agent-cli/server-x/crush.log"
@@ -327,6 +328,7 @@ check "chuyển đổi: gỡ agent-cli và agent-cli-tmux của trình cài, có
 check "chuyển đổi: cảnh báo nêu TÊN biến shell cũ" "$(grep -q 'AGENT_CLI_TOKEN_CANARY' <<<"$msg_m1"; echo $?)"
 check "chuyển đổi: output KHÔNG chứa giá trị canary (tệp env, shell)" "$(! grep -q 'CANARY_SECRET_9f3\|CANARY_SHELL_7d1' <<<"$msg_m1"; echo $?)"
 check "chuyển đổi: in lệnh quay lại" "$(grep -q 'Quay về agent-cli' <<<"$msg_m1"; echo $?)"
+check "chuyển đổi: liệt kê tệp khởi động shell còn tên cũ, không in nội dung" "$(grep -qF "  $mh/.bashrc" <<<"$msg_m1" && ! grep -q CANARY_RC_5e2 <<<"$msg_m1"; echo $?)"
 # Lần 2: không đổi gì ở cấu hình/dữ liệu/cache (lib có backup-* mới của mỗi lần cài là bình thường).
 snap() { (cd "$mh" && find . -path ./.local/share/dew/routines -prune -o -printf '%p %m %s\n' | sort; find . -type f -path './.config/*' -exec md5sum {} + | sort); }
 before="$(snap)"; rc=0; msg_m2="$(install_mig)" || rc=$?
