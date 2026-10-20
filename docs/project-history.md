@@ -352,7 +352,7 @@ where engineering work lives. Providers are how the work gets done."; CLI là m�
 sản phẩm. README đã nói ý này từ V2: "agent-cli là nơi bạn làm việc; provider là thứ thực thi" (diff của `0b5bf83e`).
 
 **Vì sao đổi** (cùng spec, dòng 1–170):
-- "Agent CLI" là tên chung chung, đã có nhiều dự án công khai dùng.
+- "Agent CLI" là tên chung chung và trói sản phẩm vào một giao diện.
 - Roadmap V2/V3 đã vượt khỏi một CLI: workspace, session, routine, provider governance, verification.
 - Chính spec ghi DEW cũng ngắn và chung chung, chưa chắc là brand công khai cuối cùng. Spec khuyên đổi cách gọi nội bộ
   trước, đổi repo/binary sau như một đợt chuyển đổi riêng.
@@ -361,15 +361,24 @@ sản phẩm. README đã nói ý này từ V2: "agent-cli là nơi bạn làm v
 P3, thư mục trên máy thành `opensource/dew`, thêm `docs/dew-sync.md` và `RENAME_PLAN.md`. Bản kế hoạch này còn để lệnh,
 cấu hình và biến `AGENT_CLI_*` (30 biến, 543 lần xuất hiện, đo bằng `git grep` ngoài `reports/`) ở dạng DEFER.
 
-**Đổi tên toàn bộ.** Cũng ngày 20/10, người dùng chốt đổi tên toàn bộ sang DEW, không giữ tên agent-cli: lệnh `dew`,
-thư mục cấu hình/dữ liệu/cache và biến `DEW_*`, kèm chuyển đổi tự động cấu hình cũ khi cài. Quyết định này thay phần
-DEFER của `RENAME_PLAN.md`. Việc đổi mã làm ở nhánh khác; tại HEAD `5680d80b` mã vẫn mang tên agent-cli, nên các
-giai đoạn ở trên giữ tên agent-cli đúng như lúc đó.
+**Đổi tên toàn bộ** (20/10, người dùng chốt "đổi tên toàn bộ, đừng để agent-cli nữa"; thay phần DEFER của
+`RENAME_PLAN.md`, ghi ở `DECISIONS.md` 2026-10-20). Làm trên một nhánh riêng rồi đưa lên `main`, 14 commit từ `85319294`
+tới `da5659a6`:
+- `85319294`: chữ hiển thị trong mã Go thành `dew`/DEW (help, lỗi, TUI, logo, thông báo, User-Agent).
+- `9cec3378`: 30 biến `AGENT_CLI_*` thành `DEW_*`, gồm các khoá của chính sách tin cậy.
+- `da55fff6`: đổi tên script, mẫu cấu hình, tài liệu cài (`scripts/install-dew.sh`, `dew-tmux`, `test-dew-*`).
+- `8d800272`: lệnh `dew`, thư mục `~/.config|.local/share|.cache|.local/lib/dew`, kèm chuyển đổi máy cũ trong trình cài.
+- `2a18c492`, `da5659a6`: sau soát độc lập, trình cài build trước rồi mới chuyển đổi, ghi và in lệnh quay lại
+  (`undo.sh`) khi dừng giữa chừng.
+- `306b84cb`, `b62f6219`, `6782ad08`: dew từ chối chạy khi còn biến tin cậy hay tệp env tên cũ (không bỏ qua lặng lẽ);
+  client kiểm chính sách trước khi dựng server.
 
-**Ngoài phạm vi đổi tên theo `RENAME_PLAN.md`:** module path, `crush.json`, `CRUSH_*`, system prompt, `.crush/crush.db`
-được xếp DO_NOT_RENAME (invariant P3, dữ liệu người dùng). Quyết định đổi tên toàn bộ có đổi lại các mục này hay không:
-tài liệu này không có dữ kiện. Đổi tên repo trên GitHub là việc của người dùng (`RENAME_PLAN.md` "Cần người dùng làm").
-Ngày 20/10 remote `origin` của bản clone này vẫn trỏ `luannt2002/agent-cli.git` (`git remote -v`).
+Không có giai đoạn alias: lệnh `agent-cli` bị gỡ khi cài. Tên cũ chỉ còn ở hồ sơ lịch sử, mã chuyển đổi, danh sách chặn
+an ninh (`selfNames`, `protect.go`, phòng thủ) và giá trị DB `agent-cli-pending`.
+
+**Giữ nguyên có chủ ý** (invariant P3, dữ liệu người dùng): module `github.com/charmbracelet/crush`, `crush.json`,
+`CRUSH_*`, system prompt "You are Crush", `.crush/crush.db`. Đổi tên repo trên GitHub là việc của người dùng; ngày 20/10
+remote `origin` vẫn trỏ `luannt2002/agent-cli.git` (`git remote -v`).
 
 ## 6. Dữ kiện thiếu hoặc chưa chắc
 
