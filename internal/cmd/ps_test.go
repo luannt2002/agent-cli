@@ -110,10 +110,10 @@ func TestPSJSONOutput(t *testing.T) {
 func TestPSNoServerDoesNotSpawn(t *testing.T) {
 	t.Parallel()
 
-	sock := filepath.Join(t.TempDir(), "agent-cli-deadbeef.sock")
+	sock := filepath.Join(t.TempDir(), "dew-deadbeef.sock")
 	var buf bytes.Buffer
 	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, false, 9))
-	require.Equal(t, "No dew server running (open projects with agent-cli-tmux)\n", buf.String())
+	require.Equal(t, "No dew server running (open projects with dew-tmux)\n", buf.String())
 	// A spawned server would have created its socket.
 	require.NoFileExists(t, sock)
 
@@ -127,7 +127,7 @@ func TestPSSocketDirsFindsSockets(t *testing.T) {
 	t.Setenv("DEW_RUNTIME_DIR", rt)
 	t.Setenv("XDG_RUNTIME_DIR", rt) // Duplicate dir must not duplicate hosts.
 	t.Setenv("HOME", t.TempDir())
-	want := filepath.Join(rt, "agent-cli-12345678.sock")
+	want := filepath.Join(rt, "dew-12345678.sock")
 	require.NoError(t, os.WriteFile(want, nil, 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(rt, "other.sock"), nil, 0o600))
 
@@ -192,7 +192,7 @@ func TestQueryPSHostTimeout(t *testing.T) {
 func TestPSLiveServerFailureIsNotNoServer(t *testing.T) {
 	t.Parallel()
 
-	sock := filepath.Join(t.TempDir(), "agent-cli-live.sock")
+	sock := filepath.Join(t.TempDir(), "dew-live.sock")
 	ln, err := net.Listen("unix", sock)
 	require.NoError(t, err)
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -245,7 +245,7 @@ func TestPSAllFlagRegistered(t *testing.T) {
 func TestPSHungServerIsNotedNotNoServer(t *testing.T) {
 	t.Parallel()
 
-	sock := filepath.Join(t.TempDir(), "agent-cli-hung.sock")
+	sock := filepath.Join(t.TempDir(), "dew-hung.sock")
 	ln, err := net.Listen("unix", sock)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ln.Close() })
@@ -273,7 +273,7 @@ func TestPSDeadServersStaySilent(t *testing.T) {
 
 	dir := t.TempDir()
 	// A stale socket file: bound then closed without unlinking.
-	stale := filepath.Join(dir, "agent-cli-stale.sock")
+	stale := filepath.Join(dir, "dew-stale.sock")
 	ln, err := net.Listen("unix", stale)
 	require.NoError(t, err)
 	ln.(*net.UnixListener).SetUnlinkOnClose(false)
@@ -291,7 +291,7 @@ func TestPSDeadServersStaySilent(t *testing.T) {
 func TestPSCountsSkippedSessionsOnStderr(t *testing.T) {
 	t.Parallel()
 
-	sock := filepath.Join(t.TempDir(), "agent-cli-skip.sock")
+	sock := filepath.Join(t.TempDir(), "dew-skip.sock")
 	ln, err := net.Listen("unix", sock)
 	require.NoError(t, err)
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

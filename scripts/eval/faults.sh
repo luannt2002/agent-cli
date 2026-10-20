@@ -3,7 +3,7 @@
 # đặt ở provider "glm" — lời gọi ẩn nào lọt sang provider khác đều hiện ở cột glm (đếm phía server).
 # Ca selected-no-key: model chính chọn ở provider dựng sẵn (openai) không có key, qwen/glm thì có: phải
 # dừng có lỗi nêu openai, không request nào tới server giả (không đổi provider lặng lẽ), nhưng
-# `agent-cli login` vẫn chạy được (probe không mạng: nền tảng không tồn tại → "unknown platform"). Ca
+# `dew login` vẫn chạy được (probe không mạng: nền tảng không tồn tại → "unknown platform"). Ca
 # selected-no-key-server: như trên nhưng qua server (CRUSH_CLIENT_SERVER=1, socket riêng trong thư mục ca), chế độ
 # mặc định của launcher: lỗi phải tới được client, nêu "openai".
 # Thoát 1 khi: có request tới glm ở bất kỳ ca nào; ca selected-no-key không fail closed hoặc login không chạy được;
@@ -98,7 +98,7 @@ for name in sorted(os.listdir(out)):
             bad.append(name + ": the error does not name the unavailable provider")
         login = open(os.path.join(P, "login.txt")).read() if os.path.exists(os.path.join(P, "login.txt")) else ""
         if "unknown platform" not in login.lower():
-            bad.append(name + ": agent-cli login cannot start (%s)" % login.strip().splitlines()[-1][:80] if login.strip() else name + ": no login output")
+            bad.append(name + ": dew login cannot start (%s)" % login.strip().splitlines()[-1][:80] if login.strip() else name + ": no login output")
     if name == "ok" and (rc != "0" or not roles.get("main")):
         bad.append("ok: rc=%s, qwen main requests=%d" % (rc, roles.get("main", 0)))
 print("FAULTS:", "PASS" if not bad else "FAIL " + "; ".join(bad))

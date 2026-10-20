@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kiểm agent-cli-tmux bằng tmux server riêng (tmux -S <socket trong thư mục tạm>) và agent-cli giả.
+# Kiểm dew-tmux bằng tmux server riêng (tmux -S <socket trong thư mục tạm>) và dew giả.
 set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 real_tmux=$(command -v tmux)
@@ -13,7 +13,7 @@ export GIT_CEILING_DIRECTORIES="$work"
 printf '#!/bin/sh\nexec %s -S %s "$@"\n' "$real_tmux" "$sock" > "$work/bin/tmux"
 # Stub: `ps` in nội dung $work/ps.json; có --host hoặc thiếu --all là lỗi (--host còn để lại $work/host-seen);
 # ps-fail = rc 1; ps-stderr = lỗi một phần (stderr + [] + rc 0). Nhận SIGHUP thì ghi late.txt nếu có $work/hup-<tên thư mục>.
-cat > "$work/bin/agent-cli" <<STUB
+cat > "$work/bin/dew" <<STUB
 #!/bin/sh
 if [ "\$1" = ps ]; then
   case " \$* " in *" --host"*) touch $work/host-seen; exit 1 ;; esac
@@ -27,7 +27,7 @@ trap '[ -e $work/hup-\$(basename "\$PWD") ] && echo late > late.txt; exit 0' HUP
 echo "\$CRUSH_CLIENT_SERVER \$*" >> $work/calls
 sleep 30 & wait
 STUB
-chmod +x "$work/bin/tmux" "$work/bin/agent-cli"
+chmod +x "$work/bin/tmux" "$work/bin/dew"
 export PATH="$work/bin:$PATH" DEW_TMUX_NO_ATTACH=1
 unset TMUX
 tmux kill-server 2>/dev/null || true
@@ -77,9 +77,9 @@ for d in "a#S b" "x#(touch $marker)"; do
   [[ $got == "$d|$want" || $got == "${d##*/}|$want" ]] || fail "window/cwd sai cho '$d': '$got'"
 done
 
-# F2: thiếu agent-cli trên PATH -> rc=1 và có thông báo.
+# F2: thiếu dew trên PATH -> rc=1 và có thông báo.
 rc=0; PATH="$work/bin-empty:/usr/bin:/bin" bash "$repo_dir/scripts/dew-tmux.sh" "$work/a" 2>"$work/err" || rc=$?
-[[ $rc == 1 && -s "$work/err" ]] || fail "thiếu agent-cli: rc=$rc"
+[[ $rc == 1 && -s "$work/err" ]] || fail "thiếu dew: rc=$rc"
 
 # --- new | rm | ls: repo git tạm (1 commit), worktree nằm cạnh repo trong $work/proj-agents ---
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
@@ -139,13 +139,13 @@ rc_of new x --repo "$work/a"; [[ $rc == 2 && -s $work/err ]] || fail "not-git: r
 (cd "$work/a" && rc=0; run new x >/dev/null 2>&1 || rc=$?; [[ $rc == 2 ]]) || fail "not-git (PWD): rc khác 2"
 [[ $(nbr) == "$b0" && $(windows) == "$w0" ]] || fail "ca lỗi làm đổi branch/window"
 
-# F4/F5: thiếu agent-cli hoặc jq -> rc=1 và KHÔNG tạo worktree/branch
+# F4/F5: thiếu dew hoặc jq -> rc=1 và KHÔNG tạo worktree/branch
 b0=$(nbr)
 rc=0; PATH="$work/bin-empty:/usr/bin:/bin" bash "$repo_dir/scripts/dew-tmux.sh" new nocli --repo "$proj" 2>"$work/err" >/dev/null || rc=$?
-[[ $rc == 1 && -s $work/err && ! -e $wtd/nocli && $(nbr) == "$b0" ]] || fail "new thiếu agent-cli: rc=$rc, đã tạo worktree/branch"
+[[ $rc == 1 && -s $work/err && ! -e $wtd/nocli && $(nbr) == "$b0" ]] || fail "new thiếu dew: rc=$rc, đã tạo worktree/branch"
 mkdir -p "$work/bin-nojq"
 for t in git sed dirname basename awk grep; do ln -sf "$(command -v $t)" "$work/bin-nojq/$t"; done
-ln -sf "$work/bin/agent-cli" "$work/bin-nojq/agent-cli"
+ln -sf "$work/bin/dew" "$work/bin-nojq/dew"
 rc=0; PATH="$work/bin-nojq" "$(command -v bash)" "$repo_dir/scripts/dew-tmux.sh" new nojq --repo "$proj" --model a/b 2>"$work/err" >/dev/null || rc=$?
 [[ $rc == 1 && $(cat "$work/err") == *jq* && ! -e $wtd/nojq && $(nbr) == "$b0" ]] || fail "new --model thiếu jq: rc=$rc, $(cat "$work/err")"
 
@@ -196,7 +196,7 @@ grep -q 'không đọc được' "$work/err" || fail "rm index hỏng: thiếu t
 rc_of ls --repo "$proj"
 grep -qxF 'corrupt  agent/corrupt  dirty' "$work/out" || fail "ls index hỏng phải báo dirty: $(cat "$work/out")"
 
-# N5: session BUSY/WAITING (agent-cli ps --json) -> rc=3, worktree còn; ps lỗi -> cũng từ chối
+# N5: session BUSY/WAITING (dew ps --json) -> rc=3, worktree còn; ps lỗi -> cũng từ chối
 rc_of new busy --repo "$proj"
 for flag in busy waiting; do
   echo "[{\"path\":\"$work/a\",\"busy\":true,\"waiting\":false},{\"path\":\"$wtd/busy\",\"busy\":$([[ $flag == busy ]] && echo true || echo false),\"waiting\":$([[ $flag == waiting ]] && echo true || echo false)}]" > "$work/ps.json"
@@ -230,14 +230,14 @@ done
 echo '[{"path":"'"$wtd/busy"'","busy":false,"waiting":false}]' > "$work/ps.json"  # IDLE -> được xoá
 rc_of rm busy --repo "$proj"; [[ $rc == 0 && ! -e $wtd/busy ]] || fail "N5 idle: rc=$rc: $(cat "$work/err")"
 echo '[]' > "$work/ps.json"
-[[ ! -e $work/host-seen ]] || fail "N5: script đưa --host cho agent-cli ps"
+[[ ! -e $work/host-seen ]] || fail "N5: script đưa --host cho dew ps"
 # (e) biên tên: BUSY ở worktree trùng tiền tố (pfx2, cả thư mục con) không được chặn oan rm pfx, cũng không đóng window pfx2
 rc_of new pfx --repo "$proj"; rc_of new pfx2 --repo "$proj"; mkdir -p "$wtd/pfx2/sub"
 echo '[{"path":"'"$wtd/pfx2"'","busy":true,"waiting":false},{"path":"'"$wtd/pfx2/sub"'","busy":true,"waiting":false}]' > "$work/ps.json"
 rc_of rm pfx --repo "$proj" --force
 [[ $rc == 0 && ! -e $wtd/pfx && -e $wtd/pfx2/.git && $(nwin pfx2) == 1 ]] || fail "N5 biên pfx/pfx2: rc=$rc, pfx2 window=$(nwin pfx2): $(cat "$work/err")"
 echo '[]' > "$work/ps.json"
-# (f) window mở ở thư mục con của worktree (agent-cli-tmux <wt>/sub) cũng bị đóng khi rm, không để agent sống trong thư mục đã xoá
+# (f) window mở ở thư mục con của worktree (dew-tmux <wt>/sub) cũng bị đóng khi rm, không để agent sống trong thư mục đã xoá
 rc_of new subw --repo "$proj"; mkdir -p "$wtd/subw/sub"
 run "$wtd/subw/sub"
 subd=$(cd "$wtd/subw/sub" && pwd -P)

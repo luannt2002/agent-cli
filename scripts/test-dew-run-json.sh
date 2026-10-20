@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# E2E cho `agent-cli run --json` với server OpenAI-compat giả, cả đường local
+# E2E cho `dew run --json` với server OpenAI-compat giả, cả đường local
 # lẫn client/server (CRUSH_CLIENT_SERVER=1). Chứng minh mỗi tiến trình trả
 # đúng session ID của nó. Mọi thứ nằm trong thư mục tạm; không đụng repo.
 # Dùng: scripts/test-dew-run-json.sh   (DEW_BIN=... để bỏ qua build)
@@ -8,7 +8,7 @@ here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclijson.XXXXXX)"
 fake_pid=""
 bin=""
-# server_pids: PID các server agent-cli của lượt test này. Không dùng pgrep -f /
+# server_pids: PID các server dew của lượt test này. Không dùng pgrep -f /
 # pkill -f: mẫu là regex và khớp cả dòng lệnh của chính shell đang chạy script.
 # Lọc theo exe đúng binary, rồi so nguyên văn đường dẫn socket trong cmdline.
 server_pids() {
@@ -62,7 +62,7 @@ for m in json.load(sys.stdin)["messages"]:
 # last_reply <dir> <session>: dòng của tin assistant cuối ("|" khi chưa có).
 last_reply() { local r; r="$(replies "$@" | tail -1)"; echo "${r:-|}"; }
 
-bin="${DEW_BIN:-$t/agent-cli}"
+bin="${DEW_BIN:-$t/dew}"
 if [ -z "${DEW_BIN:-}" ]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi

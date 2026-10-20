@@ -30,7 +30,7 @@ func TestIsSafeCommand_StaysInsideWorkspace(t *testing.T) {
 	for _, cmd := range []string{
 		// X-01: git so sánh tệp ngoài repo.
 		"git diff --no-index /dev/null /etc/hostname",
-		"git diff --no-index /dev/null ~/.config/agent-cli/env",
+		"git diff --no-index /dev/null ~/.config/dew/env",
 		"git diff --no-index a b",
 		"git diff --no-ind a b",
 		// đường dẫn tuyệt đối / ~ / .. trong đối số

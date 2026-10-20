@@ -19,7 +19,7 @@ for w in A B; do
  "options":{"disable_provider_auto_update":true,"disable_metrics":true,"disable_default_providers":true}}
 JSON
 done
-ac() { # ac <dir> <args...>  → stdout JSON của agent-cli
+ac() { # ac <dir> <args...>  → stdout JSON của dew
   local d=$1; shift
   (cd "$d" && env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
     CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \

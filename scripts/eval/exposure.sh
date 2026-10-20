@@ -25,21 +25,21 @@ verdict() { printf '%s: %s — %s\n' "$1" "$2" "$3" | tee -a "$OUT/verdicts.txt"
 
 # Launcher thật, cài một lần cho cả lượt chạy (T2c, T4).
 install_launcher() {
-  [ -x "$L/inst/bin/agent-cli" ] && return 0
-  mkdir -p "$L/fake/scripts" "$L/inst/lib/agent-cli" "$L/home" "$L/rt"
+  [ -x "$L/inst/bin/dew" ] && return 0
+  mkdir -p "$L/fake/scripts" "$L/inst/lib/dew" "$L/home" "$L/rt"
   cp "$R/scripts/install-dew.sh" "$R/scripts/dew-tmux.sh" "$L/fake/scripts/"
   cp "$R/dew.crushrc.example" "$R/dew.env.example" "$L/fake/"
-  printf '#!/bin/sh\nexec %s "$@"\n' "$BIN" > "$L/inst/lib/agent-cli/crush"
-  chmod 755 "$L/inst/lib/agent-cli/crush"
+  printf '#!/bin/sh\nexec %s "$@"\n' "$BIN" > "$L/inst/lib/dew/crush"
+  chmod 755 "$L/inst/lib/dew/crush"
   env -i PATH=/usr/bin:/bin HOME="$L/home" DEW_RUNTIME_DIR="$L/rt" DEW_INSTALL_DIR="$L/inst" DEW_SKIP_BUILD=1 \
     bash "$L/fake/scripts/install-dew.sh" > "$L/install.log" 2>&1
 }
 
 # begin <ca> <luật fakellm JSON> <provider large> [mcp JSON]: thư mục ca, LLM giả, cấu hình global theo đúng
-# bố cục của launcher ($HOME/.config/agent-cli, $HOME/.local/share/agent-cli, $HOME/.cache/agent-cli).
+# bố cục của launcher ($HOME/.config/dew, $HOME/.local/share/dew, $HOME/.cache/dew).
 begin() {
   P="$OUT/$1"; HOSTARG=(); CS=0; EXTRA=(); XPATH=""
-  mkdir -p "$P/home/.config/agent-cli" "$P/log" "$P/rt"; chmod 700 "$P/rt"
+  mkdir -p "$P/home/.config/dew" "$P/log" "$P/rt"; chmod 700 "$P/rt"
   printf '%s' "$2" > "$P/rules.json"
   timeout 900 python3 -I "$R/scripts/eval/fakellm.py" "$P/port" "$P/log" "$P/rules.json" >/dev/null 2>&1 &
   FAKE=$!
@@ -48,7 +48,7 @@ begin() {
   local mcp=""
   [ -n "${4:-}" ] && mcp=",\"mcp\":$4"
   # Ba provider giả trên cùng một LLM giả: request mang tên provider trong đường dẫn (fakellm.py).
-  cat > "$P/home/.config/agent-cli/crush.json" <<JSON
+  cat > "$P/home/.config/dew/crush.json" <<JSON
 {"providers":{
   "qwen":{"type":"openai-compat","base_url":"http://127.0.0.1:$PORT/qwen/v1","api_key":"x","models":[{"id":"m-qwen","name":"m-qwen","context_window":100000,"default_max_tokens":1000}]},
   "pp":{"type":"openai-compat","base_url":"http://127.0.0.1:$PORT/pp/v1","api_key":"x","models":[{"id":"m-pp","name":"m-pp","context_window":100000,"default_max_tokens":1000}]},
@@ -61,13 +61,13 @@ JSON
 iso() {
   local d=$1; shift
   (cd "$d" && env -i PATH="${XPATH:+$XPATH:}/usr/bin:/bin" HOME="$P/home" XDG_CONFIG_HOME="$P/home/.config" \
-    XDG_DATA_HOME="$P/home/.local/share" XDG_CACHE_HOME="$P/home/.cache" CRUSH_GLOBAL_CONFIG="$P/home/.config/agent-cli" \
-    CRUSH_GLOBAL_DATA="$P/home/.local/share/agent-cli" CRUSH_CACHE_DIR="$P/home/.cache/agent-cli" DEW_RUNTIME_DIR="$P/rt" \
+    XDG_DATA_HOME="$P/home/.local/share" XDG_CACHE_HOME="$P/home/.cache" CRUSH_GLOBAL_CONFIG="$P/home/.config/dew" \
+    CRUSH_GLOBAL_DATA="$P/home/.local/share/dew" CRUSH_CACHE_DIR="$P/home/.cache/dew" DEW_RUNTIME_DIR="$P/rt" \
     GIT_CEILING_DIRECTORIES="$OUT" CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 \
     CRUSH_CLIENT_SERVER=$CS CRUSH_SERVER_IDLE_TIMEOUT=60 "${EXTRA[@]}" timeout "${TO:-60}" "$@")
 }
 ac() { local d=$1; shift; iso "$d" "$BIN" "${HOSTARG[@]}" "$@"; }        # binary trực tiếp
-la() { local d=$1; shift; local CS=1; iso "$d" "$L/inst/bin/agent-cli" "$@"; } # qua launcher thật
+la() { local d=$1; shift; local CS=1; iso "$d" "$L/inst/bin/dew" "$@"; } # qua launcher thật
 local_ac() { local CS=0 HOSTARG=(); ac "$@"; }                               # in-process, đọc DB trực tiếp
 server_mode() { CS=1; SOCK="$P/${1:-s}.sock"; HOSTARG=(--host "unix://$SOCK"); }
 server_pid_of() { pgrep -f -- "server --host unix://$1\$" | head -1; }
@@ -216,7 +216,7 @@ t2() {
     fi
     local two=$!
     sleep 2
-    sock=$SOCK; [ $v = c ] && sock=$(ls "$P"/rt/agent-cli-*.sock 2>/dev/null | head -1)
+    sock=$SOCK; [ $v = c ] && sock=$(ls "$P"/rt/dew-*.sock 2>/dev/null | head -1)
     cwd=$(server_cwd "$sock")
     curl -s --unix-socket "$sock" http://x/v1/workspaces > "$P/$v-workspaces.json"
     wait $two
@@ -303,7 +303,7 @@ t3() {
 }
 
 # ---------------------------------------------------------------------------------------------------------
-# T4 (C6): `agent-cli-tmux rm <tên> --force` khi worktree còn session BUSY. Launcher thật + agent-cli-tmux thật,
+# T4 (C6): `dew-tmux rm <tên> --force` khi worktree còn session BUSY. Launcher thật + dew-tmux thật,
 # tmux server riêng (wrapper -S như scripts/test-dew-tmux.sh). Bất biến: rm từ chối khi có session BUSY ở
 # BẤT KỲ đâu trong worktree. Đối chứng: session BUSY ở đúng gốc worktree phải bị từ chối.
 t4() {
@@ -321,7 +321,7 @@ t4() {
     busy=$!
     sleep 3
     la "$P/repo" ps --json --all > "$P/$v-ps.json" 2> "$P/$v-ps.err"
-    CS=1 iso "$P/repo" "$L/inst/bin/agent-cli-tmux" rm "t4$v" --repo "$P/repo" --force > "$P/$v-rm.out" 2> "$P/$v-rm.err"; echo $? > "$P/$v-rm.rc"
+    CS=1 iso "$P/repo" "$L/inst/bin/dew-tmux" rm "t4$v" --repo "$P/repo" --force > "$P/$v-rm.out" 2> "$P/$v-rm.err"; echo $? > "$P/$v-rm.rc"
     [ -e "$wt" ] && echo yes > "$P/$v-wt-exists" || echo no > "$P/$v-wt-exists"
     wait $busy; echo $? > "$P/$v-busy.rc"
     stop_servers
@@ -400,7 +400,7 @@ t5() {
 # danh sách tool của CHÍNH request đó. Phán quyết gồm: todo reminder gửi agentic_fetch, `find_references` ở agent
 # chính, `question` ở plan phi tương tác (tổ hợp hiếm: chỉ khi TUI để workspace ở plan mà `run`/`send` gửi vào).
 t6() {
-  begin T6 '[{"match":"T6-fetchsub","steps":[{"text":"fetch summary"}]},{"match":"T6-fetch","steps":[{"tool":"agentic_fetch","args":{"prompt":"T6-fetchsub what is agent-cli"}},{"text":"done"}]},{"match":"T6-sub","steps":[{"text":"sub done"}]},{"match":"T6-agent","steps":[{"tool":"agent","args":{"prompt":"T6-sub list the files"}},{"text":"done"}]},{"match":"T6-plan","steps":[{"text":"plan done"}]}]' qwen
+  begin T6 '[{"match":"T6-fetchsub","steps":[{"text":"fetch summary"}]},{"match":"T6-fetch","steps":[{"tool":"agentic_fetch","args":{"prompt":"T6-fetchsub what is dew"}},{"text":"done"}]},{"match":"T6-sub","steps":[{"text":"sub done"}]},{"match":"T6-agent","steps":[{"tool":"agent","args":{"prompt":"T6-sub list the files"}},{"text":"done"}]},{"match":"T6-plan","steps":[{"text":"plan done"}]}]' qwen
   server_mode
   mkdir -p "$P/proj"; git_repo "$P/proj"
   ac "$P/proj" run --json "T6-fetch research it" > "$P/fetch.json" 2> "$P/fetch.err"
@@ -733,7 +733,7 @@ import glob, os, sys
 P = sys.argv[1]
 def trial(t):
     rcs = [open(os.path.join(P, "%s-rc-%d" % (t, i))).read().strip() for i in range(1, 11)]
-    d = glob.glob(os.path.join(P, "home", ".cache", "agent-cli", "server-*%s.sock" % t))
+    d = glob.glob(os.path.join(P, "home", ".cache", "dew", "server-*%s.sock" % t))
     log = open(os.path.join(d[0], "crush.log")).read() if d else ""
     err = open(os.path.join(d[0], "stderr.log")).read() if d else ""
     panic = next((l for l in err.splitlines() if l.startswith("panic:")), "")
@@ -781,7 +781,7 @@ skip = {os.path.join(P, "proj", ".env"), os.path.join(P, "rules.json"), os.path.
 hits = []
 for d, _, fs in os.walk(P):
     if d.startswith(os.path.join(P, "log")):
-        continue  # phía provider giả, không phải bề mặt lưu của agent-cli
+        continue  # phía provider giả, không phải bề mặt lưu của dew
     for fn in fs:
         p = os.path.join(d, fn)
         if p in skip or os.path.islink(p) or not os.path.isfile(p):

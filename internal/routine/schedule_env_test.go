@@ -15,19 +15,19 @@ func TestScheduleText_CarriesLauncherEnv(t *testing.T) {
 	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
 		Schedule: &Schedule{OnCalendar: "*-*-* 03:00:00", Cron: "0 3 * * *"}}
 	sum := strings.Repeat("a", 64)
-	env := []string{"CRUSH_GLOBAL_CONFIG=/home/u/.config/agent-cli", "CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli"}
-	out, err := d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin", env)
+	env := []string{"CRUSH_GLOBAL_CONFIG=/home/u/.config/dew", "CRUSH_GLOBAL_DATA=/home/u/.local/share/dew"}
+	out, err := d.ScheduleText("/usr/local/bin/dew", sum, "/usr/bin:/bin", env)
 	require.NoError(t, err)
-	require.Contains(t, out, "Environment=CRUSH_GLOBAL_CONFIG=/home/u/.config/agent-cli\n")
-	require.Contains(t, out, "Environment=CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli\n")
+	require.Contains(t, out, "Environment=CRUSH_GLOBAL_CONFIG=/home/u/.config/dew\n")
+	require.Contains(t, out, "Environment=CRUSH_GLOBAL_DATA=/home/u/.local/share/dew\n")
 	var cronLine string
 	for _, l := range strings.Split(out, "\n") {
 		if strings.HasPrefix(l, "0 3 * * *") {
 			cronLine = l
 		}
 	}
-	require.Contains(t, cronLine, " CRUSH_GLOBAL_CONFIG=/home/u/.config/agent-cli ")
-	require.Contains(t, cronLine, " CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli ")
+	require.Contains(t, cronLine, " CRUSH_GLOBAL_CONFIG=/home/u/.config/dew ")
+	require.Contains(t, cronLine, " CRUSH_GLOBAL_DATA=/home/u/.local/share/dew ")
 }
 
 // Giá trị có ký tự shell/khoảng trắng không được ghi vào unit hay crontab.
@@ -35,7 +35,7 @@ func TestScheduleText_RefusesUnsafeEnvValues(t *testing.T) {
 	t.Parallel()
 	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
 		Schedule: &Schedule{Cron: "0 3 * * *"}}
-	_, err := d.ScheduleText("/bin/agent-cli", strings.Repeat("a", 64), "/bin", []string{"CRUSH_GLOBAL_CONFIG=/x; rm -rf ~"})
+	_, err := d.ScheduleText("/bin/dew", strings.Repeat("a", 64), "/bin", []string{"CRUSH_GLOBAL_CONFIG=/x; rm -rf ~"})
 	require.Error(t, err)
 }
 
@@ -46,11 +46,11 @@ func TestScheduleText_EnvAllowsModelAllowlist(t *testing.T) {
 	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
 		Schedule: &Schedule{Cron: "0 3 * * *"}}
 	sum := strings.Repeat("a", 64)
-	out, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x"})
+	out, err := d.ScheduleText("/bin/dew", sum, "/bin", []string{"DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x"})
 	require.NoError(t, err)
 	require.Contains(t, out, " DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x ")
 	for _, bad := range []string{"a b", `a"b`, "a'b", "a$b", "a%b", "a\nb", `a\b`, "a;b", "a`b"} {
-		_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"DEW_ALLOWED_MODELS=" + bad})
+		_, err := d.ScheduleText("/bin/dew", sum, "/bin", []string{"DEW_ALLOWED_MODELS=" + bad})
 		require.Error(t, err, "%q", bad)
 	}
 }

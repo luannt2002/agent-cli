@@ -18,13 +18,13 @@ check() { if [ "$2" = 0 ]; then echo "ok   $1"; else echo "FAIL $1"; FAILS=$((FA
 
 begin() { # begin <ca> <CRUSH_CLIENT_SERVER 0|1>
   P="$OUT/$1"; CS=$2; HOSTARG=()
-  mkdir -p "$P/home/.config/agent-cli" "$P/log" "$P/rt" "$P/proj"; chmod 700 "$P/rt"
+  mkdir -p "$P/home/.config/dew" "$P/log" "$P/rt" "$P/proj"; chmod 700 "$P/rt"
   echo '[]' > "$P/rules.json"
   timeout 300 python3 -I "$R/scripts/eval/fakellm.py" "$P/port" "$P/log" "$P/rules.json" >/dev/null 2>&1 &
   FAKE=$!
   for _ in $(seq 50); do [ -s "$P/port" ] && break; sleep 0.1; done
   PORT=$(cat "$P/port")
-  cat > "$P/home/.config/agent-cli/crush.json" <<JSON
+  cat > "$P/home/.config/dew/crush.json" <<JSON
 {"providers":{
   "pp":{"type":"openai-compat","base_url":"http://127.0.0.1:$PORT/pp/v1","api_key":"x","models":[{"id":"m-pp","name":"m-pp","context_window":100000,"default_max_tokens":1000}]},
   "qq":{"type":"openai-compat","base_url":"http://127.0.0.1:$PORT/qq/v1","api_key":"x","models":[{"id":"m-qq","name":"m-qq","context_window":100000,"default_max_tokens":1000}]}},
@@ -36,8 +36,8 @@ JSON
 }
 ac() { # ac <lệnh...>: binary trong thư mục dự án, env cô lập
   (cd "$P/proj" && env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/.config" \
-    XDG_DATA_HOME="$P/home/.local/share" XDG_CACHE_HOME="$P/home/.cache" CRUSH_GLOBAL_CONFIG="$P/home/.config/agent-cli" \
-    CRUSH_GLOBAL_DATA="$P/home/.local/share/agent-cli" CRUSH_CACHE_DIR="$P/home/.cache/agent-cli" DEW_RUNTIME_DIR="$P/rt" \
+    XDG_DATA_HOME="$P/home/.local/share" XDG_CACHE_HOME="$P/home/.cache" CRUSH_GLOBAL_CONFIG="$P/home/.config/dew" \
+    CRUSH_GLOBAL_DATA="$P/home/.local/share/dew" CRUSH_CACHE_DIR="$P/home/.cache/dew" DEW_RUNTIME_DIR="$P/rt" \
     GIT_CEILING_DIRECTORIES="$OUT" CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 \
     CRUSH_CLIENT_SERVER=$CS CRUSH_SERVER_IDLE_TIMEOUT=60 timeout 60 "$BIN" "${HOSTARG[@]}" "$@")
 }

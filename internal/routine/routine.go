@@ -196,7 +196,7 @@ func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, e
 	fmt.Fprintf(&b, "# It works in its own git worktree on a routine/* branch, never pushes or merges,\n")
 	fmt.Fprintf(&b, "# and takes a lock, so a second run while one is active exits 75 (EX_TEMPFAIL).\n\n")
 	if s.OnCalendar != "" {
-		fmt.Fprintf(&b, "# --- systemd user units: ~/.config/systemd/user/agent-cli-routine-%s.service\n", d.Name)
+		fmt.Fprintf(&b, "# --- systemd user units: ~/.config/systemd/user/dew-routine-%s.service\n", d.Name)
 		fmt.Fprintf(&b, "[Unit]\nDescription=dew routine %s\n\n[Service]\nType=oneshot\n", d.Name)
 		fmt.Fprintf(&b, "Environment=HOME=%%h\nEnvironment=PATH=%s\n", path)
 		for _, kv := range env {
@@ -206,11 +206,11 @@ func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, e
 			fmt.Fprintf(&b, "Environment=TZ=%s\n", s.Timezone)
 		}
 		fmt.Fprintf(&b, "ExecStart=%s\nTimeoutStartSec=%s\n\n", cmdline, strconv.Itoa(int(timeout.Seconds())))
-		fmt.Fprintf(&b, "# --- ~/.config/systemd/user/agent-cli-routine-%s.timer\n", d.Name)
+		fmt.Fprintf(&b, "# --- ~/.config/systemd/user/dew-routine-%s.timer\n", d.Name)
 		fmt.Fprintf(&b, "[Unit]\nDescription=dew routine %s schedule\n\n[Timer]\nOnCalendar=%s\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n\n", d.Name, s.OnCalendar)
 		fmt.Fprintf(&b, "# --- install (run these yourself)\n")
-		fmt.Fprintf(&b, "#   systemd-analyze --user verify agent-cli-routine-%s.service agent-cli-routine-%s.timer\n", d.Name, d.Name)
-		fmt.Fprintf(&b, "#   systemctl --user daemon-reload && systemctl --user enable --now agent-cli-routine-%s.timer\n", d.Name)
+		fmt.Fprintf(&b, "#   systemd-analyze --user verify dew-routine-%s.service dew-routine-%s.timer\n", d.Name, d.Name)
+		fmt.Fprintf(&b, "#   systemctl --user daemon-reload && systemctl --user enable --now dew-routine-%s.timer\n", d.Name)
 		fmt.Fprintf(&b, "#   loginctl enable-linger $USER   # needed for the timer to fire while you are logged out\n")
 		if s.Cron != "" {
 			b.WriteString("\n")

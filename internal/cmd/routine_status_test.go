@@ -78,12 +78,12 @@ func TestLastReport_AbandonedRunsAreShownNotHidden(t *testing.T) {
 
 // Lịch in ra mang theo đúng các biến định vị của launcher đang có trong env.
 func TestScheduleEnvCarriesTheLauncherVariables(t *testing.T) {
-	t.Setenv("CRUSH_GLOBAL_CONFIG", "/home/u/.config/agent-cli")
+	t.Setenv("CRUSH_GLOBAL_CONFIG", "/home/u/.config/dew")
 	t.Setenv("CRUSH_GLOBAL_DATA", "")
-	t.Setenv("CRUSH_CACHE_DIR", "/home/u/.cache/agent-cli")
+	t.Setenv("CRUSH_CACHE_DIR", "/home/u/.cache/dew")
 	env := scheduleEnv()
-	require.Contains(t, env, "CRUSH_GLOBAL_CONFIG=/home/u/.config/agent-cli")
-	require.Contains(t, env, "CRUSH_CACHE_DIR=/home/u/.cache/agent-cli")
+	require.Contains(t, env, "CRUSH_GLOBAL_CONFIG=/home/u/.config/dew")
+	require.Contains(t, env, "CRUSH_CACHE_DIR=/home/u/.cache/dew")
 	for _, kv := range env {
 		require.NotContains(t, kv, "CRUSH_GLOBAL_DATA=", "empty variables are left out")
 	}
@@ -189,7 +189,7 @@ func TestScheduleEnv_IgnoresProjectDotenv(t *testing.T) {
 		}
 	}
 	env = append(env, "SCHEDULE_ENV_CHILD=1",
-		"CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli",
+		"CRUSH_GLOBAL_DATA=/home/u/.local/share/dew",
 		"DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x")
 	c := exec.Command(os.Args[0], "-test.run=^TestScheduleEnv_IgnoresProjectDotenv$")
 	c.Dir, c.Env = dir, env
@@ -198,7 +198,7 @@ func TestScheduleEnv_IgnoresProjectDotenv(t *testing.T) {
 
 	got := string(out)
 	require.NotContains(t, got, "/evil", "a project .env must not reach the schedule")
-	require.Contains(t, got, "CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli\n")
+	require.Contains(t, got, "CRUSH_GLOBAL_DATA=/home/u/.local/share/dew\n")
 	require.NotContains(t, got, "DEW_ALLOWED_MODELS", "the allowlist belongs in the env file, not the schedule")
 }
 
@@ -225,10 +225,10 @@ func TestListRuns_DoesNotProbeTheLockForAFinishedRun(t *testing.T) {
 }
 
 func TestScheduleEnv_CarriesTheProviderBoundary(t *testing.T) {
-	t.Setenv("DEW_ENV_FILE", "/home/u/.config/agent-cli/env")
+	t.Setenv("DEW_ENV_FILE", "/home/u/.config/dew/env")
 	t.Setenv("DEW_ALLOWED_MODELS", "openai:gpt-5")
 	env := scheduleEnv()
-	require.Contains(t, env, "DEW_ENV_FILE=/home/u/.config/agent-cli/env")
+	require.Contains(t, env, "DEW_ENV_FILE=/home/u/.config/dew/env")
 	for _, kv := range env {
 		require.NotContains(t, kv, "DEW_ALLOWED_MODELS", "the env file owns the allowlist for scheduled runs")
 	}

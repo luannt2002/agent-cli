@@ -95,16 +95,16 @@ func TestScheduleText_SystemdAndCron(t *testing.T) {
 	t.Parallel()
 	d, sum, err := Parse([]byte(goodDef))
 	require.NoError(t, err)
-	out, err := d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin", nil)
+	out, err := d.ScheduleText("/usr/local/bin/dew", sum, "/usr/bin:/bin", nil)
 	require.NoError(t, err)
 	for _, want := range []string{
-		"agent-cli-routine-nightly.service",
-		"agent-cli-routine-nightly.timer",
+		"dew-routine-nightly.service",
+		"dew-routine-nightly.timer",
 		"OnCalendar=Mon..Fri 09:00",
 		"Persistent=true",
 		"Environment=TZ=Asia/Ho_Chi_Minh",
 		"Environment=PATH=/usr/bin:/bin",
-		"ExecStart=/usr/local/bin/agent-cli routine run nightly --scheduled --expect-sha " + sum,
+		"ExecStart=/usr/local/bin/dew routine run nightly --scheduled --expect-sha " + sum,
 		"TimeoutStartSec=",
 		"systemctl --user daemon-reload",
 		"loginctl enable-linger",
@@ -113,9 +113,9 @@ func TestScheduleText_SystemdAndCron(t *testing.T) {
 	}
 
 	d.Schedule = &Schedule{Cron: "0 9 * * 1-5", Timezone: "Asia/Ho_Chi_Minh"}
-	out, err = d.ScheduleText("/usr/local/bin/agent-cli", sum, "/usr/bin:/bin", nil)
+	out, err = d.ScheduleText("/usr/local/bin/dew", sum, "/usr/bin:/bin", nil)
 	require.NoError(t, err)
-	require.Contains(t, out, "0 9 * * 1-5 TZ=Asia/Ho_Chi_Minh PATH=/usr/bin:/bin /usr/local/bin/agent-cli routine run nightly --scheduled --expect-sha "+sum)
+	require.Contains(t, out, "0 9 * * 1-5 TZ=Asia/Ho_Chi_Minh PATH=/usr/bin:/bin /usr/local/bin/dew routine run nightly --scheduled --expect-sha "+sum)
 	require.NotContains(t, out, "OnCalendar=", "chỉ khai cron thì không sinh timer systemd")
 }
 
@@ -123,12 +123,12 @@ func TestScheduleText_RefusesWhatCannotBeScheduled(t *testing.T) {
 	t.Parallel()
 	d, sum, _ := Parse([]byte(goodDef))
 	d.Mode = ModeGoal
-	_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", nil)
+	_, err := d.ScheduleText("/bin/dew", sum, "/bin", nil)
 	require.ErrorContains(t, err, "maintenance")
 
 	d, _, _ = Parse([]byte(goodDef))
 	d.Schedule = nil
-	_, err = d.ScheduleText("/bin/agent-cli", sum, "/bin", nil)
+	_, err = d.ScheduleText("/bin/dew", sum, "/bin", nil)
 	require.ErrorContains(t, err, "schedule")
 
 	d, _, _ = Parse([]byte(goodDef))

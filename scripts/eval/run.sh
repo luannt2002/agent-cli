@@ -3,10 +3,10 @@
 #
 #   bash scripts/eval/run.sh <scenario> <binary> <out-dir>
 #
-# Provider: cấu hình THẬT của bạn (CRUSH_GLOBAL_CONFIG mặc định ~/.config/agent-cli), skill thật trong HOME,
+# Provider: cấu hình THẬT của bạn (CRUSH_GLOBAL_CONFIG mặc định ~/.config/dew), skill thật trong HOME,
 # nhưng dữ liệu (global data, cache, DB dự án) nằm trong <out-dir>, chạy in-process (không đụng server đang
 # chạy). Sổ ghi LLM (DEW_LLM_LEDGER) bật để đếm lời gọi/token THẬT; binary không có sổ ghi thì cột
-# token để trống. Không in secret: chỉ ghi kết quả JSON của agent-cli và số đo.
+# token để trống. Không in secret: chỉ ghi kết quả JSON của dew và số đo.
 #   EVAL_SMALL_MODEL   provider/model dùng cho bước có "models": "small" (kịch bản đổi model)
 #   EVAL_STEP_TIMEOUT  giây tối đa mỗi bước (mặc định 900)
 set -u
@@ -19,7 +19,7 @@ repo="$out/repo"
 (cd "$repo" && git init -q && git add -A && git -c user.email=eval@local -c user.name=eval commit -qm "fixture $sc")
 
 run_env=(env -i PATH=/usr/local/bin:/usr/bin:/bin HOME="$HOME"
-  CRUSH_GLOBAL_CONFIG="${EVAL_GLOBAL_CONFIG:-$HOME/.config/agent-cli}"
+  CRUSH_GLOBAL_CONFIG="${EVAL_GLOBAL_CONFIG:-$HOME/.config/dew}"
   CRUSH_GLOBAL_DATA="$out/gdata" CRUSH_CACHE_DIR="$out/cache"
   CRUSH_CLIENT_SERVER=0 CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1
   CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_DISABLE_UPDATE_CHECK=1

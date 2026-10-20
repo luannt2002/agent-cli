@@ -148,15 +148,15 @@ func TestHomeLoopExitCodes(t *testing.T) {
 func TestHomeChildCmd(t *testing.T) {
 	t.Parallel()
 
-	c := homeChildCmd("/opt/agent-cli", home.Choice{Dir: "/w/a", SessionID: "s1"}, true)
-	require.Equal(t, "/opt/agent-cli", c.Path)
-	require.Equal(t, []string{"/opt/agent-cli", "--cwd", "/w/a", "--session", "s1", "--debug"}, c.Args)
+	c := homeChildCmd("/opt/dew", home.Choice{Dir: "/w/a", SessionID: "s1"}, true)
+	require.Equal(t, "/opt/dew", c.Path)
+	require.Equal(t, []string{"/opt/dew", "--cwd", "/w/a", "--session", "s1", "--debug"}, c.Args)
 	require.Contains(t, c.Env, homeChildEnv+"=1")
 	require.Same(t, os.Stdin, c.Stdin)
 	require.Same(t, os.Stdout, c.Stdout)
 
-	c = homeChildCmd("/opt/agent-cli", home.Choice{Dir: "/w/a"}, false)
-	require.Equal(t, []string{"/opt/agent-cli", "--cwd", "/w/a"}, c.Args, "no session: the landing screen")
+	c = homeChildCmd("/opt/dew", home.Choice{Dir: "/w/a"}, false)
+	require.Equal(t, []string{"/opt/dew", "--cwd", "/w/a"}, c.Args, "no session: the landing screen")
 }
 
 func TestRunChildExitCode(t *testing.T) {
@@ -189,7 +189,7 @@ func shortTempDir(t *testing.T) string {
 }
 
 func sockFor(dir, path string) string {
-	return filepath.Join(dir, "agent-cli-"+workspaceKey(path)+".sock")
+	return filepath.Join(dir, "dew-"+workspaceKey(path)+".sock")
 }
 
 // fakeServer serves the read-only endpoints Home uses for one workspace, and

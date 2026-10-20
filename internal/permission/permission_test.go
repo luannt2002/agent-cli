@@ -1058,7 +1058,7 @@ func TestAutoApprovedSessionDoesNotWaitForOtherPrompts(t *testing.T) {
 
 // Không người trực (routine): tool ghi tệp không đi qua lớp chặn của bash, nên
 // permission service phải từ chối ghi ra ngoài thư mục làm việc, trước cả YOLO
-// và tự duyệt — ghi `~/.config/agent-cli/crushrc` là chạy mã ở lần mở sau
+// và tự duyệt — ghi `~/.config/dew/crushrc` là chạy mã ở lần mở sau
 // (verifier g5). Trong thư mục làm việc thì như cũ; đọc thì không bị chặn.
 func TestUnattendedRefusesWritesOutsideTheWorkingDir(t *testing.T) {
 	dir := t.TempDir()

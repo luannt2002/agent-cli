@@ -1,30 +1,30 @@
-# Cấu hình chính của agent-cli (crushrc, cú pháp Bash). Installer chép tệp này
-# thành ~/.config/agent-cli/crushrc nếu chưa có. Provider/model đọc từ biến
+# Cấu hình chính của dew (crushrc, cú pháp Bash). Installer chép tệp này
+# thành ~/.config/dew/crushrc nếu chưa có. Provider/model đọc từ biến
 # DEW_* trong tệp env (xem dew.env.example), không viết cứng ở đây.
 
 # Nạp biến; bỏ qua nếu tệp không có (khi đó biến phải có sẵn trong môi trường).
-env_file="${DEW_ENV_FILE:-$HOME/.config/agent-cli/env}"
+env_file="${DEW_ENV_FILE:-$HOME/.config/dew/env}"
 [[ -f "$env_file" ]] && source "$env_file"
 
 # Hai cách khai provider chính, chọn bằng DEW_PROVIDER_ID:
 # - ID của provider dựng sẵn trong catalog (vd zai cho GLM, openai, anthropic):
 #   chỉ cần DEW_API_KEY; catalog lo endpoint, danh sách model, mức effort
 #   (alt+e) và khả năng suy luận của model. Riêng openai, xai, copilot, hyper còn
-#   dùng được bằng tài khoản đăng nhập (agent-cli login openai | grok | copilot |
+#   dùng được bằng tài khoản đăng nhập (dew login openai | grok | copilot |
 #   không đối số cho hyper): khi đó để trống DEW_API_KEY, crushrc không ghi
 #   key rỗng đè lên token đăng nhập. ID gõ sai (không có trong catalog, không có
-#   DEW_BASE_URL) làm agent-cli dừng lúc khởi động và nêu tên provider.
+#   DEW_BASE_URL) làm dew dừng lúc khởi động và nêu tên provider.
 # - Bỏ trống: provider "main" tự khai bằng DEW_BASE_URL (model local, hoặc
 #   endpoint tương thích OpenAI không có trong catalog).
 provider_id="${DEW_PROVIDER_ID:-}"
 
 # Thiếu biến bắt buộc thì dừng; lý do in ra stderr đi kèm thông báo lỗi khi mở
-# agent-cli (cả chế độ client/server).
+# dew (cả chế độ client/server).
 if [[ -n "$provider_id" ]]; then
   {
     : "${DEW_MODEL:?đặt DEW_MODEL trong ${env_file} (vd glm-5.3)}"
     case "$provider_id" in
-      openai | xai | copilot | hyper) ;; # đăng nhập bằng `agent-cli login`, key không bắt buộc
+      openai | xai | copilot | hyper) ;; # đăng nhập bằng `dew login`, key không bắt buộc
       *) : "${DEW_API_KEY:?đặt DEW_API_KEY trong ${env_file}}" ;;
     esac
   } 2>/dev/stderr
@@ -51,7 +51,7 @@ small_model="${DEW_SMALL_MODEL:-$model}"
 if [[ -n "$provider_id" ]]; then
   # Provider dựng sẵn: chỉ ghi khoá; endpoint, model, tên và mức effort lấy từ catalog.
   # Khoá trống (chỉ xảy ra với openai/xai/copilot/hyper đăng nhập bằng tài khoản) thì KHÔNG
-  # truyền --api-key: token đăng nhập nằm ở ~/.local/share/agent-cli/crush.json, nạp sau
+  # truyền --api-key: token đăng nhập nằm ở ~/.local/share/dew/crush.json, nạp sau
   # crushrc nên không bị key rỗng đè, nhưng không phát ra trường api_key thì khỏi phải
   # trông vào thứ tự nạp.
   key_args=()
@@ -104,8 +104,8 @@ option provider-auto-update false
 option attribution-trailer-style none
 option attribution-generated-with false
 
-# Provider dựng sẵn để BẬT: tài khoản đăng nhập (agent-cli login openai) và
-# provider có API key (vd ANTHROPIC_API_KEY) mới dùng được. Lời gọi LLM do agent-cli
+# Provider dựng sẵn để BẬT: tài khoản đăng nhập (dew login openai) và
+# provider có API key (vd ANTHROPIC_API_KEY) mới dùng được. Lời gọi LLM do dew
 # phát ra (kể cả tiêu đề, tóm tắt, agent con) chỉ đi tới provider của model chính
 # đang chọn; không phủ claude_code/codex hay lệnh model chạy qua bash (xem README).
 # Đã login ChatGPT/Grok thì có thể có lời gọi ra OpenAI/xAI (làm mới token, lấy
@@ -124,7 +124,7 @@ for extra_provider in openai anthropic; do
   fi
 done
 
-# Tắt công cụ chạm mạng của agent-cli. Tên phải đúng tên tool (danh sách ở
+# Tắt công cụ chạm mạng của dew. Tên phải đúng tên tool (danh sách ở
 # allToolNames, internal/config/config.go); tên sai bị bỏ qua, không báo lỗi.
 permissions deny sourcegraph fetch agentic_fetch download
 

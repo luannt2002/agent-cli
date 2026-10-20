@@ -4,7 +4,7 @@
 # agent được phép báo "xong". Fail thì chặn: agent nhận lại output và làm tiếp,
 # thay vì tự tuyên bố hoàn thành khi test đỏ.
 #
-# Bật trong crush.json của dự án (hoặc ~/.config/agent-cli/crush.json). Đặt lệnh
+# Bật trong crush.json của dự án (hoặc ~/.config/dew/crush.json). Đặt lệnh
 # verify NGAY TRONG lệnh hook (hook chạy qua shell nhúng của Crush nên nhận được
 # tiền tố gán biến):
 #   {
@@ -18,7 +18,7 @@
 #     }
 #   }
 #
-# KHÔNG đặt DEW_VERIFY_CMD trong ~/.config/agent-cli/env: tệp đó chỉ được
+# KHÔNG đặt DEW_VERIFY_CMD trong ~/.config/dew/env: tệp đó chỉ được
 # crushrc nạp trong trình thông dịch riêng, biến không tới hook (cổng sẽ tắt).
 # Đặt `export` ở shell trước khi mở server cũng được, nhưng chỉ có hiệu lực lúc
 # server được dựng. Đặt "timeout" đủ lớn cho cả bộ verify: hook quá hạn thì lượt

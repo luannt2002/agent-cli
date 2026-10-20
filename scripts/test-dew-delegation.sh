@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Kiểm THẬT tool claude_code / codex: agent-cli (LLM chính giả có kịch bản) giao
+# Kiểm THẬT tool claude_code / codex: dew (LLM chính giả có kịch bản) giao
 # việc cho Claude Code / Codex THẬT đã đăng nhập trên máy. Tốn hạn mức thuê bao
 # (khoảng 10 lượt gọi). Mọi thứ nằm trong thư mục tạm; không đụng repo hay cấu
-# hình agent-cli thật.
+# hình dew thật.
 #
 # Dùng: scripts/test-dew-delegation.sh [ca...]   (ca: claude codex sandbox registry)
 #   DEW_BIN=...   dùng binary có sẵn thay vì build
@@ -19,9 +19,9 @@ done
 t="$(mktemp -d "${TMPDIR:-/tmp}/aclideleg.XXXXXX")"
 # Socket ở thư mục ngắn riêng: sun_path tối đa 107 byte, TMPDIR dài là connect lỗi EINVAL.
 sock_dir="$(mktemp -d /tmp/aclisock.XXXXXX)"
-bin="${DEW_BIN:-$t/agent-cli}"
+bin="${DEW_BIN:-$t/dew}"
 fake_pid=
-# Dừng server agent-cli do lần chạy này dựng. Không dùng `pgrep -f "$bin server"`: -f khớp REGEX trên cả
+# Dừng server dew do lần chạy này dựng. Không dùng `pgrep -f "$bin server"`: -f khớp REGEX trên cả
 # dòng lệnh, nên ký tự đặc biệt trong đường dẫn (TMPDIR) khớp sai và tiến trình lạ có chứa chuỗi đó cũng
 # bị bắt. Thay vào đó lọc theo TÊN tiến trình chính xác (-x), rồi chỉ giết tiến trình có exe đúng là
 # $bin và environ mang CRUSH_GLOBAL_DATA nằm trong thư mục tạm của lần chạy này (so chuỗi, không regex).

@@ -51,7 +51,7 @@ func outsideFixture(t *testing.T) (project, outside string) {
 	t.Helper()
 	root := t.TempDir()
 	project = filepath.Join(root, "project")
-	outside = filepath.Join(root, "home", ".config", "agent-cli")
+	outside = filepath.Join(root, "home", ".config", "dew")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 	require.NoError(t, os.MkdirAll(outside, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(project, "main.go"), []byte("package main // API_KEY not here\n"), 0o644))
@@ -167,7 +167,7 @@ func TestViewAndLsAskForSymlinkPointingOutside(t *testing.T) {
 	require.True(t, resp.IsError)
 	require.NotContains(t, resp.Content, "secret-value")
 	require.Len(t, viewPerms.seen(), 1)
-	require.True(t, strings.HasSuffix(viewPerms.seen()[0].Path, filepath.Join("agent-cli", "env")),
+	require.True(t, strings.HasSuffix(viewPerms.seen()[0].Path, filepath.Join("dew", "env")),
 		"the dialog must show the real target, got %q", viewPerms.seen()[0].Path)
 
 	lsPerms := newRecordingPermissions(false)

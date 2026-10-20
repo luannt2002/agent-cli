@@ -116,7 +116,7 @@ func TestReadFileTail(t *testing.T) {
 func TestServerStderrPathIsTheSpawnedLog(t *testing.T) {
 	t.Setenv("CRUSH_CACHE_DIR", t.TempDir())
 
-	u, err := server.ParseHostURL("unix:///run/user/1000/agent-cli-abc.sock")
+	u, err := server.ParseHostURL("unix:///run/user/1000/dew-abc.sock")
 	require.NoError(t, err)
 	dir, err := perHostServerDir(u)
 	require.NoError(t, err)

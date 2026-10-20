@@ -52,7 +52,7 @@ func TestSelfAgentSubcommandsIncludeLoopAndRoutine(t *testing.T) {
 	for _, args := range [][]string{
 		{"dew", "loop", "--verify", "true", "x"},
 		{"crush", "routine", "run", "x"},
-		{"/usr/local/bin/agent-cli", "loop"},
+		{"/usr/local/bin/dew", "loop"},
 		{"env", "A=b", "dew", "routine", "run", "x"},
 	} {
 		name, ok := ExternalAgentCommand(args)

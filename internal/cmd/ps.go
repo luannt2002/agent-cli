@@ -29,7 +29,7 @@ const (
 	// psServerTimeout bounds the whole query of one server so a hung server
 	// cannot hang ps.
 	psServerTimeout = 3 * time.Second
-	psNoServerMsg   = "No dew server running (open projects with agent-cli-tmux)"
+	psNoServerMsg   = "No dew server running (open projects with dew-tmux)"
 )
 
 // psSource is the part of [client.Client] that ps needs.
@@ -98,7 +98,7 @@ func discoverPSHosts() []string {
 	}
 	dirs = append(dirs, rt, os.Getenv("XDG_RUNTIME_DIR"))
 	if home, err := os.UserHomeDir(); err == nil {
-		dirs = append(dirs, filepath.Join(home, ".cache", "agent-cli"))
+		dirs = append(dirs, filepath.Join(home, ".cache", "dew"))
 	}
 
 	var hosts []string
@@ -106,7 +106,7 @@ func discoverPSHosts() []string {
 		if dir == "" {
 			continue
 		}
-		socks, _ := filepath.Glob(filepath.Join(dir, "agent-cli-*.sock"))
+		socks, _ := filepath.Glob(filepath.Join(dir, "dew-*.sock"))
 		for _, s := range socks {
 			if h := "unix://" + s; !slices.Contains(hosts, h) {
 				hosts = append(hosts, h)

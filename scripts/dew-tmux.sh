@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Mở nhiều dự án trong MỘT tmux session: mỗi thư mục một window chạy agent-cli.
-# Dùng: agent-cli-tmux <dir>...   (prefix+w liệt kê các dự án)
-#       agent-cli-tmux new <name> [--model P/M] [--repo dir] [--base ref]  (worktree + window riêng)
-#       agent-cli-tmux rm <name> [--repo dir] [--force] | ls [--repo dir]
+# Mở nhiều dự án trong MỘT tmux session: mỗi thư mục một window chạy dew.
+# Dùng: dew-tmux <dir>...   (prefix+w liệt kê các dự án)
+#       dew-tmux new <name> [--model P/M] [--repo dir] [--base ref]  (worktree + window riêng)
+#       dew-tmux rm <name> [--repo dir] [--force] | ls [--repo dir]
 #         (rm từ chối khi worktree có file bị gitignore, vd .crush/ lịch sử session, .env; --force mới xoá)
 # Env: DEW_TMUX_SESSION (mặc định agents), DEW_TMUX_NO_ATTACH=1 (không attach).
 set -euo pipefail
 session="${DEW_TMUX_SESSION:-agents}"
 
 if [[ $# -eq 0 || "$1" == -h || "$1" == --help ]]; then
-  echo "Dùng: agent-cli-tmux <dir>... | new <name> [--model P/M] [--repo dir] [--base ref] | rm <name> [--repo dir] [--force] | ls [--repo dir]" >&2
+  echo "Dùng: dew-tmux <dir>... | new <name> [--model P/M] [--repo dir] [--base ref] | rm <name> [--repo dir] [--force] | ls [--repo dir]" >&2
   [[ $# -gt 0 ]] && exit 0 || exit 2
 fi
 
@@ -19,10 +19,10 @@ find_window() {
   tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" -v all="${2:-}" '$2 == d || (all != "" && index($2, d "/") == 1) { print $1; if (all == "") exit }'
 }
 
-die() { echo "agent-cli-tmux: $2" >&2; exit "$1"; }
+die() { echo "dew-tmux: $2" >&2; exit "$1"; }
 
-need_agent_cli() {
-  command -v agent-cli >/dev/null || die 1 "không thấy agent-cli trên PATH (chạy scripts/install-dew.sh và thêm ~/.local/bin vào PATH)."
+need_dew() {
+  command -v dew >/dev/null || die 1 "không thấy dew trên PATH (chạy scripts/install-dew.sh và thêm ~/.local/bin vào PATH)."
 }
 
 # Phân nhánh con: new|rm|ls. Thư mục tên "new"/"rm"/"ls" thì viết ./new.
@@ -80,23 +80,23 @@ if [[ -n $cmd ]]; then
       check_ignored() {
         ign=$(git -C "$wt" status --porcelain --ignored --untracked-files=normal | sed -n 's/^!! //p') || die 3 "không đọc được trạng thái: $wt"
         [[ -n $ign && -z $force ]] || return 0
-        { echo "agent-cli-tmux: các mục bị gitignore sẽ bị xoá vĩnh viễn:"; sed 's/^/  /' <<< "$ign"; } >&2
+        { echo "dew-tmux: các mục bị gitignore sẽ bị xoá vĩnh viễn:"; sed 's/^/  /' <<< "$ign"; } >&2
         die 3 "worktree có file bị gitignore, không xoá (thêm --force nếu chắc chắn): $wt"
       }
       check_ignored
-      [[ -z $ign ]] || echo "agent-cli-tmux: --force: xoá kèm $(wc -l <<< "$ign") mục bị gitignore trong $wt" >&2
+      [[ -z $ign ]] || echo "dew-tmux: --force: xoá kèm $(wc -l <<< "$ign") mục bị gitignore trong $wt" >&2
       abs=$(cd -- "$wt" && pwd -P)
       # Dưới CRUSH_CLIENT_SERVER=1 agent chạy ở server riêng, đóng window KHÔNG dừng nó: từ chối nếu
       # worktree còn session BUSY/WAITING (ps --json không bao giờ tự dựng server).
-      if command -v agent-cli >/dev/null; then
-        command -v jq >/dev/null || die 3 "cần jq để kiểm session đang chạy (agent-cli ps --json)"
+      if command -v dew >/dev/null; then
+        command -v jq >/dev/null || die 3 "cần jq để kiểm session đang chạy (dew ps --json)"
         # Mọi lỗi đều fail closed: rc≠0 (gồm cờ --all không tồn tại), BẤT KỲ stderr nào (ps bỏ qua server lỗi mà vẫn rc=0), JSON hỏng.
         psfail() { rm -f "$pserr"; die 3 "$1, không biết worktree có đang chạy không: $wt"; }
         pserr=$(mktemp)
-        ps=$(agent-cli ps --json --all 2>"$pserr") || psfail "agent-cli ps --json --all lỗi"
-        [[ ! -s $pserr ]] || psfail "agent-cli ps báo lỗi một phần ($(head -c 200 "$pserr" | tr '\n' ' '))"
+        ps=$(dew ps --json --all 2>"$pserr") || psfail "dew ps --json --all lỗi"
+        [[ ! -s $pserr ]] || psfail "dew ps báo lỗi một phần ($(head -c 200 "$pserr" | tr '\n' ' '))"
         rm -f "$pserr"
-        rows=$(printf '%s' "$ps" | jq -r '.[]? | select(.busy or .waiting) | "P:" + (.path // "")') || die 3 "agent-cli ps --json không phải JSON hợp lệ, không biết worktree có đang chạy không: $wt"
+        rows=$(printf '%s' "$ps" | jq -r '.[]? | select(.busy or .waiting) | "P:" + (.path // "")') || die 3 "dew ps --json không phải JSON hợp lệ, không biết worktree có đang chạy không: $wt"
         # Server lưu path đúng như client gửi (có thể symlink): chuẩn hoá bằng pwd -P rồi so; không phân giải được thì từ chối.
         while IFS= read -r p; do
           [[ -n $rows ]] || break
@@ -104,13 +104,13 @@ if [[ -n $cmd ]]; then
           [[ $p == /* ]] || die 3 "session đang chạy có path không tuyệt đối ('$p'), từ chối xoá: $wt"
           c=$(cd -- "$p" 2>/dev/null && pwd -P) || die 3 "session đang chạy có path không phân giải được ('$p'), từ chối xoá: $wt"
           # Session ở thư mục con ($wt/sub) cũng mất lịch sử khi xoá: so "nằm trong", "$abs"/ để /a/wt không khớp /a/wt2.
-          [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+          [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (dew ps), không xoá: $wt"
         done <<< "$rows"
       else
-        echo "agent-cli-tmux: không thấy agent-cli trên PATH, bỏ qua kiểm session đang chạy" >&2
+        echo "dew-tmux: không thấy dew trên PATH, bỏ qua kiểm session đang chạy" >&2
       fi
       # Đóng window và đợi tiến trình pane thoát (nó có thể ghi nốt file lúc SIGHUP) rồi mới để git kiểm lại.
-      # Cả window mở ở thư mục con (agent-cli-tmux $wt/sub): bỏ sót thì agent sống tiếp trong thư mục đã xoá.
+      # Cả window mở ở thư mục con (dew-tmux $wt/sub): bỏ sót thì agent sống tiếp trong thư mục đã xoá.
       ids=$(find_window "$abs" all)
       if [[ -n $ids ]]; then
         pids=$(for id in $ids; do tmux list-panes -t "$id" -F '#{pane_pid}'; done)
@@ -130,7 +130,7 @@ if [[ -n $cmd ]]; then
   esac
 
   # new: kiểm hết trước khi tạo gì.
-  need_agent_cli
+  need_dew
   [[ -z $model ]] || command -v jq >/dev/null || die 1 "--model cần jq nhưng không thấy trên PATH"
   # --base phân giải tại nơi user chạy lệnh (có thể là worktree con), rồi truyền SHA.
   ref=$base
@@ -154,13 +154,13 @@ if [[ -n $cmd ]]; then
   wname=$name
 fi
 
-need_agent_cli
+need_dew
 
 # Kiểm hết thư mục trước khi tạo bất cứ gì, để lỗi không để lại session nửa vời.
 dirs=()
 for d in "$@"; do
   if ! abs=$(cd -- "$d" 2>/dev/null && pwd -P); then
-    echo "agent-cli-tmux: thư mục không tồn tại: $d" >&2
+    echo "dew-tmux: thư mục không tồn tại: $d" >&2
     exit 2
   fi
   dirs+=("$abs")
@@ -172,7 +172,7 @@ for abs in "${dirs[@]}"; do
   id=$(find_window "$abs")
   if [[ -z "$id" ]]; then
     # env: default-shell của tmux có thể không phải POSIX (fish) nên không dùng `VAR=1 cmd`.
-    cmd="env CRUSH_CLIENT_SERVER=1 agent-cli -c $(printf %q "$abs")"
+    cmd="env CRUSH_CLIENT_SERVER=1 dew -c $(printf %q "$abs")"
     # tmux format-expand -n/-c/-s: `#` phải thành `##`, nếu không `#(cmd)` bị chạy và `#S` bị thay.
     name=${wname:-$(basename -- "$abs")}
     name=${name//#/##} esc=${abs//#/##}

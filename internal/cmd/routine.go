@@ -263,7 +263,7 @@ func routineExitErr(mode string, r loop.Stop) error {
 func warnAllowlistNotScheduled(w io.Writer) {
 	if execpolicy.OriginalEnv(execpolicy.AllowedModelsEnv) != "" {
 		fmt.Fprintf(w, "warning: %s is set in your shell but is not copied into the schedule; put the allowlist in your dew env file (%s) so scheduled runs use it\n",
-			execpolicy.AllowedModelsEnv, execpolicy.EnvFileEnv+" or ~/.config/agent-cli/env")
+			execpolicy.AllowedModelsEnv, execpolicy.EnvFileEnv+" or ~/.config/dew/env")
 	}
 }
 

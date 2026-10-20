@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# E2E cho `agent-cli loop` với server OpenAI-compat giả, cả đường local lẫn
+# E2E cho `dew loop` với server OpenAI-compat giả, cả đường local lẫn
 # client/server. Chứng minh: xanh khi lệnh verify thoát 0, STALLED / MAX_REPAIRS /
 # UNMEASURED / CANCELLED đúng lý do và đúng số lượt agent, thiếu --verify thoát 2.
 # Mọi thứ nằm trong thư mục tạm; không đụng repo hay cấu hình thật.
@@ -9,7 +9,7 @@ here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclloop.XXXXXX)"
 fake_pid=""
 bin=""
-# server_pids: PID server agent-cli của lượt test này (lọc theo exe và socket,
+# server_pids: PID server dew của lượt test này (lọc theo exe và socket,
 # không dùng pgrep -f vì mẫu khớp cả dòng lệnh của chính shell đang chạy).
 server_pids() {
   local want name p
@@ -46,7 +46,7 @@ PY
 # last_event <journal> <key>: giá trị key của dòng journal cuối.
 last_event() { tail -1 "$1" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$2"; }
 
-bin="${DEW_BIN:-$t/agent-cli}"
+bin="${DEW_BIN:-$t/dew}"
 if [ -z "${DEW_BIN:-}" ]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi

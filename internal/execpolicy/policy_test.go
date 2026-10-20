@@ -192,6 +192,23 @@ DEW_DELEGATION=on   # bật giao việc
 	require.Len(t, file, 2, "only the two policy keys are kept")
 }
 
+// Biến tin cậy mang tên cũ AGENT_CLI_* (trước khi đổi tên dew) không được bỏ
+// qua lặng lẽ: env gốc hay tệp env còn tên cũ thì báo lỗi nêu cả hai tên.
+func TestLegacyTrustedNamesRefused(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, legacyTrusted(env(map[string]string{AllowedModelsEnv: "zai:glm-5.3", "AGENT_CLI_API_KEY": "x"})))
+	for _, k := range []string{"AGENT_CLI_ALLOWED_MODELS", "AGENT_CLI_CLAUDE_PERMISSION_MODE", "AGENT_CLI_CODEX_SANDBOX", "AGENT_CLI_ENV_FILE"} {
+		err := legacyTrusted(env(map[string]string{k: "v"}))
+		require.ErrorContains(t, err, k)
+		require.ErrorContains(t, err, "DEW_"+strings.TrimPrefix(k, "AGENT_CLI_"))
+	}
+
+	envFile := filepath.Join(t.TempDir(), "env")
+	require.NoError(t, os.WriteFile(envFile, []byte("# AGENT_CLI_DELEGATION=on (comment: ignored)\nexport AGENT_CLI_ALLOWED_MODELS=zai:glm-5.3\n"), 0o600))
+	_, err := readEnvFile(envFile)
+	require.ErrorContains(t, err, envFile+":2: AGENT_CLI_ALLOWED_MODELS is the old name of DEW_ALLOWED_MODELS")
+}
+
 func TestShellValue(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{

@@ -203,7 +203,7 @@ func (s *permissionService) Deny(permission PermissionRequest) bool {
 
 func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRequest) (bool, error) {
 	// Không người trực: yêu cầu Action "write"/"download" có đích ngoài thư mục làm
-	// việc bị từ chối cứng, trước cả YOLO và tự duyệt (ghi vd ~/.config/agent-cli/crushrc
+	// việc bị từ chối cứng, trước cả YOLO và tự duyệt (ghi vd ~/.config/dew/crushrc
 	// là chạy mã ở lần mở sau). Chỉ phủ tool khai Action đó (write, edit, multiedit,
 	// download, lsp_replace_symbol, lsp_rename); bash (vd chuyển hướng `>`) KHÔNG đi
 	// qua kiểm tra này.

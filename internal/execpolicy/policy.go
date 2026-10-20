@@ -94,7 +94,7 @@ func (d *Denied) Error() string {
 }
 
 // EnvFileEnv đặt đường dẫn tệp env của dew (mặc định
-// ~/.config/agent-cli/env), như crushrc mẫu.
+// ~/.config/dew/env), như crushrc mẫu.
 const EnvFileEnv = "DEW_ENV_FILE"
 
 // trustedKeys là các biến chỉ được lấy từ env GỐC của tiến trình: chụp đầu
@@ -207,7 +207,7 @@ func ChildEnv(env []string) []string {
 
 // Current trả chính sách của tiến trình, nạp một lần từ hai nguồn của người
 // dùng: env gốc đã export ở shell (ảnh chụp đầu main), rồi tệp env của
-// dew (EnvFileEnv, mặc định ~/.config/agent-cli/env). Không đọc cấu
+// dew (EnvFileEnv, mặc định ~/.config/dew/env). Không đọc cấu
 // hình, `.env` hay `env` của dự án: một repo lạ không nới được ranh giới.
 // Đổi giá trị thì mở lại server của dự án.
 func Current() (Policy, error) {
@@ -238,8 +238,33 @@ var current = sync.OnceValues(func() (loaded, error) {
 		// thì dựng bằng Parse/FromEnv.
 		return loaded{inputs: inputsOf(func(string) string { return "" })}, nil
 	}
+	if err := legacyTrusted(OriginalEnv); err != nil {
+		return loaded{}, err
+	}
 	return loadAll(TrustedEnv)
 })
+
+// legacyPrefix là tiền tố biến trước khi đổi tên agent-cli thành dew (20/10/2026).
+const legacyPrefix = "AGENT_CLI_"
+
+// legacyName trả tên cũ của biến tin cậy k (DEW_X -> AGENT_CLI_X).
+func legacyName(k string) string {
+	if rest, ok := strings.CutPrefix(k, "DEW_"); ok {
+		return legacyPrefix + rest
+	}
+	return ""
+}
+
+// legacyTrusted từ chối khi env gốc còn biến tin cậy mang tên cũ: bỏ qua lặng
+// lẽ sẽ nới ranh giới (allowlist, mức quyền CLI con) mà người dùng không biết.
+func legacyTrusted(getenv func(string) string) error {
+	for _, k := range trustedKeys {
+		if old := legacyName(k); old != "" && getenv(old) != "" {
+			return fmt.Errorf("%s is set but dew reads %s since the rename (20/10/2026): rename it in your shell, then reopen", old, k)
+		}
+	}
+	return nil
+}
 
 // load là Current với getenv cho trước (test).
 func load(getenv func(string) string) (Policy, error) {
@@ -281,7 +306,7 @@ func envFilePath(getenv func(string) string) string {
 		return p
 	}
 	if home := getenv("HOME"); home != "" {
-		return filepath.Join(home, ".config", "agent-cli", "env")
+		return filepath.Join(home, ".config", "dew", "env")
 	}
 	return ""
 }
@@ -308,6 +333,11 @@ func readEnvFile(path string) (map[string]string, error) {
 		line := strings.TrimSpace(sc.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
+		}
+		for _, k := range []string{AllowedModelsEnv, DelegationEnv} {
+			if old := legacyName(k); strings.Contains(line, old) {
+				return nil, fmt.Errorf("%s:%d: %s is the old name of %s (renamed on 20/10/2026): rename it, or run scripts/install-dew.sh which does it", path, n, old, k)
+			}
 		}
 		mentions := strings.Contains(line, AllowedModelsEnv) || strings.Contains(line, DelegationEnv)
 		if rest, ok := strings.CutPrefix(line, "export"); ok && rest != "" && (rest[0] == ' ' || rest[0] == '\t') {

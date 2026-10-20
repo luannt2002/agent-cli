@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""LLM giả tương thích OpenAI, GHI LẠI mọi request để đo hệ thống agent-cli.
+"""LLM giả tương thích OpenAI, GHI LẠI mọi request để đo hệ thống dew.
 
 Dùng cho bộ đo của đợt tiến hoá (reports/system-evolution): trả lời câu hỏi "lượt chạy này gửi gì, tới
-provider nào, model nào" bằng chính request thật mà agent-cli gửi đi, không suy ra từ cấu hình.
+provider nào, model nào" bằng chính request thật mà dew gửi đi, không suy ra từ cấu hình.
 
     python3 -I scripts/eval/fakellm.py PORT_FILE LOG_DIR [RULES_JSON]
 

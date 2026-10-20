@@ -165,7 +165,7 @@ func execHome(dir string) error {
 }
 
 // workspaceKey is the 8 hex digits the launcher names a workspace's server
-// socket after: agent-cli-<key>.sock, key = sha1 of the workspace root.
+// socket after: dew-<key>.sock, key = sha1 of the workspace root.
 func workspaceKey(path string) string {
 	sum := sha1.Sum([]byte(path))
 	return hex.EncodeToString(sum[:])[:8]
@@ -174,10 +174,10 @@ func workspaceKey(path string) string {
 // socketKey returns the workspace key of a launcher socket host, or "".
 func socketKey(host string) string {
 	name := filepath.Base(host)
-	if !strings.HasPrefix(name, "agent-cli-") || !strings.HasSuffix(name, ".sock") {
+	if !strings.HasPrefix(name, "dew-") || !strings.HasSuffix(name, ".sock") {
 		return ""
 	}
-	return strings.TrimSuffix(strings.TrimPrefix(name, "agent-cli-"), ".sock")
+	return strings.TrimSuffix(strings.TrimPrefix(name, "dew-"), ".sock")
 }
 
 // homeSource is Home's view of this machine: the workspace registry and the

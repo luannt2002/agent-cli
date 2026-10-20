@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# E2E cho `agent-cli routine` với server OpenAI-compat giả. Chứng minh trên binary thật:
+# E2E cho `dew routine` với server OpenAI-compat giả. Chứng minh trên binary thật:
 # routine chạy trong worktree riêng (repo gốc không bị đụng), bị CHẶN git push khi
 # không người trực trong khi `run` cùng lệnh đó push được (ca đối chứng), khoá chống
 # chạy chồng (mã 75), từ chối --scheduled cho việc có đích và định nghĩa đã đổi,
@@ -33,7 +33,7 @@ print(obj)
 PY
 }
 
-bin="${DEW_BIN:-$t/agent-cli}"
+bin="${DEW_BIN:-$t/dew}"
 if [ -z "${DEW_BIN:-}" ]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi

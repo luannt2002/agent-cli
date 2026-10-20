@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bộ việc mẫu cho bộ đo hệ thống agent-cli (reports/system-evolution, Phase 7–8).
+"""Bộ việc mẫu cho bộ đo hệ thống dew (reports/system-evolution, Phase 7–8).
 
     python3 -I scripts/eval/fixtures.py list
     python3 -I scripts/eval/fixtures.py show <scenario>          # in JSON của kịch bản

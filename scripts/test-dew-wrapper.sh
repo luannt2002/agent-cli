@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kiểm launcher agent-cli: một server chung cho mỗi thư mục gốc dự án.
+# Kiểm launcher dew: một server chung cho mỗi thư mục gốc dự án.
 # Cài vào thư mục tạm với binary giả; không đụng bản cài thật hay repo này.
 set -euo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -7,19 +7,19 @@ t="$(mktemp -d)"
 trap 'rm -rf "$t"' EXIT
 
 # Repo giả để install script không tạo .crush.json trong repo thật.
-mkdir -p "$t/fake/scripts" "$t/inst/lib/agent-cli" "$t/home"
+mkdir -p "$t/fake/scripts" "$t/inst/lib/dew" "$t/home"
 cp "$here/scripts/install-dew.sh" "$here/scripts/dew-tmux.sh" "$t/fake/scripts/"
 cp "$here"/dew.crushrc.example "$here"/dew.env.example "$t/fake/"
-cat > "$t/inst/lib/agent-cli/crush" <<'STUB'
+cat > "$t/inst/lib/dew/crush" <<'STUB'
 #!/usr/bin/env bash
 echo "CS=${CRUSH_CLIENT_SERVER-unset}"
 echo "L=${DEW_LAUNCHER-unset}"
 printf 'ARG=%s\n' "$@"
 STUB
-chmod 755 "$t/inst/lib/agent-cli/crush"
+chmod 755 "$t/inst/lib/dew/crush"
 install1() { HOME="$t/home" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1; }
 msg_first="$(install1)"
-wrapper="$t/inst/bin/agent-cli"
+wrapper="$t/inst/bin/dew"
 
 for r in repoA repoB; do
   mkdir -p "$t/$r/sub1" "$t/$r/sub2"
@@ -46,11 +46,11 @@ count_host() { grep -cE '^ARG=(--host|-H)' <<<"$1" || true; }
 sha8() { printf %s "$1" | sha1sum | cut -c1-8; }
 
 root_a="$(git -C "$t/repoA" rev-parse --show-toplevel)"
-# Thư mục socket mong đợi, tính như launcher: /run/user/UID -> XDG_RUNTIME_DIR -> $HOME/.cache/agent-cli.
+# Thư mục socket mong đợi, tính như launcher: /run/user/UID -> XDG_RUNTIME_DIR -> $HOME/.cache/dew.
 rt="/run/user/$(id -u)"
 [[ -d "$rt" ]] || rt="${XDG_RUNTIME_DIR:-}"
-[[ -d "$rt" ]] || rt="$t/home/.cache/agent-cli"
-want="unix://$rt/agent-cli-$(sha8 "$root_a").sock"
+[[ -d "$rt" ]] || rt="$t/home/.cache/dew"
+want="unix://$rt/dew-$(sha8 "$root_a").sock"
 
 out_a1="$(run "$t/repoA/sub1" -- run hello)"
 out_a2="$(run "$t/repoA/sub2" -- run hello)"
@@ -82,7 +82,7 @@ check "-c đường dẫn tương đối" "$(same "$(host_of "$out")" "$h_b"; ec
 
 h_p="$(host_of "$(run "$t/plain/x" -- run x)")"
 h_pl="$(host_of "$(run "$t/plainlink/x" -- run x)")"
-check "ngoài git: realpath, symlink cùng host với đích" "$([[ -n "$h_p" && "$h_p" == "$h_pl" && "$h_p" == "unix://$rt/agent-cli-$(sha8 "$t/plain/x").sock" ]]; echo $?)"
+check "ngoài git: realpath, symlink cùng host với đích" "$([[ -n "$h_p" && "$h_p" == "$h_pl" && "$h_p" == "unix://$rt/dew-$(sha8 "$t/plain/x").sock" ]]; echo $?)"
 
 out="$(run "$t/repoA" CRUSH_CLIENT_SERVER=0 -- run x)"
 check "CRUSH_CLIENT_SERVER=0: giữ 0, không thêm --host" "$(grep -qx 'CS=0' <<<"$out" && [[ "$(count_host "$out")" == 0 ]]; echo $?)"
@@ -108,7 +108,7 @@ out="$(run "$t/repoA" --)"
 check "không đối số, không phải terminal (TUI thẳng) vẫn thêm --host" "$(same "$(host_of "$out")" "$h_a1"; echo $?)"
 check "launcher tự khai đường dẫn của nó (DEW_LAUNCHER) cho Home" "$(grep -qx "L=$wrapper" <<<"$out"; echo $?)"
 
-# Trên terminal, agent-cli trần (hoặc chỉ -d) là Home: chưa có workspace nên không chọn server.
+# Trên terminal, dew trần (hoặc chỉ -d) là Home: chưa có workspace nên không chọn server.
 # `script` cấp pty để stdin/stdout là terminal như khi gõ tay.
 run_tty() { # run_tty <thư mục> <args...>
   local dir="$1"; shift
@@ -132,13 +132,13 @@ else
   echo "skip ca terminal: thiếu lệnh script"
 fi
 
-# Thứ tự thư mục socket: không bao giờ /tmp, ~/.cache/agent-cli mode 0700.
+# Thứ tự thư mục socket: không bao giờ /tmp, ~/.cache/dew mode 0700.
 out="$(run "$t/repoA" DEW_RUNTIME_DIR=/nonexistent XDG_RUNTIME_DIR= -- run x)"
-check "không có /run/user, không XDG -> \$HOME/.cache/agent-cli" "$([[ "$(host_of "$out")" == "unix://$t/home/.cache/agent-cli/agent-cli-$(sha8 "$root_a").sock" ]]; echo $?)"
-check "thư mục dự phòng mode 700" "$([[ "$(stat -c %a "$t/home/.cache/agent-cli")" == 700 ]]; echo $?)"
+check "không có /run/user, không XDG -> \$HOME/.cache/dew" "$([[ "$(host_of "$out")" == "unix://$t/home/.cache/dew/dew-$(sha8 "$root_a").sock" ]]; echo $?)"
+check "thư mục dự phòng mode 700" "$([[ "$(stat -c %a "$t/home/.cache/dew")" == 700 ]]; echo $?)"
 mkdir -p "$t/xdg"
 out="$(run "$t/repoA" DEW_RUNTIME_DIR=/nonexistent XDG_RUNTIME_DIR="$t/xdg" -- run x)"
-check "không có /run/user -> XDG_RUNTIME_DIR" "$([[ "$(host_of "$out")" == "unix://$t/xdg/agent-cli-$(sha8 "$root_a").sock" ]]; echo $?)"
+check "không có /run/user -> XDG_RUNTIME_DIR" "$([[ "$(host_of "$out")" == "unix://$t/xdg/dew-$(sha8 "$root_a").sock" ]]; echo $?)"
 long="$t/$(printf 'd%.0s' {1..100})"; mkdir -p "$long"
 # Socket quá dài: KHÔNG chạy tiếp không --host (client sẽ rơi về server mặc định dùng chung, mất cách ly theo dự án).
 rc=0; out="$(run "$t/repoA" DEW_RUNTIME_DIR="$long" -- run x 2>"$t/err")" || rc=$?
@@ -183,10 +183,10 @@ for v in yes no on off 2 tRuE y; do
 done
 
 # DEW_SKIP_BUILD chỉ bỏ build khi đúng bằng 1. go giả ghi dấu mỗi lần được gọi.
-mkdir -p "$t/gobin" "$t/inst2/lib/agent-cli"
+mkdir -p "$t/gobin" "$t/inst2/lib/dew"
 # go giả giữ đúng hợp đồng của go build: sinh tệp -o (installer build ra tệp tạm rồi mv).
-printf '#!/bin/sh\ntouch "%s/go-called"\necho "CGO_ENABLED=$CGO_ENABLED GOEXPERIMENT=$GOEXPERIMENT" > "%s/go-env"\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && cp "%s" "$2"; shift; done\n' "$t" "$t" "$t/inst/lib/agent-cli/crush" > "$t/gobin/go"; chmod 755 "$t/gobin/go"
-cp "$t/inst/lib/agent-cli/crush" "$t/inst2/lib/agent-cli/crush"
+printf '#!/bin/sh\ntouch "%s/go-called"\necho "CGO_ENABLED=$CGO_ENABLED GOEXPERIMENT=$GOEXPERIMENT" > "%s/go-env"\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && cp "%s" "$2"; shift; done\n' "$t" "$t" "$t/inst/lib/dew/crush" > "$t/gobin/go"; chmod 755 "$t/gobin/go"
+cp "$t/inst/lib/dew/crush" "$t/inst2/lib/dew/crush"
 inst2() { HOME="$t/home" PATH="$t/gobin:$PATH" DEW_INSTALL_DIR="$t/inst2" DEW_SKIP_BUILD="$1" bash "$t/fake/scripts/install-dew.sh" 2>&1; }
 rm -f "$t/go-called" "$t/go-env"; msg="$(CGO_ENABLED=1 GOEXPERIMENT=nogreenteagc inst2 0)"
 check "DEW_SKIP_BUILD=0 vẫn build" "$([[ -e "$t/go-called" ]] && ! grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
@@ -195,7 +195,7 @@ rm -f "$t/go-called"; msg="$(inst2 1)"
 check "DEW_SKIP_BUILD=1 bỏ build và báo" "$([[ ! -e "$t/go-called" ]] && grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
 
 # Cài đặt cấu hình chung: crushrc + env mẫu, không .crush.json, không ghi đè lần hai.
-cfg="$t/home/.config/agent-cli"
+cfg="$t/home/.config/dew"
 check "cài lần đầu tạo crushrc từ mẫu" "$(cmp -s "$here/dew.crushrc.example" "$cfg/crushrc"; echo $?)"
 check "cài lần đầu tạo env từ mẫu, mode 600" "$(cmp -s "$here/dew.env.example" "$cfg/env" && [[ "$(stat -c %a "$cfg/env")" == 600 ]]; echo $?)"
 check "cài đặt không tạo .crush.json" "$([[ ! -e "$t/fake/.crush.json" && ! -e "$cfg/crush.json" ]]; echo $?)"
@@ -223,62 +223,140 @@ check "thư mục cấu hình mở rộng (755) được siết về 700" "$([[ 
 
 # crush.json đang khai provider thì không tạo crushrc/env (crushrc sẽ ghi đè nó); chỉ để bản .example.
 install_in() { HOME="$1" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1; }
-mkdir -p "$t/hp/.config/agent-cli"; cj='{"providers":{"mine":{"type":"openai-compat"}},"models":{"large":{"provider":"mine","model":"x"}}}'
-printf '%s' "$cj" > "$t/hp/.config/agent-cli/crush.json"
-msg_p="$(install_in "$t/hp")"; c="$t/hp/.config/agent-cli"
+mkdir -p "$t/hp/.config/dew"; cj='{"providers":{"mine":{"type":"openai-compat"}},"models":{"large":{"provider":"mine","model":"x"}}}'
+printf '%s' "$cj" > "$t/hp/.config/dew/crush.json"
+msg_p="$(install_in "$t/hp")"; c="$t/hp/.config/dew"
 check "crush.json có provider -> không tạo crushrc/env" "$([[ ! -e "$c/crushrc" && ! -e "$c/env" ]]; echo $?)"
 check "crush.json có provider -> có crushrc.example, env.example" "$([[ -f "$c/crushrc.example" && -f "$c/env.example" ]]; echo $?)"
 check "crush.json có provider -> in hướng dẫn, crush.json không đổi" "$(grep -q 'KHÔNG tạo crushrc' <<<"$msg_p" && [[ "$(cat "$c/crush.json")" == "$cj" ]]; echo $?)"
 echo '# sửa' >> "$c/crushrc.example"; msg_re="$(install_in "$t/hp")"
 check "chạy lại không ghi đè crushrc.example" "$(tail -1 "$c/crushrc.example" | grep -qx '# sửa'; echo $?)"
-check "cài lại -> sao lưu bản cũ và in lệnh quay lại" "$(ls -d "$t/inst/lib/agent-cli"/backup-*/crush >/dev/null 2>&1 && grep -q 'Quay lại' <<<"$msg_re"; echo $?)"
-mkdir -p "$t/hs/.config/agent-cli" "$t/store"; printf '%s' "$cj" > "$t/store/real.json"
-ln -s "$t/store/real.json" "$t/hs/.config/agent-cli/crush.json"
+check "cài lại -> sao lưu bản cũ và in lệnh quay lại" "$(ls -d "$t/inst/lib/dew"/backup-*/crush >/dev/null 2>&1 && grep -q 'Quay lại' <<<"$msg_re"; echo $?)"
+mkdir -p "$t/hs/.config/dew" "$t/store"; printf '%s' "$cj" > "$t/store/real.json"
+ln -s "$t/store/real.json" "$t/hs/.config/dew/crush.json"
 install_in "$t/hs" >/dev/null
-check "crush.json là symlink có provider -> theo symlink, không tạo crushrc, đích không đổi" "$([[ ! -e "$t/hs/.config/agent-cli/crushrc" && -L "$t/hs/.config/agent-cli/crush.json" && "$(cat "$t/store/real.json")" == "$cj" ]]; echo $?)"
-mkdir -p "$t/hn/.config/agent-cli"; printf '%s' '{"options":{"tui":{"active_theme":"x"}}}' > "$t/hn/.config/agent-cli/crush.json"
+check "crush.json là symlink có provider -> theo symlink, không tạo crushrc, đích không đổi" "$([[ ! -e "$t/hs/.config/dew/crushrc" && -L "$t/hs/.config/dew/crush.json" && "$(cat "$t/store/real.json")" == "$cj" ]]; echo $?)"
+mkdir -p "$t/hn/.config/dew"; printf '%s' '{"options":{"tui":{"active_theme":"x"}}}' > "$t/hn/.config/dew/crush.json"
 install_in "$t/hn" >/dev/null
-check "crush.json không có provider -> tạo crushrc + env, giữ crush.json" "$([[ -f "$t/hn/.config/agent-cli/crushrc" && -f "$t/hn/.config/agent-cli/env" && -e "$t/hn/.config/agent-cli/crush.json" ]]; echo $?)"
-mkdir -p "$t/hb/.config/agent-cli"; printf '%s' '{hỏng' > "$t/hb/.config/agent-cli/crush.json"
+check "crush.json không có provider -> tạo crushrc + env, giữ crush.json" "$([[ -f "$t/hn/.config/dew/crushrc" && -f "$t/hn/.config/dew/env" && -e "$t/hn/.config/dew/crush.json" ]]; echo $?)"
+mkdir -p "$t/hb/.config/dew"; printf '%s' '{hỏng' > "$t/hb/.config/dew/crush.json"
 install_in "$t/hb" >/dev/null
-check "crush.json hỏng -> coi như có provider, không tạo crushrc" "$([[ ! -e "$t/hb/.config/agent-cli/crushrc" ]]; echo $?)"
+check "crush.json hỏng -> coi như có provider, không tạo crushrc" "$([[ ! -e "$t/hb/.config/dew/crushrc" ]]; echo $?)"
 # Thiếu jq -> không xác định được provider -> an toàn: không tạo crushrc.
-mkdir -p "$t/nojq" "$t/hj/.config/agent-cli"
-for c in bash env dirname mkdir install find chmod ln cat cp mv rm ls tail date sha1sum cmp; do ln -sf "$(command -v $c)" "$t/nojq/$c"; done
-printf '%s' "$cj" > "$t/hj/.config/agent-cli/crush.json"
+mkdir -p "$t/nojq" "$t/hj/.config/dew"
+for c in bash env dirname mkdir install find chmod ln cat cp mv rm ls tail date sha1sum cmp grep sed wc cut tr readlink; do ln -sf "$(command -v $c)" "$t/nojq/$c"; done
+printf '%s' "$cj" > "$t/hj/.config/dew/crush.json"
 msg_j="$(PATH="$t/nojq" install_in "$t/hj")"
-check "thiếu jq (PATH không có jq) -> không tạo crushrc, in hướng dẫn" "$([[ ! -e "$t/hj/.config/agent-cli/crushrc" && -f "$t/hj/.config/agent-cli/crushrc.example" ]] && grep -q 'KHÔNG tạo crushrc' <<<"$msg_j"; echo $?)"
+check "thiếu jq (PATH không có jq) -> không tạo crushrc, in hướng dẫn" "$([[ ! -e "$t/hj/.config/dew/crushrc" && -f "$t/hj/.config/dew/crushrc.example" ]] && grep -q 'KHÔNG tạo crushrc' <<<"$msg_j"; echo $?)"
 
-# agent-cli-tmux được chép (install -m 755), không còn symlink vào checkout.
-tmux_inst="$t/inst/bin/agent-cli-tmux"
-check "agent-cli-tmux là bản chép (không symlink), mode 755, giống tệp trong repo" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" && "$(stat -c %a "$tmux_inst")" == 755 ]] && cmp -s "$here/scripts/dew-tmux.sh" "$tmux_inst"; echo $?)"
+# dew-tmux được chép (install -m 755), không còn symlink vào checkout.
+tmux_inst="$t/inst/bin/dew-tmux"
+check "dew-tmux là bản chép (không symlink), mode 755, giống tệp trong repo" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" && "$(stat -c %a "$tmux_inst")" == 755 ]] && cmp -s "$here/scripts/dew-tmux.sh" "$tmux_inst"; echo $?)"
 mv "$t/fake/scripts/dew-tmux.sh" "$t/fake/scripts/dew-tmux.sh.away"
 out="$(bash "$tmux_inst" --help 2>&1)" || true
-check "agent-cli-tmux đã cài vẫn chạy khi tệp trong repo biến mất" "$(grep -q 'Dùng:' <<<"$out"; echo $?)"
+check "dew-tmux đã cài vẫn chạy khi tệp trong repo biến mất" "$(grep -q 'Dùng:' <<<"$out"; echo $?)"
 mv "$t/fake/scripts/dew-tmux.sh.away" "$t/fake/scripts/dew-tmux.sh"
 # Bản cài cũ là symlink vào repo: cài lại phải thay chính symlink, không ghi xuyên vào tệp trong repo.
 rm -f "$tmux_inst"; ln -s "$t/fake/scripts/dew-tmux.sh" "$tmux_inst"
 before_sum="$(cksum < "$t/fake/scripts/dew-tmux.sh")"
 install1 >/dev/null
-check "cài lại thay symlink agent-cli-tmux của bản cài cũ bằng bản chép" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" ]]; echo $?)"
+check "cài lại thay symlink dew-tmux của bản cài cũ bằng bản chép" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" ]]; echo $?)"
 check "thay symlink không ghi xuyên vào tệp trong repo" "$([[ "$(cksum < "$t/fake/scripts/dew-tmux.sh")" == "$before_sum" ]]; echo $?)"
 
 # DEW_INSTALL_DIR tương đối: wrapper phải ghi đường dẫn binary tuyệt đối.
-mkdir -p "$t/relcwd/rel-inst/lib/agent-cli"
-cp "$t/inst/lib/agent-cli/crush" "$t/relcwd/rel-inst/lib/agent-cli/crush"
+mkdir -p "$t/relcwd/rel-inst/lib/dew"
+cp "$t/inst/lib/dew/crush" "$t/relcwd/rel-inst/lib/dew/crush"
 (cd "$t/relcwd" && HOME="$t/home" DEW_INSTALL_DIR=rel-inst DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1)
-check "DEW_INSTALL_DIR tương đối -> wrapper ghi đường dẫn binary tuyệt đối" "$(grep -Fqx "exec \"$t/relcwd/rel-inst/lib/agent-cli/crush\" \"\$@\"" "$t/relcwd/rel-inst/bin/agent-cli"; echo $?)"
-out="$(cd / && HOME="$t/home" "$t/relcwd/rel-inst/bin/agent-cli" run x 2>&1)" || true
+check "DEW_INSTALL_DIR tương đối -> wrapper ghi đường dẫn binary tuyệt đối" "$(grep -Fqx "exec \"$t/relcwd/rel-inst/lib/dew/crush\" \"\$@\"" "$t/relcwd/rel-inst/bin/dew"; echo $?)"
+out="$(cd / && HOME="$t/home" "$t/relcwd/rel-inst/bin/dew" run x 2>&1)" || true
 check "wrapper cài bằng đường dẫn tương đối chạy được từ thư mục khác" "$(grep -qx 'ARG=run' <<<"$out"; echo $?)"
 
 # Thư mục cấu hình là symlink: siết thư mục ĐÍCH (của user) và nói rõ; symlink hỏng thì dừng rõ ràng.
 mkdir -p "$t/hl/.config" "$t/hl-real"; chmod 755 "$t/hl-real"
-ln -s "$t/hl-real" "$t/hl/.config/agent-cli"
+ln -s "$t/hl-real" "$t/hl/.config/dew"
 msg_l="$(install_in "$t/hl")"
-check "cấu hình là symlink -> siết thư mục đích về 700, symlink còn nguyên, nói rõ" "$([[ "$(stat -c %a "$t/hl-real")" == 700 && -L "$t/hl/.config/agent-cli" ]] && grep -q 'symlink' <<<"$msg_l" && grep -qF "$t/hl-real" <<<"$msg_l"; echo $?)"
+check "cấu hình là symlink -> siết thư mục đích về 700, symlink còn nguyên, nói rõ" "$([[ "$(stat -c %a "$t/hl-real")" == 700 && -L "$t/hl/.config/dew" ]] && grep -q 'symlink' <<<"$msg_l" && grep -qF "$t/hl-real" <<<"$msg_l"; echo $?)"
 check "cấu hình là symlink -> crushrc và env tạo trong thư mục đích" "$([[ -f "$t/hl-real/crushrc" && -f "$t/hl-real/env" ]]; echo $?)"
-mkdir -p "$t/hd/.config"; ln -s "$t/hd-missing" "$t/hd/.config/agent-cli"
+mkdir -p "$t/hd/.config"; ln -s "$t/hd-missing" "$t/hd/.config/dew"
 rc=0; msg_d="$(install_in "$t/hd")" || rc=$?
 check "cấu hình là symlink hỏng -> dừng mã khác 0, nói rõ, không tạo đích" "$([[ "$rc" != 0 && ! -e "$t/hd-missing" ]] && grep -q 'symlink hỏng' <<<"$msg_d"; echo $?)"
+
+# --- Chuyển từ tên cũ agent-cli. Bố cục cũ dựng bằng CHÍNH trình cài cũ (commit trước khi đổi tên),
+# rồi thêm env có key canary, crush.json, registry, worktree routine, log server.
+old_rev=5680d80b
+m="$t/mig"; mh="$m/home"
+mkdir -p "$m/fake/scripts" "$m/inst/lib/agent-cli" "$mh"
+for f in scripts/install-agent-cli.sh scripts/agent-cli-tmux.sh agent-cli.crushrc.example agent-cli.env.example; do
+  git -C "$here" show "$old_rev:$f" > "$m/fake/$f"
+done
+cp "$t/inst/lib/dew/crush" "$m/inst/lib/agent-cli/crush"
+HOME="$mh" AGENT_CLI_INSTALL_DIR="$m/inst" AGENT_CLI_SKIP_BUILD=1 bash "$m/fake/scripts/install-agent-cli.sh" >/dev/null 2>&1
+old_cfg="$mh/.config/agent-cli"
+check "bố cục cũ dựng được bằng trình cài cũ" "$([[ -f "$m/inst/bin/agent-cli" && -f "$m/inst/bin/agent-cli-tmux" && -f "$old_cfg/crushrc" && -f "$old_cfg/env" ]]; echo $?)"
+cat > "$old_cfg/env" <<'ENV'
+# AGENT_CLI_MODEL trong comment cũng đổi
+AGENT_CLI_API_KEY='CANARY_SECRET_9f3'
+export AGENT_CLI_ALLOWED_MODELS="zai:glm-5.3"
+MY_AGENT_CLI_KEEP=1
+ENV
+printf '%s\n' '{"providers":{"p":{"api_key":"$AGENT_CLI_API_KEY"}}}' > "$old_cfg/crush.json"
+cp -p "$old_cfg/env" "$m/env.orig"; cp -p "$old_cfg/crushrc" "$m/crushrc.orig"
+mkdir -p "$mh/.local/share/agent-cli/routines/r1/wt" "$mh/.cache/agent-cli/server-x"
+echo log > "$mh/.cache/agent-cli/server-x/crush.log"
+git init -q "$m/repo" && git -C "$m/repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+git -C "$m/repo" worktree add -q -b routine/r1-x "$mh/.local/share/agent-cli/routines/r1/wt/x" HEAD
+printf '{"projects":[{"path":"%s","data_dir":"%s/.crush"},{"path":"/w/agent-cli-fork","data_dir":"/w/agent-cli-fork/.crush"}]}\n' \
+  "$mh/.local/share/agent-cli/routines/r1/wt/x" "$mh/.local/share/agent-cli/routines/r1/wt/x" > "$mh/.local/share/agent-cli/projects.json"
+# install_mig: trình cài MỚI trên cùng HOME/thư mục cài; shell export một biến tên cũ mang giá trị canary.
+install_mig() { HOME="$mh" DEW_INSTALL_DIR="$m/inst" DEW_SKIP_BUILD=1 AGENT_CLI_TOKEN_CANARY=CANARY_SHELL_7d1 bash "$t/fake/scripts/install-dew.sh" 2>&1; }
+rc=0; msg_m1="$(install_mig)" || rc=$?
+cfgn="$mh/.config/dew"
+check "chuyển đổi: rc 0" "$([[ $rc == 0 ]]; echo $?)"
+check "chuyển đổi: 4 thư mục cũ chuyển sang dew, không còn thư mục cũ" "$([[ -d "$cfgn" && -d "$mh/.local/share/dew" && -f "$mh/.cache/dew/server-x/crush.log" && -f "$m/inst/lib/dew/crush" && ! -e "$old_cfg" && ! -e "$mh/.local/share/agent-cli" && ! -e "$mh/.cache/agent-cli" && ! -e "$m/inst/lib/agent-cli" ]]; echo $?)"
+check "chuyển đổi: thư mục cấu hình giữ mode 700, env giữ 600" "$([[ "$(stat -c %a "$cfgn")" == 700 && "$(stat -c %a "$cfgn/env")" == 600 ]]; echo $?)"
+printf '%s\n' "# DEW_MODEL trong comment cũng đổi" "DEW_API_KEY='CANARY_SECRET_9f3'" 'export DEW_ALLOWED_MODELS="zai:glm-5.3"' "MY_AGENT_CLI_KEEP=1" > "$m/env.want"
+check "chuyển đổi: env đổi đúng tên biến, giữ biến chỉ chứa chuỗi cũ ở giữa tên" "$(cmp -s "$m/env.want" "$cfgn/env"; echo $?)"
+check "chuyển đổi: in đúng số chỗ đổi trong env (3)" "$(grep -qF "Đã đổi 3 chỗ tên cũ (AGENT_CLI_ -> DEW_, đường .../agent-cli -> .../dew) trong $cfgn/env" <<<"$msg_m1"; echo $?)"
+check "chuyển đổi: crushrc cũ không còn AGENT_CLI_, tệp env trỏ đường mới" "$(! grep -q AGENT_CLI_ "$cfgn/crushrc" && grep -qF 'env_file="${DEW_ENV_FILE:-$HOME/.config/dew/env}"' "$cfgn/crushrc"; echo $?)"
+check "chuyển đổi: crush.json đổi \$AGENT_CLI_API_KEY" "$(grep -qF '"$DEW_API_KEY"' "$cfgn/crush.json"; echo $?)"
+bk="$(ls -d "$cfgn"/pre-dew-* 2>/dev/null | head -1)"
+check "chuyển đổi: bản sao lưu env/crushrc mode 600, đúng nội dung cũ" "$([[ -n "$bk" && "$(stat -c %a "$bk/env")" == 600 ]] && cmp -s "$bk/env" "$m/env.orig" && cmp -s "$bk/crushrc" "$m/crushrc.orig"; echo $?)"
+check "chuyển đổi: registry trỏ đường mới, đường lạ có chữ agent-cli giữ nguyên" "$(grep -qF "\"$mh/.local/share/dew/routines/r1/wt/x\"" "$mh/.local/share/dew/projects.json" && ! grep -qF '.local/share/agent-cli' "$mh/.local/share/dew/projects.json" && grep -qF '"/w/agent-cli-fork"' "$mh/.local/share/dew/projects.json"; echo $?)"
+check "chuyển đổi: worktree routine nối lại với repo (không prunable)" "$(git -C "$m/repo" worktree list | grep -F "$mh/.local/share/dew/routines/r1/wt/x" | grep -vq prunable; echo $?)"
+check "chuyển đổi: gỡ agent-cli và agent-cli-tmux của trình cài, có dew và dew-tmux" "$([[ ! -e "$m/inst/bin/agent-cli" && ! -e "$m/inst/bin/agent-cli-tmux" && -x "$m/inst/bin/dew" && -x "$m/inst/bin/dew-tmux" ]]; echo $?)"
+check "chuyển đổi: cảnh báo nêu TÊN biến shell cũ" "$(grep -q 'AGENT_CLI_TOKEN_CANARY' <<<"$msg_m1"; echo $?)"
+check "chuyển đổi: output KHÔNG chứa giá trị canary (tệp env, shell)" "$(! grep -q 'CANARY_SECRET_9f3\|CANARY_SHELL_7d1' <<<"$msg_m1"; echo $?)"
+check "chuyển đổi: in lệnh quay lại" "$(grep -q 'Quay về agent-cli' <<<"$msg_m1"; echo $?)"
+# Lần 2: không đổi gì ở cấu hình/dữ liệu/cache (lib có backup-* mới của mỗi lần cài là bình thường).
+snap() { (cd "$mh" && find . -path ./.local/share/dew/routines -prune -o -printf '%p %m %s\n' | sort; find . -type f -path './.config/*' -exec md5sum {} + | sort); }
+before="$(snap)"; rc=0; msg_m2="$(install_mig)" || rc=$?
+check "chạy lại lần 2: rc 0, không chuyển/đổi gì, cây cấu hình y nguyên" "$([[ $rc == 0 && "$(snap)" == "$before" ]] && ! grep -q 'Đã chuyển\|Đã đổi\|Đã gỡ\|Quay về agent-cli' <<<"$msg_m2"; echo $?)"
+# Lệnh quay lại in ở lần 1 phải đưa máy về bố cục cũ chạy được (binary cũ, wrapper cũ, env tên cũ).
+undo="$(awk '/Quay lại bằng:/ {on = 1; next} on && /^Lần cài này đã chuyển/ {next} on && /^  / {print; next} on {exit}' <<<"$msg_m1")"
+rc=0; HOME="$mh" bash -ec "$undo" >"$t/undo.log" 2>&1 || { rc=$?; sed "s/^/  undo: /" "$t/undo.log"; }
+check "lệnh quay lại chạy được, trả lại bố cục cũ" "$([[ $rc == 0 && -f "$m/inst/bin/agent-cli" && ! -e "$m/inst/bin/dew" && -d "$old_cfg" && ! -e "$cfgn" && -f "$m/inst/lib/agent-cli/crush" ]] && cmp -s "$old_cfg/env" "$m/env.orig"; echo $?)"
+out="$(cd "$m/repo" && HOME="$mh" "$m/inst/bin/agent-cli" run x 2>&1)" || true
+check "sau quay lại: wrapper cũ chạy binary ở lib/agent-cli" "$(grep -qx 'ARG=run' <<<"$out"; echo $?)"
+
+# Cả hai thư mục cùng có: KHÔNG gộp, giữ nguyên cả hai, dùng dew. Wrapper agent-cli không do trình cài tạo: giữ.
+b="$t/both"; mkdir -p "$b/home/.config/agent-cli" "$b/home/.config/dew" "$b/inst/lib/dew" "$b/inst/bin"
+echo 'AGENT_CLI_MODEL=old' > "$b/home/.config/agent-cli/env"; echo 'DEW_MODEL=new' > "$b/home/.config/dew/env"
+printf '#!/bin/sh\necho mine\n' > "$b/inst/bin/agent-cli"
+mkdir -p "$b/home/.config/systemd/user"; echo 'ExecStart=/x/bin/agent-cli routine run n' > "$b/home/.config/systemd/user/agent-cli-routine-n.service"
+cp "$t/inst/lib/dew/crush" "$b/inst/lib/dew/crush"
+msg_b="$(HOME="$b/home" DEW_INSTALL_DIR="$b/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1)" || true
+check "cả hai thư mục: không gộp, cả hai nguyên vẹn, cảnh báo" "$([[ "$(cat "$b/home/.config/agent-cli/env")" == AGENT_CLI_MODEL=old && "$(cat "$b/home/.config/dew/env")" == DEW_MODEL=new ]] && grep -q 'KHÔNG gộp' <<<"$msg_b"; echo $?)"
+check "unit systemd tên cũ: cảnh báo nêu tệp, không sửa" "$(grep -qF "$b/home/.config/systemd/user/agent-cli-routine-n.service" <<<"$msg_b" && grep -q 'ExecStart=/x/bin/agent-cli' "$b/home/.config/systemd/user/agent-cli-routine-n.service"; echo $?)"
+check "wrapper agent-cli lạ: giữ nguyên, cảnh báo" "$([[ "$(cat "$b/inst/bin/agent-cli")" == "$(printf '#!/bin/sh\necho mine')" ]] && grep -q 'không do trình cài tạo' <<<"$msg_b"; echo $?)"
+
+# Còn tiến trình chạy binary cũ: dừng trước khi đụng gì.
+r="$t/running"; mkdir -p "$r/home/.config/agent-cli" "$r/inst/lib/agent-cli"
+cp "$(command -v sleep)" "$r/inst/lib/agent-cli/crush"
+"$r/inst/lib/agent-cli/crush" 30 & sleep_pid=$!
+rc=0; msg_r="$(HOME="$r/home" DEW_INSTALL_DIR="$r/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1)" || rc=$?
+kill "$sleep_pid" 2>/dev/null || true
+check "tiến trình cũ đang chạy: rc 1, nêu pid, không chuyển gì" "$([[ $rc == 1 && -d "$r/home/.config/agent-cli" && ! -e "$r/home/.config/dew" && -d "$r/inst/lib/agent-cli" ]] && grep -q "pid $sleep_pid" <<<"$msg_r"; echo $?)"
+rc=0; HOME="$t/home" AGENT_CLI_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1 || rc=$?
+check "AGENT_CLI_INSTALL_DIR không có DEW_INSTALL_DIR: dừng mã 1" "$([[ $rc == 1 ]]; echo $?)"
 
 if [[ $fail == 0 ]]; then echo PASS; else echo "FAILED"; exit 1; fi
