@@ -101,7 +101,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `scripts/dew-tmux.sh`, `scripts/test-dew-*.sh`; mẫu `dew.crushrc.example`, `dew.env.example`; docs
   `docs/dew-local-setup.md`. Không đọc song song tên cũ: biến tin cậy tên cũ (`AGENT_CLI_ALLOWED_MODELS`,
   `AGENT_CLI_CLAUDE_PERMISSION_MODE`…) còn trong env gốc hay tệp env thì dew dừng với lỗi nêu cả hai tên, thay vì lặng
-  lẽ nới ranh giới. Giữ: `crush.json`, `CRUSH_*`, `.crush/`, giá trị provider `agent-cli-pending` đã lưu trong DB.
+  lẽ nới ranh giới; `~/.config/agent-cli/env` còn sót (khi không đặt `DEW_ENV_FILE`) cũng vậy. Client kiểm chính sách
+  này trước khi dựng server. `docs/hooks/examples/verify-gate.sh` chặn khi chỉ còn `AGENT_CLI_VERIFY_CMD`. Bash của
+  agent không gọi được `dew-tmux` (như `dew run` lồng). Giữ: `crush.json`, `CRUSH_*`, `.crush/`, giá trị provider
+  `agent-cli-pending` đã lưu trong DB.
 
   **Lưu ý nâng cấp:**
   - Thoát mọi client `agent-cli` (TUI, `run`, `loop`) và chờ server cũ tự tắt (khoảng một phút) trước khi cài: trình
@@ -110,8 +113,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   - Chạy `bash scripts/install-dew.sh` để chuyển: bốn thư mục `…/agent-cli` sang `…/dew` (cả hai cùng có thì không
     gộp, cảnh báo), đổi `AGENT_CLI_` thành `DEW_` và đường `…/agent-cli` thành `…/dew` trong `env`, `crushrc`,
     `crush.json` và `projects.json` (sao lưu trước ở `~/.config/dew/pre-dew-<thời điểm>/`), nối lại worktree routine,
-    gỡ `agent-cli`/`agent-cli-tmux` do trình cài cũ tạo, in lệnh quay lại.
-  - Biến `AGENT_CLI_*` bạn tự export ở shell (`~/.bashrc`…) phải đổi tay; trình cài liệt kê TÊN của chúng. Unit
+    gỡ `agent-cli`/`agent-cli-tmux` do trình cài cũ tạo, in lệnh quay lại. Build chạy trước mọi chuyển đổi; lệnh quay lại
+    được ghi dần vào `pre-dew-<thời điểm>/undo.sh` và in ra khi trình cài dừng giữa chừng.
+  - Biến `AGENT_CLI_*` bạn tự export ở shell (`~/.bashrc`…) phải đổi tay; trình cài liệt kê TÊN biến và tên các tệp
+    khởi động shell còn nhắc tên cũ. Unit
     systemd/crontab của routine đã cài theo tên cũ: in lại bằng `dew routine schedule <tên> --print` rồi cài tay.
 
 - **Một workspace cho mỗi dự án, ở mọi chế độ.** Mở dew từ thư mục con của repo (hay qua symlink trỏ vào đó) nay
