@@ -23,9 +23,9 @@ ba, và agent-cli V2 có ít nhất một ca phơi nhiễm đo được ở 11/1
 mới, digest, knowledge store, graph, reflect, observation LLM, event sourcing) bị **DEFER** hoặc **REJECT** vì không lỗi
 nào của agent-cli đòi chúng và chưa có số đo cho thấy V2 hỏng ở chỗ chúng giải.
 
-## 2. Cái gì vào V3 (nhánh `v3-candidate`, local, chưa merge)
+## 2. Cái gì vào V3 (đã gộp vào `main` local 20/10; chưa push)
 
-Mỗi dòng: lỗi đo được trên V2 → sửa ở chủ cũ → bằng chứng đỏ→xanh → soát độc lập DAT. Commit là trên `v3-candidate`.
+Mỗi dòng: lỗi đo được trên V2 → sửa ở chủ cũ → bằng chứng đỏ→xanh → soát độc lập DAT. Commit là commit trong lịch sử `main` (trước là nhánh `v3-candidate`).
 
 | POC | Lỗi trên V2 (đã tái hiện) | Bất biến (MAP) | Issue/fork ngoài chứng minh lớp lỗi | Sửa ở chủ cũ | Commit |
 |---|---|---|---|---|---|
