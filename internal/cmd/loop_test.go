@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -219,4 +220,52 @@ func TestValidateLoopParams(t *testing.T) {
 	}
 	err := validateLoopParams(loopParams{Goal: "g", MaxRepairs: 2})
 	require.True(t, strings.Contains(err.Error(), "--verify"), "phải nói rõ thiếu cờ nào: %v", err)
+}
+
+// loop mở từ thư mục con: agent làm việc ở gốc repo, verify vẫn chạy ở thư mục
+// mở. Prompt phải nói verify chạy ở đâu (tương đối theo gốc); mở ở gốc thì
+// prompt như cũ.
+func TestExecuteLoop_VerifyDirIsNamedInThePrompt(t *testing.T) {
+	t.Parallel()
+	root := gitInit(t)
+	sub := filepath.Join(root, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	for cwd, want := range map[string]string{
+		sub:  "Definition of done: running `test -f done.txt` in `sub/` exits with code 0.",
+		root: "Definition of done: running `test -f done.txt` exits with code 0.",
+	} {
+		var prompts []string
+		agent := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+			prompts = append(prompts, prompt)
+			return loop.RunInfo{SessionID: "s"}, os.WriteFile(filepath.Join(root, "wip.txt"), []byte(prompt), 0o644)
+		}
+		_, err := executeLoop(t.Context(), newLoopParams(t, cwd, "test -f done.txt"), loopDeps{Agent: agent, Stderr: &bytes.Buffer{}})
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(prompts), 2)
+		require.Contains(t, prompts[0], want)
+		if cwd == sub {
+			require.Contains(t, prompts[1], "Verify command: `test -f done.txt` (run in `sub/`)")
+		} else {
+			require.Contains(t, prompts[1], "Verify command: `test -f done.txt`\nResult:")
+		}
+	}
+}
+
+// Dấu vân tay tính trên cả repo: loop mở từ thư mục con mà agent (làm việc ở
+// gốc) tạo tệp ở gốc thì cây ĐÃ đổi, không được dừng STALLED oan.
+func TestExecuteLoop_FingerprintCoversTheWholeRepo(t *testing.T) {
+	t.Parallel()
+	root := gitInit(t)
+	sub := filepath.Join(root, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	p := newLoopParams(t, sub, "echo 'FAIL TestX 12ms'; exit 1")
+	runs := 0
+	agent := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+		runs++
+		return loop.RunInfo{SessionID: "s"}, os.WriteFile(filepath.Join(root, fmt.Sprintf("f%d.txt", runs)), []byte("x"), 0o644)
+	}
+	out, err := executeLoop(t.Context(), p, loopDeps{Agent: agent, Stderr: &bytes.Buffer{}})
+	require.NoError(t, err)
+	require.NotEqual(t, loop.StopStalled, out.Result.Reason, "the agent changed the repo outside sub/")
+	require.Equal(t, 3, runs)
 }

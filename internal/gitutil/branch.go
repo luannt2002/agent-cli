@@ -51,6 +51,11 @@ func findGitDir(dir string) string {
 	if err != nil {
 		return ""
 	}
+	// Đi lên theo đường vật lý, như git: symlink trỏ vào thư mục con của repo
+	// thì cha theo chữ nằm ngoài repo.
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = resolved
+	}
 
 	for {
 		gitPath := filepath.Join(dir, ".git")

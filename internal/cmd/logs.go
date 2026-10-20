@@ -53,7 +53,7 @@ var logsCmd = &cobra.Command{
 			log.SetColorProfile(colorprofile.NoTTY)
 		}
 
-		cfg, err := config.Load(cwd, dataDir, false)
+		cfg, err := config.InitProject(config.ProjectRoot(cwd), cwd, dataDir, false)
 		if err != nil {
 			return fmt.Errorf("failed to load configuration: %v", err)
 		}

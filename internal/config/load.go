@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -616,18 +617,17 @@ func (c *Config) setDefaults(workingDir, dataDir string) {
 	slices.Sort(c.Options.GlobalContextPaths)
 	c.Options.GlobalContextPaths = slices.Compact(c.Options.GlobalContextPaths)
 
+	// Ghép gốc đúng một lần ở đây. -D tương đối tính theo thư mục mở; data dir
+	// của cấu hình và mặc định tính theo gốc dự án, để mở từ thư mục con, qua
+	// symlink hay theo thứ tự nào cũng ra cùng một crush.db (.crush cũ ở thư mục
+	// con không được mở nữa, LegacyDataDirs báo cho người dùng). Tuyệt đối để
+	// lần nạp lại (đưa giá trị này vào làm dataDir) không ghép thêm.
 	if dataDir != "" {
-		c.Options.DataDirectory = dataDir
-	} else if c.Options.DataDirectory == "" {
-		if path, ok := fsext.LookupClosestBounded(workingDir, projectBoundary(workingDir), defaultDataDirectory); ok {
-			c.Options.DataDirectory = path
-		} else {
-			c.Options.DataDirectory = defaultDataDirectory
-		}
+		c.Options.DataDirectory = filepathext.SmartJoin(workingDir, dataDir)
+	} else {
+		c.Options.DataDirectory = filepathext.SmartJoin(ProjectRoot(workingDir), cmp.Or(c.Options.DataDirectory, defaultDataDirectory))
 	}
-	// Ghép gốc đúng một lần ở đây. Tuyệt đối để lần nạp lại (đưa giá trị này
-	// vào làm dataDir) không ghép thêm khi workingDir là đường tương đối.
-	c.Options.DataDirectory = filepath.Clean(filepathext.SmartJoin(workingDir, c.Options.DataDirectory))
+	c.Options.DataDirectory = filepath.Clean(c.Options.DataDirectory)
 	if abs, err := filepath.Abs(c.Options.DataDirectory); err == nil {
 		c.Options.DataDirectory = abs
 	}
@@ -1052,7 +1052,7 @@ func lookupConfigs(cwd string) []string {
 		appName + ".json",
 	}
 
-	foundConfigs, err := fsext.LookupBounded(cwd, projectBoundary(cwd), configNames...)
+	foundConfigs, err := fsext.LookupBounded(cwd, ProjectRoot(cwd), configNames...)
 	if err != nil {
 		// returns at least default configs
 		return configPaths
@@ -1394,46 +1394,105 @@ func worktreeRoot(dir string) string {
 	if cached, ok := worktreeRootCache.Load(dir); ok {
 		return cached.(string)
 	}
-	root := computeWorktreeRoot(dir)
-	worktreeRootCache.Store(dir, root)
-	return root
+	root, ok := computeWorktreeRoot(dir)
+	if !ok {
+		// Git quá hạn hay không chạy được: không nhớ, lần sau hỏi lại. Nhớ
+		// thì một lần git chậm làm thư mục con thành dự án riêng tới khi tắt.
+		return root
+	}
+	// LoadOrStore: hai lời gọi đồng thời thấy cùng một kết quả.
+	actual, _ := worktreeRootCache.LoadOrStore(dir, root)
+	return actual.(string)
 }
 
-func computeWorktreeRoot(dir string) string {
-	cmd := exec.CommandContext(
-		context.Background(),
-		"git", "rev-parse", "--show-toplevel",
-	)
+// worktreeRootTimeout giới hạn một lần hỏi git: git treo (mount chết, ổ chậm)
+// không được làm đứng lệnh mở. Biến để test thay.
+var worktreeRootTimeout = 5 * time.Second
+
+// computeWorktreeRoot trả gốc git của dir ("" khi không phải repo) và ok=false
+// khi không có câu trả lời đáng nhớ: quá hạn, hoặc git không chạy được.
+func computeWorktreeRoot(dir string) (string, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), worktreeRootTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	cmd.Dir = dir
 	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return "", false
+	}
 	if err != nil {
-		return ""
+		var exitErr *exec.ExitError
+		return "", errors.As(err, &exitErr) // Git đã chạy và nói: không phải repo.
 	}
 	root := strings.TrimSpace(string(out))
 	if root == "" {
-		return ""
+		return "", true
 	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
-		return ""
+		return "", false
 	}
-	return abs
+	return abs, true
 }
 
-// projectBoundary returns the directory at which an upward configuration
+// ProjectRoot returns the directory at which an upward configuration
 // search rooted at dir should stop. It is the git working tree root when
 // one can be detected, otherwise dir itself. Returning dir as a
 // fallback keeps Crush from silently adopting state files placed above
 // the current project.
-func projectBoundary(dir string) string {
-	if root := worktreeRoot(dir); root != "" {
-		return root
-	}
+//
+// Đây là MỘT hàm tính gốc dự án cho mọi nơi: data dir, khoá workspace của
+// server, working dir ở chế độ local và sổ dự án (projects). Ngoài git thì
+// trả đường vật lý, như toplevel của git. Kết quả git được nhớ theo đường
+// tuyệt đối, nên mọi nơi trong một tiến trình thấy cùng một gốc.
+func ProjectRoot(dir string) string {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return dir
 	}
+	if root := worktreeRoot(abs); root != "" {
+		return root
+	}
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		return resolved
+	}
 	return abs
+}
+
+// InitProject nạp cấu hình của workspace ở root, gốc dự án của dir mà người
+// gọi đã tính bằng ProjectRoot (tính một lần, để khoá workspace và working dir
+// không lệch nhau). -D tương đối vẫn tính theo dir. Mọi lệnh (local, server,
+// session, stats, models, logs) đi qua hàm này nên mở từ đâu trong dự án
+// cũng ra cùng workspace.
+func InitProject(root, dir, dataDir string, debug bool) (*ConfigStore, error) {
+	if dataDir != "" && !filepathext.SmartIsAbs(dataDir) {
+		abs, err := filepath.Abs(dir)
+		if err != nil {
+			return nil, err
+		}
+		dataDir = filepath.Join(abs, dataDir)
+	}
+	return Init(root, dataDir, debug)
+}
+
+// LegacyDataDirs liệt kê các data dir cũ của dự án ở root mà agent-cli không
+// mở nữa: .crush của một thư mục con (bản cũ dùng .crush gần nhất khi mở từ
+// đó), lấy từ known (sổ dự án) và từ các .crush trên đường từ dir lên root.
+// Chỉ tính cái khác dataDir và còn crush.db. Không quét cả cây, không gộp.
+func LegacyDataDirs(dir, root, dataDir string, known []string) []string {
+	found, _ := fsext.LookupBounded(dir, root, defaultDataDirectory)
+	var out []string
+	for _, d := range append(found, known...) {
+		rel, err := filepath.Rel(root, filepath.Dir(d))
+		inSubdir := err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+		if !inSubdir || filepath.Base(d) != defaultDataDirectory || d == dataDir || slices.Contains(out, d) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(d, "crush.db")); err == nil {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // GlobalSkillsDirs returns the default directories for Agent Skills.

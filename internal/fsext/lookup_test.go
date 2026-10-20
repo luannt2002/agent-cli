@@ -457,6 +457,26 @@ func TestLookupBounded(t *testing.T) {
 		require.Empty(t, found)
 	})
 
+	// Symlink ở thư mục khác trỏ vào thư mục con: đi lên theo đường vật lý
+	// nên gặp biên, không đi lên theo chữ ra thư mục chứa symlink.
+	t.Run("walks the physical path of a symlink into the project", func(t *testing.T) {
+		boundary, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		subDir := filepath.Join(boundary, "subdir")
+		require.NoError(t, os.Mkdir(subDir, 0o755))
+		atBoundary := filepath.Join(boundary, "target.txt")
+		require.NoError(t, os.WriteFile(atBoundary, []byte("a"), 0o644))
+
+		outside := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(outside, "target.txt"), []byte("nope"), 0o644))
+		link := filepath.Join(outside, "link")
+		require.NoError(t, os.Symlink(subDir, link))
+
+		found, err := LookupBounded(link, boundary, "target.txt")
+		require.NoError(t, err)
+		require.Equal(t, []string{atBoundary}, found)
+	})
+
 	t.Run("empty boundary searches only starting directory", func(t *testing.T) {
 		parent := t.TempDir()
 

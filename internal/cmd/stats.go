@@ -160,7 +160,7 @@ func runStats(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to gather stats from projects: %w", err)
 		}
 	default:
-		cfg, err := config.Init(cwd, dataDir, false)
+		cfg, err := config.InitProject(config.ProjectRoot(cwd), cwd, dataDir, false)
 		if err != nil {
 			return fmt.Errorf("failed to initialize config: %w", err)
 		}
@@ -211,16 +211,12 @@ func runStats(cmd *cobra.Command, _ []string) error {
 	case useAll:
 		projName = "all projects"
 	default:
-		project, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
-		projName = strings.Replace(project, currentUser.HomeDir, "~", 1)
+		projName = strings.Replace(config.ProjectRoot(cwd), currentUser.HomeDir, "~", 1)
 	}
 
 	outputDataDir := dataDir
 	if outputDataDir == "" {
-		cfg, err := config.Init(cwd, "", false)
+		cfg, err := config.InitProject(config.ProjectRoot(cwd), cwd, "", false)
 		if err == nil {
 			outputDataDir = cfg.Config().Options.DataDirectory
 		}

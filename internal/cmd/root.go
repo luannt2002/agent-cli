@@ -35,6 +35,7 @@ import (
 	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/execpolicy"
+	"github.com/charmbracelet/crush/internal/filepathext"
 	"github.com/charmbracelet/crush/internal/herdr"
 	"github.com/charmbracelet/crush/internal/lock"
 	crushlog "github.com/charmbracelet/crush/internal/log"
@@ -282,6 +283,60 @@ func yoloMismatchWarning(requested, actual bool) string {
 	return ""
 }
 
+// dataDirMismatchWarning trả lời cảnh báo khi data dir của workspace trên
+// server không phải cái người gọi muốn: -D người gọi xin (đã tuyệt đối, rỗng
+// khi không có) khác data dir thật, hoặc không có -D mà client tạo workspace đã
+// chọn data dir bằng -D (actualFromFlag). Client mở trước chọn data dir cho cả
+// dự án; rỗng khi khớp.
+func dataDirMismatchWarning(requested, actual string, actualFromFlag bool) string {
+	switch {
+	case requested == "" && actualFromFlag:
+		return fmt.Sprintf("warning: this project's agent-cli server uses the data directory %s, chosen with --data-dir by an earlier client: sessions go there, not to the project's own. Close every agent-cli of this project to restart it without --data-dir.", actual)
+	case requested != "" && filepath.Clean(requested) != filepath.Clean(actual):
+		return fmt.Sprintf("warning: --data-dir %s was ignored: this project's agent-cli server already uses %s (chosen by an earlier client). Close every agent-cli of this project to restart it with --data-dir.", requested, actual)
+	}
+	return ""
+}
+
+// warnLegacyDataDirs báo các .crush cũ của dự án (sổ dự án biết, hoặc nằm
+// trên đường từ cwd lên gốc) mà agent-cli không mở nữa: nay cả dự án dùng
+// dataDir. Không tự gộp, không xoá.
+func warnLegacyDataDirs(cmd *cobra.Command, cwd, dataDir string) {
+	root := config.ProjectRoot(cwd)
+	for _, d := range config.LegacyDataDirs(cwd, root, dataDir, knownDataDirs(root)) {
+		warnUser(cmd, fmt.Sprintf("warning: %s is not used: agent-cli now keeps one data directory per project, %s. Nothing was merged or deleted. To read the sessions stored there: CRUSH_CLIENT_SERVER=0 agent-cli -c %s -D %s. That opens them at the project root, while relative paths in them meant %s, so continuing them can edit the wrong file; merging them into the project is up to you.",
+			d, dataDir, filepath.Dir(d), d, filepath.Dir(d)))
+	}
+}
+
+// knownDataDirs trả các data dir mà sổ dự án biết cho dự án ở root.
+func knownDataDirs(root string) []string {
+	list, err := projects.List()
+	if err != nil {
+		return nil
+	}
+	if i := slices.IndexFunc(list, func(p projects.Project) bool { return p.Path == root && p.OnThisMachine() }); i >= 0 {
+		return list[i].DataDirs()
+	}
+	return nil
+}
+
+// enterWorkspaceDir đặt cwd của tiến trình về working dir của workspace (gốc
+// dự án). @-mention, đính kèm và completion của TUI đọc đường theo cwd tiến
+// trình, còn tool ghép theo working dir: lệch nhau (mở từ thư mục con) thì
+// agent sửa nhầm tệp cùng tên ở gốc. Không đổi được (workspace trên máy khác)
+// thì chỉ ghi log.
+func enterWorkspaceDir(dir string) {
+	if err := os.Chdir(dir); err != nil {
+		slog.Warn("Cannot change into the workspace directory", "dir", dir, "error", err)
+	}
+}
+
+func warnUser(cmd *cobra.Command, msg string) {
+	fmt.Fprintln(cmd.ErrOrStderr(), msg)
+	slog.Warn(msg)
+}
+
 // helpColorScheme tô help và lỗi của CLI bằng bảng màu Everforest Dark v2 (theme
 // mặc định), thay bảng Charmtone của fang. Theme chỉ có bản tối.
 func helpColorScheme(lipgloss.LightDarkFunc) fang.ColorScheme {
@@ -432,14 +487,18 @@ func setupLocalWorkspace(cmd *cobra.Command) (workspace.Workspace, func(), error
 		return nil, nil, err
 	}
 
-	store, err := config.Init(cwd, dataDir, debug)
+	// Một workspace cho mỗi dự án, như server: mở từ thư mục con thì làm việc
+	// ở gốc dự án.
+	store, err := config.InitProject(config.ProjectRoot(cwd), cwd, dataDir, debug)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	enterWorkspaceDir(store.WorkingDir())
 	cfg := store.Config()
 	store.Overrides().SkipPermissionRequests = yolo
 	store.Overrides().EnabledChannels = channels
+	warnLegacyDataDirs(cmd, cwd, cfg.Options.DataDirectory)
 
 	if err := os.MkdirAll(cfg.Options.DataDirectory, 0o700); err != nil {
 		return nil, nil, fmt.Errorf("failed to create data directory: %q %w", cfg.Options.DataDirectory, err)
@@ -617,6 +676,7 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	enterWorkspaceDir(ws.Path)
 	// Workspace đã có trên server (client khác mở trước, hoặc còn run mồ côi)
 	// giữ cờ của lần tạo đầu: nói rõ khi YOLO khác ý người gọi, vì nó quyết
 	// định có hỏi quyền hay không.
@@ -624,6 +684,14 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
 		fmt.Fprintln(os.Stderr, msg)
 		slog.Warn(msg)
 	}
+	requested := dataDir
+	if requested != "" {
+		requested = filepathext.SmartJoin(cwd, dataDir)
+	}
+	if msg := dataDirMismatchWarning(requested, ws.DataDir, ws.DataDirFromFlag); msg != "" {
+		warnUser(cmd, msg)
+	}
+	warnLegacyDataDirs(cmd, cwd, ws.DataDir)
 
 	if shouldEnableMetrics(ws.Config) {
 		event.Init()

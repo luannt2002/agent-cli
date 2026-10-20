@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -278,7 +277,7 @@ func TestHomeSessionsFromLiveServer(t *testing.T) {
 
 	dir := shortTempDir(t)
 	never := filepath.Join(t.TempDir(), "never-opened")
-	ws := home.Workspace{Path: "/w/live", Locations: []home.Location{{Cwd: "/w/live", DataDir: never}}}
+	ws := home.Workspace{Path: "/w/live", DataDir: never}
 	fakeServer(t, sockFor(dir, ws.Path), proto.Workspace{Path: ws.Path, DataDir: never}, []proto.Session{
 		{ID: "s1", Title: "Fix", IsBusy: true, UpdatedAt: 300},
 		{ID: "s2", Title: "Plan", IsBusy: true, UpdatedAt: 200},
@@ -333,7 +332,7 @@ func TestHomeSessionsFromDatabaseReadOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	// No socket for this workspace: the database is read instead.
-	list, err := listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/offline", Locations: []home.Location{{Cwd: "/w/offline", DataDir: dataDir}}})
+	list, err := listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/offline", DataDir: dataDir})
 	require.NoError(t, err)
 	require.Len(t, list, home.SessionLimit)
 	require.Equal(t, "s"+string(rune('A'+59)), list[0].ID, "newest first")
@@ -350,7 +349,7 @@ func TestHomeSessionsFromDatabaseReadOnly(t *testing.T) {
 
 	// A workspace that never ran has no database: nothing is created.
 	empty := t.TempDir()
-	list, err = listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/new", Locations: []home.Location{{Cwd: "/w/new", DataDir: empty}}})
+	list, err = listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/new", DataDir: empty})
 	require.NoError(t, err)
 	require.Empty(t, list)
 	require.NoFileExists(t, filepath.Join(empty, "crush.db"))
@@ -400,72 +399,8 @@ func TestClientServerSetupRegistersWorkspace(t *testing.T) {
 	require.Equal(t, dataDir, list[0].DataDir)
 }
 
-func TestHomeWorkspaceLocations(t *testing.T) {
-	t.Parallel()
-
-	p := projects.Project{Path: "/r", DataDir: "/r/sub/.crush", Locations: []projects.Location{
-		{Cwd: "/r/sub", DataDir: "/r/sub/.crush"},
-		{Cwd: "/r", DataDir: "/r/.crush"},
-	}}
-	require.Equal(t, []home.Location{{Cwd: "/r/sub", DataDir: "/r/sub/.crush"}, {Cwd: "/r", DataDir: "/r/.crush"}},
-		toHomeWorkspace(p).Locations)
-
-	old := projects.Project{Path: "/r", DataDir: "/r/.crush"} // Written before locations existed.
-	require.Equal(t, []home.Location{{Cwd: "/r", DataDir: "/r/.crush"}}, toHomeWorkspace(old).Locations)
-}
-
-// Launching from repo/sub and from repo leaves sessions in two databases of
-// one workspace: Home lists both, newest first, 50 at most, each tagged with
-// where to open it; a database a live server holds is read through it.
-func TestHomeSessionsFromEveryDataDir(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	sub := filepath.Join(root, "sub")
-	rootData, subData := filepath.Join(root, ".crush"), filepath.Join(sub, ".crush")
-	var rootRows, subRows []dbRow
-	for i := range 30 {
-		rootRows = append(rootRows, dbRow{id: fmt.Sprintf("r%02d", i), updated: int64(100 + 2*i)})
-		subRows = append(subRows, dbRow{id: fmt.Sprintf("s%02d", i), updated: int64(101 + 2*i)})
-	}
-	subRows = append(subRows, dbRow{id: "r29", updated: 500}) // A copy, newer: listed once.
-	makeSessionDB(t, rootData, rootRows...)
-	makeSessionDB(t, subData, subRows...)
-	ws := home.Workspace{Path: root, Locations: []home.Location{{Cwd: sub, DataDir: subData}, {Cwd: root, DataDir: rootData}}}
-
-	list, err := listHomeSessions(t.Context(), nil, ws)
-	require.NoError(t, err)
-	require.Len(t, list, home.SessionLimit, "the limit is over all locations")
-	byID := map[string]home.Session{}
-	for _, s := range list {
-		require.NotContains(t, byID, s.ID, "listed once")
-		byID[s.ID] = s
-	}
-	require.Equal(t, home.Session{ID: "r29", Title: "title r29", UpdatedAt: time.Unix(500, 0), Dir: sub}, list[0], "the newest copy")
-	require.Equal(t, sub, byID["s29"].Dir)
-	require.Equal(t, root, byID["r28"].Dir, "each session opens where its database is")
-	for i := 1; i < len(list); i++ {
-		require.False(t, list[i].UpdatedAt.After(list[i-1].UpdatedAt), "newest first")
-	}
-
-	// The root location is open on a live server: its sessions come from
-	// there with real statuses; the sub database is still read.
-	dir := shortTempDir(t)
-	fakeServer(t, sockFor(dir, root), proto.Workspace{Path: root, DataDir: rootData}, []proto.Session{
-		{ID: "r29", Title: "live", IsBusy: true, UpdatedAt: 1000},
-	}, nil)
-	list, err = listHomeSessions(t.Context(), []string{"unix://" + sockFor(dir, root)}, ws)
-	require.NoError(t, err)
-	require.Equal(t, home.Session{ID: "r29", Title: "live", UpdatedAt: time.Unix(1000, 0), Status: home.StatusRunning, Dir: root}, list[0])
-	require.Equal(t, "s29", list[1].ID, "the sub database is still read; its copy of r29 is dropped")
-	require.Equal(t, home.StatusUnknown, list[1].Status)
-	require.False(t, slices.ContainsFunc(list, func(s home.Session) bool { return s.ID == "r28" }),
-		"the root database is not read while its server is live")
-}
-
 // Add only registers a directory that exists, as its workspace root, and
-// keeps an existing entry (and its data dir) as is. Not parallel: it sets
-// the registry location.
+// keeps an existing entry as is. Not parallel: it sets the registry location.
 func TestHomeSourceAdd(t *testing.T) {
 	t.Setenv("CRUSH_GLOBAL_DATA", t.TempDir())
 	root := t.TempDir()
@@ -487,10 +422,20 @@ func TestHomeSourceAdd(t *testing.T) {
 	require.Equal(t, root, ws.Path)
 	require.NoDirExists(t, filepath.Join(root, ".git"), "no git init")
 
-	require.NoError(t, projects.Register(root, filepath.Join(sub, ".crush")))
+	// Mục mà bản cũ ghi khi mở từ sub (data_dir = sub/.crush): Home liệt kê
+	// session của .crush ở gốc, tức DB mà TUI sẽ mở, và báo .crush cũ khi nó
+	// còn crush.db.
+	legacy := filepath.Join(sub, ".crush")
+	require.NoError(t, projects.Register(root, legacy))
 	ws, err = homeSource{}.Add(t.Context(), root)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join(sub, ".crush"), ws.Locations[0].DataDir, "an existing entry keeps its data dir")
+	require.Equal(t, filepath.Join(root, ".crush"), ws.DataDir, "the data dir the TUI opens, not the old sub/.crush")
+	require.Empty(t, ws.Legacy, "no crush.db there")
+	require.NoError(t, os.MkdirAll(legacy, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(legacy, "crush.db"), nil, 0o600))
+	ws, err = homeSource{}.Add(t.Context(), root)
+	require.NoError(t, err)
+	require.Equal(t, []string{legacy}, ws.Legacy)
 	list, err = projects.List()
 	require.NoError(t, err)
 	require.Len(t, list, 1)

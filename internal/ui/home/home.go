@@ -39,20 +39,16 @@ const (
 // Workspace is a registered workspace of this host.
 type Workspace struct {
 	Path string
-	// Locations are where it was opened, newest first: a subdirectory shares
-	// its repository's workspace but may keep its own data directory, so
-	// sessions live in every location's DataDir.
-	Locations    []Location
+	// DataDir chứa session của workspace: một data dir cho cả workspace, mở
+	// từ thư mục nào trong đó cũng vậy.
+	DataDir string
+	// Legacy là các .crush cũ ở thư mục con (bản trước tạo) còn session mà
+	// agent-cli không mở nữa; Home báo một dòng, không gộp.
+	Legacy       []string
 	LastAccessed time.Time
 	Pinned       bool
 	Missing      bool   // The directory no longer exists.
 	Branch       string // Empty when unknown.
-}
-
-// Location is a directory a workspace was opened in, and its data directory.
-type Location struct {
-	Cwd     string
-	DataDir string
 }
 
 // ServerState is what probing a workspace's server found.
@@ -87,8 +83,8 @@ type Session struct {
 	Title     string
 	UpdatedAt time.Time
 	Status    SessionStatus
-	// Dir is where the TUI must open to find the session (its location's
-	// Cwd); empty means the workspace path.
+	// Dir là nơi TUI phải mở để thấy session (đường của workspace trên server
+	// đang giữ nó); rỗng là đường của workspace.
 	Dir string
 }
 

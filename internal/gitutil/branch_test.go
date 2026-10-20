@@ -55,6 +55,19 @@ func TestCurrentBranch(t *testing.T) {
 		require.Equal(t, "main", branch)
 	})
 
+	// Symlink trỏ vào thư mục con của repo: cha theo chữ của nó nằm ngoài repo.
+	t.Run("reads the branch through a symlink into a subdirectory", func(t *testing.T) {
+		repo := t.TempDir()
+		runGit(t, repo, "init")
+		runGit(t, repo, "symbolic-ref", "HEAD", "refs/heads/viasymlink")
+		sub := filepath.Join(repo, "sub")
+		require.NoError(t, os.Mkdir(sub, 0o755))
+		link := filepath.Join(t.TempDir(), "link")
+		require.NoError(t, os.Symlink(sub, link))
+
+		require.Equal(t, "viasymlink", CurrentBranch(link))
+	})
+
 	t.Run("returns branch name for feature branch", func(t *testing.T) {
 		testDir := t.TempDir()
 		runGit(t, testDir, "init")

@@ -1,6 +1,7 @@
 package home
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -62,8 +63,8 @@ func (m *Model) render() (string, *tea.Cursor) {
 		b.WriteString(m.renderRow(m.rows[i], i == m.cursor, w) + "\n")
 	}
 	b.WriteString("\n")
-	if m.note != "" {
-		b.WriteString(ansi.Truncate(t.Dialog.TitleError.Render(" "+m.note), w, "…"))
+	if note := cmp.Or(m.note, m.legacyNote()); note != "" {
+		b.WriteString(ansi.Truncate(t.Dialog.TitleError.Render(" "+note), w, "…"))
 	}
 	b.WriteString("\n" + ansi.Truncate(t.Section.Title.Render(" "+m.help()), w, "…"))
 
@@ -74,6 +75,17 @@ func (m *Model) render() (string, *tea.Cursor) {
 		cur = c
 	}
 	return b.String(), cur
+}
+
+// legacyNote là dòng báo ở danh sách session khi workspace còn .crush cũ
+// không được mở (cùng lệnh mở lại như cảnh báo của CLI).
+func (m *Model) legacyNote() string {
+	if m.screen != screenSessions || len(m.ws.Legacy) == 0 {
+		return ""
+	}
+	d := m.ws.Legacy[0]
+	return fmt.Sprintf("Not listed: older sessions in %s · open: CRUSH_CLIENT_SERVER=0 agent-cli -c %s -D %s",
+		homedir.Short(d), filepath.Dir(d), d)
 }
 
 func (m *Model) help() string {

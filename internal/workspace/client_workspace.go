@@ -1080,11 +1080,18 @@ func (w *ClientWorkspace) recoverWorkspace() error {
 // the cached snapshot. The ID is dropped so the server can dedupe by
 // path or mint a fresh workspace, and Version carries this client's
 // version, matching the startup handshake.
+//
+// DataDir chỉ gửi khi workspace gốc dựng bằng -D: gửi data dir mặc định thì
+// workspace dựng lại bị coi là chọn bằng -D và client sau nhận cảnh báo sai.
 func (w *ClientWorkspace) recreateArgs() proto.Workspace {
 	ws := w.cached()
+	var dataDir string
+	if ws.DataDirFromFlag {
+		dataDir = ws.DataDir
+	}
 	return proto.Workspace{
 		Path:     ws.Path,
-		DataDir:  ws.DataDir,
+		DataDir:  dataDir,
 		Debug:    ws.Debug,
 		YOLO:     ws.YOLO,
 		Channels: ws.Channels,

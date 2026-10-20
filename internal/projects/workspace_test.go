@@ -187,61 +187,38 @@ func TestConcurrentWriters(t *testing.T) {
 	require.Empty(t, entries, "no temp files left behind")
 }
 
-func TestSubdirThenRootKeepsBothDataDirs(t *testing.T) {
+// Sổ không quên data dir nào đã biết: "locations" của bản cũ (nơi duy nhất
+// ghi .crush cũ của thư mục con) được chép nguyên, và data dir của mục kiểu
+// cũ (chưa có locations) được giữ lại khi đổi sang data dir ở gốc. Nhờ vậy
+// mở từ gốc vẫn cảnh báo được về .crush cũ (config.LegacyDataDirs).
+func TestRegisterKeepsKnownDataDirs(t *testing.T) {
 	tmp := setupRegistry(t)
 	repo := filepath.Join(tmp, "repo")
 	initRepo(t, repo)
 	sub := filepath.Join(repo, "sub")
 	require.NoError(t, os.MkdirAll(sub, 0o755))
-	subData := filepath.Join(sub, ".crush")
-	repoData := filepath.Join(repo, ".crush")
+	subData, repoData := filepath.Join(sub, ".crush"), filepath.Join(realDir(t, repo), ".crush")
+	require.NoError(t, os.MkdirAll(filepath.Dir(projectsFilePath()), 0o700))
+	old := `{"projects":[{"path":"` + realDir(t, repo) + `","data_dir":"` + subData + `","last_accessed":"2026-01-02T03:04:05Z",` +
+		`"locations":[{"cwd":"` + sub + `","data_dir":"` + subData + `","last_accessed":"2026-01-02T03:04:05Z"}]}]}`
+	require.NoError(t, os.WriteFile(projectsFilePath(), []byte(old), 0o600))
 
-	require.NoError(t, Register(sub, subData))
-	require.NoError(t, Register(repo, repoData))
-
+	require.NoError(t, Register(sub, repoData))
 	got, err := List()
 	require.NoError(t, err)
 	require.Len(t, got, 1)
-	require.Equal(t, repoData, got[0].DataDir, "DataDir is the most recent")
+	require.Equal(t, repoData, got[0].DataDir)
+	require.Equal(t, []Location{{Cwd: sub, DataDir: subData, LastAccessed: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)}}, got[0].Locations, "copied as is")
 	require.Equal(t, []string{repoData, subData}, got[0].DataDirs())
-	require.Len(t, got[0].Locations, 2)
-	require.Equal(t, realDir(t, sub), got[0].Locations[1].Cwd)
 
-	// Same data dir again: deduped, moved to the front.
-	require.NoError(t, Register(sub, subData))
-	got, _ = List()
-	require.Equal(t, []string{subData, repoData}, got[0].DataDirs())
-	require.Len(t, got[0].Locations, 2)
-}
-
-func TestLocationsCappedOldestDropped(t *testing.T) {
-	setupRegistry(t)
-	for i := range maxLocations + 3 {
-		require.NoError(t, Register("/proj", fmt.Sprintf("/d%d", i)))
-	}
-	got, err := List()
-	require.NoError(t, err)
-	require.Len(t, got[0].Locations, maxLocations)
-	dirs := got[0].DataDirs()
-	require.Len(t, dirs, maxLocations)
-	require.Equal(t, fmt.Sprintf("/d%d", maxLocations+2), dirs[0])
-	require.Equal(t, "/d3", dirs[len(dirs)-1], "d0..d2 are the oldest and dropped")
-}
-
-func TestOldFormatEntryKeepsItsDataDirOnNextRegister(t *testing.T) {
-	setupRegistry(t)
-	require.NoError(t, os.MkdirAll(filepath.Dir(projectsFilePath()), 0o700))
-	old := `{"projects":[{"path":"/old/p","data_dir":"/old/p/.crush","last_accessed":"2026-01-02T03:04:05Z"}]}`
+	// Mục kiểu cũ: data_dir là .crush của thư mục con, không có locations.
+	old = `{"projects":[{"path":"/old/p","data_dir":"/old/p/sub/.crush","last_accessed":"2026-01-02T03:04:05Z"}]}`
 	require.NoError(t, os.WriteFile(projectsFilePath(), []byte(old), 0o600))
-
-	got, err := List()
+	require.NoError(t, Register("/old/p", "/old/p/.crush"))
+	require.NoError(t, Register("/old/p", "/old/p/.crush"))
+	got, err = List()
 	require.NoError(t, err)
-	require.Empty(t, got[0].Locations)
-	require.Equal(t, []string{"/old/p/.crush"}, got[0].DataDirs())
-
-	require.NoError(t, Register("/old/p", "/old/p/sub/.crush"))
-	got, _ = List()
-	require.Equal(t, []string{"/old/p/sub/.crush", "/old/p/.crush"}, got[0].DataDirs())
+	require.Equal(t, []string{"/old/p/.crush", "/old/p/sub/.crush"}, got[0].DataDirs(), "kept once")
 }
 
 func TestRelativePathStoredAbsoluteEvenWhenMissing(t *testing.T) {
@@ -312,12 +289,15 @@ func TestPinRemoveNormalizeOutsideLocks(t *testing.T) {
 	script := "#!/bin/sh\ntouch " + marker + "\nexit 1\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	dir := filepath.Join(tmp, "unregistered")
-	require.NoError(t, os.MkdirAll(dir, 0o755))
+	// Mỗi thao tác một thư mục: gốc dự án được nhớ theo thư mục trong cả tiến
+	// trình (config.ProjectRoot), nên thư mục thứ hai mới gọi git lần nữa.
+	dirPin, dirRemove := filepath.Join(tmp, "unregistered-pin"), filepath.Join(tmp, "unregistered-remove")
+	require.NoError(t, os.MkdirAll(dirPin, 0o755))
+	require.NoError(t, os.MkdirAll(dirRemove, 0o755))
 
 	for name, op := range map[string]func() error{
-		"Pin":    func() error { return Pin(dir, true) },
-		"Remove": func() error { return Remove(dir) },
+		"Pin":    func() error { return Pin(dirPin, true) },
+		"Remove": func() error { return Remove(dirRemove) },
 	} {
 		require.NoError(t, os.RemoveAll(marker))
 		mu.Lock() // stands for another goroutine inside update()

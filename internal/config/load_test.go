@@ -453,10 +453,124 @@ func TestConfig_setDefaults(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEqual(t, strayEval, gotEval, "must not adopt parent .crush")
 
-		subEval, err := filepath.EvalSymlinks(sub)
+		// Mở từ thư mục con cũng ra .crush ở gốc dự án, không phải pkg/.crush:
+		// không thì mở pkg trước rồi mới mở gốc sẽ ra hai crush.db (T3).
+		worktreeEval, err := filepath.EvalSymlinks(worktree)
 		require.NoError(t, err)
-		require.Equal(t, filepath.Join(subEval, defaultDataDirectory), gotEval)
+		require.Equal(t, filepath.Join(worktreeEval, defaultDataDirectory), gotEval)
 	})
+}
+
+// gitRepoWithSub dựng repo git ở thư mục vật lý, có thư mục con a/b.
+func gitRepoWithSub(t *testing.T) (repo, sub string) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	sub = filepath.Join(repo, "a", "b")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	gitInit := exec.CommandContext(t.Context(), "git", "init", "-q")
+	gitInit.Dir = repo
+	require.NoError(t, gitInit.Run())
+	return repo, sub
+}
+
+// ProjectRoot là MỘT hàm tính gốc cho data dir, khoá workspace và working dir:
+// gốc git vật lý; ngoài git là đường vật lý (mở qua symlink vẫn cùng một gốc).
+func TestProjectRoot(t *testing.T) {
+	repo, sub := gitRepoWithSub(t)
+	linkSub := filepath.Join(t.TempDir(), "link-sub")
+	require.NoError(t, os.Symlink(sub, linkSub))
+	plain, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	linkPlain := filepath.Join(t.TempDir(), "link-plain")
+	require.NoError(t, os.Symlink(plain, linkPlain))
+	missing := filepath.Join(plain, "missing")
+
+	require.Equal(t, repo, ProjectRoot(sub))
+	require.Equal(t, repo, ProjectRoot(linkSub))
+	require.Equal(t, plain, ProjectRoot(linkPlain), "outside git: the physical path")
+	require.Equal(t, missing, ProjectRoot(missing))
+
+	cfg := &Config{}
+	cfg.setDefaults(linkPlain, "")
+	require.Equal(t, filepath.Join(plain, defaultDataDirectory), cfg.Options.DataDirectory)
+}
+
+// git treo thì ProjectRoot thôi chờ sau worktreeRootTimeout và coi như ngoài
+// git, không làm đứng lệnh mở; kết quả đó KHÔNG được nhớ: lần sau hỏi git lại
+// và ra gốc thật (nhớ thì thư mục con thành dự án riêng tới khi tiến trình
+// tắt). Không parallel: đặt PATH và biến toàn cục.
+func TestProjectRootGitTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a shell script as git")
+	}
+	repo, sub := gitRepoWithSub(t)
+	realGit, err := exec.LookPath("git")
+	require.NoError(t, err)
+	bin := t.TempDir()
+	once := filepath.Join(bin, "hung-once")
+	script := "#!/bin/sh\nif [ ! -e " + once + " ]; then touch " + once + "; exec sleep 10; fi\nexec " + realGit + " \"$@\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	old := worktreeRootTimeout
+	worktreeRootTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { worktreeRootTimeout = old })
+
+	start := time.Now()
+	require.Equal(t, sub, ProjectRoot(sub), "git hung: treated as outside git")
+	require.Less(t, time.Since(start), 3*time.Second)
+	require.Equal(t, repo, ProjectRoot(sub), "the timeout was not remembered: git is asked again")
+}
+
+// Mở từ thư mục con: data dir của cấu hình (tương đối) và mặc định tính theo
+// gốc dự án; -D tương đối tính theo thư mục mở; InitProject đặt workspace ở gốc.
+func TestDataDirFromSubdirectory(t *testing.T) {
+	repo, sub := gitRepoWithSub(t)
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(sub, link))
+
+	cfg := &Config{}
+	cfg.setDefaults(link, "")
+	require.Equal(t, filepath.Join(repo, defaultDataDirectory), cfg.Options.DataDirectory, "through a symlink into the project too")
+
+	cfg = &Config{Options: &Options{DataDirectory: "state"}}
+	cfg.setDefaults(sub, "")
+	require.Equal(t, filepath.Join(repo, "state"), cfg.Options.DataDirectory, "configured data_directory: from the project root")
+
+	cfg = &Config{}
+	cfg.setDefaults(sub, "x")
+	require.Equal(t, filepath.Join(sub, "x"), cfg.Options.DataDirectory, "-D: from where it was opened")
+}
+
+// .crush cũ của thư mục con còn crush.db thì được báo, dù biết qua sổ dự án
+// (mở từ gốc) hay nằm trên đường từ thư mục mở lên gốc; .crush ở gốc, data dir
+// đang dùng, .crush không còn crush.db và data dir ngoài dự án thì không.
+func TestLegacyDataDirs(t *testing.T) {
+	repo, sub := gitRepoWithSub(t)
+	rootData := filepath.Join(repo, defaultDataDirectory)
+	legacy := filepath.Join(sub, defaultDataDirectory)
+	empty := filepath.Join(repo, "a", defaultDataDirectory)
+	outside := filepath.Join(t.TempDir(), defaultDataDirectory)
+	for _, d := range []string{rootData, legacy, empty, outside} {
+		require.NoError(t, os.MkdirAll(d, 0o755))
+	}
+	for _, d := range []string{rootData, legacy, outside} {
+		require.NoError(t, os.WriteFile(filepath.Join(d, "crush.db"), nil, 0o600))
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(sub, link))
+
+	require.Equal(t, []string{legacy}, LegacyDataDirs(sub, repo, rootData, nil), "on the way up")
+	require.Equal(t, []string{legacy}, LegacyDataDirs(link, repo, rootData, nil), "through a symlink")
+	require.Empty(t, LegacyDataDirs(repo, repo, rootData, nil), "the root cannot see it without the registry")
+	known := []string{rootData, legacy, empty, outside}
+	require.Equal(t, []string{legacy}, LegacyDataDirs(repo, repo, rootData, known), "from the root, known to the registry")
+	require.Empty(t, LegacyDataDirs(sub, repo, legacy, known), "-D on the old one: it is in use")
+	require.NoError(t, os.Remove(filepath.Join(legacy, "crush.db")))
+	require.Empty(t, LegacyDataDirs(repo, repo, rootData, known), "no crush.db left: nothing to warn about")
 }
 
 func TestConfig_configureProviders(t *testing.T) {

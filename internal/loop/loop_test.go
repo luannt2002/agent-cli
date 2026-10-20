@@ -310,3 +310,19 @@ func TestTail_KeepsLastLines(t *testing.T) {
 	require.Equal(t, "line 95\nline 96\nline 97\nline 98\nline 99", got)
 	require.Equal(t, "x", tail("x", 5))
 }
+
+// Verify chạy ở chính working dir của agent (VerifyDir rỗng) thì prompt giữ
+// nguyên từng byte như trước khi có VerifyDir; khác thì nêu thư mục.
+func TestPromptsNameTheVerifyDirOnlyWhenItDiffers(t *testing.T) {
+	t.Parallel()
+
+	s := Spec{Goal: " g ", Verify: "go test ./...", MaxRepairs: 2}
+	v := VerifyResult{ExitCode: 1, Output: "FAIL"}
+	require.Equal(t, "g\n\nDefinition of done: running `go test ./...` exits with code 0.\n"+noEditRule, goalPrompt(s))
+	require.Equal(t, "g\n\nThe previous attempt did not pass verification.\nVerify command: `go test ./...`\nResult: exit code 1\n"+
+		"Output (last 60 lines):\nFAIL\n\nFind and fix the cause in the code. "+noEditRule+"\nRepair 1 of 2.", repairPrompt(s, v, 1))
+
+	s.VerifyDir = "sub/"
+	require.Contains(t, goalPrompt(s), "running `go test ./...` in `sub/` exits with code 0.")
+	require.Contains(t, repairPrompt(s, v, 1), "Verify command: `go test ./...` (run in `sub/`)\nResult: exit code 1")
+}

@@ -216,14 +216,26 @@ func executeLoop(ctx context.Context, p loopParams, d loopDeps) (loopOutcome, er
 		}
 		return info, err
 	}
+	// Agent làm việc ở gốc dự án (cùng ProjectRoot với workspace), verify chạy ở
+	// thư mục mở: prompt nêu thư mục verify khi hai nơi khác nhau, và dấu vân
+	// tay tính trên cả repo để thấy tệp agent đổi ngoài thư mục mở.
+	root := config.ProjectRoot(p.Cwd)
+	verifyDir := ""
+	phys, err := filepath.EvalSymlinks(p.Cwd)
+	if err != nil {
+		phys = p.Cwd
+	}
+	if rel, err := filepath.Rel(root, phys); err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		verifyDir = filepath.ToSlash(rel) + "/"
+	}
 	eng := &loop.Engine{
 		Spec: loop.Spec{
-			Name: p.Name, Goal: p.Goal, Verify: p.Verify,
+			Name: p.Name, Goal: p.Goal, Verify: p.Verify, VerifyDir: verifyDir,
 			MaxRepairs: p.MaxRepairs, MaxDuration: p.MaxDuration,
 		},
 		Agent:       agent,
 		Verify:      shellVerify(p.Cwd, p.VerifyTimeout),
-		Fingerprint: gitFingerprint(p.Cwd),
+		Fingerprint: gitFingerprint(root),
 		Journal:     progressJournal{inner: journal, w: stderr},
 		Now:         now,
 	}

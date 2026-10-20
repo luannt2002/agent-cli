@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -33,11 +32,10 @@ type Project struct {
 	// nó quyết định mục có thuộc máy này hay không khi cả hai phía có.
 	MachineID string `json:"machine_id,omitempty"`
 	Pinned    bool   `json:"pinned,omitempty"`
-	// Locations lists every {cwd, data_dir} pair this workspace was launched
-	// with (newest first, at most maxLocations), because a subdirectory shares
-	// its repository's entry but may keep its own data directory. DataDir is
-	// always the most recent one. Files from before this field have none; use
-	// DataDirs rather than reading the field directly.
+	// Locations là các {cwd, data_dir} mà bản cũ ghi khi mỗi thư mục con giữ
+	// data dir riêng. Nay chỉ còn để ĐỌC: biết các .crush cũ ở đâu để cảnh báo
+	// (config.LegacyDataDirs). Register chép nguyên, không xoá; dùng DataDirs
+	// thay vì đọc trực tiếp.
 	Locations []Location `json:"locations,omitempty"`
 }
 
@@ -48,12 +46,8 @@ type Location struct {
 	LastAccessed time.Time `json:"last_accessed"`
 }
 
-// maxLocations caps Project.Locations; the oldest are dropped first.
-const maxLocations = 8
-
-// DataDirs returns every distinct data directory of the workspace, most
-// recently used first. Callers that look for sessions (Home, stats --all)
-// must scan all of them.
+// DataDirs returns every distinct data directory the registry knows for the
+// workspace, the current one first.
 func (p Project) DataDirs() []string {
 	var dirs []string
 	add := func(d string) {
@@ -127,23 +121,11 @@ func NormalizeWorkspace(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resolved, err := filepath.EvalSymlinks(abs)
-	if err != nil {
+	if _, err := filepath.EvalSymlinks(abs); err != nil {
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
-	cmd.Dir = resolved
-	out, err := cmd.Output()
-	if err != nil {
-		// Not a repo, or git is missing: same fallback as the launcher.
-		return resolved, nil
-	}
-	if top := strings.TrimSpace(string(out)); top != "" {
-		return top, nil
-	}
-	return resolved, nil
+	// Cùng một hàm với data dir và khoá workspace của server.
+	return config.ProjectRoot(abs), nil
 }
 
 // canonical normalizes dir, falling back to the absolute path when it cannot
@@ -286,12 +268,12 @@ func Save(list *ProjectList) error {
 // Register adds or updates a workspace in the list. workingDir is normalized
 // (see NormalizeWorkspace), so a subdirectory refreshes its repository's entry
 // instead of creating a new one.
+//
+// dataDir là data dir lần chạy này dùng: .crush ở gốc dự án, trừ khi -D hay
+// cấu hình đặt chỗ khác. Không quên data dir nào đã biết: Locations chép
+// nguyên, data dir trước đó (mục kiểu cũ chưa có Locations) được giữ lại ở đó.
 func Register(workingDir, dataDir string) error {
 	path := canonical(workingDir)
-	cwd, err := filepath.Abs(workingDir)
-	if err != nil {
-		cwd = filepath.Clean(workingDir)
-	}
 	host, mid := currentHost(), currentMachineID()
 	return update(func(list *ProjectList) error {
 		// The list is kept most-recent-first by moving each registration to
@@ -303,23 +285,16 @@ func Register(workingDir, dataDir string) error {
 				return false
 			}
 			pinned = p.Pinned
-			locs = p.Locations
-			if len(locs) == 0 && p.DataDir != "" { // Old-format entry.
-				locs = []Location{{Cwd: p.Path, DataDir: p.DataDir, LastAccessed: p.LastAccessed}}
+			locs = slices.Clone(p.Locations)
+			if p.DataDir != "" && p.DataDir != dataDir && !slices.ContainsFunc(p.Locations, func(l Location) bool { return l.DataDir == p.DataDir }) {
+				locs = append(locs, Location{Cwd: p.Path, DataDir: p.DataDir, LastAccessed: p.LastAccessed})
 			}
 			return true
 		})
-		now := time.Now().UTC()
-		locs = slices.DeleteFunc(slices.Clone(locs), func(l Location) bool { return l.DataDir == dataDir })
-		locs = slices.Insert(locs, 0, Location{Cwd: cwd, DataDir: dataDir, LastAccessed: now})
-		slices.SortStableFunc(locs, func(a, b Location) int { return b.LastAccessed.Compare(a.LastAccessed) })
-		if len(locs) > maxLocations {
-			locs = locs[:maxLocations]
-		}
 		list.Projects = slices.Insert(list.Projects, 0, Project{
 			Path:         path,
 			DataDir:      dataDir,
-			LastAccessed: now,
+			LastAccessed: time.Now().UTC(),
 			Host:         host,
 			MachineID:    mid,
 			Pinned:       pinned,

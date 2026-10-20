@@ -1316,3 +1316,16 @@ func TestTranslateEvent_RunCompleteKeepsLedgerError(t *testing.T) {
 	require.Equal(t, "R", got.Payload.RunID)
 	require.Equal(t, "write /dev/full: no space left on device", got.Payload.LedgerError)
 }
+
+// Khôi phục workspace chỉ gửi DataDir khi workspace gốc dựng bằng -D; gửi data
+// dir mặc định thì server coi như -D và client sau nhận cảnh báo sai.
+func TestRecreateArgsSendsDataDirOnlyFromFlag(t *testing.T) {
+	t.Parallel()
+
+	w := NewClientWorkspace(nil, proto.Workspace{Path: "/r", DataDir: "/r/.crush"})
+	require.Empty(t, w.recreateArgs().DataDir)
+	require.Equal(t, "/r", w.recreateArgs().Path)
+
+	w = NewClientWorkspace(nil, proto.Workspace{Path: "/r", DataDir: "/r/sub/x", DataDirFromFlag: true})
+	require.Equal(t, "/r/sub/x", w.recreateArgs().DataDir)
+}

@@ -122,7 +122,7 @@ type ShutdownFunc func()
 // down beneath it.
 type Backend struct {
 	workspaces *csync.Map[string, *Workspace]
-	// pathIndex maps a resolved absolute workspace path to its
+	// pathIndex maps a project root (see [resolveWorkspaceKey]) to its
 	// workspace ID. Reads and writes are serialised via mu so
 	// concurrent CreateWorkspace calls at the same path deduplicate
 	// deterministically.
@@ -249,10 +249,11 @@ type Workspace struct {
 	Env    []string
 	Skills *skills.Manager
 
-	// resolvedPath is the path used as the dedup key in
-	// Backend.pathIndex. It is filepath.EvalSymlinks(filepath.Abs(Path))
-	// with fallback to the cleaned absolute path.
+	// resolvedPath is the dedup key in Backend.pathIndex: the project
+	// root from [resolveWorkspaceKey], which is also Path.
 	resolvedPath string
+	// dataDirFromFlag: client tạo workspace đã chọn data dir bằng -D.
+	dataDirFromFlag bool
 
 	// ctx is the workspace-scoped run context. It is derived from
 	// the backend context in CreateWorkspace and lives for the
@@ -442,7 +443,9 @@ func (b *Backend) ListWorkspaces() []proto.Workspace {
 
 // CreateWorkspace initializes a new workspace from the given
 // parameters, or returns an existing workspace if one already exists at
-// the same resolved path (first-wins semantics).
+// the same project root (first-wins semantics).
+//
+// Workspace đặt ở gốc dự án: client mở ở repo/sub vào chung workspace của repo.
 //
 // args.ClientID must be a valid UUID identifying the calling client;
 // the resulting workspace registers a creation hold on behalf of that
@@ -529,7 +532,9 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 	}()
 
 	id := uuid.New().String()
-	cfg, err := config.Init(args.Path, args.DataDir, args.Debug)
+	// Cùng hàm với chế độ local: workspace ở gốc dự án (key đã tính, không tính
+	// lại), -D tương đối tính theo thư mục client mở.
+	cfg, err := config.InitProject(key, args.Path, args.DataDir, args.Debug)
 	if err != nil {
 		return nil, proto.Workspace{}, fmt.Errorf("failed to initialize config: %w", err)
 	}
@@ -567,7 +572,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 	ws := &Workspace{
 		App:          appWorkspace,
 		ID:           id,
-		Path:         args.Path,
+		Path:         key,
 		Cfg:          cfg,
 		Env:          args.Env,
 		Skills:       skillsMgr,
@@ -576,6 +581,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
 		cancel:       wsCancel,
 		clients:      make(map[string]*clientState),
 	}
+	ws.dataDirFromFlag = args.DataDir != ""
 
 	b.mu.Lock()
 	// Re-check admission: the client may have retired while the slow
@@ -1346,19 +1352,16 @@ func (b *Backend) ShutdownIfIdle() bool {
 	return true
 }
 
-// resolveWorkspaceKey returns a stable canonical form of path suitable
-// for use as a dedup key. It applies filepath.Abs, then attempts
-// filepath.EvalSymlinks; because EvalSymlinks errors on non-existent
-// paths, it falls back to the cleaned absolute path in that case.
+// resolveWorkspaceKey trả gốc dự án của path (config.ProjectRoot, cùng hàm
+// với data dir, chế độ local, launcher và Home), vừa là khoá dedup vừa là gốc
+// của workspace. Hai workspace trên một crush.db thì trạng thái bận không thấy
+// nhau và một session chạy hai lượt cùng lúc.
 func resolveWorkspaceKey(path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
-	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
-		return resolved, nil
-	}
-	return abs, nil
+	return config.ProjectRoot(abs), nil
 }
 
 // validateClientID returns the trimmed UUID string or an error if the
@@ -1385,6 +1388,8 @@ func workspaceToProto(ws *Workspace) proto.Workspace {
 		Config:   cfg,
 		Env:      ws.Env,
 		Version:  version.Version,
+
+		DataDirFromFlag: ws.dataDirFromFlag,
 	}
 	if ws.Skills != nil {
 		out.Skills = skillStatesToProto(ws.Skills.States())

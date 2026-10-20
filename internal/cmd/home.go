@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/crush/internal/client"
+	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/gitutil"
@@ -211,18 +213,19 @@ func (homeSource) Workspaces(ctx context.Context) ([]home.Workspace, error) {
 	return out, nil
 }
 
-// toHomeWorkspace keeps every data dir of p, each with the directory it was
-// opened from, so sessions in any of them can be listed and opened.
+// toHomeWorkspace đọc mục sổ cho Home. Home mở workspace không kèm -D, nên
+// data dir là cái TUI sẽ mở: .crush ở gốc dự án.
+// shortcut: data dir tên khác .crush (options.data_directory) thì tin sổ, không
+// đọc lại cấu hình; mục mà lần mở cuối dùng -D tên khác cũng rơi vào đây.
 func toHomeWorkspace(p projects.Project) home.Workspace {
-	w := home.Workspace{Path: p.Path, LastAccessed: p.LastAccessed, Pinned: p.Pinned}
-	for _, d := range p.DataDirs() {
-		cwd := p.Path // Entries from before locations were opened at the root.
-		if i := slices.IndexFunc(p.Locations, func(l projects.Location) bool { return l.DataDir == d }); i >= 0 {
-			cwd = p.Locations[i].Cwd
-		}
-		w.Locations = append(w.Locations, home.Location{Cwd: cwd, DataDir: d})
+	dataDir := p.DataDir
+	if dataDir == "" || filepath.Base(dataDir) == ".crush" {
+		dataDir = filepath.Join(p.Path, ".crush")
 	}
-	return w
+	return home.Workspace{
+		Path: p.Path, DataDir: dataDir, LastAccessed: p.LastAccessed, Pinned: p.Pinned,
+		Legacy: config.LegacyDataDirs(p.Path, p.Path, dataDir, p.DataDirs()),
+	}
 }
 
 func (homeSource) Probe(ctx context.Context, paths []string) map[string]home.Live {
@@ -259,7 +262,7 @@ func (homeSource) Add(_ context.Context, dir string) (home.Workspace, error) {
 	if err := projects.Register(root, dataDir); err != nil {
 		return home.Workspace{}, err
 	}
-	return home.Workspace{Path: root, Locations: []home.Location{{Cwd: root, DataDir: dataDir}}, LastAccessed: time.Now()}, nil
+	return home.Workspace{Path: root, DataDir: dataDir, LastAccessed: time.Now()}, nil
 }
 
 func (homeSource) Pin(path string, pinned bool) error { return projects.Pin(path, pinned) }
@@ -378,9 +381,8 @@ func liveSessions(ctx context.Context, src psSource) ([]home.Session, []proto.Wo
 }
 
 // listHomeSessions lists ws's sessions, newest first and at most
-// SessionLimit, from every location: through the live server for the data
-// dirs it holds open, else straight from the database. It never starts a
-// server for that.
+// SessionLimit: through the live server when it holds ws's data dir open,
+// else straight from the database. It never starts a server for that.
 func listHomeSessions(ctx context.Context, hosts []string, ws home.Workspace) ([]home.Session, error) {
 	var out []home.Session
 	served := map[string]bool{} // Data dirs read through a live server.
@@ -403,23 +405,10 @@ func listHomeSessions(ctx context.Context, hosts []string, ws home.Workspace) ([
 			served[w.DataDir] = true
 		}
 	}
-	locs := ws.Locations
-	if len(locs) == 0 {
-		locs = []home.Location{{Cwd: ws.Path, DataDir: filepath.Join(ws.Path, ".crush")}}
-	}
-	var errs []error
-	for _, l := range locs {
-		if served[l.DataDir] {
-			continue
-		}
-		list, err := dbSessions(ctx, filepath.Join(l.DataDir, "crush.db"), home.SessionLimit)
-		if err != nil {
-			errs = append(errs, err) // The other locations still list.
-			continue
-		}
-		for i := range list {
-			list[i].Dir = l.Cwd
-		}
+	var dbErr error
+	if dataDir := cmp.Or(ws.DataDir, filepath.Join(ws.Path, ".crush")); !served[dataDir] {
+		var list []home.Session
+		list, dbErr = dbSessions(ctx, filepath.Join(dataDir, "crush.db"), home.SessionLimit)
 		out = append(out, list...)
 	}
 	// A session found twice (a copied database) is listed once: its newest
@@ -431,7 +420,7 @@ func listHomeSessions(ctx context.Context, hosts []string, ws home.Workspace) ([
 		seen[s.ID] = true
 		return dup
 	})
-	return out[:min(len(out), home.SessionLimit)], errors.Join(errs...)
+	return out[:min(len(out), home.SessionLimit)], dbErr
 }
 
 // dbSessions reads the newest top-level sessions straight from a workspace

@@ -92,6 +92,58 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   `fixtures.py`/`run.sh`/`score.py` (bộ kịch bản đo trước/sau, chạy bằng cấu hình provider thật của bạn nên tốn hạn mức). `faults.sh`, `qwen-only.sh`,
   `workspaces.sh`, `ledger.sh`, `session-model.sh` thoát 1 khi hỏng.
 
+### Thay đổi
+
+- **Một workspace cho mỗi dự án, ở mọi chế độ.** Mở agent-cli từ thư mục con của repo (hay qua symlink trỏ vào đó) nay
+  làm việc ở GỐC repo, cả qua launcher (server) lẫn `CRUSH_CLIENT_SERVER=0` (local): working dir của agent, lệnh `!`, git
+  status trong prompt và các tool đều ở gốc, và chính tiến trình (TUI, `run`, `send`…) cũng chuyển sang gốc sau khi mở
+  workspace. Trước đây working dir là thư mục bạn mở. Gốc là git toplevel vật lý (ngoài git: đường vật lý của thư mục,
+  cùng quy tắc với launcher), tính bằng một hàm chung cho data dir, workspace của server, chế độ local, Home và các lệnh
+  `session`, `stats`, `models`, `logs`; git không trả lời trong 5 giây thì lần mở đó coi như ngoài git (không nhớ, lần
+  sau hỏi lại). Hệ quả khi mở từ thư mục con:
+  - Tệp ngữ cảnh (`AGENTS.md`, `CRUSH.md`, `CLAUDE.md`…), `crush.json`/`.crush.json`/`crushrc` và skill (`.agents/skills`…)
+    của riêng thư mục con không còn được nạp, chỉ của gốc; vì vậy `permissions`, hook và MCP khai trong `sub/crush.json`
+    cũng không còn áp dụng.
+  - `sub/.crush/crush.json` (model, effort mà bản trước ghi khi mở từ `sub`) không còn áp dụng; lựa chọn của dự án nằm ở
+    `<gốc>/.crush/crush.json`.
+  - `!lệnh` chạy ở gốc repo. Đường tương đối gõ trong TUI (`@` nhắc tệp, đính kèm, dán đường dẫn, completion) tính
+    theo gốc repo, khớp với nơi agent đọc và sửa tệp: `@package.json` là `<gốc>/package.json`, muốn tệp của `sub` thì
+    gõ `@sub/package.json`.
+  - "Trong dự án" của tự duyệt quyền (`edit`/`write` của session đã cho phép) và của việc chặn ghi ra ngoài (chế độ không
+    người trực) nay là cả repo, không chỉ thư mục con đã mở.
+  - Qua server, workspace của dự án giữ cờ và env của client mở nó trước (gồm `.env` của thư mục client đó) cho mọi
+    client sau, như trước với cùng một đường, nay áp cho cả dự án.
+  - `options.data_directory` tương đối tính theo gốc dự án (trước: theo thư mục mở). `-D/--data-dir` tương đối vẫn tính
+    theo thư mục mở. Qua server, workspace giữ data dir của client mở trước: client sau có `-D` khác, hoặc không có `-D`
+    trong khi client đầu đã chọn bằng `-D`, nhận cảnh báo trên stderr (trước: chỉ log Debug).
+  - Một `.crush` cố ý đặt ở thư mục con cũng không còn được dùng; muốn thư mục con là dự án riêng thì cho nó repo git
+    riêng (hoặc worktree), hay mở bằng `-D`.
+  **Lưu ý nâng cấp:**
+  - `.crush` cũ ở thư mục con (bản trước tạo khi mở từ đó) không được mở nữa, KHÔNG được tự gộp hay xoá. Khi còn
+    `crush.db`, mỗi lần mở dự án (từ gốc hay thư mục con) agent-cli in cảnh báo ra stderr kèm lệnh mở lại:
+    `CRUSH_CLIENT_SERVER=0 agent-cli -c <thư mục con> -D <thư mục con>/.crush`. Lệnh đó mở chúng ở GỐC repo, trong khi
+    đường tương đối trong các session ấy tính theo thư mục con: chỉ nên đọc; làm tiếp thì agent có thể sửa nhầm tệp
+    cùng tên ở gốc. Nó được tìm trong sổ dự án
+    (`projects.json`, trường `locations` của bản trước, nay chỉ đọc và giữ nguyên) và trên đường từ thư mục mở lên gốc;
+    không quét cả cây repo, nên `.crush` mà sổ không biết và không nằm trên đường đó thì không được báo. Gộp vào DB của
+    dự án là việc tay.
+  - Cảnh báo in ra trước khi TUI chiếm màn hình, nên với TUI chỉ thấy sau khi thoát; `run`/`send` thấy ngay.
+  - Session tạo khi mở từ thư mục con TRƯỚC bản này (kể cả session nằm trong `<gốc>/.crush`) ghi danh sách tệp đã đọc
+    theo đường tương đối với thư mục con; nay đường đó được ghép theo gốc. Tool `write` dựa vào danh sách này để biết tệp
+    đã được đọc chưa, nên tệp CÙNG TÊN ở gốc có thể bị coi là đã đọc và bị ghi đè mà agent chưa đọc nó (`--yolo` và
+    `loop` không hỏi quyền). Việc ở thư mục con thì bắt đầu session mới thay vì làm tiếp session cũ.
+  - `loop` mở từ thư mục con: lệnh `--verify` vẫn chạy ở thư mục bạn mở, agent làm việc ở gốc; prompt của lượt nói rõ
+    verify chạy ở đâu (vd ``running `go test ./...` in `sub/` ``), và việc phát hiện "cây không đổi" (`STALLED`, `NO_CHANGE`)
+    xét cả repo. Mở ở gốc thì prompt như trước.
+  - Home liệt kê session của `.crush` ở gốc (DB mà TUI sẽ mở), kể cả với dự án mà lần mở cuối bằng bản trước là từ thư mục
+    con; session trong `.crush` cũ không hiện, danh sách session có một dòng báo kèm lệnh mở lại (terminal hẹp thì dòng
+    này bị cắt).
+  **Giới hạn còn lại:** mở cùng dự án bằng launcher (server) và bằng binary trần hay `CRUSH_CLIENT_SERVER=0` (local) vẫn là
+  hai tiến trình trên cùng một `crush.db` (có từ trước; local không lấy khoá data dir). `$HOME` là repo git, hoặc
+  `GIT_DIR`/`GIT_WORK_TREE` đang được export, thì mọi thư mục quy về gốc đó. Workspace trên server ở máy khác (đường không
+  có trên máy này) thì tiến trình không chuyển được sang gốc, chỉ ghi log. Session của bản trước mở ở chế độ local từ
+  thư mục con có danh sách tệp đã đọc tính theo thư mục con, nay được ghép theo gốc.
+
 ### Sửa lỗi
 
 - **Bản tóm tắt của session đã nén nay mang nhãn nguồn khi gửi cho model.** Bản tóm tắt do LLM viết (có thể chép lại
@@ -252,6 +304,16 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
   **Lưu ý nâng cấp:** session đã tạo bằng `-c` tương đối nằm ở chỗ sai cũ (vd `r/foo/foo/foo/.crush`; `r/foo/foo/x`
   khi có `-D x`; `<thư mục cha>/.crush` khi qua server) vẫn còn trên đĩa nhưng bản này không mở chúng nữa và không
   cảnh báo. Cần thì mở lại bằng `-D <đường cũ>`.
+- **Một dự án một `crush.db` và một workspace, mở từ đâu cũng vậy.** Data dir từng là `.crush` gần nhất tính từ thư mục
+  mở. Mở `repo/sub` trước khi `repo` có `.crush` thì tạo `repo/sub/.crush`; mở `repo` sau đó lại tạo `repo/.crush`: hai
+  `crush.db`, session chia đôi (gốc thấy 1/3 session, `sub` thấy 2/3; cả local lẫn server). Đi qua symlink trỏ vào
+  `repo/sub` thì việc tìm đi lên theo chữ: ra `.crush` của thư mục chứa symlink, nằm ngoài repo (vd `~/code/.crush`),
+  hoặc một DB thứ hai trong `sub`; nhánh git đọc qua symlink ra rỗng. Trên server của dự án, `repo` và `repo/sub` là
+  hai workspace dùng chung một `crush.db` mà trạng thái bận không thấy nhau: prompt gửi từ `repo/sub` cho session đang
+  chạy ở `repo` chạy song song thay vì xếp hàng, tức một session chạy hai lượt cùng lúc. Nay data dir mặc định luôn là
+  `.crush` ở gốc dự án (git toplevel vật lý; ngoài git là đường vật lý của thư mục), bất kể thư mục con, symlink hay thứ
+  tự mở; việc tìm `crush.json` và nhánh git đi lên theo đường vật lý; mọi chế độ dùng một workspace cho cả dự án (mục
+  Thay đổi), nên prompt thứ hai xếp hàng. Data dir cũ không tự gộp: xem Lưu ý nâng cấp ở mục Thay đổi.
 - **Sổ ghi LLM ghi lỗi không còn im lặng.** Bật `AGENT_CLI_LLM_LEDGER` mà ghi lỗi (đĩa đầy; đo bằng `/dev/full`) thì
   trước đây lượt chạy tiếp không một dấu hiệu: sổ thiếu dòng mà vẫn trông như bằng chứng. Nay mỗi prompt bị ảnh hưởng
   (gồm các lượt tự làm tiếp của nó) có một dòng log WARN `Failed to write the LLM ledger…` (một lần mỗi prompt, không

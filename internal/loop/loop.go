@@ -48,6 +48,9 @@ type Spec struct {
 	Name   string
 	Goal   string // việc cần làm, tự chứa đủ
 	Verify string // lệnh định nghĩa "xong": thoát 0 là xong
+	// VerifyDir là thư mục chạy Verify, tương đối theo working dir của agent
+	// (vd "sub/"), khi hai thư mục khác nhau; rỗng khi trùng (prompt như cũ).
+	VerifyDir string
 	// MaxRepairs là số lượt SỬA sau lượt đầu (mặc định của driver: 2). Tổng số
 	// lượt agent tối đa là MaxRepairs+1; không có lần vá thứ ba.
 	MaxRepairs int
@@ -255,15 +258,23 @@ const noEditRule = "Do not modify the tests, the verify command or any gate to m
 	"If you believe a test is wrong, say so in your final answer instead of editing it."
 
 func goalPrompt(s Spec) string {
-	return fmt.Sprintf("%s\n\nDefinition of done: running `%s` exits with code 0.\n%s", strings.TrimSpace(s.Goal), s.Verify, noEditRule)
+	in := ""
+	if s.VerifyDir != "" {
+		in = " in `" + s.VerifyDir + "`"
+	}
+	return fmt.Sprintf("%s\n\nDefinition of done: running `%s`%s exits with code 0.\n%s", strings.TrimSpace(s.Goal), s.Verify, in, noEditRule)
 }
 
 // repairPrompt tự chứa đủ (đề bài + lỗi vừa đo), vì mỗi lượt có thể là session mới.
 func repairPrompt(s Spec, v VerifyResult, attempt int) string {
+	in := ""
+	if s.VerifyDir != "" {
+		in = " (run in `" + s.VerifyDir + "`)"
+	}
 	return fmt.Sprintf("%s\n\nThe previous attempt did not pass verification.\n"+
-		"Verify command: `%s`\nResult: exit code %d\nOutput (last %d lines):\n%s\n\n"+
+		"Verify command: `%s`%s\nResult: exit code %d\nOutput (last %d lines):\n%s\n\n"+
 		"Find and fix the cause in the code. %s\nRepair %d of %d.",
-		strings.TrimSpace(s.Goal), s.Verify, v.ExitCode, tailLines, tail(v.Output, tailLines), noEditRule, attempt, s.MaxRepairs)
+		strings.TrimSpace(s.Goal), s.Verify, in, v.ExitCode, tailLines, tail(v.Output, tailLines), noEditRule, attempt, s.MaxRepairs)
 }
 
 var (

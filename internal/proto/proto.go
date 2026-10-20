@@ -37,6 +37,10 @@ type Workspace struct {
 	// creation time. Subsequent updates flow through the SSE event
 	// stream.
 	Skills []SkillState `json:"skills,omitempty"`
+	// DataDirFromFlag: server trả về true khi client tạo workspace đã chọn
+	// DataDir bằng -D. Client sau không có -D nhờ đó cảnh báo được rằng
+	// session của nó không vào data dir của dự án.
+	DataDirFromFlag bool `json:"data_dir_from_flag,omitempty"`
 }
 
 // Error represents an error response.

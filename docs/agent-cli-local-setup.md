@@ -265,7 +265,7 @@ Các cờ tắt này không chặn mọi request mạng: request model tới pro
 không `permissions deny` (crushrc mẫu chặn `sourcegraph`, `fetch`, `agentic_fetch`, `download`) vẫn đi.
 
 Model chọn trong TUI (kể cả bật/tắt thinking, mức reasoning) giờ thuộc về dự án:
-được ghi vào `<project>/.crush/crush.json`, nên đổi model ở worktree này không
+được ghi vào `<project>/.crush/crush.json` (`<project>` là gốc repo, mở từ thư mục con cũng vậy), nên đổi model ở worktree này không
 đổi model ở worktree khác. Mở lại hay tiếp một session cũ (TUI, `run -s/-C`) không ghi
 gì: tin nhắn sau chạy model đang chọn của dự án; session từng chạy model khác thì TUI báo ở
 thanh trạng thái, `run` in ra stderr `session <id> last ran on <cũ>; continuing on the project
@@ -302,8 +302,9 @@ giữa chừng lượt đang chạy (agent con của lượt cũng vậy). Thứ
 
 Chọn workspace -> danh sách session (tối đa 50, mới nhất trước) và `→ New session`. Server đang sống
 thì lấy session và trạng thái thật qua server; không có server thì đọc thẳng DB của workspace ở chế độ
-chỉ đọc và trạng thái là `unknown`. Workspace từng mở từ thư mục con có DB riêng (`sub/.crush`) thì
-session ở mọi DB đều hiện và mở đúng thư mục chứa nó. `→ New session` mở màn hình trống, chưa tạo
+chỉ đọc và trạng thái là `unknown`. Mỗi workspace có một DB (`.crush/` ở gốc dự án, mở từ thư mục con
+cũng vậy). `sub/.crush` do bản cũ tạo không hiện ở đây; còn session trong đó thì cuối màn có một dòng báo kèm lệnh
+mở lại (CHANGELOG, mục Thay đổi). `→ New session` mở màn hình trống, chưa tạo
 session tới khi bạn gửi prompt; chọn session đang chạy chỉ mở để xem/tiếp, không gửi lại gì. `esc` về
 danh sách workspace.
 
@@ -328,6 +329,11 @@ khi bạn không tự truyền `--host`/`-H`. Thư mục gốc là `git rev-pars
 của `-c/--cwd` (hoặc thư mục hiện tại); ngoài repo git thì lấy đường dẫn thật
 (`pwd -P`). Kết quả: mọi process cùng một dự án dùng chung một server nên trạng thái
 session (bận, chờ duyệt) đúng ở mọi nơi; dự án khác thì server khác, log và DB tách riêng.
+Mỗi dự án cũng là MỘT workspace đặt ở thư mục gốc đó, ở cả chế độ server lẫn
+`CRUSH_CLIENT_SERVER=0`: mở từ thư mục con thì agent, lệnh `!`, `AGENTS.md`, `crush.json` (gồm quyền, hook)
+và DB `.crush/` đều là của gốc; tệp riêng của thư mục con không được nạp. Tiến trình cũng chuyển sang gốc, nên
+`@tệp`, đính kèm và completion trong TUI tính đường theo gốc (`@sub/x.go`, không phải `@x.go`). Muốn thư mục con là dự án
+riêng thì cho nó repo git riêng (hoặc worktree).
 Server tự tắt 60 giây sau khi workspace cuối được nhả (`CRUSH_SERVER_IDLE_TIMEOUT`, giây; `0` = tắt ngay); mở
 workspace mới trong khoảng đó thì huỷ lệnh tắt. Socket nằm ở
 `AGENT_CLI_RUNTIME_DIR` nếu bạn đặt, mặc định `/run/user/$UID`; thư mục đó chưa có thì tới `$XDG_RUNTIME_DIR`, rồi
@@ -980,7 +986,8 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
   mới cùng gốc (mở lại ngay dự án vừa đóng) có thể mất job nền của nó. Cửa sổ hẹp; sửa đúng cần chủ job theo App.
 - **MCP: chữ đi kèm ảnh/media và `read_mcp_resource` chưa có trần; ảnh kèm `isError=true` lưu `is_error=false`.**
   Kết quả MCP dạng chữ thuần đã có trần (cắt, spill ra `<data>/shell-output/`) và giữ cờ lỗi; hai trường hợp này chưa.
-- **Context file (PRB-19, PRB-20).** Chỉ đọc ở thư mục làm việc, không ở gốc git; tên chữ thường (`agents.md`,
+- **Context file (PRB-19, PRB-20).** Chỉ đọc ở thư mục làm việc, tức gốc dự án (mở từ thư mục con cũng vậy; tệp
+  của thư mục con không được đọc); tên chữ thường (`agents.md`,
   `crush.md`) không được nạp trên Linux; plan mode và agent con không nhận context của dự án.
 - **`run` không có trần thời gian cho cả lượt.** Mỗi request LLM chỉ có `request-timeout` (mặc định 2 phút không có
   dữ liệu); script cần trần thì tự bọc `timeout`. `loop`/`routine` có `--run-timeout`.

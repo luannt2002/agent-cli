@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -510,6 +511,82 @@ func TestPathDedupe_Symlink(t *testing.T) {
 	wsB, _, err := b.CreateWorkspace(protoWS(link, dataDir, uuid.New().String()))
 	require.NoError(t, err)
 	require.Equal(t, wsA.ID, wsB.ID)
+}
+
+// TestPathDedupe_SubdirSharesProjectWorkspace: repo/sub mở trước rồi repo
+// vẫn là MỘT workspace ở gốc repo trên MỘT crush.db (T1M, T3). Hai workspace
+// trên một DB thì trạng thái bận của chúng không thấy nhau và một session
+// chạy hai lượt cùng lúc. -D tương đối vẫn tính theo thư mục client mở.
+func TestPathDedupe_SubdirSharesProjectWorkspace(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	sub := filepath.Join(repo, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
+	require.NoError(t, err, string(out))
+
+	b := New(context.Background(), nil, func() {})
+	b.SetCreateGrace(2 * time.Second)
+	t.Cleanup(func() { drainBackend(t, b) })
+
+	wsSub, _, err := b.CreateWorkspace(protoWS(sub, "", uuid.New().String()))
+	require.NoError(t, err)
+	wsRoot, protoRoot, err := b.CreateWorkspace(protoWS(repo, "", uuid.New().String()))
+	require.NoError(t, err)
+	require.Equal(t, wsSub.ID, wsRoot.ID, "repo/sub and repo are one workspace")
+	require.Equal(t, repo, protoRoot.Path, "rooted at the project root whichever opened first")
+	require.Equal(t, filepath.Join(repo, ".crush"), protoRoot.DataDir)
+	require.NoDirExists(t, filepath.Join(sub, ".crush"))
+	require.False(t, protoRoot.DataDirFromFlag)
+
+	other := New(context.Background(), nil, func() {})
+	other.SetCreateGrace(2 * time.Second)
+	t.Cleanup(func() { drainBackend(t, other) })
+	_, protoD, err := other.CreateWorkspace(protoWS(sub, "x", uuid.New().String()))
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(sub, "x"), protoD.DataDir, "relative -D is taken from where the client is")
+	require.True(t, protoD.DataDirFromFlag, "clients joining later learn the data dir came from -D")
+}
+
+// TestCreateWorkspace_GitTimeoutKeepsKeyAndConfigTogether: git treo đúng lần
+// tính khoá (lần đầu, quá hạn 5s) thì khoá rơi về thư mục mở; cấu hình phải
+// dùng CHÍNH khoá đó (không tính lại, lúc git đã trả lời), để workspace và
+// working dir không lệch nhau. Chậm ~5s vì chờ hết hạn thật.
+func TestCreateWorkspace_GitTimeoutKeepsKeyAndConfigTogether(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a shell script as git")
+	}
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	sub := filepath.Join(repo, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
+	require.NoError(t, err, string(out))
+	realGit, err := exec.LookPath("git")
+	require.NoError(t, err)
+	bin := t.TempDir()
+	once := filepath.Join(bin, "hung-once")
+	script := "#!/bin/sh\nif [ ! -e " + once + " ]; then touch " + once + "; exec sleep 30; fi\nexec " + realGit + " \"$@\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	b := New(context.Background(), nil, func() {})
+	b.SetCreateGrace(2 * time.Second)
+	t.Cleanup(func() { drainBackend(t, b) })
+
+	ws, _, err := b.CreateWorkspace(protoWS(sub, "", uuid.New().String()))
+	require.NoError(t, err)
+	require.Equal(t, ws.Path, ws.Cfg.WorkingDir(), "the workspace key and the config root are one value")
 }
 
 // TestPathDedupe_NonExistentPath ensures CreateWorkspace tolerates a

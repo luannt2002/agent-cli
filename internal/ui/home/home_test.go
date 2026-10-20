@@ -422,9 +422,9 @@ func TestRendersOnlyOnStateChange(t *testing.T) {
 	require.Equal(t, n+1, m.renders)
 }
 
-// A session kept in a subdirectory's data dir opens there, so the TUI finds
-// the database that holds it.
-func TestSessionOpensWhereItLives(t *testing.T) {
+// Một session có Dir (đường của workspace trên server sống đang giữ nó) mở ở
+// đó; session đọc thẳng từ DB (Dir rỗng) mở ở đường của workspace.
+func TestSessionOpensInItsWorkspaceDir(t *testing.T) {
 	t.Parallel()
 
 	src := &fakeSource{
@@ -447,6 +447,26 @@ func TestSessionOpensWhereItLives(t *testing.T) {
 	selectRow(t, m, func(r row) bool { return r.kind == rowSession && r.sess.ID == "s2" })
 	require.True(t, press(m, keyEnter))
 	require.Equal(t, Choice{Dir: "/w/a", SessionID: "s2"}, m.Choice())
+}
+
+// Workspace còn .crush cũ (bản trước tạo ở thư mục con) mà agent-cli không mở
+// nữa: danh sách session có một dòng báo kèm lệnh mở lại; workspace khác thì
+// không. Một lỗi thật thì vẫn được hiện thay cho dòng này.
+func TestLegacyDataDirNote(t *testing.T) {
+	t.Parallel()
+
+	ws := tenWorkspaces()[:2]
+	ws[0].Legacy = []string{"/w/a/sub/.crush"}
+	m := newTestModel(&fakeSource{workspaces: ws})
+	require.NotContains(t, screenText(m), "Not listed")
+	selectRow(t, m, isPath("/w/a"))
+	press(m, keyEnter)
+	require.Contains(t, screenText(m), "Not listed: older sessions in /w/a/sub/.crush · open: CRUSH_CLIENT_SERVER=0 agent-cli -c /w/a/sub -D /w/a/sub/.crush")
+
+	press(m, keyEsc)
+	selectRow(t, m, isPath("/w/b"))
+	press(m, keyEnter)
+	require.NotContains(t, screenText(m), "Not listed")
 }
 
 // selectedPath is the workspace path under the cursor, "" when it is not a

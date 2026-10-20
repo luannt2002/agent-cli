@@ -202,11 +202,15 @@ func traverseUp(dir string, walkFn func(dir string, owner int) error) error {
 // that callers passing logically equivalent paths (a symlinked /var vs
 // the underlying /private/var, for example) still terminate at the
 // expected directory.
+//
+// Đi lên theo đường VẬT LÝ của dir: đi theo chữ thì symlink trỏ vào thư mục
+// con của dự án sẽ đi lên ngoài dự án và không bao giờ gặp stopDir.
 func traverseUpBounded(dir, stopDir string, walkFn func(dir string, owner int) error) error {
 	cwd, err := filepath.Abs(dir)
 	if err != nil {
 		return fmt.Errorf("cannot convert CWD to absolute path: %w", err)
 	}
+	cwd = canonicalize(cwd)
 
 	stop := cwd
 	if stopDir != "" {
