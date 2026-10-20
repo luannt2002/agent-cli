@@ -1,0 +1,223 @@
+From 9c08f3e8f6ee9fe213184513e64a77a07aaf9aec Mon Sep 17 00:00:00 2001
+From: luannt <luannt.devops@gmail.com>
+Date: Mon, 19 Oct 2026 19:47:36 +0700
+Subject: [PATCH] fix(mcp): cap text tool results like bash and keep the error
+ flag
+
+An MCP tool returning 5 MiB of text went verbatim into the next request and
+into crush.db (+5.3 MB each); text results now go through TruncateOutput, the
+same cap and spill file (<data>/shell-output) that bash uses. A result with
+isError=true was stored as is_error=false; ToolResult now carries IsError and
+the tool returns an error response. Image/media results keep the old
+behaviour (marked as a shortcut). Three tests run a real go-sdk MCP server over
+HTTP; two fail on the old code.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ CHANGELOG.md                           |   4 +
+ internal/agent/tools/mcp-tools.go      |  11 ++-
+ internal/agent/tools/mcp-tools_test.go | 107 +++++++++++++++++++++++++
+ internal/agent/tools/mcp/tools.go      |   7 +-
+ 4 files changed, 127 insertions(+), 2 deletions(-)
+ create mode 100644 internal/agent/tools/mcp-tools_test.go
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..1505c83f 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -170,6 +170,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
++- **Kết quả tool MCP dạng chữ có trần như bash và giữ cờ lỗi.** MCP trả 5 MiB từng đi nguyên vào request kế tiếp và
++  `crush.db` (+5,3 MB mỗi nơi); nay cắt và spill ra `<data>/shell-output/` như bash. `isError=true` nay lưu `is_error=true`.
++  Chưa sửa: chữ đi kèm ảnh/media và tool `read_mcp_resource` chưa có trần; MCP trả ảnh kèm `isError=true` vẫn lưu
++  `is_error=false`.
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/internal/agent/tools/mcp-tools.go b/internal/agent/tools/mcp-tools.go
+index c19513d6..66caf2a6 100644
+--- a/internal/agent/tools/mcp-tools.go
++++ b/internal/agent/tools/mcp-tools.go
+@@ -150,9 +150,18 @@ func (m *Tool) Run(ctx context.Context, params fantasy.ToolCall) (fantasy.ToolRe
+ 		} else {
+ 			response = fantasy.NewMediaResponse(result.Data, result.MediaType)
+ 		}
++		// shortcut: ảnh/media giữ hành vi cũ — chữ đi kèm chưa có trần và IsError
++		// chưa xét (IsError trong fantasy bỏ ảnh, chỉ gửi chữ); nâng khi có MCP
++		// trả ảnh kèm chữ lớn hoặc ảnh kèm lỗi trong thực tế.
+ 		response.Content = result.Content
+ 		return response, nil
+ 	default:
+-		return fantasy.NewTextResponse(result.Content), nil
++		// Cùng trần, cùng tệp spill (<data>/shell-output) như bash: kết quả MCP
++		// lớn không đi nguyên vào request kế tiếp và vào DB.
++		content := TruncateOutput(result.Content, m.cfg.Config().Options.DataDirectory)
++		if result.IsError {
++			return fantasy.NewTextErrorResponse(content), nil
++		}
++		return fantasy.NewTextResponse(content), nil
+ 	}
+ }
+diff --git a/internal/agent/tools/mcp-tools_test.go b/internal/agent/tools/mcp-tools_test.go
+new file mode 100644
+index 00000000..b93fd62a
+--- /dev/null
++++ b/internal/agent/tools/mcp-tools_test.go
+@@ -0,0 +1,107 @@
++package tools
++
++import (
++	"context"
++	"fmt"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"regexp"
++	"strings"
++	"testing"
++
++	"charm.land/fantasy"
++	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
++	"github.com/charmbracelet/crush/internal/config"
++	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
++	"github.com/stretchr/testify/require"
++)
++
++// runMCPStub dựng một MCP server HTTP thật trong tiến trình, có một tool trả
++// đúng text và cờ isError cho trước, nối nó qua InitializeSingle như lúc
++// chạy thật, gọi tool đó một lần qua *Tool rồi trả về phản hồi mà agent sẽ
++// gửi cho model, kèm thư mục data của cấu hình.
++func runMCPStub(t *testing.T, name, text string, isError bool) (fantasy.ToolResponse, string) {
++	t.Helper()
++
++	server := mcpsdk.NewServer(&mcpsdk.Implementation{Name: name}, nil)
++	mcpsdk.AddTool(
++		server,
++		&mcpsdk.Tool{Name: "out", Description: "test tool"},
++		func(context.Context, *mcpsdk.CallToolRequest, struct{}) (*mcpsdk.CallToolResult, any, error) {
++			return &mcpsdk.CallToolResult{
++				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: text}},
++				IsError: isError,
++			}, nil, nil
++		},
++	)
++	srv := httptest.NewServer(mcpsdk.NewStreamableHTTPHandler(
++		func(*http.Request) *mcpsdk.Server { return server }, nil,
++	))
++	t.Cleanup(srv.Close)
++
++	dataDir := t.TempDir()
++	cfg := config.NewTestStore(&config.Config{
++		MCP:     config.MCPs{name: {Type: config.MCPHttp, URL: srv.URL}},
++		Options: &config.Options{DataDirectory: dataDir},
++	})
++	// Registry MCP là toàn cục: các test này chạy tuần tự (không t.Parallel)
++	// và gỡ hẳn server khi xong, để test song song đọc trạng thái MCP (vd
++	// crush_info) không thấy server của test này. Đăng ký dọn TRƯỚC khi khởi
++	// tạo: khởi tạo lỗi vẫn để lại trạng thái Starting/Error cần gỡ.
++	t.Cleanup(func() { mcp.Reinitialize(context.Background(), config.NewTestStore(&config.Config{})) })
++	require.NoError(t, mcp.InitializeSingle(t.Context(), name, cfg))
++
++	var tool *Tool
++	for _, tl := range GetMCPTools(&mockPermissionService{}, cfg, t.TempDir()) {
++		if tl.MCP() == name {
++			tool = tl
++		}
++	}
++	require.NotNil(t, tool, "MCP tool must be registered after InitializeSingle")
++
++	ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
++	resp, err := tool.Run(ctx, fantasy.ToolCall{ID: "c1", Name: tool.Name(), Input: "{}"})
++	require.NoError(t, err)
++	return resp, dataDir
++}
++
++// Kết quả MCP rất lớn phải có trần như bash: model chỉ nhận đầu + đuôi, bản
++// đầy đủ nằm trong tệp spill cùng thư mục với bash (<data>/shell-output).
++func TestMCPTool_LargeTextIsCappedAndSpilled(t *testing.T) {
++	var b strings.Builder
++	for i := 0; b.Len() < 5<<20; i++ {
++		fmt.Fprintf(&b, "line %07d %s\n", i, strings.Repeat("x", 48))
++	}
++	big := b.String()
++
++	resp, dataDir := runMCPStub(t, "p1b-big", big, false)
++
++	require.False(t, resp.IsError)
++	require.Less(t, len(resp.Content), MaxOutputLength+1024, "MCP output sent to the model must be capped like bash")
++	m := regexp.MustCompile(`full output: (\S+)\]`).FindStringSubmatch(resp.Content)
++	require.NotNil(t, m, "capped MCP output must point at the spill file")
++	require.Equal(t, filepath.Join(dataDir, "shell-output"), filepath.Dir(m[1]), "spill must reuse the bash spill directory")
++	full, err := os.ReadFile(m[1])
++	require.NoError(t, err)
++	require.Equal(t, big, string(full), "spill file must hold the full MCP output")
++}
++
++// Đối chứng: kết quả MCP nhỏ đi nguyên vẹn, không bị cắt.
++func TestMCPTool_SmallTextIsUnchanged(t *testing.T) {
++	resp, dataDir := runMCPStub(t, "p1b-small", "echo", false)
++
++	require.False(t, resp.IsError)
++	require.Equal(t, "echo", resp.Content)
++	require.NoDirExists(t, filepath.Join(dataDir, "shell-output"))
++}
++
++// Tool MCP báo isError=true thì phản hồi gửi model cũng phải là lỗi, như tool
++// nội bộ lỗi (view tệp không có), để tool_result lưu is_error=true.
++func TestMCPTool_IsErrorReachesToolResponse(t *testing.T) {
++	resp, _ := runMCPStub(t, "p1b-fail", "V3-MCP-FAIL boom", true)
++
++	require.True(t, resp.IsError)
++	require.Equal(t, "V3-MCP-FAIL boom", resp.Content)
++}
+diff --git a/internal/agent/tools/mcp/tools.go b/internal/agent/tools/mcp/tools.go
+index 68caf24d..7897fd8a 100644
+--- a/internal/agent/tools/mcp/tools.go
++++ b/internal/agent/tools/mcp/tools.go
+@@ -23,6 +23,8 @@ type ToolResult struct {
+ 	Content   string
+ 	Data      []byte
+ 	MediaType string
++	// IsError là cờ isError của server: tool đã chạy nhưng báo thất bại.
++	IsError bool
+ }
+ 
+ var allTools = csync.NewMap[string, []*Tool]()
+@@ -58,7 +60,7 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
+ 	}
+ 
+ 	if len(result.Content) == 0 {
+-		return ToolResult{Type: "text", Content: ""}, nil
++		return ToolResult{Type: "text", Content: "", IsError: result.IsError}, nil
+ 	}
+ 
+ 	var textParts []string
+@@ -96,6 +98,7 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
+ 			Content:   textContent,
+ 			Data:      ensureRawBytes(imageData),
+ 			MediaType: imageMimeType,
++			IsError:   result.IsError,
+ 		}, nil
+ 	}
+ 
+@@ -105,12 +108,14 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
+ 			Content:   textContent,
+ 			Data:      ensureRawBytes(audioData),
+ 			MediaType: audioMimeType,
++			IsError:   result.IsError,
+ 		}, nil
+ 	}
+ 
+ 	return ToolResult{
+ 		Type:    "text",
+ 		Content: textContent,
++		IsError: result.IsError,
+ 	}, nil
+ }
+ 
+-- 
+2.43.0
+

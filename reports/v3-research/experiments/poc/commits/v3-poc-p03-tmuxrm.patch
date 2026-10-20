@@ -1,0 +1,137 @@
+From bc1dce317d5a24699814c6e090a9fa7a5e885b11 Mon Sep 17 00:00:00 2001
+From: luannt <luannt.devops@gmail.com>
+Date: Mon, 19 Oct 2026 18:10:45 +0700
+Subject: [PATCH] fix(scripts): agent-cli-tmux rm refuses when a session is
+ busy in a subdirectory
+
+rm --force used to compare session paths with the worktree root for equality,
+so a BUSY/WAITING session opened at $wt/sub did not block the removal and the
+worktree, including .crush/ with the session history, was deleted. The check
+now matches the root or any path below it (with a "/" boundary so wt does not
+match wt2), and rm also closes tmux windows opened in subdirectories of the
+worktree. New cases in test-agent-cli-tmux.sh cover sub/, a trailing slash, a
+symlink and the wt/wt2 prefix edge.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ CHANGELOG.md                   |  5 +++++
+ docs/agent-cli-local-setup.md  |  4 ++--
+ scripts/agent-cli-tmux.sh      | 16 +++++++++-------
+ scripts/test-agent-cli-tmux.sh | 22 ++++++++++++++++++++++
+ 4 files changed, 38 insertions(+), 9 deletions(-)
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..10c6606c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -92,6 +92,11 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+ 
+ ### Sửa lỗi
+ 
++- **`agent-cli-tmux rm --force` không còn xoá worktree khi session đang chạy ở thư mục con của nó.** Trước đây chỉ session
++  BUSY/WAITING ở đúng gốc worktree chặn được `rm`; session mở ở `$wt/sub` không chặn, nên worktree và `.crush/` (lịch sử
++  session) bị xoá. Nay mọi session BUSY/WAITING trong worktree (gốc hoặc thư mục con, kể cả qua `/` cuối hay symlink) đều
++  chặn (rc 3), và `rm` đóng cả
++  window tmux mở ở thư mục con của worktree, không chỉ window ở gốc.
+ - **Lời gọi ẩn không còn sang provider khác.** Model nhỏ nằm ở provider khác model chính từng nhận lời gọi đặt tiêu đề
+   (kèm nguyên văn prompt đầu của bạn) và `agentic_fetch`, không cảnh báo: phiên chọn Qwen local vẫn gửi prompt sang
+   provider của model nhỏ. Bộ tiêm lỗi với provider giả: bản trước có lời gọi lọt ở cả 8/8 ca (kể cả khi provider
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 7b9d5ab8..ddc92b6b 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -431,11 +431,11 @@ luôn có `.crush/` (DB session và log). Chỉ khi chắc chắn bỏ cả lị
+   khởi động lại mới nhận.
+ - `rm <name> [--repo dir] [--force]`: worktree còn thay đổi chưa commit (kể cả file chưa theo dõi, bất kể
+   `status.showUntrackedFiles`) hoặc không đọc được trạng thái git thì in lý do, mã 3, không
+-  xoá gì. Worktree còn session BUSY hoặc WAITING (theo `agent-cli ps --json --all`, so path đã chuẩn hoá `pwd -P`; ps lỗi, có stderr, JSON
++  xoá gì. Worktree còn session BUSY hoặc WAITING ở gốc hoặc thư mục con (theo `agent-cli ps --json --all`, so path đã chuẩn hoá `pwd -P`; ps lỗi, có stderr, JSON
+   hỏng, hoặc hàng BUSY có path không phân giải được đều bị coi là không an toàn và từ chối) cũng bị từ
+   chối, mã 3: dưới `CRUSH_CLIENT_SERVER=1` agent chạy ở server riêng nên đóng window KHÔNG
+   dừng nó ngay (xem "Đã biết" ở mục trên về detach grace và trần mồ côi); thiếu `agent-cli` trên
+-  PATH thì bỏ qua kiểm này và cảnh báo. Sạch thì đóng window `<name>`, đợi tiến trình pane
++  PATH thì bỏ qua kiểm này và cảnh báo. Sạch thì đóng window `<name>` và mọi window mở ở thư mục con của worktree, đợi tiến trình pane
+   thoát, gỡ worktree (git kiểm lại, kể cả file agent vừa ghi) và in `branch agent/<name> kept`. Script KHÔNG bao giờ xoá branch; bỏ hẳn thì tự chạy
+   `git branch -d agent/<name>` (hoặc `-D` nếu chưa merge).
+ - `rm` từ chối (mã 3) khi worktree có file bị gitignore, gồm `.crush/` (DB session và log của
+diff --git a/scripts/agent-cli-tmux.sh b/scripts/agent-cli-tmux.sh
+index 3add18ad..e8e2a7d1 100755
+--- a/scripts/agent-cli-tmux.sh
++++ b/scripts/agent-cli-tmux.sh
+@@ -13,10 +13,10 @@ if [[ $# -eq 0 || "$1" == -h || "$1" == --help ]]; then
+   [[ $# -gt 0 ]] && exit 0 || exit 2
+ fi
+ 
+-# Tìm window theo @agent_dir (đường dẫn vật lý), in window_id.
++# Tìm window theo @agent_dir (đường dẫn vật lý), in window_id. Có $2 (rm): in MỌI window ở $1 hoặc thư mục con của nó.
+ find_window() {
+   tmux has-session -t "=$session" 2>/dev/null || return 0
+-  tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" '$2 == d { print $1; exit }'
++  tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" -v all="${2:-}" '$2 == d || (all != "" && index($2, d "/") == 1) { print $1; if (all == "") exit }'
+ }
+ 
+ die() { echo "agent-cli-tmux: $2" >&2; exit "$1"; }
+@@ -103,16 +103,18 @@ if [[ -n $cmd ]]; then
+           p=${p#P:} # tiền tố P: để hàng BUSY có path rỗng vẫn thành một dòng, không bị nuốt
+           [[ $p == /* ]] || die 3 "session đang chạy có path không tuyệt đối ('$p'), từ chối xoá: $wt"
+           c=$(cd -- "$p" 2>/dev/null && pwd -P) || die 3 "session đang chạy có path không phân giải được ('$p'), từ chối xoá: $wt"
+-          [[ $c != "$abs" ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
++          # Session ở thư mục con ($wt/sub) cũng mất lịch sử khi xoá: so "nằm trong", "$abs"/ để /a/wt không khớp /a/wt2.
++          [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+         done <<< "$rows"
+       else
+         echo "agent-cli-tmux: không thấy agent-cli trên PATH, bỏ qua kiểm session đang chạy" >&2
+       fi
+       # Đóng window và đợi tiến trình pane thoát (nó có thể ghi nốt file lúc SIGHUP) rồi mới để git kiểm lại.
+-      id=$(find_window "$abs")
+-      if [[ -n $id ]]; then
+-        pids=$(tmux list-panes -t "$id" -F '#{pane_pid}')
+-        tmux kill-window -t "$id"
++      # Cả window mở ở thư mục con (agent-cli-tmux $wt/sub): bỏ sót thì agent sống tiếp trong thư mục đã xoá.
++      ids=$(find_window "$abs" all)
++      if [[ -n $ids ]]; then
++        pids=$(for id in $ids; do tmux list-panes -t "$id" -F '#{pane_pid}'; done)
++        for id in $ids; do tmux kill-window -t "$id"; done
+         for _ in $(seq 30); do
+           alive=
+           for pid in $pids; do kill -0 "$pid" 2>/dev/null && alive=1; done
+diff --git a/scripts/test-agent-cli-tmux.sh b/scripts/test-agent-cli-tmux.sh
+index 26c80c69..1d0b7033 100755
+--- a/scripts/test-agent-cli-tmux.sh
++++ b/scripts/test-agent-cli-tmux.sh
+@@ -219,10 +219,32 @@ echo '[]' > "$work/ps.json"; touch "$work/ps-stderr"
+ rc_of rm busy --repo "$proj"
+ [[ $rc == 3 && -e $wtd/busy/.git && $(nwin busy) == 1 ]] || fail "N5 ps stderr một phần: rc=$rc"
+ rm -f "$work/ps-stderr"
++# (d) BUSY ở THƯ MỤC CON của worktree (thẳng / có / cuối / qua symlink) -> --force vẫn phải từ chối (ca T4 của eval/exposure.sh)
++mkdir -p "$wtd/busy/sub"
++for p in "$wtd/busy/sub" "$wtd/busy/sub/" "$work/busy-link/sub"; do
++  echo '[{"path":"'"$p"'","busy":true,"waiting":false}]' > "$work/ps.json"
++  rc_of rm busy --repo "$proj" --force
++  [[ $rc == 3 && -e $wtd/busy/.git && $(nwin busy) == 1 ]] || fail "N5 thư mục con '$p': rc=$rc: $(cat "$work/err")"
++  grep -q 'BUSY/WAITING' "$work/err" || fail "N5 thư mục con '$p': từ chối sai lý do: $(cat "$work/err")"
++done
+ echo '[{"path":"'"$wtd/busy"'","busy":false,"waiting":false}]' > "$work/ps.json"  # IDLE -> được xoá
+ rc_of rm busy --repo "$proj"; [[ $rc == 0 && ! -e $wtd/busy ]] || fail "N5 idle: rc=$rc: $(cat "$work/err")"
+ echo '[]' > "$work/ps.json"
+ [[ ! -e $work/host-seen ]] || fail "N5: script đưa --host cho agent-cli ps"
++# (e) biên tên: BUSY ở worktree trùng tiền tố (pfx2, cả thư mục con) không được chặn oan rm pfx, cũng không đóng window pfx2
++rc_of new pfx --repo "$proj"; rc_of new pfx2 --repo "$proj"; mkdir -p "$wtd/pfx2/sub"
++echo '[{"path":"'"$wtd/pfx2"'","busy":true,"waiting":false},{"path":"'"$wtd/pfx2/sub"'","busy":true,"waiting":false}]' > "$work/ps.json"
++rc_of rm pfx --repo "$proj" --force
++[[ $rc == 0 && ! -e $wtd/pfx && -e $wtd/pfx2/.git && $(nwin pfx2) == 1 ]] || fail "N5 biên pfx/pfx2: rc=$rc, pfx2 window=$(nwin pfx2): $(cat "$work/err")"
++echo '[]' > "$work/ps.json"
++# (f) window mở ở thư mục con của worktree (agent-cli-tmux <wt>/sub) cũng bị đóng khi rm, không để agent sống trong thư mục đã xoá
++rc_of new subw --repo "$proj"; mkdir -p "$wtd/subw/sub"
++run "$wtd/subw/sub"
++subd=$(cd "$wtd/subw/sub" && pwd -P)
++nsub() { tmux list-windows -t =agents -F '#{@agent_dir}' | grep -cxF -- "$subd" || true; }
++[[ $(nsub) == 1 ]] || fail "window thư mục con: không mở được window ở $subd"
++rc_of rm subw --repo "$proj"
++[[ $rc == 0 && ! -e $wtd/subw && $(nwin subw) == 0 && $(nsub) == 0 ]] || fail "window thư mục con: rc=$rc, window sub còn=$(nsub): $(cat "$work/err")"
+ 
+ # N1: agent ghi file lúc SIGHUP (window bị kill) -> git remove phải từ chối, file còn (showUntrackedFiles=no vẫn đang bật)
+ rc_of new late --repo "$proj"
+-- 
+2.43.0
+

@@ -1,0 +1,1379 @@
+From 26bed1e9b0ff6bc50dc39cc68de76f3d0d4c7e98 Mon Sep 17 00:00:00 2001
+From: luannt <luannt.devops@gmail.com>
+Date: Mon, 19 Oct 2026 20:17:21 +0700
+Subject: [PATCH] fix(backend,cmd): refuse clients whose trust policy differs
+ from the server
+
+A workspace created by client A kept A's allowlist, delegation and YOLO for
+every later client: client B with a stricter AGENT_CLI_ALLOWED_MODELS still ran
+turns on providers outside its list, with no warning. Clients now send their
+trust policy (the 11 trusted keys from the original env snapshot and the env
+file, never the repo .env) with every workspace create; the server compares it
+with its own and refuses with ErrPolicyMismatch, naming the variables only.
+Commands that send no prompt (jobs, login, logout) are exempt; a test walks
+the whole command tree to pin that set. A model-running command that meets a
+busy server of another build is refused instead of silently reusing it.
+
+Also closes a V2 hole: Home and Alt+W built child processes from the env after
+the repo .env was loaded, so a repo .env could set AGENT_CLI_DELEGATION,
+AGENT_CLI_ENV_FILE, AGENT_CLI_CLAUDE_BIN or AGENT_CLI_LAUNCHER for the child.
+Child envs now go through execpolicy.ChildEnv and the launcher is read from the
+original env. Plain variables still follow the client that started the server
+(documented).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ CHANGELOG.md                               |  11 ++
+ README.md                                  |  10 +-
+ docs/agent-cli-local-setup.md              |  42 ++++-
+ internal/backend/backend.go                |  65 +++++++
+ internal/backend/backend_skills_test.go    |  16 +-
+ internal/backend/backend_test.go           |  24 +--
+ internal/backend/env_log_test.go           |   1 -
+ internal/backend/trusted_policy_test.go    | 205 +++++++++++++++++++++
+ internal/backend/unavailable_model_test.go |   4 +-
+ internal/client/proto.go                   |  12 ++
+ internal/client/trusted_env_test.go        |  39 ++++
+ internal/cmd/child_env_test.go             |  77 ++++++++
+ internal/cmd/home.go                       |  12 +-
+ internal/cmd/jobs.go                       |   1 +
+ internal/cmd/login.go                      |   1 +
+ internal/cmd/logout.go                     |   1 +
+ internal/cmd/loop.go                       |   4 +-
+ internal/cmd/no_agent_runs_test.go         |  83 +++++++++
+ internal/cmd/restart_stale_test.go         |  42 ++++-
+ internal/cmd/root.go                       |  66 +++++--
+ internal/execpolicy/policy.go              |  53 +++++-
+ internal/execpolicy/policy_test.go         |  49 +++++
+ internal/proto/proto.go                    |   8 +
+ internal/server/e2e_test.go                |   3 +
+ 24 files changed, 768 insertions(+), 61 deletions(-)
+ create mode 100644 internal/backend/trusted_policy_test.go
+ create mode 100644 internal/client/trusted_env_test.go
+ create mode 100644 internal/cmd/child_env_test.go
+ create mode 100644 internal/cmd/no_agent_runs_test.go
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..06b7faf9 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -170,6 +170,17 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
++- **Client không còn lặng lẽ chạy theo chính sách tin cậy của client khác.** Server của dự án nạp chính sách
++  (`AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION` và các biến tin cậy khác) một lần, theo client đã dựng nó;
++  client mở sau với chính sách khác từng chạy theo chính sách cũ mà không cảnh báo (allowlist `qwen` của nó không
++  chặn lượt đi provider `pp`). Nay client gửi chính sách tin cậy của nó (env gốc và tệp env, không theo `.env` của
++  repo) và server từ chối khi khác: lỗi `trust policy differs from the running agent-cli server` nêu tên biến
++  (không giá trị) và bảo thoát mọi client của dự án. `--yolo` khác workspace đang mở cũng bị từ chối thay cho cảnh
++  báo cũ; client cũ không gửi chính sách cũng bị từ chối, và lệnh chạy model không tái dùng server khác bản đang bận.
++  Chỉ lệnh chạy model (TUI, `run`, `send`, `loop`) bị so; `jobs`, `login`, `logout` thì không. Biến thường (kể cả
++  `$VAR` của `api_key`/`base_url` trong `crush.json`) không được so và vẫn theo client đã dựng server, như trước.
++  Tiến trình con mà Home dựng và lệnh `--verify` của loop không còn nhận biến tin cậy từ `.env` của repo (gõ
++  `agent-cli` trong repo có `.env` đặt `AGENT_CLI_DELEGATION=on` từng bật giao việc cho workspace mở từ Home).
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/README.md b/README.md
+index 08de100f..8931d61b 100644
+--- a/README.md
++++ b/README.md
+@@ -68,7 +68,10 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
+   `run -s/-C` cũng vậy với session có sẵn. "Chưa sửa code" trong prompt chỉ là lời dặn model, không phải rào chắn. Chúng
+   dùng mode hiện tại của dự án: nếu TUI để dự án ở plan mode thì `run`/`loop` chỉ đọc và lập kế hoạch.
+ - YOLO (`--yolo`, `ctrl+y`, hoặc `shift+tab` tới bước "code + YOLO"): duyệt mọi thứ, áp cho cả workspace (kể cả TUI khác
+-  và `send` vào dự án đó).
++  và `send` vào dự án đó). `--yolo` lúc mở phải khớp workspace đang mở, cả hai chiều: dự án mở bằng `--yolo` thì
++  client chạy model sau đó mà không có `--yolo` (TUI, `run`, `send`, `loop`) bị từ chối; dự án mở không `--yolo` thì
++  `agent-cli --yolo` sau đó bị từ chối. `jobs`, `login`, `logout` không bị so `--yolo`; bật bằng `ctrl+y` thì không bị
++  từ chối.
+ - Nút "Allow for Session" trong hộp thoại; `permissions allow <tool>` trong crushrc.
+ - Muốn được hỏi: dùng TUI không bật YOLO, hoặc `agent-cli send -s <id> "..."` (gửi prompt vào session đang mở trong
+   TUI; không tự duyệt, TUI đó trả lời hộp thoại; không có TUI nào mở session đó thì `send --wait` dừng với lỗi và lượt
+@@ -264,7 +267,10 @@ lần: `AGENTS.md` chứa khẳng định cũ sai và một chỉ thị độc,
+ 
+ Tên tệp và biến bên trong (`crush.json`, `CRUSH_*`, `.crush/`) giữ chữ Crush để dễ gộp upstream. Launcher `agent-cli`
+ (wrapper ở `~/.local/bin`) đặt sẵn các biến đó, tắt metrics, tắt cập nhật catalog provider và tắt kiểm tra bản mới của
+-upstream. Sửa env khi server của dự án đang chạy thì chưa có tác dụng: thoát mọi client rồi mở lại (xem
++upstream. Sửa env khi server của dự án đang chạy thì chưa có tác dụng; client chạy model mở sau với chính sách tin cậy
++khác (allowlist, giao việc, `--yolo`…; so chuỗi thô) bị từ chối, lỗi nêu tên biến; server khác bản đang bận cũng bị
++từ chối. Biến thường (kể cả `$VAR` mà `crush.json` dùng cho `api_key`/`base_url`) không được so: nó theo client đã dựng
++server. Thoát mọi client, chờ server tắt rồi mở lại (xem
+ [Sửa env khi agent-cli đang chạy](docs/agent-cli-local-setup.md#sửa-env-khi-agent-cli-đang-chạy)).
+ 
+ ## Phím tắt
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 7b9d5ab8..9545edf9 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -172,13 +172,34 @@ thoát hết client của dự án và mở lại. Muốn bật lại: `option a
+ 
+ ### Sửa env khi agent-cli đang chạy
+ 
+-Mỗi dự án có một server nền; cấu hình (crushrc, env) được nạp lại mỗi khi một workspace mới
+-mở. Sửa `~/.config/agent-cli/env` (hay crushrc) KHÔNG tác dụng với workspace đang mở: còn một
++Mỗi dự án có một server nền. Cấu hình (crushrc, crush.json, khoá trong tệp env mà crushrc `source`)
++được đọc khi workspace của dự án được dựng. Chính sách tin cậy thì nạp MỘT lần cho mỗi tiến trình
++server và không bao giờ nạp lại: `AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION` (export ở shell
++hay trong `~/.config/agent-cli/env`) cùng các biến tin cậy khác (`AGENT_CLI_UNATTENDED`,
++`AGENT_CLI_LLM_LEDGER`, CLI và mức quyền của tool giao việc ở dưới), theo env của client đã dựng
++server. Sửa `~/.config/agent-cli/env` (hay crushrc) KHÔNG tác dụng với workspace đang mở: còn một
+ client (TUI hay `run`) nào của dự án đó đang sống thì nó vẫn dùng giá trị cũ (đã đo: `touch
+-crushrc` cũng không kích hoạt nạp lại). Để áp giá trị mới: thoát hết client của dự án đó, rồi
+-mở lại; hoặc dừng thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server
+-(tên socket `agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`;
+-việc đang chạy ở dự án đó sẽ mất.
++crushrc` cũng không kích hoạt nạp lại). Client chạy model (TUI, `run`, `send`, `loop`) mở sau mà
++chính sách tin cậy (env gốc của nó và tệp env; `.env` của repo không tính) khác chính sách server
++đang áp, hoặc `--yolo` khác workspace đang mở, thì bị TỪ CHỐI với lỗi `trust policy differs from
++the running agent-cli server: <tên biến>` (chỉ tên, không giá trị). Chỉ 11 biến tin cậy bị so:
++`AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION`, `AGENT_CLI_UNATTENDED`,
++`AGENT_CLI_UNATTENDED_COMMIT`, `AGENT_CLI_ENV_FILE`, `AGENT_CLI_LLM_LEDGER`, `HOME`,
++`AGENT_CLI_CLAUDE_BIN`, `AGENT_CLI_CODEX_BIN`, `AGENT_CLI_CLAUDE_PERMISSION_MODE`,
++`AGENT_CLI_CODEX_SANDBOX`. Biến môi trường thường, kể cả biến mà `crush.json` dùng qua `$VAR` cho
++`api_key`/`base_url`, KHÔNG được so: client vẫn gắn vào và chạy theo giá trị của client đã dựng
++server (giới hạn như allowlist chỉ so tên provider/model, không kiểm `base_url`). Phép so là so
++chuỗi thô: khác thứ tự trong allowlist, `on`/`ON`/`1`, hay khác `HOME`/`AGENT_CLI_ENV_FILE` dù
++allowlist hiệu lực bằng nhau đều bị từ chối. Lệnh không gửi prompt (`jobs`, `login`, `logout`)
++không bị so chính sách tin cậy và `--yolo` (vẫn bị so `--channels`; `login` khi tự nối lại sau lúc
++server mất workspace thì bị so như lệnh chạy model). Server khác bản/build mà đang bận (không thay
++được) thì lệnh chạy model bị từ chối, lệnh không prompt vẫn dùng nó. Từ tiến trình con mà Home
++dựng (workspace, Home khi quay lại) tới lệnh `--verify` của loop, biến tin cậy đều lấy theo env
++gốc, `.env` của repo không chen vào được. Để áp giá trị mới: thoát hết client của dự án đó, chờ
++server tắt (khoảng 60 giây sau khi client cuối thoát, xem `agent-cli ps`) rồi mở lại; hoặc dừng
++thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server (tên socket
++`agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`; việc đang
++chạy ở dự án đó sẽ mất.
+ 
+ Chỉ sửa tệp trên đĩa thì không nạp lại, nhưng MỌI lần ghi cấu hình của chính workspace đó (vd chọn model
+ trong TUI) làm nó nạp lại toàn bộ, gồm chạy lại crushrc và `source` lại env: đã đo ở tầng cấu hình (sửa
+@@ -595,10 +616,11 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
+ 
+ Các biến trên phải có trong môi trường của tiến trình agent-cli (export ở shell, ví dụ
+ `~/.bashrc`), KHÔNG đặt trong `~/.config/agent-cli/env`: tệp đó chỉ được crushrc `source`
+-trong trình thông dịch riêng. Khác tệp env, chúng là env của TIẾN TRÌNH server, lấy từ client
+-đã dựng server đó: mở workspace mới không nạp lại. Đổi xong phải để server cũ tắt (khoảng 60
+-giây sau khi client cuối thoát, lâu hơn nếu còn run chạy nền; xem `agent-cli ps`) hoặc dừng
+-nó như mục "Sửa env khi agent-cli đang chạy", rồi mở lại từ shell đã có biến mới.
++trong trình thông dịch riêng. Chúng là biến tin cậy, env của TIẾN TRÌNH server, lấy từ client
++đã dựng server đó: mở workspace mới không nạp lại, và client mở sau với giá trị khác bị từ chối
++(lỗi nêu tên biến). Đổi xong phải để server cũ tắt (khoảng 60 giây sau khi client cuối thoát, lâu
++hơn nếu còn run chạy nền; xem `agent-cli ps`) hoặc dừng nó như mục "Sửa env khi agent-cli đang
++chạy", rồi mở lại từ shell đã có biến mới.
+ Codex đi kèm app ChatGPT desktop thường không nằm trong `PATH` (ví dụ
+ `/usr/lib/chatgpt/resources/codex`): đặt `AGENT_CLI_CODEX_BIN` hoặc tạo symlink vào `~/.local/bin`.
+ Không muốn dùng: `permissions deny claude_code codex` trong crushrc.
+diff --git a/internal/backend/backend.go b/internal/backend/backend.go
+index f362cf55..3583de17 100644
+--- a/internal/backend/backend.go
++++ b/internal/backend/backend.go
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/csync"
+ 	"github.com/charmbracelet/crush/internal/db"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/charmbracelet/crush/internal/skills"
+ 	"github.com/charmbracelet/crush/internal/ui/util"
+@@ -49,6 +50,10 @@ var (
+ 	ErrServerNotIdle           = errors.New("server is hosting live workspaces")
+ 	ErrClientRetired           = errors.New("client has been retired")
+ 	ErrChannelOptInMismatch    = errors.New("requested channels differ from the existing workspace; channels are an explicit opt-in and are not shared across duplicate creates")
++	// ErrPolicyMismatch: chính sách tin cậy của client (biến execpolicy đọc,
++	// --yolo lúc dựng workspace) khác cái server/workspace đang áp. Server nạp chính sách một lần
++	// mỗi tiến trình, nên cho qua là chạy client theo chính sách của client khác.
++	ErrPolicyMismatch = errors.New("trust policy differs from the running agent-cli server")
+ )
+ 
+ // DefaultCreateGrace is the window in which a client must open an SSE
+@@ -451,6 +456,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
+ 	if err != nil {
+ 		return nil, proto.Workspace{}, err
+ 	}
++	policyErr := checkTrustedEnv(args)
+ 
+ 	key, err := resolveWorkspaceKey(args.Path)
+ 	if err != nil {
+@@ -462,6 +468,13 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
+ 		b.mu.Unlock()
+ 		return nil, proto.Workspace{}, err
+ 	}
++	// Sau admitLocked: server đã chốt tắt thì client nhận 503 và dựng server
++	// mới (server đó áp chính sách của client). Trước cancelShutdownLocked: client
++	// bị từ chối không giữ server sống.
++	if policyErr != nil {
++		b.mu.Unlock()
++		return nil, proto.Workspace{}, policyErr
++	}
+ 	// A client is arriving: cancel any pending idle shutdown so we never
+ 	// hand back a workspace on a server that is about to tear itself down.
+ 	b.cancelShutdownLocked()
+@@ -477,6 +490,10 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
+ 				b.mu.Unlock()
+ 				return nil, proto.Workspace{}, ErrChannelOptInMismatch
+ 			}
++			if !args.NoAgentRuns && ws.Cfg.Overrides().SkipPermissionRequests != args.YOLO {
++				b.mu.Unlock()
++				return nil, proto.Workspace{}, policyMismatch("--yolo")
++			}
+ 			logFirstWinsMismatch(ws, args)
+ 			b.registerClient(ws, clientID)
+ 			b.mu.Unlock()
+@@ -584,6 +601,11 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
+ 				ws.invokeShutdown()
+ 				return nil, proto.Workspace{}, ErrChannelOptInMismatch
+ 			}
++			if !args.NoAgentRuns && existing.Cfg.Overrides().SkipPermissionRequests != args.YOLO {
++				b.mu.Unlock()
++				ws.invokeShutdown()
++				return nil, proto.Workspace{}, policyMismatch("--yolo")
++			}
+ 			logFirstWinsMismatch(existing, args)
+ 			b.registerClient(existing, clientID)
+ 			b.mu.Unlock()
+@@ -1413,6 +1435,49 @@ func logFirstWinsMismatch(existing *Workspace, args proto.Workspace) {
+ 	)
+ }
+ 
++// checkTrustedEnv từ chối client có chính sách tin cậy (execpolicy.Inputs)
++// khác của chính tiến trình server: server nạp chính sách một lần và không
++// nạp lại cho client sau. Client không gửi (bản cũ) cũng bị từ chối. Client
++// không chạy model (NoAgentRuns) thì chính sách không áp, không so.
++func checkTrustedEnv(args proto.Workspace) error {
++	if args.NoAgentRuns {
++		return nil
++	}
++	if args.TrustedEnv == nil {
++		return policyMismatch("trust policy not sent (an older agent-cli client; use the same agent-cli build as the server)")
++	}
++	serverEnv, err := execpolicy.Inputs()
++	if err != nil {
++		return policyMismatch(fmt.Sprintf("the server could not load its own policy (%v)", err))
++	}
++	got := make(map[string]string, len(args.TrustedEnv))
++	for _, kv := range args.TrustedEnv {
++		k, v, _ := strings.Cut(kv, "=")
++		got[k] = v
++	}
++	// Chỉ nêu tên khoá của chính server; khoá lạ do client gửi thì chỉ đếm.
++	var keys []string
++	for _, kv := range serverEnv {
++		k, v, _ := strings.Cut(kv, "=")
++		if w, ok := got[k]; !ok || w != v {
++			keys = append(keys, k)
++		}
++		delete(got, k)
++	}
++	if len(got) > 0 {
++		keys = append(keys, fmt.Sprintf("%d key(s) this server does not know", len(got)))
++	}
++	if len(keys) > 0 {
++		return policyMismatch(strings.Join(keys, ", "))
++	}
++	return nil
++}
++
++// policyMismatch nêu cái gì lệch (tên, không giá trị) và cách sửa.
++func policyMismatch(what string) error {
++	return fmt.Errorf("%w: %s; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)", ErrPolicyMismatch, what)
++}
++
+ // envKeysDiffer trả tên (đã sắp xếp) các biến có giá trị khác nhau hoặc chỉ có ở
+ // một bên giữa hai env dạng KEY=VALUE. Không bao giờ trả giá trị.
+ func envKeysDiffer(a, b []string) []string {
+diff --git a/internal/backend/backend_skills_test.go b/internal/backend/backend_skills_test.go
+index 4f7dfa8f..5d9b8a19 100644
+--- a/internal/backend/backend_skills_test.go
++++ b/internal/backend/backend_skills_test.go
+@@ -11,6 +11,7 @@ import (
+ 	tea "charm.land/bubbletea/v2"
+ 	"github.com/charmbracelet/crush/internal/backend"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/charmbracelet/crush/internal/pubsub"
+ 	"github.com/charmbracelet/crush/internal/skills"
+@@ -48,19 +49,22 @@ func TestBackend_WorkspaceSkillsIsolation(t *testing.T) {
+ 
+ 	cidA := uuid.New().String()
+ 	cidB := uuid.New().String()
++	trusted, _ := execpolicy.Inputs()
+ 
+ 	wsA, _, err := b.CreateWorkspace(proto.Workspace{
+-		ClientID: cidA,
+-		Path:     wdA,
+-		DataDir:  filepath.Join(wdA, ".crush"),
++		ClientID:   cidA,
++		Path:       wdA,
++		DataDir:    filepath.Join(wdA, ".crush"),
++		TrustedEnv: trusted,
+ 	})
+ 	require.NoError(t, err)
+ 	t.Cleanup(func() { _ = b.DeleteWorkspace(wsA.ID, cidA) })
+ 
+ 	wsB, _, err := b.CreateWorkspace(proto.Workspace{
+-		ClientID: cidB,
+-		Path:     wdB,
+-		DataDir:  filepath.Join(wdB, ".crush"),
++		ClientID:   cidB,
++		Path:       wdB,
++		DataDir:    filepath.Join(wdB, ".crush"),
++		TrustedEnv: trusted,
+ 	})
+ 	require.NoError(t, err)
+ 	t.Cleanup(func() { _ = b.DeleteWorkspace(wsB.ID, cidB) })
+diff --git a/internal/backend/backend_test.go b/internal/backend/backend_test.go
+index 094fa47b..af2ea809 100644
+--- a/internal/backend/backend_test.go
++++ b/internal/backend/backend_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"time"
+ 
+ 	"github.com/charmbracelet/crush/internal/csync"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/google/uuid"
+ 	"github.com/stretchr/testify/require"
+@@ -471,13 +472,15 @@ func TestPathDedupe_FirstWinsKeepsOriginalEnv(t *testing.T) {
+ 	require.Equal(t, originalEnv, protoA.Env)
+ 
+ 	argsB := protoWS(cwd, dataDir, uuid.New().String())
+-	argsB.YOLO = false
++	// Cùng --yolo với A: --yolo khác thì bị từ chối (TestCreateWorkspace_TrustPolicyMismatch),
++	// ở đây chỉ kiểm Env/Debug theo first-wins.
++	argsB.YOLO = true
+ 	argsB.Debug = true
+ 	argsB.Env = []string{"BAZ=qux"}
+ 	_, protoB, err := b.CreateWorkspace(argsB)
+ 	require.NoError(t, err)
+ 	require.Equal(t, protoA.ID, protoB.ID)
+-	require.True(t, protoB.YOLO, "first wins: YOLO must remain true")
++	require.True(t, protoB.YOLO, "YOLO matches the originating client")
+ 	require.Equal(t, originalEnv, protoB.Env, "proto must carry the originating client's Env")
+ 	require.Equal(t, wsA.Cfg.Overrides().SkipPermissionRequests, true)
+ }
+@@ -639,7 +642,9 @@ func drainBackend(t *testing.T, b *Backend) {
+ }
+ 
+ func protoWS(path, dataDir, clientID string) proto.Workspace {
+-	return proto.Workspace{Path: path, DataDir: dataDir, ClientID: clientID}
++	// Chính sách tin cậy như client thật gửi (trong test: mọi biến rỗng, khớp server).
++	trusted, _ := execpolicy.Inputs()
++	return proto.Workspace{Path: path, DataDir: dataDir, ClientID: clientID, TrustedEnv: trusted}
+ }
+ 
+ // syncBuffer is a thread-safe buffer that can be safely read and written
+@@ -686,19 +691,16 @@ func xdgIsolated(t *testing.T) {
+ }
+ 
+ // TestFirstWinsMismatch_LogsOnFlagDifferences verifies that the
+-// debug mismatch line is emitted when any of YOLO, Debug, DataDir,
+-// or Env differs between the first and second CreateWorkspace at
+-// the same path, and that the existing workspace's Debug flag is
+-// not overwritten.
++// debug mismatch line is emitted when any of Debug, DataDir, or Env
++// differs between the first and second CreateWorkspace at the same
++// path, and that the existing workspace's Debug flag is not
++// overwritten. A differing YOLO is refused instead
++// (TestCreateWorkspace_TrustPolicyMismatch).
+ func TestFirstWinsMismatch_LogsOnFlagDifferences(t *testing.T) {
+ 	tests := []struct {
+ 		name   string
+ 		mutate func(*proto.Workspace)
+ 	}{
+-		{
+-			name:   "yolo",
+-			mutate: func(p *proto.Workspace) { p.YOLO = true },
+-		},
+ 		{
+ 			name:   "debug",
+ 			mutate: func(p *proto.Workspace) { p.Debug = true },
+diff --git a/internal/backend/env_log_test.go b/internal/backend/env_log_test.go
+index 1b6e5983..b4ae634d 100644
+--- a/internal/backend/env_log_test.go
++++ b/internal/backend/env_log_test.go
+@@ -26,7 +26,6 @@ func TestFirstWinsMismatch_NeverLogsEnvValues(t *testing.T) {
+ 	require.NoError(t, err)
+ 	argsB := protoWS(cwd, dataDir, uuid.New().String())
+ 	argsB.Env = []string{"OPENAI_API_KEY=sk-secret-BBB", "SAME=1", "ONLY_B=x"}
+-	argsB.YOLO = true
+ 	_, _, err = b.CreateWorkspace(argsB)
+ 	require.NoError(t, err)
+ 
+diff --git a/internal/backend/trusted_policy_test.go b/internal/backend/trusted_policy_test.go
+new file mode 100644
+index 00000000..718372f0
+--- /dev/null
++++ b/internal/backend/trusted_policy_test.go
+@@ -0,0 +1,205 @@
++package backend
++
++import (
++	"context"
++	"errors"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/google/uuid"
++	"github.com/stretchr/testify/require"
++)
++
++// withTrusted trả bản sao env tin cậy với key đổi thành value.
++func withTrusted(env []string, key, value string) []string {
++	out := make([]string, 0, len(env))
++	for _, kv := range env {
++		if k, _, _ := strings.Cut(kv, "="); k == key {
++			kv = key + "=" + value
++		}
++		out = append(out, kv)
++	}
++	return out
++}
++
++// Chính sách tin cậy (execpolicy) nạp một lần mỗi tiến trình server: client
++// sau có chính sách khác thì bị từ chối rõ ràng (nêu tên biến, không nêu giá
++// trị, nói cách sửa), không lặng lẽ chạy theo chính sách của client đầu. Khác
++// ở biến thường thì vẫn gắn vào workspace như cũ.
++func TestCreateWorkspace_TrustPolicyMismatch(t *testing.T) {
++	tests := []struct {
++		name    string
++		mutate  func(*proto.Workspace)
++		wantKey string // rỗng: được gắn vào
++	}{
++		{name: "same policy", mutate: func(*proto.Workspace) {}},
++		{name: "plain env differs", mutate: func(p *proto.Workspace) { p.Env = []string{"V3_ROUTE=c2"} }},
++		{
++			name: "allowlist differs",
++			mutate: func(p *proto.Workspace) {
++				p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
++			},
++			wantKey: "AGENT_CLI_ALLOWED_MODELS",
++		},
++		{
++			name:    "delegation differs",
++			mutate:  func(p *proto.Workspace) { p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_DELEGATION", "on") },
++			wantKey: "AGENT_CLI_DELEGATION",
++		},
++		{
++			name:    "other trusted var differs",
++			mutate:  func(p *proto.Workspace) { p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_UNATTENDED", "1") },
++			wantKey: "AGENT_CLI_UNATTENDED",
++		},
++		{
++			name:    "yolo differs",
++			mutate:  func(p *proto.Workspace) { p.YOLO = true },
++			wantKey: "--yolo",
++		},
++		{
++			name:    "older client sends no policy",
++			mutate:  func(p *proto.Workspace) { p.TrustedEnv = nil },
++			wantKey: "not sent",
++		},
++		// Lệnh không gửi prompt (jobs, login, logout): không chạy model nên
++		// chính sách và --yolo không áp, không bị từ chối oan.
++		{name: "no-agent client, yolo differs", mutate: func(p *proto.Workspace) { p.NoAgentRuns, p.YOLO = true, true }},
++		{
++			// Tên khoá lạ do client gửi không được lặp lại trong lỗi (chỉ đếm).
++			name:    "client sends a key the server does not know",
++			mutate:  func(p *proto.Workspace) { p.TrustedEnv = append(p.TrustedEnv, "INJECTED_NAME_X=1") },
++			wantKey: "1 key(s) this server does not know",
++		},
++		{
++			name: "no-agent client, allowlist differs",
++			mutate: func(p *proto.Workspace) {
++				p.NoAgentRuns = true
++				p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
++			},
++		},
++	}
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			xdgIsolated(t)
++			cwd, dataDir := t.TempDir(), t.TempDir()
++			b := New(context.Background(), nil, func() {})
++			b.SetCreateGrace(2 * time.Second)
++			t.Cleanup(func() { drainBackend(t, b) })
++
++			argsA := protoWS(cwd, dataDir, uuid.New().String())
++			argsA.Env = []string{"V3_ROUTE=c1"}
++			wsA, _, err := b.CreateWorkspace(argsA)
++			require.NoError(t, err)
++
++			argsB := protoWS(cwd, dataDir, uuid.New().String())
++			argsB.Env = argsA.Env
++			tc.mutate(&argsB)
++			wsB, protoB, err := b.CreateWorkspace(argsB)
++			if tc.wantKey == "" {
++				require.NoError(t, err)
++				require.Equal(t, wsA.ID, protoB.ID)
++				return
++			}
++			require.ErrorIs(t, err, ErrPolicyMismatch)
++			require.Nil(t, wsB)
++			require.Contains(t, err.Error(), tc.wantKey)
++			require.Contains(t, err.Error(), "exit every agent-cli client of this project")
++			require.NotContains(t, err.Error(), "qwen:m-qwen", "names only, never values")
++			require.NotContains(t, err.Error(), "INJECTED", "never echo key names the client made up")
++			wsA.clientsMu.Lock()
++			require.Len(t, wsA.clients, 1, "refused client must not be registered")
++			wsA.clientsMu.Unlock()
++		})
++	}
++}
++
++// Server đã chốt tắt thì trả ErrServerShuttingDown (client dựng server mới,
++// server đó áp chính sách của chính client) trước phép so chính sách.
++func TestCreateWorkspace_ClosingServerBeatsPolicyMismatch(t *testing.T) {
++	xdgIsolated(t)
++	b := New(context.Background(), nil, func() {})
++	b.mu.Lock()
++	b.closing = true
++	b.mu.Unlock()
++	args := protoWS(t.TempDir(), t.TempDir(), uuid.New().String())
++	args.TrustedEnv = withTrusted(args.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
++	_, _, err := b.CreateWorkspace(args)
++	require.ErrorIs(t, err, ErrServerShuttingDown)
++}
++
++// Chính sách thuộc cả tiến trình server, không riêng một workspace: client có
++// chính sách khác mở dự án KHÁC trên cùng server cũng bị từ chối, không dựng
++// workspace nào.
++func TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace(t *testing.T) {
++	xdgIsolated(t)
++	b := New(context.Background(), nil, func() {})
++	b.SetCreateGrace(2 * time.Second)
++	t.Cleanup(func() { drainBackend(t, b) })
++
++	_, _, err := b.CreateWorkspace(protoWS(t.TempDir(), t.TempDir(), uuid.New().String()))
++	require.NoError(t, err)
++
++	args := protoWS(t.TempDir(), t.TempDir(), uuid.New().String())
++	args.TrustedEnv = withTrusted(args.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
++	_, _, err = b.CreateWorkspace(args)
++	require.ErrorIs(t, err, ErrPolicyMismatch)
++	require.Len(t, b.ListWorkspaces(), 1, "no workspace is built for a refused client")
++}
++
++// So --yolo lúc dựng workspace, không so YOLO bật lúc chạy (ctrl+y áp cho cả
++// workspace theo thiết kế): bật bằng ctrl+y thì client sau không --yolo (run,
++// send, jobs) vẫn gắn vào được.
++func TestCreateWorkspace_RuntimeYOLOToggleNotRefused(t *testing.T) {
++	xdgIsolated(t)
++	cwd, dataDir := t.TempDir(), t.TempDir()
++	b := New(context.Background(), nil, func() {})
++	b.SetCreateGrace(2 * time.Second)
++	t.Cleanup(func() { drainBackend(t, b) })
++
++	wsA, _, err := b.CreateWorkspace(protoWS(cwd, dataDir, uuid.New().String()))
++	require.NoError(t, err)
++	require.NoError(t, b.SetPermissionsSkip(wsA.ID, true))
++	_, protoB, err := b.CreateWorkspace(protoWS(cwd, dataDir, uuid.New().String()))
++	require.NoError(t, err)
++	require.Equal(t, wsA.ID, protoB.ID)
++}
++
++// Hai client cùng dựng một workspace một lúc với --yolo khác nhau: đúng một
++// client được giữ, client kia bị từ chối (cả khi nó thua cuộc đua ở nhánh
++// kiểm lại sau lúc khởi tạo chậm).
++func TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO(t *testing.T) {
++	xdgIsolated(t)
++	cwd, dataDir := t.TempDir(), t.TempDir()
++	b := New(context.Background(), nil, func() {})
++	b.SetCreateGrace(2 * time.Second)
++	t.Cleanup(func() { drainBackend(t, b) })
++
++	errs := make(chan error, 2)
++	start := make(chan struct{})
++	for _, yolo := range []bool{false, true} {
++		go func() {
++			<-start
++			args := protoWS(cwd, dataDir, uuid.New().String())
++			args.YOLO = yolo
++			ws, _, err := b.CreateWorkspace(args)
++			if err == nil && ws.Permissions.SkipRequests() != yolo {
++				err = errSharedAcrossYOLO
++			}
++			errs <- err
++		}()
++	}
++	close(start)
++	e1, e2 := <-errs, <-errs
++	require.NotErrorIs(t, e1, errSharedAcrossYOLO)
++	require.NotErrorIs(t, e2, errSharedAcrossYOLO)
++	require.True(t, (e1 == nil) != (e2 == nil), "exactly one create wins: %v / %v", e1, e2)
++	if e1 != nil {
++		require.ErrorIs(t, e1, ErrPolicyMismatch)
++	} else {
++		require.ErrorIs(t, e2, ErrPolicyMismatch)
++	}
++}
++
++var errSharedAcrossYOLO = errors.New("workspace shared with a client that asked for another --yolo")
+diff --git a/internal/backend/unavailable_model_test.go b/internal/backend/unavailable_model_test.go
+index 22fdd1b1..f4f31cef 100644
+--- a/internal/backend/unavailable_model_test.go
++++ b/internal/backend/unavailable_model_test.go
+@@ -7,6 +7,7 @@ import (
+ 
+ 	"github.com/charmbracelet/crush/internal/backend"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/google/uuid"
+ 	"github.com/stretchr/testify/require"
+@@ -39,7 +40,8 @@ func TestCreateWorkspaceStartsWhenSelectedModelIsUnavailable(t *testing.T) {
+ 	require.NoError(t, err)
+ 	b := backend.New(t.Context(), srvCfg, nil)
+ 	cid := uuid.New().String()
+-	ws, _, err := b.CreateWorkspace(proto.Workspace{ClientID: cid, Path: wd, DataDir: filepath.Join(wd, ".crush")})
++	trusted, _ := execpolicy.Inputs()
++	ws, _, err := b.CreateWorkspace(proto.Workspace{ClientID: cid, Path: wd, DataDir: filepath.Join(wd, ".crush"), TrustedEnv: trusted})
+ 	require.NoError(t, err, "the workspace must come up so login and the model picker still work")
+ 	t.Cleanup(func() { _ = b.DeleteWorkspace(ws.ID, cid) })
+ 	require.Nil(t, ws.AgentCoordinator, "no agent built on another provider")
+diff --git a/internal/client/proto.go b/internal/client/proto.go
+index cc77b6e1..5ae6106c 100644
+--- a/internal/client/proto.go
++++ b/internal/client/proto.go
+@@ -14,6 +14,7 @@ import (
+ 	"time"
+ 
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/charmbracelet/crush/internal/pubsub"
+@@ -41,6 +42,17 @@ func (c *Client) ListWorkspaces(ctx context.Context) ([]proto.Workspace, error)
+ // CreateWorkspace creates a new workspace on the server.
+ func (c *Client) CreateWorkspace(ctx context.Context, ws proto.Workspace) (*proto.Workspace, error) {
+ 	ws.ClientID = c.clientID
++	// Chính sách tin cậy của tiến trình này (env gốc + tệp env, không theo
++	// `.env` của repo): server từ chối khi nó khác chính sách server đang áp.
++	// Lệnh không gửi prompt không bị so nên không đọc (tệp env hỏng không làm
++	// hỏng `jobs kill`/`logout`).
++	if !ws.NoAgentRuns {
++		trusted, err := execpolicy.Inputs()
++		if err != nil {
++			return nil, fmt.Errorf("failed to create workspace: %w", err)
++		}
++		ws.TrustedEnv = trusted
++	}
+ 	rsp, err := c.post(ctx, "/workspaces", nil, jsonBody(ws), http.Header{"Content-Type": []string{"application/json"}})
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to create workspace: %w", err)
+diff --git a/internal/client/trusted_env_test.go b/internal/client/trusted_env_test.go
+new file mode 100644
+index 00000000..88df8b6a
+--- /dev/null
++++ b/internal/client/trusted_env_test.go
+@@ -0,0 +1,39 @@
++package client
++
++import (
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"net/url"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/stretchr/testify/require"
++)
++
++// Lệnh chạy model gửi chính sách tin cậy (đủ khoá) để server so; lệnh không
++// prompt thì không đọc chính sách (tệp env sai cú pháp không làm hỏng
++// `jobs kill`/`logout`) và không gửi.
++func TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns(t *testing.T) {
++	t.Parallel()
++	var got proto.Workspace
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		got = proto.Workspace{}
++		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
++		_ = json.NewEncoder(w).Encode(proto.Workspace{ID: "w1"})
++	}))
++	t.Cleanup(srv.Close)
++	u, err := url.Parse(srv.URL)
++	require.NoError(t, err)
++	c, err := NewClient(t.TempDir(), "tcp", u.Host)
++	require.NoError(t, err)
++
++	_, err = c.CreateWorkspace(t.Context(), proto.Workspace{Path: "/p"})
++	require.NoError(t, err)
++	require.Len(t, got.TrustedEnv, 11)
++
++	_, err = c.CreateWorkspace(t.Context(), proto.Workspace{Path: "/p", NoAgentRuns: true})
++	require.NoError(t, err)
++	require.Nil(t, got.TrustedEnv)
++	require.True(t, got.NoAgentRuns)
++}
+diff --git a/internal/cmd/child_env_test.go b/internal/cmd/child_env_test.go
+new file mode 100644
+index 00000000..c1e0cadd
+--- /dev/null
++++ b/internal/cmd/child_env_test.go
+@@ -0,0 +1,77 @@
++package cmd
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/charmbracelet/crush/internal/ui/home"
++	"github.com/joho/godotenv"
++	"github.com/stretchr/testify/require"
++)
++
++// Tiến trình con dựng từ env đã nạp `.env` của repo (workspace của Home, Home
++// khi quay lại bằng Alt+W, lệnh verify của loop có thể gọi agent-cli) chỉ nhận
++// biến tin cậy theo ảnh chụp env gốc: `.env` không chen được vào chính sách
++// của agent-cli con (soát P0-2 vòng 3, #1). Biến thường của `.env` vẫn qua.
++// `.env` cũng không chọn được launcher mà Home chạy.
++// Chạy ở tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.
++func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
++	if os.Getenv("CHILD_ENV_DOTENV") == "1" {
++		execpolicy.Snapshot()
++		if err := godotenv.Load(); err != nil {
++			t.Fatal(err)
++		}
++		res, err := shellVerify(".", 0)(context.Background(), "env")
++		if err != nil {
++			t.Fatal(err)
++		}
++		fmt.Println("HOMECHILD\n" + strings.Join(homeChildCmd("agent-cli", home.Choice{Dir: "."}, false).Env, "\n"))
++		fmt.Println("HOMEEXEC\n" + strings.Join(homeEnv(), "\n"))
++		fmt.Println("VERIFY\n" + res.Output)
++		launcher, err := homeLauncher()
++		if err != nil {
++			t.Fatal(err)
++		}
++		fmt.Println("LAUNCHER=" + launcher)
++		return
++	}
++	dir := t.TempDir()
++	dotenv := "AGENT_CLI_DELEGATION=on\nAGENT_CLI_ENV_FILE=./evil.env\nAGENT_CLI_CLAUDE_BIN=./evil\n" +
++		"AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions\nAGENT_CLI_CODEX_SANDBOX=danger-full-access\nPLAIN_FROM_DOTENV=kept\n" +
++		"AGENT_CLI_LAUNCHER=/bin/evil-launcher\n"
++	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
++	var env []string
++	for _, kv := range os.Environ() {
++		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "AGENT_CLI_") && k != "PLAIN_FROM_DOTENV" {
++			env = append(env, kv)
++		}
++	}
++	c := exec.Command(os.Args[0], "-test.run=^TestChildEnvsIgnoreProjectDotenv$")
++	c.Dir, c.Env = dir, append(env, "CHILD_ENV_DOTENV=1")
++	out, err := c.CombinedOutput()
++	require.NoError(t, err, string(out))
++
++	// So từng dòng, không in cả env khi đỏ (env của máy chạy test có token).
++	lines := strings.Split(string(out), "\n")
++	for _, part := range []string{"HOMECHILD", "HOMEEXEC", "VERIFY"} {
++		require.Contains(t, lines, part)
++	}
++	var leaked []string
++	for _, kv := range lines {
++		switch kv {
++		case "AGENT_CLI_DELEGATION=on", "AGENT_CLI_ENV_FILE=./evil.env", "AGENT_CLI_CLAUDE_BIN=./evil",
++			"AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions", "AGENT_CLI_CODEX_SANDBOX=danger-full-access":
++			leaked = append(leaked, kv)
++		}
++	}
++	require.Empty(t, leaked, "a project .env must not reach a child agent-cli")
++	require.Equal(t, 3, strings.Count(string(out), "PLAIN_FROM_DOTENV=kept"), "plain .env variables still reach every child")
++	// `.env` cũng không được chọn chương trình Home chạy làm launcher.
++	require.NotContains(t, lines, "LAUNCHER=/bin/evil-launcher")
++}
+diff --git a/internal/cmd/home.go b/internal/cmd/home.go
+index a669713d..ea6d9ae2 100644
+--- a/internal/cmd/home.go
++++ b/internal/cmd/home.go
+@@ -18,6 +18,7 @@ import (
+ 
+ 	"github.com/charmbracelet/crush/internal/client"
+ 	"github.com/charmbracelet/crush/internal/db"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/gitutil"
+ 	homedir "github.com/charmbracelet/crush/internal/home"
+ 	"github.com/charmbracelet/crush/internal/projects"
+@@ -106,7 +107,8 @@ func homeLoop(pick func() (home.Choice, error), run func(home.Choice) (int, erro
+ // homeLauncher is what Home starts workspaces with: the launcher when
+ // agent-cli was started through it, else this binary.
+ func homeLauncher() (string, error) {
+-	if exe := os.Getenv(launcherEnv); exe != "" {
++	// Env gốc: `.env` của repo (main nạp sau ảnh chụp) không được chọn chương trình Home chạy.
++	if exe := execpolicy.OriginalEnv(launcherEnv); exe != "" {
+ 		return exec.LookPath(exe)
+ 	}
+ 	return os.Executable()
+@@ -124,10 +126,14 @@ func homeChildCmd(exe string, c home.Choice, debug bool) *exec.Cmd {
+ 	// Not tied to a context: the TUI owns the terminal and its signals.
+ 	cmd := exec.Command(exe, args...) //nolint:noctx
+ 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+-	cmd.Env = append(os.Environ(), homeChildEnv+"=1")
++	cmd.Env = append(homeEnv(), homeChildEnv+"=1")
+ 	return cmd
+ }
+ 
++// homeEnv là env cho tiến trình agent-cli mà Home dựng (workspace, Home khi quay
++// lại): biến tin cậy theo ảnh chụp env gốc, không theo `.env` mà main đã nạp.
++func homeEnv() []string { return execpolicy.ChildEnv(os.Environ()) }
++
+ // runChild runs c and returns its exit status; death by a signal counts as
+ // a failure.
+ func runChild(c *exec.Cmd) (int, error) {
+@@ -151,7 +157,7 @@ func execHome(dir string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	return syscall.Exec(exe, []string{exe}, os.Environ())
++	return syscall.Exec(exe, []string{exe}, homeEnv())
+ }
+ 
+ // workspaceKey is the 8 hex digits the launcher names a workspace's server
+diff --git a/internal/cmd/jobs.go b/internal/cmd/jobs.go
+index 5e3d9bf0..b6c9c299 100644
+--- a/internal/cmd/jobs.go
++++ b/internal/cmd/jobs.go
+@@ -53,6 +53,7 @@ agent-cli jobs kill 01A
+ 			return printJobs(os.Stdout, jobs, asJSON, time.Now())
+ 		})
+ 	},
++	Annotations: map[string]string{noAgentRunsAnnotation: "true"},
+ }
+ 
+ var jobsOutputCmd = &cobra.Command{
+diff --git a/internal/cmd/login.go b/internal/cmd/login.go
+index badc373e..95c266fa 100644
+--- a/internal/cmd/login.go
++++ b/internal/cmd/login.go
+@@ -74,6 +74,7 @@ var loginCmd = &cobra.Command{
+ 			return fmt.Errorf("unknown platform: %s", args[0])
+ 		}
+ 	},
++	Annotations: map[string]string{noAgentRunsAnnotation: "true"},
+ }
+ 
+ func init() {
+diff --git a/internal/cmd/logout.go b/internal/cmd/logout.go
+index c913bad2..66583380 100644
+--- a/internal/cmd/logout.go
++++ b/internal/cmd/logout.go
+@@ -122,6 +122,7 @@ agent-cli logout grok
+ 			return fmt.Errorf("unknown platform: %s", provider)
+ 		}
+ 	},
++	Annotations: map[string]string{noAgentRunsAnnotation: "true"},
+ }
+ 
+ func logoutHyper(c *client.Client, wsID string) error {
+diff --git a/internal/cmd/loop.go b/internal/cmd/loop.go
+index 9913ccab..6fcd91a7 100644
+--- a/internal/cmd/loop.go
++++ b/internal/cmd/loop.go
+@@ -20,6 +20,7 @@ import (
+ 
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/event"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/loop"
+ 	"github.com/charmbracelet/crush/internal/shell"
+ 	"github.com/charmbracelet/crush/internal/workspace"
+@@ -268,7 +269,8 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
+ 		var buf tailBuffer
+ 		start := time.Now()
+ 		// pipefail: đuôi `| cat`/`| tee log` không được che mã lỗi của lệnh trước nó.
+-		err := shell.Run(vctx, shell.RunOptions{Command: "set -o pipefail\n" + cmd, Cwd: cwd, Env: os.Environ(), Stdout: &buf, Stderr: &buf})
++		// ChildEnv: verify có thể chạy agent-cli; biến tin cậy không được lấy từ `.env` của repo.
++		err := shell.Run(vctx, shell.RunOptions{Command: "set -o pipefail\n" + cmd, Cwd: cwd, Env: execpolicy.ChildEnv(os.Environ()), Stdout: &buf, Stderr: &buf})
+ 		res := loop.VerifyResult{Output: string(buf.b), Duration: time.Since(start)}
+ 		switch exit, isExit := errors.AsType[interp.ExitStatus](err); {
+ 		case err == nil:
+diff --git a/internal/cmd/no_agent_runs_test.go b/internal/cmd/no_agent_runs_test.go
+new file mode 100644
+index 00000000..ba8ca003
+--- /dev/null
++++ b/internal/cmd/no_agent_runs_test.go
+@@ -0,0 +1,83 @@
++package cmd
++
++import (
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/spf13/cobra"
++	"github.com/stretchr/testify/require"
++)
++
++// Miễn so chính sách chỉ dành cho lệnh không gửi prompt. Duyệt TOÀN cây lệnh:
++// tập lệnh được miễn phải đúng bằng danh sách này, nên lệnh con mới thêm dưới
++// jobs/login/logout (hay annotation gắn nhầm lên lệnh chạy model) làm test đỏ.
++func TestRunsNoAgentExactCommandSet(t *testing.T) {
++	t.Parallel()
++	var got []string
++	var walk func(*cobra.Command)
++	walk = func(c *cobra.Command) {
++		if runsNoAgent(c) {
++			got = append(got, c.CommandPath())
++		}
++		for _, sub := range c.Commands() {
++			walk(sub)
++		}
++	}
++	walk(rootCmd)
++	require.ElementsMatch(t, []string{
++		"agent-cli jobs", "agent-cli jobs output", "agent-cli jobs kill", "agent-cli login", "agent-cli logout",
++	}, got)
++	for _, c := range []*cobra.Command{rootCmd, runCmd, sendCmd, loopCmd} {
++		require.False(t, runsNoAgent(c), c.CommandPath())
++	}
++}
++
++// connectToServer gửi đúng cờ của lệnh lên dây: lệnh chạy model gửi
++// no_agent_runs=false (bị so), lệnh không prompt (kể cả lệnh con) gửi true.
++func TestConnectToServerSendsNoAgentRuns(t *testing.T) {
++	var mu sync.Mutex
++	var bodies []proto.Workspace
++	dataDir := t.TempDir()
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.Method == http.MethodPost && r.URL.Path == "/v1/workspaces" {
++			var req proto.Workspace
++			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
++			mu.Lock()
++			bodies = append(bodies, req)
++			mu.Unlock()
++			_ = json.NewEncoder(w).Encode(map[string]any{
++				"id": "w1", "path": req.Path, "data_dir": dataDir,
++				"config": map[string]any{"options": map[string]any{"data_directory": dataDir, "disable_metrics": true}},
++			})
++		}
++	}))
++	t.Cleanup(srv.Close)
++	old := clientHost
++	clientHost = "tcp://" + srv.Listener.Addr().String()
++	t.Cleanup(func() { clientHost = old })
++	t.Chdir(t.TempDir())
++
++	model := &cobra.Command{Use: "run"}
++	noPrompt := &cobra.Command{Use: "jobs", Annotations: map[string]string{noAgentRunsAnnotation: "true"}}
++	sub := &cobra.Command{Use: "kill"}
++	noPrompt.AddCommand(sub)
++	for _, tc := range []struct {
++		cmd  *cobra.Command
++		want bool
++	}{{model, false}, {noPrompt, true}, {sub, true}} {
++		tc.cmd.SetContext(t.Context())
++		_, _, cleanup, err := connectToServer(tc.cmd)
++		require.NoError(t, err)
++		cleanup()
++		mu.Lock()
++		last := bodies[len(bodies)-1]
++		mu.Unlock()
++		require.Equal(t, tc.want, last.NoAgentRuns, tc.cmd.CommandPath())
++		// Lệnh chạy model mang chính sách tin cậy để server so.
++		require.Equal(t, !tc.want, last.TrustedEnv != nil, tc.cmd.CommandPath())
++	}
++}
+diff --git a/internal/cmd/restart_stale_test.go b/internal/cmd/restart_stale_test.go
+index c6db76ad..a5ee598d 100644
+--- a/internal/cmd/restart_stale_test.go
++++ b/internal/cmd/restart_stale_test.go
+@@ -94,12 +94,45 @@ func versionCheckCmd(t *testing.T) *cobra.Command {
+ 	return cmd
+ }
+ 
++// noPromptCmd là lệnh không gửi prompt (jobs, login, logout): vẫn được tái
++// dùng server khác bản đang bận.
++func noPromptCmd(t *testing.T) *cobra.Command {
++	t.Helper()
++	cmd := versionCheckCmd(t)
++	cmd.Annotations = map[string]string{noAgentRunsAnnotation: "true"}
++	return cmd
++}
++
++// Lệnh chạy model gặp server khác bản/build mà server đang bận (không chịu tắt)
++// thì bị TỪ CHỐI rõ ràng: server bản cũ có thể không so chính sách tin cậy, tái
++// dùng nó là mở lại lỗ C5 lặng lẽ. Không lệnh tắt vô điều kiện nào được gửi.
++func TestRestartIfStale_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
++	t.Parallel()
++	for name, opts := range map[string]controlServerOpts{
++		"busy":        {vi: staleVersion(), busy: true},
++		"legacy busy": {vi: staleVersion(), legacy: true, workspaces: 3},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			hostURL, log := newControlServer(t, opts)
++			restarted, err := restartIfStale(versionCheckCmd(t), hostURL)
++			require.ErrorIs(t, err, errStaleServerBusy)
++			require.False(t, restarted)
++			require.Contains(t, err.Error(), "not-"+version.Version, "names the old server's version")
++			require.Contains(t, err.Error(), "agent-cli ps")
++			require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all())
++		})
++	}
++}
++
+ // TestRestartIfStale_HonorsRefusedShutdown is the headline regression.
+ // BuildID derives from the executable's mtime, so any rebuild — including
+ // every `go run` — makes a second session look like an upgrade. Launching
+ // it used to shut down the first session's server, taking its workspaces
+ // with it and stranding it on a dead workspace ID. Now the server has the
+-// final say, and a refusal means "keep using me".
++// final say, and a refusal means "keep using me" — for a command that sends
++// no prompt; a model-running command is refused instead
++// (TestRestartIfStale_RefusesModelCommandOnBusyStaleServer).
+ func TestRestartIfStale_HonorsRefusedShutdown(t *testing.T) {
+ 	t.Parallel()
+ 
+@@ -108,7 +141,7 @@ func TestRestartIfStale_HonorsRefusedShutdown(t *testing.T) {
+ 		busy: true,
+ 	})
+ 
+-	restarted, err := restartIfStale(versionCheckCmd(t), hostURL)
++	restarted, err := restartIfStale(noPromptCmd(t), hostURL)
+ 	require.NoError(t, err)
+ 	require.False(t, restarted, "a refused shutdown must not be reported as a restart")
+ 	require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all(),
+@@ -119,7 +152,8 @@ func TestRestartIfStale_HonorsRefusedShutdown(t *testing.T) {
+ // case. A server predating the idleness guard rejects the conditional
+ // command, and the only command it does understand is unconditional —
+ // sending that would kill every session it hosts. When the server
+-// reports active workspaces, it must be left alone.
++// reports active workspaces, it must be left alone (and reused by a command
++// that sends no prompt).
+ func TestRestartIfStale_LeavesLegacyServerBusy(t *testing.T) {
+ 	t.Parallel()
+ 
+@@ -129,7 +163,7 @@ func TestRestartIfStale_LeavesLegacyServerBusy(t *testing.T) {
+ 		workspaces: 3,
+ 	})
+ 
+-	restarted, err := restartIfStale(versionCheckCmd(t), hostURL)
++	restarted, err := restartIfStale(noPromptCmd(t), hostURL)
+ 	require.NoError(t, err)
+ 	require.False(t, restarted, "a legacy server with workspaces must be reused, not replaced")
+ 	require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all(),
+diff --git a/internal/cmd/root.go b/internal/cmd/root.go
+index 4d739fb5..342f6b23 100644
+--- a/internal/cmd/root.go
++++ b/internal/cmd/root.go
+@@ -536,6 +536,35 @@ func setupClientServerWorkspace(cmd *cobra.Command) (workspace.Workspace, func()
+ 	return clientWs, clientWs.Shutdown, nil
+ }
+ 
++// errStaleServerBusy: server của dự án khác bản/build mà đang bận nên không thay
++// được.
++var errStaleServerBusy = errors.New("this project's agent-cli server is another build and is busy")
++
++// staleServerBusy quyết khi server khác bản/build không chịu tắt (đang bận):
++// lệnh không gửi prompt vẫn dùng nó; lệnh chạy model thì bị từ chối, vì server
++// bản khác có thể không so chính sách tin cậy của client (trusted_env).
++func staleServerBusy(cmd *cobra.Command, vi *proto.VersionInfo) error {
++	if runsNoAgent(cmd) {
++		return nil
++	}
++	return fmt.Errorf("%w: the server is %s (build %s), this agent-cli is %s (build %s), and an agent run is never sent to a server of another build: exit every agent-cli client of this project, wait for its server to exit (about a minute later, see agent-cli ps), then reopen",
++		errStaleServerBusy, vi.Version, vi.BuildID, version.Version, version.BuildID)
++}
++
++// noAgentRunsAnnotation đánh dấu lệnh không gửi prompt nào (xem/dừng job, đăng
++// nhập/xuất): server không so chính sách tin cậy và --yolo với client của nó.
++const noAgentRunsAnnotation = "agent-cli.no-agent-runs"
++
++// runsNoAgent cho biết cmd (hoặc lệnh cha của nó) mang noAgentRunsAnnotation.
++func runsNoAgent(cmd *cobra.Command) bool {
++	for c := cmd; c != nil; c = c.Parent() {
++		if c.Annotations[noAgentRunsAnnotation] != "" {
++			return true
++		}
++	}
++	return false
++}
++
+ // connectToServer ensures the server is running, creates a client and
+ // workspace, and returns a cleanup function that deletes the workspace.
+ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func(), error) {
+@@ -563,14 +592,16 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
+ 		return nil, nil, nil, err
+ 	}
+ 
++	noAgent := runsNoAgent(cmd)
+ 	wsReq := proto.Workspace{
+-		Path:     cwd,
+-		DataDir:  dataDir,
+-		Debug:    debug,
+-		YOLO:     yolo,
+-		Channels: channels,
+-		Version:  version.Version,
+-		Env:      os.Environ(),
++		Path:        cwd,
++		DataDir:     dataDir,
++		Debug:       debug,
++		YOLO:        yolo,
++		Channels:    channels,
++		Version:     version.Version,
++		Env:         os.Environ(),
++		NoAgentRuns: noAgent,
+ 	}
+ 
+ 	ws, err := createWorkspaceOnLiveServer(cmd.Context(), c, wsReq, func() error {
+@@ -582,7 +613,7 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
+ 	// Workspace đã có trên server (client khác mở trước, hoặc còn run mồ côi)
+ 	// giữ cờ của lần tạo đầu: nói rõ khi YOLO khác ý người gọi, vì nó quyết
+ 	// định có hỏi quyền hay không.
+-	if msg := yoloMismatchWarning(yolo, ws.YOLO); msg != "" {
++	if msg := yoloMismatchWarning(yolo, ws.YOLO); msg != "" && !noAgent {
+ 		fmt.Fprintln(os.Stderr, msg)
+ 		slog.Warn(msg)
+ 	}
+@@ -630,7 +661,7 @@ func createWorkspaceOnLiveServer(
+ 			return ws, nil
+ 		}
+ 		if !errors.Is(err, client.ErrServerShuttingDown) || attempt == maxStaleServerRetries-1 {
+-			return nil, fmt.Errorf("failed to create workspace: %v", err)
++			return nil, err // client.CreateWorkspace đã gắn "failed to create workspace".
+ 		}
+ 		slog.Warn("Server is shutting down; retrying against a replacement",
+ 			"attempt", attempt+1, "error", err)
+@@ -697,6 +728,9 @@ func ensureServer(cmd *cobra.Command, hostURL *url.URL) error {
+ 				}
+ 			}
+ 			restarted, err := restartIfStale(cmd, hostURL)
++			if errors.Is(err, errStaleServerBusy) {
++				return err
++			}
+ 			if err != nil {
+ 				slog.Warn("Failed to check server version", "error", err)
+ 			}
+@@ -931,7 +965,9 @@ func probeHealth(ctx context.Context, h *http.Client, reqURL string, hostURL *ur
+ // idle, and the next client then finds no socket and spawns a current one.
+ //
+ // It returns restarted=true only when the server accepted the shutdown and
+-// the caller must spawn a replacement.
++// the caller must spawn a replacement. When the server is kept, a command
++// that runs the agent gets errStaleServerBusy instead: a server of another
++// build may not check the client's trust policy.
+ func restartIfStale(cmd *cobra.Command, hostURL *url.URL) (restarted bool, err error) {
+ 	c, err := client.NewClient("", hostURL.Scheme, hostURL.Host)
+ 	if err != nil {
+@@ -950,19 +986,19 @@ func restartIfStale(cmd *cobra.Command, hostURL *url.URL) (restarted bool, err e
+ 		"server_build_id", vi.BuildID,
+ 		"client_build_id", version.BuildID,
+ 	}
+-	// Every refusal — in use, too old to be asked, or unreachable — leads to
+-	// the same safe outcome: keep using the running server. The wrapped
+-	// error says which it was.
++	// Every refusal — in use, too old to be asked, or unreachable — leaves
++	// the running server in place: a command that sends no prompt keeps
++	// using it, one that runs the agent is refused (staleServerBusy).
+ 	if err := c.ShutdownServerIfIdle(cmd.Context()); err != nil {
+ 		if !errors.Is(err, client.ErrUnsupported) {
+ 			slog.Warn("Server version differs but it will not stand down; reusing it",
+ 				append(versionFields, "error", err)...)
+-			return false, nil
++			return false, staleServerBusy(cmd, vi)
+ 		}
+ 		// The server predates shutdown_if_idle. Fall back to the
+ 		// unconditional command, but only after verifying it is idle.
+ 		if !shutdownLegacyStaleServer(cmd.Context(), c, versionFields) {
+-			return false, nil
++			return false, staleServerBusy(cmd, vi)
+ 		}
+ 	}
+ 	slog.Info("Stale server accepted shutdown, restarting", versionFields...)
+diff --git a/internal/execpolicy/policy.go b/internal/execpolicy/policy.go
+index 442ec2f3..786eae21 100644
+--- a/internal/execpolicy/policy.go
++++ b/internal/execpolicy/policy.go
+@@ -178,30 +178,69 @@ func ChildEnv(env []string) []string {
+ // agent-cli (EnvFileEnv, mặc định ~/.config/agent-cli/env). Không đọc cấu
+ // hình, `.env` hay `env` của dự án: một repo lạ không nới được ranh giới.
+ // Đổi giá trị thì mở lại server của dự án.
+-func Current() (Policy, error) { return current() }
++func Current() (Policy, error) {
++	l, err := current()
++	return l.policy, err
++}
++
++// Inputs trả chính sách tin cậy của tiến trình dạng KEY=value: đủ mọi biến
++// tin cậy theo thứ tự cố định (rỗng khi không đặt), allowlist và giao việc đã
++// gộp tệp env đúng như Current đọc, các biến còn lại theo ảnh chụp. Nạp cùng
++// lần với Current nên ở server đây đúng là chính sách server đang áp. Client
++// gửi nó khi tạo workspace; server từ chối client có Inputs khác của mình.
++func Inputs() ([]string, error) {
++	l, err := current()
++	return slices.Clone(l.inputs), err
++}
++
++// loaded là chính sách đã nạp cùng các giá trị nó dựa vào (Inputs).
++type loaded struct {
++	policy Policy
++	inputs []string
++}
+ 
+-var current = sync.OnceValues(func() (Policy, error) {
++var current = sync.OnceValues(func() (loaded, error) {
+ 	if testing.Testing() {
+ 		// Test phải kín: không theo tệp env hay biến export của người chạy
+ 		// test (chính sách của máy đó sẽ chặn model giả). Test cần chính sách
+ 		// thì dựng bằng Parse/FromEnv.
+-		return Policy{}, nil
++		return loaded{inputs: inputsOf(func(string) string { return "" })}, nil
+ 	}
+-	return load(TrustedEnv)
++	return loadAll(TrustedEnv)
+ })
+ 
+ // load là Current với getenv cho trước (test).
+ func load(getenv func(string) string) (Policy, error) {
++	l, err := loadAll(getenv)
++	return l.policy, err
++}
++
++// loadAll đọc tệp env một lần cho cả chính sách lẫn Inputs, để hai thứ khớp nhau.
++func loadAll(getenv func(string) string) (loaded, error) {
+ 	file, err := readEnvFile(envFilePath(getenv))
+ 	if err != nil {
+-		return Policy{}, err
++		return loaded{}, err
+ 	}
+-	return FromEnv(func(k string) string {
++	merged := func(k string) string {
+ 		if v := getenv(k); v != "" {
+ 			return v
+ 		}
+ 		return file[k]
+-	})
++	}
++	p, err := FromEnv(merged)
++	if err != nil {
++		return loaded{}, err
++	}
++	return loaded{policy: p, inputs: inputsOf(merged)}, nil
++}
++
++// inputsOf liệt kê mọi biến tin cậy dạng KEY=value theo thứ tự trustedKeys.
++func inputsOf(getenv func(string) string) []string {
++	out := make([]string, 0, len(trustedKeys))
++	for _, k := range trustedKeys {
++		out = append(out, k+"="+getenv(k))
++	}
++	return out
+ }
+ 
+ // envFilePath là đường dẫn tệp env của agent-cli, như crushrc mẫu tính.
+diff --git a/internal/execpolicy/policy_test.go b/internal/execpolicy/policy_test.go
+index 91c61f83..98050e3b 100644
+--- a/internal/execpolicy/policy_test.go
++++ b/internal/execpolicy/policy_test.go
+@@ -243,6 +243,55 @@ func TestChildEnvUsesTheSnapshot(t *testing.T) {
+ 	require.Empty(t, TrustedEnv(DelegationEnv), "set after the snapshot: ignored")
+ }
+ 
++// Inputs là chính sách tin cậy client gửi server để so: đủ mọi biến tin cậy,
++// allowlist/giao việc đã gộp tệp env như Current, và `.env` của repo (nạp sau
++// ảnh chụp) không đổi được nó.
++func TestInputsUseSnapshotAndEnvFile(t *testing.T) {
++	// Không parallel: đổi ảnh chụp cấp gói và env tiến trình.
++	prev := snapshot
++	t.Cleanup(func() { snapshot = prev })
++	dir := t.TempDir()
++	envFile := filepath.Join(dir, "env")
++	require.NoError(t, os.WriteFile(envFile, []byte("AGENT_CLI_API_KEY='secret'\nAGENT_CLI_ALLOWED_MODELS=zai:glm-5.3\nAGENT_CLI_DELEGATION=on\n"), 0o600))
++	snapshot = map[string]string{EnvFileEnv: envFile, "AGENT_CLI_CODEX_SANDBOX": "read-only"}
++	// `.env` của repo nạp sau ảnh chụp: không được chọn chính sách.
++	t.Setenv(AllowedModelsEnv, "pp:m-pp")
++	t.Setenv(DelegationEnv, "off")
++
++	l, err := loadAll(TrustedEnv)
++	require.NoError(t, err)
++	require.Len(t, l.inputs, len(trustedKeys), "every trusted key, set or not")
++	require.Contains(t, l.inputs, AllowedModelsEnv+"=zai:glm-5.3", "from the env file, not the repo's .env")
++	require.Contains(t, l.inputs, DelegationEnv+"=on")
++	require.Contains(t, l.inputs, "AGENT_CLI_CODEX_SANDBOX=read-only")
++	require.Contains(t, l.inputs, "HOME=", "unset keys are sent empty")
++	require.NotContains(t, strings.Join(l.inputs, "\n"), "secret", "only trusted keys, never other env file lines")
++	require.True(t, l.policy.AllowsModel("zai", "glm-5.3"))
++
++	// Biến export trong env gốc thắng tệp, như Current.
++	snapshot[AllowedModelsEnv] = "qwen:m-qwen"
++	l, err = loadAll(TrustedEnv)
++	require.NoError(t, err)
++	require.Contains(t, l.inputs, AllowedModelsEnv+"=qwen:m-qwen")
++}
++
++// Trong test, Inputs kín như Current (mọi biến rỗng), để client và server
++// cùng tiến trình test luôn khớp nhau.
++func TestInputsHermeticInTests(t *testing.T) {
++	t.Parallel()
++	in, err := Inputs()
++	require.NoError(t, err)
++	require.Len(t, in, len(trustedKeys))
++	for _, kv := range in {
++		require.True(t, strings.HasSuffix(kv, "="), kv)
++	}
++	// Người gọi sửa slice trả về không được đổi chính sách đã nạp.
++	in[0] = "TAMPERED=1"
++	again, err := Inputs()
++	require.NoError(t, err)
++	require.NotContains(t, again, "TAMPERED=1")
++}
++
+ func TestExternalAgentCommandInterpreterLiterals(t *testing.T) {
+ 	t.Parallel()
+ 	for _, args := range [][]string{
+diff --git a/internal/proto/proto.go b/internal/proto/proto.go
+index 7207dd39..6ab145ad 100644
+--- a/internal/proto/proto.go
++++ b/internal/proto/proto.go
+@@ -22,6 +22,14 @@ type Workspace struct {
+ 	ClientID string         `json:"client_id,omitempty"`
+ 	Config   *config.Config `json:"config,omitempty"`
+ 	Env      []string       `json:"env,omitempty"`
++	// TrustedEnv là chính sách tin cậy của client gửi khi tạo workspace
++	// (execpolicy.Inputs, dạng KEY=value, đủ mọi biến tin cậy): server từ chối
++	// khi khác chính sách của chính nó. Server không trả lại trường này.
++	TrustedEnv []string `json:"trusted_env,omitempty"`
++	// NoAgentRuns: client không gửi prompt nào (jobs, login, logout), nên
++	// server không so TrustedEnv và --yolo với nó. Lời khai của client, không
++	// phải ranh giới quyền.
++	NoAgentRuns bool `json:"no_agent_runs,omitempty"`
+ 	// Channels lists the MCP servers opted in as channels for this workspace
+ 	// (from the --channels flag).
+ 	Channels []string `json:"channels,omitempty"`
+diff --git a/internal/server/e2e_test.go b/internal/server/e2e_test.go
+index a112f152..964a1068 100644
+--- a/internal/server/e2e_test.go
++++ b/internal/server/e2e_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/app"
+ 	"github.com/charmbracelet/crush/internal/backend"
+ 	"github.com/charmbracelet/crush/internal/db"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/permission"
+ 	"github.com/charmbracelet/crush/internal/proto"
+@@ -145,6 +146,8 @@ func newRealCreateHarness(t *testing.T) *e2eHarness {
+ // workspace ID.
+ func (h *e2eHarness) postWorkspace(t *testing.T, args proto.Workspace) proto.Workspace {
+ 	t.Helper()
++	// Như client thật (client.CreateWorkspace): gửi chính sách tin cậy.
++	args.TrustedEnv, _ = execpolicy.Inputs()
+ 	body, err := json.Marshal(args)
+ 	require.NoError(t, err)
+ 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
+-- 
+2.43.0
+
