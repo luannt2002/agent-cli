@@ -33,7 +33,7 @@ undo_lines() {
   for i in "${undo_bin[@]}" "${undo_files[@]}"; do printf '%s\n' "$i"; done
   for ((i = ${#undo_dirs[@]} - 1; i >= 0; i--)); do printf '%s\n' "${undo_dirs[i]}"; done
   if [[ -n "$moved_share" ]]; then
-    echo 'for wt in ~/.local/share/agent-cli/routines/*/wt/*; do [ -f "$wt/.git" ] && git -C "$wt" worktree repair; done'
+    echo 'for wt in ~/.local/share/agent-cli/routines/*/wt/*; do if [ -f "$wt/.git" ]; then git -C "$wt" worktree repair; fi; done'
   fi
 }
 migrated() { ((${#undo_files[@]} + ${#undo_dirs[@]} > 0)); }
@@ -96,11 +96,12 @@ rewrite_old_names() { # rewrite_old_names <tệp>
   (umask 077 && sed -E -e 's/(^|[^A-Za-z0-9_])AGENT_CLI_/\1DEW_/g' \
     -e 's#\.(config|cache)/agent-cli([^A-Za-z0-9_.-]|$)#.\1/dew\2#g' \
     -e 's#\.local/(share|lib)/agent-cli([^A-Za-z0-9_.-]|$)#.local/\1/dew\2#g' -- "$f" >"$tmp")
+  # Lệnh quay lại ghi TRƯỚC khi ghi đè: dừng ngay sau lệnh ghi vẫn có đường về (chép lại bản cũ là vô hại).
+  undo_files+=("$(printf 'cp -- %q %q' "$mig_backup/${f##*/}" "$f")")
+  write_undo
   cat -- "$tmp" >"$f"
   rm -f -- "$tmp"
   echo "Đã đổi $n chỗ tên cũ (AGENT_CLI_ -> DEW_, đường .../agent-cli -> .../dew) trong $f; bản cũ: $mig_backup/${f##*/}"
-  undo_files+=("$(printf 'cp -- %q %q' "$mig_backup/${f##*/}" "$f")")
-  write_undo
 }
 move_old_dir() { # move_old_dir <cũ> <mới>: không gộp khi cả hai cùng có
   local from="$1" to="$2"
@@ -109,6 +110,9 @@ move_old_dir() { # move_old_dir <cũ> <mới>: không gộp khi cả hai cùng c
     echo "Cảnh báo: $from là symlink hỏng, không chuyển; sửa hoặc gỡ nó." >&2
   elif [[ -e "$to" || -L "$to" ]]; then
     echo "Cảnh báo: có cả $from và $to: KHÔNG gộp, dew dùng $to. Xem rồi tự xoá $from khi không cần nữa." >&2
+    if [[ "$from" == "$HOME/.config/agent-cli" ]]; then
+      echo "  dew sẽ từ chối chạy khi còn $from/env (trừ khi nó là symlink tới $to, hoặc bạn đặt DEW_ENV_FILE)." >&2
+    fi
   else
     mv -- "$from" "$to" # thư mục giữ nguyên quyền; symlink thì chuyển chính symlink, đích không đổi
     echo "Đã chuyển $from -> $to"

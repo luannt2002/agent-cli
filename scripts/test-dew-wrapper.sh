@@ -365,6 +365,13 @@ else
   echo "skip ca env mode 000: chạy bằng root"
 fi
 
+# Có thư mục dữ liệu cũ nhưng không có worktree routine (ca thường gặp): undo.sh vẫn thoát 0.
+u="$t/noroutine"; mk_old "$u"; mkdir -p "$u/home/.local/share/agent-cli"; echo '{"projects":[]}' > "$u/home/.local/share/agent-cli/projects.json"
+HOME="$u/home" DEW_INSTALL_DIR="$u/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1
+undo_u="$(ls "$u"/home/.config/dew/pre-dew-*/undo.sh 2>/dev/null | head -1)"
+rc=0; HOME="$u/home" bash "$undo_u" >"$t/undo-u.log" 2>&1 || { rc=$?; sed "s/^/  undo: /" "$t/undo-u.log"; }
+check "thư mục dữ liệu cũ, không routine: undo.sh rc 0, trả bố cục cũ" "$([[ -n "$undo_u" && $rc == 0 && -d "$u/home/.local/share/agent-cli" && ! -e "$u/home/.local/share/dew" && -d "$u/home/.config/agent-cli" && -f "$u/inst/bin/agent-cli" ]]; echo $?)"
+
 # Cả hai thư mục cùng có: KHÔNG gộp, giữ nguyên cả hai, dùng dew. Wrapper agent-cli không do trình cài tạo: giữ.
 b="$t/both"; mkdir -p "$b/home/.config/agent-cli" "$b/home/.config/dew" "$b/inst/lib/dew" "$b/inst/bin"
 echo 'AGENT_CLI_MODEL=old' > "$b/home/.config/agent-cli/env"; echo 'DEW_MODEL=new' > "$b/home/.config/dew/env"
