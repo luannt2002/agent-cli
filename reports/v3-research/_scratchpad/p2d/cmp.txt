@@ -1,0 +1,13 @@
+base: names=4722 pass=4693 fail=0 skip=29
+fix: names=4728 pass=4699 fail=0 skip=29
+NEW FAIL (đỏ mới): 0
+fail cả hai (baseline): 0
+base fail -> fix pass: 0
+có ở base, mất ở fix: 0
+mới ở fix: 6
+   github.com/charmbracelet/crush/internal/agent TestFilterDisabledMCPTools_SeesThroughHookedTool  base=None fix=pass
+   github.com/charmbracelet/crush/internal/agent TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook  base=None fix=pass
+   github.com/charmbracelet/crush/internal/agent TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook  base=None fix=pass
+   github.com/charmbracelet/crush/internal/agent TestFilterToolsForChannel_SeesThroughHookedTool  base=None fix=pass
+   github.com/charmbracelet/crush/internal/agent TestFilterToolsForChannel_SeesThroughHookedTool/no_hook  base=None fix=pass
+   github.com/charmbracelet/crush/internal/agent TestFilterToolsForChannel_SeesThroughHookedTool/with_hook  base=None fix=pass

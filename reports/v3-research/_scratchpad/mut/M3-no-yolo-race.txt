@@ -1,0 +1,487 @@
+2026/10/19 18:25:57 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:57 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:57 INFO Fetching Hyper provider
+2026/10/19 18:25:57 INFO Fetching providers from Catwalk
+2026/10/19 18:25:58 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO891568000/004/crush/hyper.json
+2026/10/19 18:25:59 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO891568000/004/crush/providers.json
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=9cc12ffb-3fa5-455f-b369-1b17469da9b7 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO891568000/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO891568000/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO891568000/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (1.70s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=2256a26d-2f9b-4fe8-8537-8c0446a27fb2 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO51549875/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO51549875/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO51549875/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.05s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=875104c3-303b-4d2a-bede-401ce730faf6 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1262158759/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1262158759/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1262158759/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=414ae59e-275d-4f7c-884e-e9bdfc6ca7ac path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3030880137/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3030880137/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3030880137/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=2b531b80-d937-476d-9e06-d3c81656070f path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO699343949/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO699343949/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO699343949/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=1b777b19-e0a6-4580-9be9-b8f5a058d48a path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2735931171/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2735931171/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2735931171/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=f5bb2ffa-5ae8-4ecc-bd9b-cec64d68379a path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2013834424/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2013834424/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2013834424/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=516ff5ff-ccde-49dd-8202-f894bfa35139 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1006112096/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1006112096/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1006112096/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=77bd738b-f51d-4ffd-a2ba-04a5250ad8f4 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2933879165/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2933879165/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2933879165/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=f8978f9a-800d-496c-ab69-27e3fde44256 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3615586049/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3615586049/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3615586049/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No providers configured
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN No agent configuration found
+2026/10/19 18:25:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=54138e47-3324-43ec-8d43-b139b61b9c98 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO287387218/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO287387218/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO287387218/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:59 INFO Initializing MCP clients
+2026/10/19 18:25:59 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=bd066d21-b4fb-412f-b467-4550911f06f0 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO255051741/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO255051741/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO255051741/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.05s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=226e54ff-f317-4dbe-9cbb-8ce603768adc path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3165069804/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3165069804/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3165069804/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.03s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=86cb3df1-59b9-4d7d-bad1-3852f9f9abe8 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3199438191/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3199438191/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3199438191/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=c8ce10bd-edd2-4b95-9e3c-4e7b1391dba8 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO903936081/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO903936081/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO903936081/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=c16b5def-1f24-4788-a86a-fef7c5830206 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3383375538/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3383375538/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3383375538/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.03s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=c3cb48e3-32a2-4a8e-a3c2-6f1ceae51115 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO624729732/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO624729732/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO624729732/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.03s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=9da0eda8-da7c-4158-bb3c-4f9d3f9bfbe6 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1007590490/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1007590490/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1007590490/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=86a7a22a-3da1-4a1b-9070-2abd51083c51 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2526512563/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2526512563/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO2526512563/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=72d26484-79b6-41c9-a832-b4f960149d52 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3644456736/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3644456736/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3644456736/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=c01667c4-1db9-4f6b-b2ff-9dd6318482f8 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3765015747/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3765015747/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO3765015747/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=1958c638-7049-48ae-b85d-be13a4c2c035 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO4087366368/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO4087366368/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO4087366368/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=b74c600f-0ef7-49bf-9756-ac053ec71e0c path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO62274912/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO62274912/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO62274912/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=6f93956c-93e9-4d42-addc-5cd9d01c3603 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO312660109/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO312660109/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO312660109/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=e579ec9d-51de-4caf-bc0e-e7b6f8d5f3c0 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO213059569/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO213059569/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO213059569/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.05s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=24a8375d-666a-4298-8657-c93af093e136 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO522180217/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO522180217/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO522180217/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=2cba7a5e-02d1-4f30-9df8-884b4fc9786e path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1946792240/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1946792240/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1946792240/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=e11c472c-c142-4e39-ad3f-ace07ced6004 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1388442847/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1388442847/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1388442847/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.03s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=9b29797c-c15f-4f01-b0f9-7de35e33385c path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1276579532/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1276579532/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1276579532/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.05s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No providers configured
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN No agent configuration found
+2026/10/19 18:26:00 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=82bd3d79-cd98-4e2f-af7a-0875f2aa9e72 path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1524760263/005 existing_yolo=true requested_yolo=false existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1524760263/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1524760263/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:26:00 INFO Initializing MCP clients
+2026/10/19 18:26:00 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.05s)
+    trusted_policy_test.go:165: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:165
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.901s
+FAIL

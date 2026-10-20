@@ -1,0 +1,22 @@
+--- FAIL: TestSendMessage_QueuedPromptSurvivesShutdown (0.25s)
+--- PASS: TestSendMessage_QueuedRunIDPromptAfterMultiStepTurn (0.05s)
+--- PASS: TestSendMessage_QueuedRunIDPromptRunsInOrder (0.02s)
+--- PASS: TestSendMessage_FoldedPromptNoDuplicate (0.03s)
+--- PASS: TestSendMessage_SinglePromptNoDuplicate (0.03s)
+--- FAIL: TestSendMessage_QueuedPromptCancelRunLeavesTrace (0.02s)
+--- FAIL: TestSendMessage_ClearedQueueLeavesTrace (0.02s)
+--- FAIL: TestSendMessage_QueuedPromptCanceledLeavesTrace (0.02s)
+--- FAIL: TestSendMessage_QueuedPromptSurvivesCrash (0.23s)
+--- PASS: TestSendMessage_WorkspaceClosing (0.00s)
+--- FAIL: TestSendMessage_AckPersistsUserMessageBeforeRun (1.01s)
+--- PASS: TestSendMessage_PassesNonInteractive (0.00s)
+--- PASS: TestSendMessage_BindsRunToClient (0.00s)
+--- PASS: TestSendMessage_AcceptedCancelRace_RealMachinery (1.74s)
+--- PASS: TestSendMessage_EmptyPrompt (0.00s)
+--- PASS: TestSendMessage_SessionMissing (0.00s)
+--- PASS: TestSendMessage_AgentNotInitialized (0.00s)
+--- PASS: TestSendMessage_WorkspaceNotFound (0.00s)
+--- PASS: TestSendMessage_SuccessIncrementsRunWG (0.10s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.847s
+FAIL

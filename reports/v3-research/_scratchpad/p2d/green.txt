@@ -1,0 +1,53 @@
+[g.sh] MemAvailable=9181MB
+=== RUN   TestFilterToolsForChannel
+=== PAUSE TestFilterToolsForChannel
+=== RUN   TestHookedTool_AllowStampsHookApproval
+=== PAUSE TestHookedTool_AllowStampsHookApproval
+=== RUN   TestHookedTool_SilentDoesNotStampApproval
+=== PAUSE TestHookedTool_SilentDoesNotStampApproval
+=== RUN   TestHookedTool_DenySkipsInnerTool
+=== PAUSE TestHookedTool_DenySkipsInnerTool
+=== RUN   TestWrapToolsWithHooks
+=== PAUSE TestWrapToolsWithHooks
+=== RUN   TestFilterToolsForChannel_SeesThroughHookedTool
+=== PAUSE TestFilterToolsForChannel_SeesThroughHookedTool
+=== RUN   TestFilterDisabledMCPTools_SeesThroughHookedTool
+=== RUN   TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook
+=== RUN   TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook
+--- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool (0.04s)
+    --- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook (0.00s)
+    --- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook (0.00s)
+=== CONT  TestFilterToolsForChannel
+--- PASS: TestFilterToolsForChannel (0.00s)
+=== CONT  TestHookedTool_DenySkipsInnerTool
+=== CONT  TestHookedTool_SilentDoesNotStampApproval
+--- PASS: TestHookedTool_DenySkipsInnerTool (0.00s)
+=== CONT  TestHookedTool_AllowStampsHookApproval
+--- PASS: TestHookedTool_SilentDoesNotStampApproval (0.00s)
+=== CONT  TestFilterToolsForChannel_SeesThroughHookedTool
+=== RUN   TestFilterToolsForChannel_SeesThroughHookedTool/no_hook
+=== PAUSE TestFilterToolsForChannel_SeesThroughHookedTool/no_hook
+=== RUN   TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+=== PAUSE TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+=== CONT  TestWrapToolsWithHooks
+=== RUN   TestWrapToolsWithHooks/top-level_agent_wraps_every_tool
+=== PAUSE TestWrapToolsWithHooks/top-level_agent_wraps_every_tool
+=== RUN   TestWrapToolsWithHooks/sub-agent_skips_the_wrap
+=== PAUSE TestWrapToolsWithHooks/sub-agent_skips_the_wrap
+=== RUN   TestWrapToolsWithHooks/nil_runner_skips_the_wrap_for_both_agent_kinds
+=== PAUSE TestWrapToolsWithHooks/nil_runner_skips_the_wrap_for_both_agent_kinds
+=== CONT  TestFilterToolsForChannel_SeesThroughHookedTool/no_hook
+=== CONT  TestWrapToolsWithHooks/top-level_agent_wraps_every_tool
+=== CONT  TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+--- PASS: TestFilterToolsForChannel_SeesThroughHookedTool (0.00s)
+    --- PASS: TestFilterToolsForChannel_SeesThroughHookedTool/no_hook (0.00s)
+    --- PASS: TestFilterToolsForChannel_SeesThroughHookedTool/with_hook (0.00s)
+=== CONT  TestWrapToolsWithHooks/nil_runner_skips_the_wrap_for_both_agent_kinds
+=== CONT  TestWrapToolsWithHooks/sub-agent_skips_the_wrap
+--- PASS: TestHookedTool_AllowStampsHookApproval (0.00s)
+--- PASS: TestWrapToolsWithHooks (0.00s)
+    --- PASS: TestWrapToolsWithHooks/top-level_agent_wraps_every_tool (0.00s)
+    --- PASS: TestWrapToolsWithHooks/nil_runner_skips_the_wrap_for_both_agent_kinds (0.00s)
+    --- PASS: TestWrapToolsWithHooks/sub-agent_skips_the_wrap (0.00s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/agent	0.070s

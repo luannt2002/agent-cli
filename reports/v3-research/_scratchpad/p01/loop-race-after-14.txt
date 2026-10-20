@@ -1,0 +1,9 @@
+=== RUN   TestBuildAgentReadinessSurvivesCallerCancellation
+--- PASS: TestBuildAgentReadinessSurvivesCallerCancellation (0.32s)
+=== RUN   TestRunWaitIsSafeAgainstConcurrentAgentBuild
+--- PASS: TestRunWaitIsSafeAgainstConcurrentAgentBuild (0.31s)
+=== RUN   TestNewCoordinatorWithStopHooks
+=== PAUSE TestNewCoordinatorWithStopHooks
+=== CONT  TestNewCoordinatorWithStopHooks
+--- PASS: TestNewCoordinatorWithStopHooks (0.37s)
+PASS

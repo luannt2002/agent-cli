@@ -1,0 +1,18 @@
+base names: 4684 after names: 4691
+LOST (in base, not in after): 3
+  - github.com/charmbracelet/crush/internal/ui/model TestRestoreModelFromSessionWhileBusyStillRestores pass
+  - github.com/charmbracelet/crush/internal/ui/model TestRestoreModelLatestRequestWins pass
+  - github.com/charmbracelet/crush/internal/ui/model TestRestoreModelQuickBackAndForthEndsOnLastSession pass
+NEW (in after, not in base): 10
+  + github.com/charmbracelet/crush/internal/app TestContinuedLocalRunKeepsTheWorkspaceModel pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-C pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s_--effort pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel/other_model pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel/same_model pass
+CHANGED verdict: 0
+after top-level fails: ['github.com/charmbracelet/crush/internal/agent TestV3Exposure_T12_SummaryNotPromotedToUser', 'github.com/charmbracelet/crush/internal/agent TestV3Exposure_T15_LedgerFailureIsVisible', 'github.com/charmbracelet/crush/internal/agent/tools TestV3Exposure_C9_ToolsOutsideWorkingDir', 'github.com/charmbracelet/crush/internal/backend TestV3Exposure_T1_IdentityResolversAgree', 'github.com/charmbracelet/crush/internal/shell TestV3Exposure_C9_ShellLeavesWorkspace']

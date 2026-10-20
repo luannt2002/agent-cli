@@ -1,0 +1,11 @@
+M1_no_record_before_ack applies
+M2_drop_without_closing_trace applies
+N1_run_history_keeps_unsent applies
+N5_settle_ignores_pending applies
+X1_filter_by_position_not_link applies
+X2_batch_without_transaction applies
+X3_failed_move_drops_old_pair applies
+X4_stats_count_placeholders applies
+X5_reserved_provider_allowed applies
+X6_reply_then_delete_separately applies
+X7_move_then_delete_separately applies

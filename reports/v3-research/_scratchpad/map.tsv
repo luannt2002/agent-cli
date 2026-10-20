@@ -1,0 +1,352 @@
+section	num	kind	class	v2test	outcome_r4	main_commits	families	title	who
+I0	1282	issue	B	GP1/absolute-node-path-cursor-windows	wont-fix	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Cursor MCP spawn fails, bare npx not on PATH	Cursor / Windows
+I0	1280	issue	A	REMOVED:D2	closed-by-design	-	FALSE_SUCCESS,INSTALL_UPGRADE	turndown missing, silent bg install fails	Claude Code / macOS
+I0	1274	issue	A	REMOVED:D9	covered-by-test	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE	OpenCode resume snapshot injected into other session	OpenCode / any
+I0	1269	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	curl detector aborts whole compound command	Claude Code / any
+I0	1268	issue	Q	N/A:deferred-post-v2.0	wont-fix	-	HOST_ADAPTER_MISMATCH	Native ZCode adapter	ZCode / Windows
+I0	1267	issue	A	REMOVED:D11	covered-by-test	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,CONTEXT_OVERHEAD	Read tip re-injected every Read >50 KB (`??` fallback)	Claude Code / Linux
+I0	1263	issue	A(partlyB)	GP2/pi-hint-not-user-role	wont-fix	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi injects memory as role:"user"	Pi / any
+I0	1262	issue	B	GP9/no-periodic-ps-spawn	-	-	ZOMBIE_OPERATION	parent-liveness spawns `ps` every 30 s	Claude Code / Linux
+I0	1261	issue	B	GP3/hook-perf-posttool-async	-	-	ROUTING_FAILURE,INSTALL_UPGRADE	Pre/PostToolUse hooks cost 55-70 ms CPU per Bash	Claude Code / Linux
+I0	1259	issue	A	REMOVED:D9	covered-by-test	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	intent classifier replayed as live directive on Pi	Pi / any
+I0	1258	issue	Q	N/A:open-question	wont-fix	-	HOST_ADAPTER_MISMATCH	DeepSeek Harness support	DSH Desktop
+I0	1255	issue	A	REMOVED:D3	covered-by-test	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE	opencode missing from clientInfo map, wrong store	OpenCode MCP / Linux
+I0	1254	issue	A	REMOVED:D3	closed-by-design	-	HOST_ADAPTER_MISMATCH	ctx_stats skips OpenCode (v1 layout only)	OpenCode / Linux
+I0	1251	issue	A	REMOVED:D2	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	ensure-deps npm retry storm, console windows	Codex / Windows
+I0	1248	issue	B	GP8/stats-heartbeat-no-timer-db-open	closed-by-design	-	ZOMBIE_OPERATION	stats heartbeat reopens every session DB each minute	Claude Code / macOS
+I0	1242	issue	A	REMOVED:D2	closed-by-design	-	-	ctx-debug.sh fails under POSIX sh	Codex / macOS
+I0	1226	issue	B	GP3/hook-timeout-present	covered-by-test	-	HOST_ADAPTER_MISMATCH	hooks.json has no default timeouts	Claude Code / Linux
+I0	1225	issue	B	GP11/npm-audit-zero-high-critical	covered-by-test	-	SECURITY_BOUNDARY_CONFUSION,INSTALL_UPGRADE	vulnerable ip-address dep chain	all
+I0	1222	issue	B	GP11/hook-matcher-valid-regex	closed-by-design	-	ROUTING_FAILURE	bare `mcp__` matcher matches nothing (CC 2.1.195)	Claude Code / any
+I0	1221	issue	A	REMOVED:ADR-0008	wont-fix	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	OMP hard-blocks curl in quotes/grep	OMP / any
+I0	1219	issue	B	GP1/install-docs-per-host	wont-fix	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	No docs for Codex Desktop install	Codex Desktop / Windows
+I0	1217	issue	B	GP4/windows-path-inherit	-	-	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION,INSTALL_UPGRADE	ctx_execute shell has PATH stripped to /usr/bin:/bin	any / Windows
+I0	1215	issue	A	REMOVED:D2	covered-by-test	-	INSTALL_UPGRADE	project-scope plugin enabled globally by heal	Claude Code / macOS
+I0	1214	issue	A	REMOVED:D8	closed-by-design	-	-	server takes every project's events.md	all
+I0	1213	issue	B	GP8/sibling-db-readonly	-	-	ZOMBIE_OPERATION	stats opens every session DB read-write	Claude Code / macOS
+I0	1212	issue	B	GP3/powershell-routed-like-bash	covered-by-test	-	ROUTING_FAILURE	PowerShell tool not routed; Bash nudge once	Claude Code / Windows
+I0	1210	issue	B	GP7/codex-session-project-dir	closed-by-design	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	Codex Windows project dir falls back to plugin cache	Codex / Windows
+I0	1208	issue	B	GP4/windows-pyenv-shim	-	-	HOST_ADAPTER_MISMATCH	ctx_execute python/node fails with shell-script shims	any / Windows
+I0	1206	issue	B	GP11/agy-hooks-schema-valid	wont-fix	-	HOST_ADAPTER_MISMATCH	agy rejects hooks.json (grouped Stop)	Antigravity CLI
+I0	1205	issue	A	REMOVED:D2	covered-by-test	-	STARTUP_RACE,ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Pi bridge on Bun spins, disk I/O error	Pi / macOS
+I0	1204	issue	Q	N/A:open-question	-	-	-	index-time preview + ctx_page tool	all
+I0	1201	issue	B	GP1/adapter-bundle-static-imports	wont-fix	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	OpenClaw capture breaks computed import paths	OpenClaw / Docker
+I0	1200	issue	B	GP5/search-param-schema-match	covered-by-test	-	-	ctx_search rejects singular `query`	Claude Code / Linux
+I0	1199	issue	B	GP1/opencode-v2-plugin-api	-	-	HOST_ADAPTER_MISMATCH	OpenCode 2.x plugin fails to load	OpenCode v2
+I0	1198	issue	A	REMOVED:D8	-	-	PROJECT_IDENTITY_FAILURE	ctx_* events credited to latest session	Claude Code / macOS
+I0	1196	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	ensure-deps re-codesigns .node every hook	Claude Code / macOS
+I0	1193	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	Bun seed writes ABI-mismatched cache	Linux
+I0	1192	issue	C	N/A:deferred-post-v2.0	wont-fix	-	HOST_ADAPTER_MISMATCH	integrate with pi-blackhole	Pi
+I0	1191	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	healScript version filter unanchored	Claude Code / macOS
+I0	1188	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	ensure-deps dlopen then rebuild, SIGSEGV	Linux
+I0	1187	issue	D	N/A:duplicate-of-#1199	-	-	HOST_ADAPTER_MISMATCH	OpenCode V2 support	OpenCode v2 / Windows
+I0	1186	issue	B	GP10/windows-stats-no-execsync-probes	wont-fix	-	STARTUP_RACE,HOST_ADAPTER_MISMATCH	Windows ctx_stats 4 s + 1.6 s execSync probes; coexistence detector	OpenCode / Windows
+I0	1185	issue	C	GP7/worktree-label-session-first	-	-	SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	multi-agent context isolation per worktree	Worktrunk / any
+I0	1184	issue	Q	REMOVED:D15	covered-by-test	-	HOST_ADAPTER_MISMATCH	fetch via Firecrawl API	sandboxed agents
+I1	1069	issue	B	GP3/pi-read-hint-parity	covered-by-test	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Pi does not route read/grep, only bash HTTP	Pi / macOS
+I1	1075	issue	B	GP3/v17-read-glob-deny-anchors	-	-	ROUTING_FAILURE,SECURITY_BOUNDARY_CONFUSION	`//` and `~/` permission anchors never match; deny fails open	Claude Code / macOS
+I1	1077	issue	B	GP5/batch-execute-dedup-section	-	-	HOST_ADAPTER_MISMATCH	ctx_* calls verbose in Codex; batch repeats sections per query	Codex
+I1	1078	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	cache-heal gates on wrong plugin key	Claude Code / macOS
+I1	1079	issue	Q	N/A:open-question	closed-by-design	-	ZOMBIE_OPERATION,DELETION_DATA_LOSS	cleanupStaleSources(14) drops unchanged sources by age	all
+I1	1081	issue	B	GP2/tool-schema-timeout-unit	covered-by-test	-	-	timeout unit (ms) missing from schema	OMP / all
+I1	1083	issue	C(later)	N/A:deferred-post-v2.0	wont-fix	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Codex agent greps ~/.codex and ingests own history	Codex
+I1	1085	issue	B	GP2/opencode-single-system-message	closed-by-design	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	OpenCode extra system message breaks Qwen single-system templates	OpenCode
+I1	1088	issue	C(later)	N/A:deferred-post-v2.0	wont-fix	-	-	Show input/progress live for ctx_execute	Pi / CC
+I1	1090	issue	B	GP1/plugin-json-unpinned-node	-	-	INSTALL_UPGRADE	plugin.json command pinned to versioned node path	Claude Code / Homebrew
+I1	1094	issue	B	GP4/pi-collapsed-view-plain-text-first-line	covered-by-test	-	HOST_ADAPTER_MISMATCH	Pi collapsed view shows only code fence	Pi
+I1	1096	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	healScript statSync ELOOP	Claude Code / macOS
+I1	1098	issue	B	GP1/pi-bridge-retry-next-turn	covered-by-test	-	HOST_ADAPTER_MISMATCH	Pi bridge failure after init is sticky	Pi
+I1	1099	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	OMP deny points to ctx_execute that is not registered	OMP
+I1	1100	issue	B	GP9/stdin-eof-exit	-	-	ZOMBIE_OPERATION	Server orphaned after session close (100% CPU)	Pi / Linux
+I1	1101	issue	D	N/A:duplicate-of-#1100	closed-by-design	-	-	same as 1100	Pi
+I1	1105	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	better-sqlite3 ABI rebuild loop	CC / nvm
+I1	1106	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE	curl regex matches `which curl`	CC
+I1	1107	issue	B	GP3/hint-once-per-session	closed-by-design	-	ROUTING_FAILURE,ZOMBIE_OPERATION	guidanceOnce keyed on ppid never throttles; 2149 tmp dirs	CC / WSL2
+I1	1112	issue	B	GP2/stable-prefix-across-requests	covered-by-test	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi ephemeral tail injection breaks prompt cache	Pi
+I1	1117	issue	B	GP4/env-via-spawn-env	covered-by-test	-	-	NODE_OPTIONS prefix breaks `for`/`while`	all
+I1	1119	issue	B	GP5/negative-limit-rejected	closed-by-design	-	-	ctx_search negative limit	all
+I1	1125	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE,DELETION_DATA_LOSS	curl pipe to head still redirected, block dropped	CC
+I1	1130	issue	A	REMOVED:D11	closed-by-design	-	INSTALL_UPGRADE	CLAUDE.md says blocked, code does not block	CC
+I1	1131	issue	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE	CLAUDE.md continuity contradicts routing block	CC
+I1	1134	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Codex auto-review rejects echo rewrite	Codex / Windows
+I1	1135	issue	B	GP4/fetch-error-one-line-cause	-	-	-	fetch error returns raw Node crash stack	OpenCode / Windows
+I1	1136	issue	B	GP5/rowless-tables-survive	covered-by-test	-	-	empty `<table>` crashes turndown	OpenCode / Windows
+I1	1139	issue	A	REMOVED:D2	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows npm install better-sqlite3 crashes	Windows
+I1	1140	issue	A	REMOVED:D6	closed-by-design	-	DELETION_DATA_LOSS	cleanupOldSessions evicts active sessions	all
+I1	1141	issue	B	GP11/redact-secrets-in-doctor-output	covered-by-test	-	CONTEXT_OVERHEAD,SECURITY_BOUNDARY_CONFUSION	ctx-debug.sh dumps secrets; template requires pasting	all
+I1	1142	issue	B	GP3/no-updated-input-rewrite	covered-by-test	-	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	hook cwd rewrite defeats permission allowlist	CC
+I1	1150	issue	B	GP5/call-row-language-code-line	covered-by-test	-	HOST_ADAPTER_MISMATCH	Pi renderCall drops args	Pi
+I1	1151	issue	B	GP10/binary-bytes-excluded-from-savings	closed-by-design	-	CONTEXT_OVERHEAD	binary/HTTP bytes counted as saved tokens	all
+I1	1152	issue	B	GP11/codex-hooks-default-true	-	-	HOST_ADAPTER_MISMATCH	doctor says Codex hooks off when default on	Codex / Windows
+I1	1156	issue	A	REMOVED:D8	closed-by-design	-	DELETION_DATA_LOSS	eviction deletes critical events first	all
+I1	1159	issue	B	GP4/cold-start-no-path-probes	covered-by-test	-	STARTUP_RACE,HOST_ADAPTER_MISMATCH	Windows runtime probes take 30 s before initialize	Codex / Windows
+I1	1162	issue	Q	N/A:open-question	closed-by-design	-	INSTALL_UPGRADE	start-http.mjs lacks turndown install (systemd)	Linux daemon
+I1	1163	issue	B	GP5/snippet-code-point-safe	-	-	-	snippet slicing makes lone surrogates → 500s	all
+I1	1168	issue	B	GP11/pi-discovery-dirs-doctor	-	-	HOST_ADAPTER_MISMATCH	Pi paths hardcoded to legacy ~/.pi dirs	Pi / macOS
+I1	1173	issue	A	REMOVED:D9	covered-by-test	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	infinite compaction loop burns quota	CC / macOS
+I1	1174	issue	A	REMOVED:D2	closed-by-design	-	FALSE_SUCCESS,INSTALL_UPGRADE	start.mjs background npm install dies silently	CC / macOS
+I1	1175	issue	B	GP4/cancel-kills-child-tree-1s	covered-by-test	-	ZOMBIE_OPERATION	ctx_execute ignores Esc / no progress	Pi
+I1	1179	issue	B	GP3/injected-message-required-fields	covered-by-test	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi context message without timestamp → 400	Pi
+I2	1068	issue	B	GP4/no-preload-marker-leak-grandchild	closed-by-design	-	-	cm-fs preload marker leaks to grandchild stderr	CC / Linux
+I2	1067	issue	B	GP6/code-echo-default	-	-	HOST_ADAPTER_MISMATCH	pi collapsed row shows ```javascript fence	Pi
+I2	1065	issue	C(rejectforOSS)	N/A:rejected	closed-by-design	-	HOST_ADAPTER_MISMATCH	Hosted Insights D1 SQL vars / owner team	Pi, hosted platform
+I2	1063	issue	D	N/A:not-a-bug	wont-fix	-	-	"Is the project abandoned?"	CC
+I2	1058	issue	A+B	GP1/clean-uninstall-no-residue	covered-by-test	-	INSTALL_UPGRADE	Uninstall leaves cache-heal hook, cache dir, live MCP	CC / macOS
+I2	1055	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE,STARTUP_RACE	isMCPReady counts sibling sessions → WebFetch denied	CC / multi-session
+I2	1053	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE,STARTUP_RACE,FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	isMCPReady swallows redirects in OpenCode embedded mode	OpenCode
+I2	1052	issue	B	GP3/tool-name-map-opencode-webfetch	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	OpenCode `webfetch` alias missing	OpenCode
+I2	1050	issue	C(later)	N/A:deferred-post-v2.0	wont-fix	-	HOST_ADAPTER_MISMATCH	Pi single-row collapsed rendering	Pi
+I2	1049	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	cache-heal re-injects duplicate absolute-path hook	CC / macOS
+I2	1048	issue	Q	N/A:open-question	wont-fix	-	-	Plan mode blocks ctx_batch_execute	CC 2.1.228+
+I2	1047	issue	Q	GP6/code-echo-default	covered-by-test	-	-	Configurable execution echo + summary arg	Codex
+I2	1046	issue	C(reject)	N/A:rejected	wont-fix	-	-	LongHorizon-Harness integration	n/a
+I2	1045	issue	C(reject)	N/A:rejected	wont-fix	-	CONTEXT_OVERHEAD,HOST_ADAPTER_MISMATCH	neuforge-pay token metering	n/a
+I2	1039	issue	B	GP5/http-proxy-honored	closed-by-design	-	-	ctx_fetch_and_index strips HTTP(S)_PROXY	Pi, Copilot CLI / macOS
+I2	1037	issue	A	LIVE:T-SUB	closed-by-design	-	CAPABILITY_MISMATCH,ROUTING_FAILURE	WebFetch denied for subagents without ctx_*	CC subagents
+I2	1036	issue	B	GP10/usage-events-idempotent-per-turn	-	-	HOST_ADAPTER_MISMATCH	OpenCode cumulative cost appended per step	OpenCode
+I2	1032	issue	B	GP7/workspace-folder-remote-wsl	covered-by-test	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	VS Code Remote-WSL root = VS Code install dir	VS Code Copilot / Win+WSL
+I2	1031	issue	Q/B	GP2/tool-description-token-budget	closed-by-design	-	ROUTING_FAILURE,CONTEXT_OVERHEAD	Tool descriptions ~6.2K tokens	Pi
+I2	1028	issue	A	REMOVED:D9	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	PreCompact snapshot uses bare ctx_search	Codex/Kimi/Copilot
+I2	1026	issue	B	GP3/hint-once-per-session	wont-fix	-	ROUTING_FAILURE	Bash nudge once-per-session vs periodic	CC
+I2	1025	issue	B	GP10/reduction-pct-denominator	-	-	CONTEXT_OVERHEAD,HOST_ADAPTER_MISMATCH	reduction_pct double-counts returned bytes	CC (shared)
+I2	1024	issue	A	REMOVED:D6	closed-by-design	-	ZOMBIE_OPERATION,DELETION_DATA_LOSS	Stale DB cleanup deletes live idle sessions (WAL mtime)	all
+I2	1023	issue	B	GP10/stats-wording-bytes-not-time	closed-by-design	-	CONTEXT_OVERHEAD	"ran N× longer" is byte ratio shown as time	all
+I2	1022	issue	A	REMOVED:D9	covered-by-test	-	PROMPT_INTERFERENCE,CONTEXT_OVERHEAD	Resume snapshot ignores maxBytes (196 KB)	all
+I2	1021	issue	A	REMOVED:D16	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	README says Pi hooks High not Full	Pi
+I2	1018	issue	B	GP3/tool-prefix-standalone-mcp	closed-by-design	-	ROUTING_FAILURE,INSTALL_UPGRADE	CC tool naming assumes plugin install	CC standalone MCP
+I2	1017	issue	B	GP7/adapter-root-path-containment	closed-by-design	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	Copilot CLI / Codex root = plugin install dir	Copilot CLI, Codex / Linux
+I2	1016	issue	C(v2.0)	N/A:deferred-v2.0-scope	closed-by-design	-	INSTALL_UPGRADE	Clean uninstall command	Copilot
+I2	1014	issue	C(v2.0)	N/A:deferred-v2.0-scope	closed-by-design	-	FALSE_SUCCESS	No way to count docs per source; doctor PASS on empty index	all
+I2	1006	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE	WebFetch deny breaks claude.ai artifact URLs	CC
+I2	1005	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	ctx upgrade writes old-version paths (bun)	CC / macOS
+I2	1004	issue	A	REMOVED:D9	closed-by-design	-	-	buildRulesSection inlines AGENTS.md into resume	Codex / WSL2
+I2	1003	issue	A(part)/Q	LIVE:T-PAR	wont-fix	-	ROUTING_FAILURE	Denies defeated by parallel batches; no WebFetch opt-out	CC
+I2	1000	issue	B	GP1/hooks-json-one-matcher-per-tool	closed-by-design	-	ROUTING_FAILURE	PreToolUse double-fires; no PostToolUse timeout	CC
+I2	999	issue	B	GP9/idle-cpu-stdin-exit	covered-by-test	-	ZOMBIE_OPERATION	start.mjs busy-loop, 23 instances	CC / macOS
+I2	993	issue	Q	N/A:open-question	closed-by-design	-	HOST_ADAPTER_MISMATCH	Windows hook commands fail under PowerShell	CC / Windows
+I2	992	issue	A	REMOVED:D2	closed-by-design	-	FALSE_SUCCESS,INSTALL_UPGRADE	Bun SQLITE_IOERR wedge; doctor green	CC, Pi / Bun
+I2	985	issue	A	REMOVED:D3	closed-by-design	-	-	Multi-session contention on shared DB, busy-wait	CC, Pi / Windows
+I2	984	issue	D	N/A:duplicate-of-#1006	closed-by-design	-	ROUTING_FAILURE	WebFetch no exemption for artifact URLs	CC
+I2	983	issue	B	GP9/pi-reload-no-leak	closed-by-design	-	HOST_ADAPTER_MISMATCH	Pi reload leaks MCP helper	Pi / Linux
+I2	982	issue	B	GP9/windows-client-kill-exit	closed-by-design	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Windows MCP orphans spin after session end	CC / Windows
+I2	979	issue	A	REMOVED:D7	covered-by-test	-	ROUTING_FAILURE	Headless CC still denied (dead formatter)	CC headless
+I2	967	issue	A	REMOVED:D11	closed-by-design	-	CAPABILITY_MISMATCH,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Injected <context_window_protection> trips auto-mode classifier	CC auto-mode
+I3	964	issue	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,CONTEXT_OVERHEAD	Env knob to disable SessionStart routing block	Claude Code
+I3	962	issue	Q	N/A:open-question	closed-by-design	-	CONTEXT_OVERHEAD	RFC: bound trigram/vocab growth for logs/JSONL	all
+I3	961	issue	B	GP5/batch-index-byte-budget	covered-by-test	-	CONTEXT_OVERHEAD	RFC: indexed byte/chunk budgets for batch	all
+I3	960	issue	B	GP3/unrelated-mcp-tool-no-hook	-	-	ROUTING_FAILURE	PreToolUse `mcp__` matcher hits all MCP tools	Claude Code
+I3	959	issue	B	GP4/hung-execute-cancel-kills-tree	-	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Pi: hung ctx_execute cannot be aborted	Pi, macOS/Win
+I3	956	issue	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	prebuild-install deprecated warning	Antigravity
+I3	954	issue	B	GP7/worktree-containment-consistent	closed-by-design	-	PROJECT_IDENTITY_FAILURE	execute_file rejects external worktrees, batch accepts	Pi
+I3	953	issue	B	GP9/windows-stdio-close-plugin-dir-deletable	wont-fix	-	DELETION_DATA_LOSS,HOST_ADAPTER_MISMATCH	Codex Desktop Win keeps one MCP server per task, os error 32	Codex, Windows
+I3	951	issue	B	GP4/node-options-no-leak-across-servers	covered-by-test	-	SECURITY_BOUNDARY_CONFUSION	Stale cm-fs-preload-<pid>.js via NODE_OPTIONS leak	all
+I3	950	issue	B	GP10/stats-totals-consistent	-	-	HOST_ADAPTER_MISMATCH	ctx_stats self-contradicts (part > whole)	Claude Code
+I3	949	issue	A	REMOVED:D6	covered-by-test	-	DELETION_DATA_LOSS	sessions/ has no retention	all
+I3	947	issue	B	GP4/batch-timeout-bounds-whole-handler	-	-	-	batch timeout does not bound indexing/search	Claude Code, Codex, Win/mac
+I3	946	issue	A	REMOVED:ADR-0008	closed-by-design	-	CAPABILITY_MISMATCH,ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Agent-prompt injection blocked by auto-mode classifier	Claude Code
+I3	944	issue	Q	N/A:open-question	closed-by-design	-	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION	Codex external-file check reads wrong settings	Codex
+I3	941	issue	A	REMOVED:D11	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Codex guidance: JS default, not only	Codex
+I3	940	issue	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	OS-specific Codex guidance overlay	Codex
+I3	938	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE	WebFetch redirect breaks claude.ai artifact URLs	Claude Code
+I3	936	issue	B	GP4/host-rpc-timeout-governs-no-default	-	-	ZOMBIE_OPERATION	stdio ctx_execute hangs, no server timeout	Claude Code
+I3	925	issue	B	GP4/shell-syntax-with-spawn-env	covered-by-test	-	-	Wrapper breaks commands starting with if/for/(	all
+I3	923	issue	B	GP9/no-chdir-server-cwd-stable	covered-by-test	-	ZOMBIE_OPERATION,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	start.mjs chdir breaks terminal cwd	Linux (VTE, herdr)
+I3	919	issue	C	N/A:deferred-post-v2.0	closed-by-design	-	HOST_ADAPTER_MISMATCH	Support CommandCode CLI	CommandCode
+I3	915	issue	B	GP8/runpool-capped-flag	covered-by-test	-	-	runPool `capped` true when jobs < concurrency	all
+I3	914	issue	Q	N/A:open-question	wont-fix	-	-	index --source bare label vs indexDirectory	all
+I3	911	issue	A	REMOVED:D9	covered-by-test	-	ROUTING_FAILURE,PROMPT_INTERFERENCE	session_continuity framing trips auto-mode classifier	Claude Code
+I3	908	issue	A	REMOVED:ADR-0008	closed-by-design	-	ROUTING_FAILURE	Configurable redirect exclusions per domain	Claude Code
+I3	905	issue	A	REMOVED:D2	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Pi bridge Bun SQLITE_IOERR	Pi, macOS
+I3	903	issue	B	GP4/code-point-safe-truncation-cut	covered-by-test	-	ROUTING_FAILURE,DELETION_DATA_LOSS	SessionStart truncation splits UTF-16 surrogates	Claude Code
+I3	902	issue	A	REMOVED:D8	closed-by-design	-	-	Resume snapshot stale, priority eviction	Claude Code
+I3	901	issue	Q	N/A:open-question	closed-by-design	-	INSTALL_UPGRADE	upgrade updates one tree, doctor reads other (Win)	OpenCode, Windows
+I3	895	issue	A	GP5/session-worktree-project-rank	wont-fix	-	PROJECT_IDENTITY_FAILURE	ctx_search ranks stale cross-session above fresh	all
+I3	894	issue	A	REMOVED:D17	closed-by-design	-	ZOMBIE_OPERATION	Statusline stuck, build/ missing	Claude Code
+I3	891	issue	C	N/A:deferred-post-v2.0	wont-fix	-	-	Emacs Lisp runtime	any
+I3	890	issue	B	GP1/bundle-no-import-attributes	covered-by-test	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	omp: `with {type:"json"}` import breaks validator	oh-my-pi
+I3	889	issue	A/B	GP1/npm-pack-includes-runtime-files	covered-by-test	-	INSTALL_UPGRADE	tarball missing scripts/*.mjs	all
+I3	880	issue	A	REMOVED:D3	-	-	STARTUP_RACE,DELETION_DATA_LOSS,HOST_ADAPTER_MISMATCH	cleanupStaleContentDBs race poisons store (Pi)	Pi
+I3	878	issue	B	GP5/chunk-byte-cap	covered-by-test	-	CONTEXT_OVERHEAD,HOST_ADAPTER_MISMATCH	chunkMarkdown oversized paragraphs	all
+I3	874	issue	Q	N/A:open-question	wont-fix	-	HOST_ADAPTER_MISMATCH	OMP tool_result never replaces output	oh-my-pi
+I3	873	issue	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	omp install does not copy SYSTEM.md	oh-my-pi
+I3	867	issue	Q	N/A:open-question	closed-by-design	-	INSTALL_UPGRADE	Self-heal only at open-time, mid-session corrupt	all
+I3	865	issue	A	REMOVED:D3	closed-by-design	-	HOST_ADAPTER_MISMATCH	ctx_stats ignores $CLAUDE_CONFIG_DIR	Claude Code
+I3	45	issue	D	N/A:not-a-bug	closed-by-design	-	-	Beta testers wanted	all OS
+P0	1295	PR	B	GP5/non-ascii-auto-memory-match	covered-by-test	-	-	Unicode auto-memory word boundaries	rudycelekli
+P0	1294	PR	B(+M)	GP7/symlink-dot-prefix-containment	closed-by-design	-	HOST_ADAPTER_MISMATCH	contained dot-prefixed symlink targets (`..notes`)	rudycelekli
+P0	1293	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	unlink dangling cache breadcrumbs	rudycelekli
+P0	1292	PR	B	GP5/nested-gitignore-negation	-	-	-	nested .gitignore in dir walks	rudycelekli
+P0	1291	PR	B(+M)	GP5/globstar-zero-depth	covered-by-test	-	-	globstar zero-depth (`docs/**/*.md`)	rudycelekli
+P0	1290	PR	A	REMOVED:D8	closed-by-design	-	INSTALL_UPGRADE	session-db bundle off PreToolUse path	oriastanjung
+P0	1287	PR	C(later)	N/A:deferred-not-decided	wont-fix	-	HOST_ADAPTER_MISMATCH	stats: say why adapter Skipped	Micahscodingjourney
+P0	1286	PR	M+B	GP4/deleted-cwd-no-ansi	wont-fix	-	DELETION_DATA_LOSS,SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	executor: deleted cwd + FORCE_COLOR plain	Kenmege
+P0	1285	PR	C(v2docs)	N/A:docs	closed-by-design	-	HOST_ADAPTER_MISMATCH	Cursor Windows PATH docs	Ethereal49
+P0	1284	PR	C(later)	N/A:new-adapter-out-of-scope	wont-fix	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	native Qoder plugin	shouldnotappearcalm
+P0	1283	PR	C(reject)	N/A:docs	wont-fix	-	-	Gaia badge in README	mbtiongson1
+P0	1281	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	report missing fetch deps / failed bg installs	csorbalazs306
+P0	1279	PR	A/B	GP6/no-resume-hint-mid-session	closed-by-design	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	OpenCode: no resume injection into running session	rahul05ranjan
+P0	1278	PR	A(+M?)	REMOVED:D2	wont-fix	-	INSTALL_UPGRADE	bound dep-install retries, hide Win consoles	rahul05ranjan
+P0	1277	PR	B	GP9/linux-procfs-ppid-no-spawn	closed-by-design	-	-	procfs parent PID on Linux	rahul05ranjan
+P0	1276	PR	B	GP1/opencode-clientinfo-detect	closed-by-design	-	HOST_ADAPTER_MISMATCH	detect OpenCode from MCP clientInfo	rahul05ranjan
+P0	1275	PR	C(v2.0)	N/A:tool-design-not-decided	wont-fix	-	-	batch: query pointers instead of repeated excerpts	fl4p
+P0	1272	PR	A	REMOVED:D11	closed-by-design	-	CAPABILITY_MISMATCH,ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	subagent routing via SubagentStart	blentz
+P0	1271	PR	M+B	GP11/jsonc-comment-boundaries	covered-by-test	-	-	JSONC comment boundaries	ac1982
+P0	1270	PR	A	GP3/hint-once-per-session	closed-by-design	-	ROUTING_FAILURE	once-per-session guidance for big Read	HootRock
+P0	1266	PR	B	GP11/pi-doctor-real-paths	covered-by-test	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Pi doctor uses real Pi paths	zichen0116
+P0	1265	PR	B(+C)	GP3/powershell-same-hint-as-bash	-	-	ROUTING_FAILURE	route PowerShell tool + Bash nudge cadence	rubenmarcus
+P0	1264	PR	B(+M)	GP2/pi-system-role-injection	wont-fix	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi: inject context as system role	fl4pj4ck
+P0	1256	PR	A	REMOVED:D8	closed-by-design	-	-	MCP readiness per Claude session	phant0um
+P0	1253	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	ensure-deps skip cache swap	phant0um
+P0	1252	PR	B	GP10/binary-read-zero-savings	closed-by-design	-	CONTEXT_OVERHEAD	stats: don't count binary reads as saved	phant0um
+P0	1250	PR	M+B	GP4/exit1-stderr-is-error	covered-by-test	-	FALSE_SUCCESS	shell exit 1 + stderr = error	agammann
+P0	1249	PR	M+B	GP1/pi-utf8-incremental-decode	covered-by-test	-	HOST_ADAPTER_MISMATCH	Pi: incremental UTF-8 decode of MCP stdout	aniruddhaadak80
+P0	1247	PR	M	N/A:not-decided	wont-fix	-	-	re-exec scripts under bash for sh callers	sjoerd2025
+P0	1246	PR	B	GP7/pi-bridge-per-session-workspace	closed-by-design	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE	Pi: MCP bridge per session workspace	koenvg
+P0	1245	PR	M(security)	REMOVED:D2	wont-fix	-	ZOMBIE_OPERATION,SECURITY_BOUNDARY_CONFUSION,INSTALL_UPGRADE	refresh express-rate-limit (ip-address CVE)	ChrisPrapas
+P0	1244	PR	M	N/A:trivial-metadata	wont-fix	-	HOST_ADAPTER_MISMATCH	website URL in codex plugin.json	youngledo
+P0	1243	PR	D	N/A:duplicate-of-1247	wont-fix	-	-	ctx-debug.sh re-exec under bash	sx4im
+P0	1241	PR	A/B	GP10/ctx-call-credited-to-caller-session	closed-by-design	-	STARTUP_RACE,PROJECT_IDENTITY_FAILURE	attribute MCP work to caller session	agammann
+P0	1240	PR	B(+M)	GP3/antigravity-stop-hook-flat-schema	covered-by-test	-	HOST_ADAPTER_MISMATCH	antigravity Stop hook flat form	rubenmarcus
+P0	1239	PR	M+B	GP11/keep-user-hooks-on-upgrade	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	gemini: keep sibling hooks on upgrade	rudycelekli
+P0	1238	PR	B(+M)	GP5/nested-fenced-code-intact	covered-by-test	-	-	fetch: nested fenced code intact	rudycelekli
+P0	1237	PR	B(+M)	GP4/project-cwd-temp-dir-cleanup	wont-fix	-	SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	executor: Rust cwd + sandbox lifecycle	rudycelekli
+P0	1236	PR	A/B	GP10/stats-sibling-db-readonly	closed-by-design	-	ZOMBIE_OPERATION	stats: probe session schema read-only	rudycelekli
+P0	1235	PR	M+B	GP11/keep-user-hooks-on-upgrade	covered-by-test	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	copilot-cli: keep custom hooks on upgrade	rudycelekli
+P0	1234	PR	A	REMOVED:D4	closed-by-design	-	HOST_ADAPTER_MISMATCH	codex: rollout timestamp over mtime (Windows)	STiFLeR7
+P0	1231	PR	B(+M)	GP3/external-mcp-tool-routing-hint	covered-by-test	-	ROUTING_FAILURE	restore external MCP routing `mcp__.*`	Yi-111-a
+P0	1230	PR	M+B	GP5/ctx-search-schema-declares-query	covered-by-test	-	-	ctx_search schema declares `query`	JoAdo07
+P0	1229	PR	A(+M)	REMOVED:D8	closed-by-design	-	PROJECT_IDENTITY_FAILURE	scope session-event indexing to project	ayojeges
+P0	1228	PR	M+B	GP1/default-hook-timeouts	closed-by-design	-	-	default hook timeouts	rubenmarcus
+P1	1227	PR	A	REMOVED:ADR-0008	wont-fix	-	FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	OMP: allow quoted HTTP refs, silent downloads	agammann
+P1	1224	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	ensure-deps backoff after failed install	Kenmege
+P1	1220	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	heal: keep project-scope installs out of user settings	rubenmarcus
+P1	1218	PR	B	GP4/windows-inherited-path	covered-by-test	-	HOST_ADAPTER_MISMATCH	win32 shell scripts: restore inherited PATH	fl4pj4ck
+P1	1216	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	cache-heal version filter anchor	rubenmarcus
+P1	1211	PR	A	GP9/no-periodic-stats-db-scan	closed-by-design	-	-	analytics: stop re-reading every sidecar	LukeMS
+P1	1209	PR	B	GP4/windows-shim-interpreter	covered-by-test	-	HOST_ADAPTER_MISMATCH	Windows: run extensionless shim python/node via Git Bash	fl4pj4ck
+P1	1207	PR	M+B	GP5/ctx-search-schema-declares-query	covered-by-test	-	-	ctx_search accepts singular `query`	rubenmarcus
+P1	1197	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	reject unusable Bun shims	jeffscottward
+P1	1194	PR	C	REMOVED:D9	wont-fix	-	HOST_ADAPTER_MISMATCH	OpenCode v2 dual support + non-LLM compaction	nathanpride
+P1	1189	PR	A	GP3/p4-parser-coverage	closed-by-design	-	ROUTING_FAILURE	curl/wget only in command position	rabbitholedotdev
+P1	1183	PR	B	GP1/stable-interpreter-path	covered-by-test	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	persist stable interpreter path, not versioned	brujack
+P1	1182	PR	B	GP4/abort-signal-pi-cancel	covered-by-test	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Pi: honor AbortSignal, Esc cancels	rabi
+P1	1181	PR	B	GP6/priority-polarity	closed-by-design	-	-	align priority contract + minPriority	victor0777
+P1	1180	PR	M	GP3/pi-injected-message-timestamp	covered-by-test	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi: timestamp context-hook message	bubbleptr
+P1	1178	PR	C	N/A:deferred-rebuild-on-journal	closed-by-design	-	HOST_ADAPTER_MISMATCH	agy PreInvocation capture decisions	onurbcoban
+P1	1177	PR	M+B	GP4/batch-node-options-compound-cmd	covered-by-test	-	HOST_ADAPTER_MISMATCH	batch: export NODE_OPTIONS for compound cmds	xecanto
+P1	1176	PR	M+B	GP4/surrogate-safe-truncation	covered-by-test	-	DELETION_DATA_LOSS	surrogate-safe truncation	xecanto
+P1	1172	PR	B	GP5/fetch-error-one-line	closed-by-design	-	-	fetch: concise subprocess errors	7487
+P1	1171	PR	C+B	GP1/opencode2-plugin-dual-export	unverified	-	HOST_ADAPTER_MISMATCH	OpenCode 2 plugin API (V1/V2 dual export)	Scratchydisk
+P1	1170	PR	A	REMOVED:D11	closed-by-design	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi: keep context across tool-loop requests	xwcq
+P1	1167	PR	B	GP9/no-process-spawn-at-boot	covered-by-test	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows: in-process runtime probes, no `where`	armingx
+P1	1166	PR	A	REMOVED:D2	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Pi bridge: spawnable runtime on Windows	zhenda-hub
+P1	1165	PR	C	N/A:not-decided	closed-by-design	-	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION	Codex: honor sandbox state for file reads	jkoelho
+P1	1164	PR	D	N/A:duplicate-of-1182	wont-fix	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Pi: AbortSignal kill bridge tree	cxh0312
+P1	1161	PR	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	OpenCode/Kilo native ctx_* names	Fonsi44
+P1	1160	PR	M+B	GP11/opencode-merge-sibling-plugins	covered-by-test	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	opencode: merge sibling plugin arrays	dragonyzl
+P1	1158	PR	D	REMOVED:D8	wont-fix	-	-	evict least-important events first	xianjianlf2
+P1	1155	PR	D	N/A:duplicate-of-1144	wont-fix	-	SECURITY_BOUNDARY_CONFUSION	redact secrets from debug report	HUAN2022A
+P1	1154	PR	M+B	GP4/windows-hide-console-on-spawn	covered-by-test	-	HOST_ADAPTER_MISMATCH	Windows: windowsHide on probes	kantan-kanto
+P1	1153	PR	B	GP11/codex-effective-hooks-state	closed-by-design	-	HOST_ADAPTER_MISMATCH	Codex: read effective hooks feature	L4XB
+P1	1149	PR	D	N/A:duplicate-of-1180	wont-fix	-	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi: timestamp injected context	bubbleptr
+P1	1148	PR	A	REMOVED:D17	closed-by-design	-	INSTALL_UPGRADE	bundle statusline analytics import	tmurphy24-lab
+P1	1147	PR	B	GP4/default-timeout-every-host	-	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	bound ctx_execute on Pi	fl4p
+P1	1144	PR	M	GP11/redact-secrets-in-debug-report	closed-by-design	-	CONTEXT_OVERHEAD,SECURITY_BOUNDARY_CONFUSION	ctx-debug: redact env blocks + secret keys	L4XB
+P1	1143	PR	M+B	GP8/v22-project-cleanup	covered-by-test	-	DELETION_DATA_LOSS	cleanup TTL off last activity	chaucerj
+P1	1138	PR	M+B	GP5/rowless-tables	covered-by-test	-	-	HTML tables without rows	NickYCLin
+P1	1137	PR	A	REMOVED:D11	closed-by-design	-	INSTALL_UPGRADE	docs: session continuity wording	vortsghost2025
+P1	1129	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	pin ABI healing to running Node	Zhao0335
+P1	1128	PR	A	GP3/p4-parser-coverage	closed-by-design	-	ROUTING_FAILURE	curl/wget pipe + multiline bounds	Tiancheng-Xu
+P1	1127	PR	C	N/A:not-decided	closed-by-design	-	-	configurable echo budgets	sammcj
+P1	1126	PR	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Pi: remove unverified routing anchor	grundstrata
+P1	1124	PR	A	GP3/p4-parser-coverage	closed-by-design	-	-	route network cmds by transfer output	aktanazat
+P1	1123	PR	A	REMOVED:D9	closed-by-design	-	HOST_ADAPTER_MISMATCH	enforce resume snapshot budget	mradwankhalil
+P1	1122	PR	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Pi: routing anchor once per session	emschwartz
+P2	1121	PR	B	GP4/exit1-stderr-is-error	closed-by-design	-	FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	pi: stream ctx_execute progress + stderr exit classify	hiiamtrong
+P2	1118	PR	A	REMOVED:D2	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	db-base: SQL comments split exec	aktanazat
+P2	1116	PR	A	REMOVED:D9	closed-by-design	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	omp: resume snapshot after compact	tahsinrahman
+P2	1113	PR	A	REMOVED:ADR-0008	closed-by-design	-	HOST_ADAPTER_MISMATCH	detect: wait MCP initialize	tahsinrahman
+P2	1111	PR	B	GP9/no-periodic-stats-db-scan	closed-by-design	-	ZOMBIE_OPERATION	stats: stop heartbeat lifetime scans	koenvg
+P2	1104	PR	M	GP3/codex-exec-pretooluse-matcher	covered-by-test	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	codex: Code Mode `exec` in PreToolUse matcher	JAM924
+P2	1097	PR	C(reject)	N/A:rejected-not-decided	wont-fix	-	-	CONTEXT_MODE_MAX_LIMIT env	lostpeanut09
+P2	1095	PR	M	N/A:pi-client-ui-cosmetic	wont-fix	-	HOST_ADAPTER_MISMATCH	pi: strip echo preamble in collapsed render	danyal002
+P2	1093	PR	B	GP4/abort-signal-pi-cancel	covered-by-test	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	pi: Esc interrupt for ctx_* calls	stt-pafe
+P2	1092	PR	C(v2.0later)	N/A:ui-polish-deferred	wont-fix	-	HOST_ADAPTER_MISMATCH	pi: live call preview + result tail	stt-pafe
+P2	1091	PR	M+B	GP5/fts-highlight-bytecap	covered-by-test	-	HOST_ADAPTER_MISMATCH	search: guard FTS5 highlight on big rows (#878)	initguru
+P2	1089	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	derive plugin registry key for heal	7487
+P2	1087	PR	M+B	GP3/v17-read-glob-deny	covered-by-test	-	ROUTING_FAILURE,SECURITY_BOUNDARY_CONFUSION	security: `//` and `~/` anchors in permission patterns (#1075)	meikocho1
+P2	1086	PR	A	GP3/p4-parser-coverage	closed-by-design	-	ROUTING_FAILURE,SECURITY_BOUNDARY_CONFUSION	routing: scan quotes left to right	casparml
+P2	1084	PR	A	N/A:rejected-design	wont-fix	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	codex: redirect broad home searches	gutocarollo
+P2	1082	PR	C	N/A:not-decided	closed-by-design	-	-	`timeout` -> `timeoutMs`	aktanazat
+P2	1076	PR	C	N/A:not-decided	wont-fix	-	-	CONTEXT_MODE_TOOLS allow-list	alaleiwang
+P2	1073	PR	M	GP1/kiro-hooks-v1-schema	covered-by-test	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Kiro hooks 1.0 v1 schema	kevinmiao
+P2	1066	PR	A	REMOVED:ADR-0008	closed-by-design	-	HOST_ADAPTER_MISMATCH	omp: route broad calls, cap results 16 KiB	danzaio
+P2	1056	PR	A	GP8/verify-single-db	closed-by-design	-	DELETION_DATA_LOSS	db: no cross-process TRUNCATE checkpoint / mmap	HyeokjaeLee
+P2	1044	PR	C(later)	N/A:new-adapter-out-of-scope	wont-fix	-	HOST_ADAPTER_MISMATCH	Mistral Vibe adapter	xavierpestel-ai
+P2	1043	PR	A+B	GP6/hint-names-platform-tool	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	precompact: platform ctx_search name	LHMQ878
+P2	1042	PR	B	GP10/reduction-pct-net-bytes	covered-by-test	-	CONTEXT_OVERHEAD	stats: net returned bytes in reduction_pct	LHMQ878
+P2	1041	PR	C	N/A:not-decided	covered-by-test	-	SECURITY_BOUNDARY_CONFUSION	opt-in proxy for ctx_fetch_and_index	vishnujayvel
+P2	1040	PR	C	N/A:not-decided	wont-fix	-	HOST_ADAPTER_MISMATCH	opencode cost as deltas	vishnujayvel
+P2	1035	PR	B	GP11/pi-detect-npm-managed-install	closed-by-design	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	pi: detect npm-managed install	guillemservera
+P2	1034	PR	A	REMOVED:D11	closed-by-design	-	CAPABILITY_MISMATCH,ROUTING_FAILURE	self-identify subagent routing block	kaovilai
+P2	1033	PR	B	GP7/vscode-remote-wsl-project-root	closed-by-design	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	VS Code Remote-WSL project root	daniel-vincent-veriforce
+P2	1030	PR	A	REMOVED:D3	closed-by-design	-	-	retry transient SQLITE_IOERR	halindrome
+P2	1029	PR	D	N/A:duplicate-of-1093	closed-by-design	-	HOST_ADAPTER_MISMATCH	pi: MCP cancel to executor	YrFnS
+P2	1019	PR	B	GP3/pi-project-permissions-honored	closed-by-design	-	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION	security: honor Pi project permissions	WAIXv
+P2	1010	PR	C(later)	N/A:new-adapter-out-of-scope	wont-fix	-	-	Hermes Agent support	ildunari
+P2	1009	PR	B	GP4/cancel-kills-child-tree	covered-by-test	-	ZOMBIE_OPERATION	executor: kill abandoned trees on cancel	stgmt
+P2	1002	PR	A+B	GP2/pi-system-role-injection	closed-by-design	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	pi: context at system boundary	Tarun-joy
+P2	1001	PR	C	N/A:not-decided	wont-fix	-	-	MiniMax pricing rows	octo-patch
+P2	996	PR	A	REMOVED:D9	closed-by-design	-	HOST_ADAPTER_MISMATCH	session_state label "compaction"	donwellsav
+P2	995	PR	B	GP9/windows-ci-no-hang	-	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows vitest EPERM hang	skoll43
+P2	991	PR	B	GP5/auto-index-exec-output	covered-by-test	-	CONTEXT_OVERHEAD	auto-index 5-100 KB exec output	niemst
+P2	988	PR	A	REMOVED:D3	closed-by-design	-	-	opportunistic PASSIVE WAL checkpoint	alove20
+P2	987	PR	M+B	GP9/windows-parent-pid-probe	covered-by-test	-	HOST_ADAPTER_MISMATCH	Windows parent death via PID probe (#982)	alove20
+P2	986	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	Atomics.wait instead of busy-wait	alove20
+P2	980	PR	B	GP5/batch-ingestion-byte-caps	covered-by-test	-	-	batch: indexed byte/chunk budgets	Tomodad
+P2	975	PR	M+B	GP4/background-no-timeout-hang	closed-by-design	-	ZOMBIE_OPERATION	background=true w/o timeout hangs	ayuayue
+P2	974	PR	M+B	GP9/no-chdir	covered-by-test	-	ZOMBIE_OPERATION,PROJECT_IDENTITY_FAILURE	start.mjs: remove chdir	xav-ie
+P2	973	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	find bun on $PATH	xav-ie
+P3	972	PR	M	N/A:ci-test-harness-contract	covered-by-test	-	INSTALL_UPGRADE	test: no hardcoded /bin/bash	xav-ie ext / -
+P3	971	PR	D	N/A:duplicate-of-910	closed-by-design	-	HOST_ADAPTER_MISMATCH	codex: omit empty hook context	agolanov ext / -
+P3	970	PR	B	GP8/v22-project-cleanup	closed-by-design	-	DELETION_DATA_LOSS	sessions/ 14-day retention	hakanbaysal ext / -
+P3	969	PR	B	GP4/recreate-preload-temp-file	covered-by-test	-	DELETION_DATA_LOSS	re-create fs-preload temp file	hakanbaysal ext / -
+P3	968	PR	C(v2.0)	N/A:design-rejected-v1-406-kept	closed-by-design	-	ZOMBIE_OPERATION	default exec timeout env	hakanbaysal ext / -
+P3	963	PR	B(+M)	GP5/fts-highlight-bytecap	covered-by-test	-	CONTEXT_OVERHEAD	bound FTS hydration for big rows	Tomodad ext / SUCCESS
+P3	958	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	extract cache-heal script	xav-ie ext / -
+P3	957	PR	C(later)	N/A:new-adapter-out-of-scope	wont-fix	-	HOST_ADAPTER_MISMATCH	Devin CLI adapter	alexnimo ext / -
+P3	955	PR	A	REMOVED:D11	closed-by-design	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	codex Windows guidance overlay	TyceHerrman ext / SUCCESS
+P3	952	PR	B	GP10/real-savings-only	closed-by-design	-	ROUTING_FAILURE,CONTEXT_OVERHEAD	stats: count only real savings	felipetruman ext / -
+P3	948	PR	A	REMOVED:D11	closed-by-design	-	HOST_ADAPTER_MISMATCH	codex AGENTS.md JS default	TyceHerrman ext / SUCCESS
+P3	945	PR	A(+M)	GP3/webfetch-allow-claude-ai-artifacts	covered-by-test	-	ROUTING_FAILURE	WebFetch allow claude.ai artifacts	tongliuTL ext / -
+P3	939	PR	C	N/A:not-decided	wont-fix	-	-	ctx_forget tool	KoscheiiB ext / -
+P3	935	PR	C(later)	N/A:defer-reject	wont-fix	-	HOST_ADAPTER_MISMATCH	opencode /ctx TUI command	bulutmuf ext / -
+P3	934	PR	B(+M)	GP4/batch-node-options-compound-cmd	covered-by-test	-	HOST_ADAPTER_MISMATCH	batch NODE_OPTIONS as statement	hakanbaysal ext / -
+P3	932	PR	M	GP4/runpool-capped-flag	covered-by-test	-	-	runPool capped flag	hakanbaysal ext / -
+P3	931	PR	A	REMOVED:D17	covered-by-test	-	-	statusline import failure msg	ousamabenyounes ext / SUCCESS
+P3	930	PR	M	N/A:docs	closed-by-design	-	ZOMBIE_OPERATION	marketing skill REST query	ousamabenyounes ext / SUCCESS
+P3	929	PR	A	REMOVED:D2	closed-by-design	-	INSTALL_UPGRADE	packaging guard helper scripts	ousamabenyounes ext / SUCCESS
+P3	928	PR	M	N/A:docs	wont-fix	-	ZOMBIE_OPERATION	avoid gh projectCards query	ousamabenyounes ext / SUCCESS
+P3	927	PR	A	REMOVED:ADR-0008	-	-	ROUTING_FAILURE,STARTUP_RACE	WebFetch deny → advisory	dohgren78 ext / -
+P3	924	PR	B(+M)	GP9/no-chdir	-	-	ZOMBIE_OPERATION,PROJECT_IDENTITY_FAILURE	restore CWD in start.mjs	mattst88 ext / -
+P3	922	PR	C(v2.0)	N/A:not-decided	-	-	-	trim batch footer	uwuclxdy ext / -
+P3	921	PR	B	GP5/dedupe-chunks-across-queries	-	-	-	dedupe chunks across queries	uwuclxdy ext / -
+P3	920	PR	C(v2.0)	N/A:not-decided	-	-	-	throttle message numbers	uwuclxdy ext / -
+P3	918	PR	A(+M)	REMOVED:D11	-	-	ROUTING_FAILURE,PROMPT_INTERFERENCE	routing block injection framing	YuryKoltashevModdelix ext / -
+P3	913	PR	B	GP1/standalone-mcp-tool-prefix	-	-	INSTALL_UPGRADE	standalone mcp__context-mode__ prefix	eejd ext / SUCCESS
+P3	910	PR	B(+M)	GP3/no-empty-fields	-	-	FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	codex omit empty additionalContext	pradigmaz ext / SUCCESS
+P3	907	PR	B(+M)	GP6/sessionstart-surrogate-safe-truncation	-	-	ROUTING_FAILURE,DELETION_DATA_LOSS	SessionStart surrogate-safe truncation	NgoQuocViet2001 ext / SUCCESS
+P3	906	PR	B	GP1/codex-platform-env	-	-	HOST_ADAPTER_MISMATCH	codex config pin platform env	NgoQuocViet2001 ext / SUCCESS
+P3	904	PR	B	GP4/abort-signal-pi-cancel	-	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Pi abort signal propagation	xz-dev ext / -
+P3	899	PR	B	GP6/no-false-shell-error-capture	-	-	-	no false shell error capture	omrimel-cov ext / -
+P3	898	PR	B(+M)	GP5/chunk-size-cap	-	-	HOST_ADAPTER_MISMATCH	cap oversized markdown chunks	ken-jo ext / SUCCESS
+P3	897	PR	B	GP3/powershell-same-hint-as-bash	-	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Claude Code PowerShell hooks (Win)	aribaskagan ext / -
+P3	892	PR	M	N/A:docs	-	-	-	README typo	yairEO ext / -
+P3	888	PR	D	N/A:stale-empty-issue	-	-	-	MCP singleton concurrency	jashwanth-reddy-g ext / -
+P3	884	PR	A	N/A:docs	-	-	HOST_ADAPTER_MISMATCH	docs sync adapters v1.0.167	ken-jo ext / SUCCESS
+P3	877	PR	C(v2.0)	N/A:not-decided	-	-	HOST_ADAPTER_MISMATCH	OMP replace large results w/ refs	ken-jo ext / SUCCESS
+P3	876	PR	A	REMOVED:D11	-	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	OMP seed APPEND_SYSTEM.md	NgoQuocViet2001 ext / SUCCESS
+P3	871	PR	A	REMOVED:D3	-	-	INSTALL_UPGRADE	withRetry heal on SQLITE_CORRUPT	ousamabenyounes ext / SUCCESS
+P3	866	PR	A	REMOVED:D3	-	-	-	honor CLAUDE_CONFIG_DIR in stats	halindrome ext / SUCCESS
+P3	864	PR	B	GP2/pi-system-role-injection	-	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi hidden context injection	RamJam824 ext / FAILURE
+P3	863	PR	A	REMOVED:D2	-	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows better-sqlite3 install via node	ken-jo ext / SUCCESS

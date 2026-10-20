@@ -1,0 +1,12 @@
+        	            	--- Expected
+        	            	--- Expected
+        	            	--- Expected
+--- FAIL: TestContinuedRunKeepsTheWorkspaceModel (0.01s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s (0.00s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-C (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model (0.00s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s_--effort (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.062s
+FAIL

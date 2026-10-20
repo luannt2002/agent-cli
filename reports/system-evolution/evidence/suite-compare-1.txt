@@ -1,0 +1,11 @@
+clean: 4a0b25b6 dirty=0
+base rc=0 166s
+cand rc=0 153s
+base tests: 4501 {'pass': 4489, 'skip': 12} packages: {'skip': 17, 'pass': 68}
+cand tests: 4577 {'pass': 4565, 'skip': 12} packages: {'skip': 17, 'pass': 68}
+disappeared: 0
+status changed: 0
+new: 76 {'pass': 76}
+candidate failures: 0
+baseline failures: 0
+package status changed: []

@@ -1,0 +1,1 @@
+T6: EXPOSED — agentic_fetch: system mentions absent=[] | todo-reminder-without-todos=True;plan: system mentions absent=['question'] | todo-reminder-without-todos=True;subagent: system mentions absent=[] | todo-reminder-without-todos=False; set-plan HTTP 200

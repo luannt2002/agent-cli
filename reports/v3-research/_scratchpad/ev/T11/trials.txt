@@ -1,0 +1,9 @@
+trial 1 (kill after 0s): send rc=0 session=fbd5c4b0-7d82-4ab6-a10a-c3ada2004617 user_message_in_db=no
+trial 2 (kill after 0s): send rc=0 session=70a30e6d-09ae-4d46-9821-2d9fb494ada3 user_message_in_db=no
+trial 3 (kill after 0s): send rc=0 session=e2980486-d7ee-4ba2-9afd-b25575c535fc user_message_in_db=no
+trial 4 (kill after 0s): send rc=0 session=eef6dc46-47b2-40fa-adf4-f8166555c695 user_message_in_db=no
+trial 5 (kill after 0s): send rc=0 session=96780739-75fc-4208-b482-f5e4fbbd78d1 user_message_in_db=no
+trial 6 (kill after 0s): send rc=0 session=4382c42b-2726-46d9-9411-3390138daa85 user_message_in_db=no
+trial 7 (kill after 0s): send rc=0 session=28fe3278-3062-47c8-98a1-7e8cbd1ccc5b user_message_in_db=no
+trial 8 (kill after 0s): send rc=0 session=2115ef90-6095-4381-8cba-a19bd64221fb user_message_in_db=no
+trial 9 (kill after 2s): send rc=0 session=2ec6108b-baf6-431f-bbc6-98dc59109c43 user_message_in_db=yes

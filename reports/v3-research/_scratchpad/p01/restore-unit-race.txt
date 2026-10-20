@@ -1,0 +1,10 @@
+=== RUN   TestBuildAgentReadinessSurvivesCallerCancellation
+--- PASS: TestBuildAgentReadinessSurvivesCallerCancellation (0.32s)
+=== RUN   TestRunWaitIsSafeAgainstConcurrentAgentBuild
+--- PASS: TestRunWaitIsSafeAgainstConcurrentAgentBuild (0.29s)
+=== RUN   TestNewCoordinatorWithStopHooks
+=== PAUSE TestNewCoordinatorWithStopHooks
+=== CONT  TestNewCoordinatorWithStopHooks
+--- PASS: TestNewCoordinatorWithStopHooks (0.39s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/agent	2.063s

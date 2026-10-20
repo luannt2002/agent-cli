@@ -1,0 +1,9 @@
+        	Error:      	Not equal: 
+        	            	expected: []string{"LOOP on=unset commit=unset", "ROUTINE commit=false on=1 commit=0", "ROUTINE commit=true on=1 commit=1"}
+        	            	actual  : []string{"LOOP on=unset commit=unset", "ROUTINE commit=false on=unset commit=unset", "ROUTINE commit=true on=unset commit=unset"}
+        	            	+++ Actual
+        	            	@@ -2,4 +2,4 @@
+        	            	+ (string) (len=42) "ROUTINE commit=false on=unset commit=unset",
+        	            	+ (string) (len=41) "ROUTINE commit=true on=unset commit=unset"
+--- FAIL: TestVerifyCarriesTheCurrentUnattendedState (0.21s)
+FAIL

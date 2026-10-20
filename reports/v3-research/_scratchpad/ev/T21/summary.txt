@@ -1,0 +1,4 @@
+  home/data/loops/loop-20261019-094448.jsonl                             file_canary=2 env_canary=2 mode=0o600 [loops]
+  proj/.crush/crush.db                                                   file_canary=4 env_canary=2 mode=0o644 [crush.db]
+  proj/.crush/shell-output/output-444891930.log                          file_canary=1 env_canary=1 mode=0o600 [shell-output]
+files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0)

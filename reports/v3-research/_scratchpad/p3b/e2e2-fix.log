@@ -1,0 +1,4 @@
+t1 rc=0 text='DONE-LEDGER' ledger_error='write /dev/full: no space left on device' session=59f2d61b-5a18-488f-a38a-1031a3f76256
+t2 rc=0 text='DONE-LEDGER' ledger_error='write /dev/full: no space left on device' session=59f2d61b-5a18-488f-a38a-1031a3f76256
+server logs: 1 requests: 5 warnings with session: 2 without: 1
+E2E-LEDGER-2TURNS: PASS

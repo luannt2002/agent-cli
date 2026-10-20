@@ -1,0 +1,29 @@
+--- FAIL: TestMCPInstructionsFollowRunTools (0.00s)
+    tool_prompt_test.go:47: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2a/internal/agent/tool_prompt_test.go:47
+        	Error:      	Should be empty, but was 
+        	            	
+        	            	<mcp-instructions>
+        	            	ALPHA-INSTR
+        	            	
+        	            	BETA-INSTR
+        	            	
+        	            	
+        	            	</mcp-instructions>
+        	Test:       	TestMCPInstructionsFollowRunTools
+        	Messages:   	an agent with no MCP tool must not get <mcp-instructions>
+2026/10/19 22:57:27 ERROR Failed to save derived session title error="sql: database is closed"
+2026/10/19 22:57:27 ERROR Failed to save session title and usage error="sql: database is closed"
+2026/10/19 22:57:27 ERROR Failed to save fallback session title error="sql: database is closed"
+--- FAIL: TestTodoReminderOnlyWithTodosTool (0.00s)
+    --- FAIL: TestTodoReminderOnlyWithTodosTool/without_todos (0.03s)
+        tool_prompt_test.go:136: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p2a/internal/agent/tool_prompt_test.go:136
+            	Error:      	Not equal: 
+            	            	expected: false
+            	            	actual  : true
+            	Test:       	TestTodoReminderOnlyWithTodosTool/without_todos
+            	Messages:   	todo reminder sent
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.067s
+FAIL

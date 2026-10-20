@@ -1,0 +1,652 @@
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 24ec1f6a..5c1197e1 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -1330,7 +1330,8 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 						overflow = &contextOverflowError{used: tokens, window: cw, threshold: threshold}
+ 						return true
+ 					}
+-					if call.summaries >= maxAutoSummaries && len(steps[len(steps)-1].Content.ToolCalls()) > 0 {
++					// Cùng điều kiện với chỗ xếp lượt làm tiếp (gồm tool call viết dở).
++					if call.summaries >= maxAutoSummaries && currentAssistant != nil && len(currentAssistant.ToolCalls()) > 0 {
+ 						summaryCapHit = true
+ 						return true
+ 					}
+@@ -1356,7 +1357,8 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 	if err == nil && looping && !shouldSummarize {
+ 		err = errLoopDetected
+ 	}
+-	if err == nil && emptyTurn(result) {
++	// Lượt làm tiếp (sau tóm tắt, sau khi bị cắt) thuộc chuỗi đã làm việc.
++	if err == nil && !call.continuation && emptyTurn(result) {
+ 		err = errEmptyReply
+ 	}
+ 	if err == nil && summaryCapHit {
+@@ -2247,10 +2249,11 @@ func hasUserTextMessage(msgs []message.Message) bool {
+ 	return false
+ }
+ 
+-// emptyTurn cho biết lượt không ra chữ lẫn tool call nào ở mọi bước. Lượt có
+-// tool call rồi kết thúc im lặng vẫn là lượt có làm.
++// emptyTurn cho biết lượt kết thúc bình thường (finish=stop) mà không ra chữ lẫn
++// tool call nào ở mọi bước. Lượt có tool call rồi im lặng vẫn là lượt có làm; bị
++// cắt (length) là việc của nhánh tự làm tiếp; bộ lọc từ chối giữ lý do riêng.
+ func emptyTurn(result *fantasy.AgentResult) bool {
+-	if result == nil || len(result.Steps) == 0 {
++	if result == nil || len(result.Steps) == 0 || result.Steps[len(result.Steps)-1].FinishReason != fantasy.FinishReasonStop {
+ 		return false
+ 	}
+ 	for _, s := range result.Steps {
+diff --git a/internal/agent/continuation_test.go b/internal/agent/continuation_test.go
+index 6aac8664..6fa16038 100644
+--- a/internal/agent/continuation_test.go
++++ b/internal/agent/continuation_test.go
+@@ -116,6 +116,25 @@ func (m *scriptModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.St
+ 		return textStream("part ", fantasy.FinishReasonLength, small), nil
+ 	case "empty":
+ 		return textStream("", fantasy.FinishReasonStop, small), nil
++	case "refused":
++		return textStream("", fantasy.FinishReasonContentFilter, small), nil
++	case "cut_tool", "think_cut":
++		// Bị cắt ở giới hạn output: provider openai-compat không phát ToolCall cho
++		// tool call viết dở; model suy luận tiêu hết ngân sách vào phần nghĩ.
++		id := fmt.Sprintf("tc%d", n)
++		return func(yield func(fantasy.StreamPart) bool) {
++			if step == "cut_tool" {
++				if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputStart, ID: id, ToolCallName: "noop"}) ||
++					!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputDelta, ID: id, Delta: `{"content": "half`}) {
++					return
++				}
++			} else if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningStart, ID: "r1"}) ||
++				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningDelta, ID: "r1", Delta: "thinking..."}) ||
++				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningEnd, ID: "r1"}) {
++				return
++			}
++			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength, Usage: small})
++		}, nil
+ 	case "tool", "tool_small":
+ 		id := fmt.Sprintf("tc%d", n)
+ 		usage := fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}
+diff --git a/internal/agent/false_success_test.go b/internal/agent/false_success_test.go
+index 8ebb08d8..790d4d8a 100644
+--- a/internal/agent/false_success_test.go
++++ b/internal/agent/false_success_test.go
+@@ -60,6 +60,50 @@ func TestToolWorkThenSilentEndIsNotAnError(t *testing.T) {
+ 	require.Empty(t, rc.Error)
+ }
+ 
++// Bị cắt ở giới hạn output giữa tool call viết dở (không có phần ToolCall) hay
++// khi đang nghĩ: đó là việc của nhánh tự làm tiếp, không phải "trả lời rỗng".
++func TestLengthCutWithoutTextIsContinuedNotEmpty(t *testing.T) {
++	for _, step := range []string{"cut_tool", "think_cut"} {
++		t.Run(step, func(t *testing.T) {
++			h := newContHarness(t, &scriptModel{script: []string{step, "done"}, summaryText: "SUMMARY"})
++
++			_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "write the big file"})
++			require.NoError(t, err)
++			rc := waitRunComplete(t, h.ch, "x")
++			require.Empty(t, rc.Error)
++			require.Equal(t, "done", rc.Text, "the length continuation ran")
++		})
++	}
++}
++
++// Bộ lọc nội dung từ chối mà không có chữ: giữ lý do từ chối (TUI hiện REFUSED),
++// không đổi thành "trả lời rỗng".
++func TestContentFilterRefusalIsNotReportedAsEmpty(t *testing.T) {
++	h := newContHarness(t, &scriptModel{script: []string{"refused"}, summaryText: "SUMMARY"})
++
++	_, _ = h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "fix it"})
++	rc := waitRunComplete(t, h.ch, "x")
++	require.NotContains(t, rc.Error, "empty reply")
++	msgs, err := h.env.messages.List(t.Context(), h.sid)
++	require.NoError(t, err)
++	last := msgs[len(msgs)-1]
++	require.NotNil(t, last.FinishPart())
++	require.Equal(t, message.FinishReasonContentFilter, last.FinishPart().Reason)
++}
++
++// Lượt làm tiếp sau tự tóm tắt kết thúc im lặng: chuỗi của prompt đã làm việc,
++// nên không phải lỗi.
++func TestSilentContinuationAfterSummaryIsNotAnError(t *testing.T) {
++	h := newContHarness(t, &scriptModel{script: []string{"tool", "empty"}, summaryText: "SUMMARY"})
++
++	_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "fix it"})
++	require.NoError(t, err)
++	rc := waitRunComplete(t, h.ch, "x")
++	require.Empty(t, rc.Error)
++	kinds, _ := h.model.seen()
++	require.Equal(t, []string{"work", "summary", "work"}, kinds)
++}
++
+ // Loop detection dừng lượt vì model lặp cùng một tool call: đó là thất bại, không
+ // phải "xong". RunComplete phải mang lỗi để `run` thoát khác 0 (audit C-06).
+ func TestLoopDetectionStopIsAnError(t *testing.T) {
+diff --git a/internal/agent/summarize_overflow_test.go b/internal/agent/summarize_overflow_test.go
+index a546a908..fb21a555 100644
+--- a/internal/agent/summarize_overflow_test.go
++++ b/internal/agent/summarize_overflow_test.go
+@@ -168,6 +168,9 @@ type roomModel struct {
+ 	work atomic.Int64
+ 	// rounds: số vòng (đầy lại → tóm tắt) trước khi trả lời xong; 0 = 2.
+ 	rounds int64
++	// cutBig: bước làm đầy context bị cắt ở giới hạn output giữa tool call (không
++	// có phần ToolCall, như provider openai-compat).
++	cutBig bool
+ }
+ 
+ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
+@@ -197,6 +200,14 @@ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Stre
+ 				Usage: fantasy.Usage{InputTokens: 300, OutputTokens: 10, TotalTokens: 310}})
+ 		}, nil
+ 	}
++	if m.cutBig && w%2 == 0 {
++		return func(yield func(fantasy.StreamPart) bool) {
++			if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputStart, ID: "tc", ToolCallName: name}) {
++				return
++			}
++			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength, Usage: usage})
++		}, nil
++	}
+ 	return func(yield func(fantasy.StreamPart) bool) {
+ 		if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputStart, ID: "tc", ToolCallName: name}) {
+ 			return
+@@ -215,10 +226,17 @@ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Stre
+ // việc từ đầu sau tóm tắt): không có trần thì một prompt cháy token vô hạn
+ // (faults: 1.338 lời gọi main / 120 s). Dừng có lỗi sau maxAutoSummaries lần.
+ func TestAutoSummarizeHasACapPerPrompt(t *testing.T) {
++	for _, cutBig := range []bool{false, true} {
++		t.Run(map[bool]string{false: "tool calls", true: "cut tool call fills the window"}[cutBig], func(t *testing.T) {
++			testSummaryCap(t, &roomModel{rounds: 1000, cutBig: cutBig})
++		})
++	}
++}
++
++func testSummaryCap(t *testing.T, m *roomModel) {
+ 	env := testEnv(t)
+ 	broker := pubsub.NewBroker[notify.RunComplete]()
+ 	t.Cleanup(broker.Shutdown)
+-	m := &roomModel{rounds: 1000}
+ 	cw := catwalk.Model{ContextWindow: 1000, DefaultMaxTokens: 100}
+ 	sa := NewSessionAgent(SessionAgentOptions{
+ 		LargeModel:  modelWith(m, "prov", "model", cw),
+diff --git a/internal/cmd/routine.go b/internal/cmd/routine.go
+index bbc0f6da..e11ef2a0 100644
+--- a/internal/cmd/routine.go
++++ b/internal/cmd/routine.go
+@@ -15,6 +15,7 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"time"
++	"unicode"
+ 
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/event"
+@@ -320,7 +321,12 @@ func scheduleEnv() []string {
+ 	for _, k := range []string{"CRUSH_GLOBAL_CONFIG", "CRUSH_GLOBAL_DATA", "CRUSH_CACHE_DIR",
+ 		"CRUSH_DISABLE_METRICS", "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "CRUSH_DISABLE_UPDATE_CHECK",
+ 		execpolicy.EnvFileEnv, execpolicy.AllowedModelsEnv} {
+-		if v := execpolicy.OriginalEnv(k); v != "" {
++		v := execpolicy.OriginalEnv(k)
++		if k == execpolicy.AllowedModelsEnv {
++			// Policy nhận phẩy lẫn khoảng trắng; unit/crontab không nhận khoảng trắng.
++			v = strings.Join(strings.FieldsFunc(v, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }), ",")
++		}
++		if v != "" {
+ 			env = append(env, k+"="+v)
+ 		}
+ 	}
+@@ -431,16 +437,13 @@ func listRuns(dataDir, name string) []routineReport {
+ 	dirs, _ := filepath.Glob(filepath.Join(dataDir, name, "runs", "*"))
+ 	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
+ 	var out []routineReport
+-	running := false
+ 	for i, dir := range dirs {
+ 		var rep routineReport
+ 		raw, err := os.ReadFile(filepath.Join(dir, "report.json"))
+-		if i == 0 {
+-			running = routineLockHeld(dataDir, name)
+-		}
++		// Chỉ thử khoá khi cần (routineLockHeld có cửa sổ làm lượt khác thoát 75).
+ 		if err != nil || json.Unmarshal(raw, &rep) != nil {
+ 			// Lượt mới nhất giữ khoá mà chưa có báo cáo là vừa khởi động, chưa chết.
+-			if i == 0 && running {
++			if i == 0 && routineLockHeld(dataDir, name) {
+ 				out = append(out, routineReport{Routine: name, Reason: "RUNNING",
+ 					Detail: "starting: no report written yet; run dir " + dir})
+ 				continue
+@@ -451,7 +454,7 @@ func listRuns(dataDir, name string) []routineReport {
+ 			continue
+ 		}
+ 		if rep.Reason == "RUNNING" {
+-			if i > 0 || !running {
++			if i > 0 || !routineLockHeld(dataDir, name) {
+ 				rep.Reason = "ABANDONED"
+ 				rep.Detail = "the run stopped before finishing (killed, crashed or the machine restarted); its worktree and branch are kept: " + rep.Worktree
+ 			}
+diff --git a/internal/cmd/routine_status_test.go b/internal/cmd/routine_status_test.go
+index 87439916..58e5a469 100644
+--- a/internal/cmd/routine_status_test.go
++++ b/internal/cmd/routine_status_test.go
+@@ -203,6 +203,25 @@ func TestScheduleEnv_IgnoresProjectDotenv(t *testing.T) {
+ }
+ 
+ // Biến tệp env của người dùng đi theo lịch khi có trong env gốc.
++// Allowlist viết cách nhau bằng dấu cách (policy nhận cả phẩy lẫn khoảng trắng)
++// vẫn lên lịch được: đổi thành dạng phẩy, cùng nghĩa (soát SEC2-5).
++func TestScheduleEnv_NormalisesASpaceSeparatedAllowlist(t *testing.T) {
++	t.Setenv("AGENT_CLI_ALLOWED_MODELS", " zai:glm-5.3  openai:gpt-5,x:y ")
++	require.Contains(t, scheduleEnv(), "AGENT_CLI_ALLOWED_MODELS=zai:glm-5.3,openai:gpt-5,x:y")
++}
++
++// Báo cáo mới nhất đã xong (GREEN/ERROR) thì không thử khoá: mỗi lần thử, một lượt
++// chạy theo lịch khởi động đúng lúc đó thấy khoá bận và thoát 75 (soát LC2-5).
++func TestListRuns_DoesNotProbeTheLockForAFinishedRun(t *testing.T) {
++	data := t.TempDir()
++	dir := filepath.Join(data, "nightly", "runs", "20261016-120000")
++	require.NoError(t, os.MkdirAll(dir, 0o700))
++	require.NoError(t, os.WriteFile(filepath.Join(dir, "report.json"), []byte(`{"routine":"nightly","reason":"GREEN"}`), 0o600))
++	runs := listRuns(data, "nightly")
++	require.Equal(t, "GREEN", runs[0].Reason)
++	require.NoFileExists(t, routineLockPath(data, "nightly"), "probing creates the lock file")
++}
++
+ func TestScheduleEnv_CarriesTheProviderBoundary(t *testing.T) {
+ 	t.Setenv("AGENT_CLI_ENV_FILE", "/home/u/.config/agent-cli/env")
+ 	t.Setenv("AGENT_CLI_ALLOWED_MODELS", "openai:gpt-5")
+diff --git a/internal/shell/protect.go b/internal/shell/protect.go
+index cfa15deb..97a068ab 100644
+--- a/internal/shell/protect.go
++++ b/internal/shell/protect.go
+@@ -4,7 +4,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+-	"slices"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -95,8 +94,8 @@ func baseName(arg string) string {
+ }
+ 
+ // peelLaunchers bỏ các lớp bọc (env FOO=1, timeout 5, nice -n 9...) để tới
+-// lệnh thật; trả kèm các phép gán A=b đã bỏ (biến môi trường của lệnh thật).
+-func peelLaunchers(args []string) (rest, assigns []string) {
++// lệnh thật.
++func peelLaunchers(args []string) []string {
+ 	for len(args) > 0 && processLaunchers[baseName(args[0])] {
+ 		name := baseName(args[0])
+ 		positionals := launcherPositionals[name]
+@@ -115,12 +114,7 @@ func peelLaunchers(args []string) (rest, assigns []string) {
+ 				}
+ 				continue
+ 			}
+-			if strings.Contains(a, "=") {
+-				assigns = append(assigns, a)
+-				args = args[1:]
+-				continue
+-			}
+-			if isAllDigits(a) || isNumericArg(a) {
++			if strings.Contains(a, "=") || isAllDigits(a) || isNumericArg(a) {
+ 				args = args[1:]
+ 				continue
+ 			}
+@@ -132,7 +126,7 @@ func peelLaunchers(args []string) (rest, assigns []string) {
+ 			break
+ 		}
+ 	}
+-	return args, assigns
++	return args
+ }
+ 
+ // numericArg nhận tham số số của lớp bọc: thời gian (5, 5s, 1.5m, 2h), danh sách
+@@ -222,63 +216,29 @@ func shellScript(args []string) (script string, positional []string, ok bool) {
+ 	return "", nil, false
+ }
+ 
+-// scriptCmd là một lệnh đơn trong script: argv và các biến gán cho nó (NAME=giá-trị).
+-type scriptCmd struct {
+-	args, env []string
+-}
+-
+ // scriptCommands phân tích script như bash và trả argv của MỌI lệnh đơn trong nó
+ // (kể cả trong vòng lặp, if, hàm, $(...), backtick). Từ chỉ gồm chữ và nháy
+ // được giải thành chuỗi (`ki""ll` -> kill); từ có expansion là dynamicWord.
+-// env của mỗi lệnh gồm phép gán đầu lệnh của nó cộng MỌI phép gán đứng riêng /
+-// export / declare trong script: không theo dõi thứ tự, nghiêng về chặn.
+-func scriptCommands(script string) (cmds []scriptCmd, ok bool) {
++func scriptCommands(script string) (cmds [][]string, ok bool) {
+ 	file, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(script), "")
+ 	if err != nil {
+ 		return nil, false
+ 	}
+-	var shared []string
+ 	syntax.Walk(file, func(n syntax.Node) bool {
+-		switch c := n.(type) {
+-		case *syntax.DeclClause:
+-			shared = append(shared, assignStrings(c.Args)...)
+-		case *syntax.CallExpr:
+-			if len(c.Args) == 0 {
+-				shared = append(shared, assignStrings(c.Assigns)...)
+-				return true
+-			}
+-			argv := make([]string, len(c.Args))
+-			for i, w := range c.Args {
+-				argv[i] = staticWord(w)
+-			}
+-			cmds = append(cmds, scriptCmd{args: argv, env: assignStrings(c.Assigns)})
++		call, isCall := n.(*syntax.CallExpr)
++		if !isCall || len(call.Args) == 0 {
++			return true
++		}
++		argv := make([]string, len(call.Args))
++		for i, w := range call.Args {
++			argv[i] = staticWord(w)
+ 		}
++		cmds = append(cmds, argv)
+ 		return true
+ 	})
+-	if len(shared) > 0 {
+-		for i := range cmds {
+-			cmds[i].env = append(cmds[i].env, shared...)
+-		}
+-	}
+ 	return cmds, true
+ }
+ 
+-// assignStrings đổi phép gán thành "NAME=giá-trị" (giá trị động là dynamicWord).
+-func assignStrings(assigns []*syntax.Assign) []string {
+-	var out []string
+-	for _, a := range assigns {
+-		if a.Name == nil {
+-			continue // cờ của declare/export (`-x`), không phải biến
+-		}
+-		value := ""
+-		if a.Value != nil {
+-			value = staticWord(a.Value)
+-		}
+-		out = append(out, a.Name.Value+"="+value)
+-	}
+-	return out
+-}
+-
+ func staticWord(w *syntax.Word) string {
+ 	var b strings.Builder
+ 	for _, part := range w.Parts {
+@@ -324,21 +284,15 @@ type ProcessGuard struct {
+ 	// Deny (tuỳ chọn) được gọi với argv của MỌI lệnh đơn sau khi bóc lớp bọc,
+ 	// kể cả lệnh nằm trong script của `sh -c`; trả (lý do, true) để chặn.
+ 	Deny func(args []string) (reason string, blocked bool)
+-	// DenyEnv (tuỳ chọn) như Deny nhưng nhận thêm các biến (NAME=giá-trị) gán cho
+-	// lệnh: qua `env A=b`, gán đầu lệnh trong `sh -c`, hay kế thừa từ shell bọc
+-	// ngoài. Chỉ gọi khi có ít nhất một biến.
+-	DenyEnv func(env, args []string) (reason string, blocked bool)
+ }
+ 
+ // Blocked báo lệnh args có bị chặn không, và lý do để ghi log.
+ func (g ProcessGuard) Blocked(args []string) (reason string, blocked bool) {
+-	return g.blocked(args, nil, 0)
++	return g.blocked(args, 0)
+ }
+ 
+-// env là các biến đã gán cho lệnh từ lớp ngoài (shell bọc nó).
+-func (g ProcessGuard) blocked(args, env []string, depth int) (reason string, blocked bool) {
+-	args, assigns := peelLaunchers(args)
+-	env = append(slices.Clip(env), assigns...)
++func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked bool) {
++	args = peelLaunchers(args)
+ 	if len(args) == 0 {
+ 		return "", false
+ 	}
+@@ -348,11 +302,6 @@ func (g ProcessGuard) blocked(args, env []string, depth int) (reason string, blo
+ 			return reason, true
+ 		}
+ 	}
+-	if g.DenyEnv != nil && len(env) > 0 {
+-		if reason, denied := g.DenyEnv(env, args); denied {
+-			return reason, true
+-		}
+-	}
+ 	switch {
+ 	case shutdownCommands[cmd]:
+ 		return "shutting the machine down or rebooting is never allowed", true
+@@ -367,7 +316,7 @@ func (g ProcessGuard) blocked(args, env []string, depth int) (reason string, blo
+ 				return "", false
+ 			}
+ 		}
+-		return g.blockedScript(script, positional, env, depth)
++		return g.blockedScript(script, positional, depth)
+ 	case killByPID[cmd]:
+ 		pids := killPIDs(args)
+ 		// Không có PID tường minh thì PID đến từ nơi khác (xargs, stdin): không
+@@ -394,9 +343,8 @@ func (g ProcessGuard) blocked(args, env []string, depth int) (reason string, blo
+ 	return "", false
+ }
+ 
+-// blockedScript soi từng lệnh đơn trong script của `sh -c` / `eval`; env là biến
+-// shell bọc ngoài đã nhận, lệnh trong script kế thừa chúng.
+-func (g ProcessGuard) blockedScript(script string, positional, env []string, depth int) (string, bool) {
++// blockedScript soi từng lệnh đơn trong script của `sh -c` / `eval`.
++func (g ProcessGuard) blockedScript(script string, positional []string, depth int) (string, bool) {
+ 	if depth >= maxShellDepth {
+ 		return "shell commands nested too deep to inspect for process-killing", true
+ 	}
+@@ -409,18 +357,12 @@ func (g ProcessGuard) blockedScript(script string, positional, env []string, dep
+ 		return "", false
+ 	}
+ 	dynamicHead := false
+-	for _, c := range cmds {
+-		if c.args[0] == dynamicWord {
++	for _, argv := range cmds {
++		if argv[0] == dynamicWord {
+ 			dynamicHead = true
+-			// Tên lệnh chưa biết vẫn phải qua DenyEnv (`g=git; GIT_DIR=x $g rm f`).
+-			if cmdEnv := append(slices.Clip(env), c.env...); g.DenyEnv != nil && len(cmdEnv) > 0 {
+-				if reason, denied := g.DenyEnv(cmdEnv, c.args); denied {
+-					return reason, true
+-				}
+-			}
+ 			continue
+ 		}
+-		if reason, blocked := g.blocked(c.args, append(slices.Clip(env), c.env...), depth+1); blocked {
++		if reason, blocked := g.blocked(argv, depth+1); blocked {
+ 			return reason, true
+ 		}
+ 	}
+@@ -431,7 +373,7 @@ func (g ProcessGuard) blockedScript(script string, positional, env []string, dep
+ 			return "shell script runs a command whose name is only known at run time, next to kill", true
+ 		}
+ 		for i := range positional {
+-			if reason, blocked := g.blocked(positional[i:], env, depth+1); blocked {
++			if reason, blocked := g.blocked(positional[i:], depth+1); blocked {
+ 				return reason, true
+ 			}
+ 		}
+diff --git a/internal/shell/run.go b/internal/shell/run.go
+index e521acf4..6fc443e8 100644
+--- a/internal/shell/run.go
++++ b/internal/shell/run.go
+@@ -361,13 +361,14 @@ func blockHandler(blockFuncs []BlockFunc) execMiddleware {
+ 	}
+ }
+ 
+-// gitRedirectEnv trả các biến export trong isGitEnvRedirect mà lệnh tự đặt. Biến
+-// có cùng giá trị trong môi trường của chính agent-cli là của người khởi chạy
+-// (vd chạy trong git hook), không phải của lệnh, nên bỏ qua.
++// gitRedirectEnv trả các biến export mà lệnh tự đặt và nhắc tới biến git trong
++// gitEnvName, ở tên hay ở giá trị (`X='GIT_DIR=…' sh -c 'eval "$X"'`). Biến có cùng
++// giá trị trong môi trường của chính agent-cli là của người khởi chạy (vd chạy
++// trong git hook), không phải của lệnh, nên bỏ qua.
+ func gitRedirectEnv(env expand.Environ) []string {
+ 	var out []string
+ 	env.Each(func(name string, vr expand.Variable) bool {
+-		if !vr.Exported || !vr.IsSet() || !isGitEnvRedirect(name) {
++		if !vr.Exported || !vr.IsSet() || !gitEnvName.MatchString(name+"="+vr.String()) {
+ 			return true
+ 		}
+ 		if v, ok := os.LookupEnv(name); ok && v == vr.String() {
+diff --git a/internal/shell/unattended.go b/internal/shell/unattended.go
+index 6ed2f6ea..286dc96f 100644
+--- a/internal/shell/unattended.go
++++ b/internal/shell/unattended.go
+@@ -1,6 +1,7 @@
+ package shell
+ 
+ import (
++	"regexp"
+ 	"strings"
+ )
+ 
+@@ -15,24 +16,27 @@ import (
+ // -delete`, script nạp từ tệp hoặc stdin. Xem docs trong CHANGELOG.
+ //
+ // Guard soi CHỮ của lệnh nên cũng không phủ: thư mục symlink (`ln -s /other r;
+-// git -C r ...`), `cd` ra ngoài trước lệnh, và chuyển hướng/cp ghi ra ngoài
+-// (`> /other/f`). Đây là danh sách đen, không phải sandbox.
++// git -C r ...`), `cd` ra ngoài trước lệnh, chuyển hướng/cp ghi ra ngoài
++// (`> /other/f`), và tên biến git ghép lúc chạy (`"GIT_""DIR"`). Đây là danh sách
++// đen, không phải sandbox.
+ 
+ // UnattendedGuard là BlockFunc chặn lệnh nguy hiểm khi enabled() trả true.
+ // allowCommit() mở các lệnh tạo commit (git commit, am, cherry-pick, revert) khi
+ // routine bật commit tường minh; không mở thứ nào khác. onBlock (có thể nil) nhận lý do để ghi log.
+ func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason string, args []string)) BlockFunc {
+-	g := ProcessGuard{
+-		Deny: func(args []string) (string, bool) {
+-			return unattendedDenied(args, allowCommit())
+-		},
+-		DenyEnv: gitEnvDenied,
+-	}
++	g := ProcessGuard{Deny: func(args []string) (string, bool) {
++		return unattendedDenied(args, allowCommit())
++	}}
+ 	return func(args []string) bool {
+ 		if !enabled() {
+ 			return false
+ 		}
+-		reason, blocked := g.Blocked(args)
++		// Soi chữ thô trước khi bóc lớp bọc: script của sh -c, chuỗi của env -S,
++		// eval, và tiền tố `env NAME=…` mà blockHandler thêm cho biến đã export.
++		reason, blocked := gitEnvMentioned(args)
++		if !blocked {
++			reason, blocked = g.Blocked(args)
++		}
+ 		if blocked && onBlock != nil {
+ 			onBlock(reason, args)
+ 		}
+@@ -61,30 +65,19 @@ func unattendedDenied(args []string, allowCommit bool) (string, bool) {
+ 	return "", false
+ }
+ 
+-// gitEnvRedirect là biến môi trường trỏ git sang repo/chỉ mục/kho đối tượng khác
+-// hoặc nạp cấu hình (làm việc của -C/--git-dir/-c, mà guard thấy qua argv còn
+-// biến thì không). Cấm bất kể giá trị: kiểm đường dẫn phức tạp hơn mà không cần.
+-var gitEnvRedirect = map[string]bool{
+-	"GIT_DIR": true, "GIT_WORK_TREE": true, "GIT_COMMON_DIR": true, "GIT_INDEX_FILE": true,
+-	"GIT_OBJECT_DIRECTORY": true, "GIT_NAMESPACE": true, "GIT_CONFIG_PARAMETERS": true,
+-	"GIT_CONFIG_COUNT": true, "GIT_CONFIG_GLOBAL": true, "GIT_CONFIG_SYSTEM": true, "GIT_EXEC_PATH": true,
+-}
+-
+-// isGitEnvRedirect: name nằm trong gitEnvRedirect hoặc là GIT_CONFIG_KEY_n/VALUE_n.
+-func isGitEnvRedirect(name string) bool {
+-	return gitEnvRedirect[name] || strings.HasPrefix(name, "GIT_CONFIG_KEY_") || strings.HasPrefix(name, "GIT_CONFIG_VALUE_")
+-}
++// gitEnvName khớp biến môi trường trỏ git sang repo/chỉ mục/kho đối tượng khác hoặc
++// nạp cấu hình: việc của -C/--git-dir/-c, mà guard thấy qua argv còn biến thì không.
++var gitEnvName = regexp.MustCompile(`\bGIT_(DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|NAMESPACE|EXEC_PATH|CONFIG_(PARAMETERS|COUNT|GLOBAL|SYSTEM|KEY_\w+|VALUE_\w+))\b`)
+ 
+-// gitEnvDenied chặn lệnh git/git-* (hoặc lệnh có tên chỉ biết lúc chạy) được gán
+-// biến trong gitEnvRedirect.
+-func gitEnvDenied(env, args []string) (string, bool) {
+-	name := baseName(args[0])
+-	if name != "git" && !strings.HasPrefix(name, "git-") && args[0] != dynamicWord {
+-		return "", false
+-	}
+-	for _, kv := range env {
+-		if k, _, _ := strings.Cut(kv, "="); isGitEnvRedirect(k) {
+-			return "git with " + k + " set (it points git at another repository or injects config) is not allowed while unattended", true
++// gitEnvMentioned chặn MỌI lệnh mà chữ của nó nhắc tới một biến trong gitEnvName,
++// bất kể giá trị và bất kể lệnh: biến đi theo tiến trình con (make, find -exec,
++// script), còn cách gán thì vô số (export trong ngoặc, gán trước khi gọi hàm, tên
++// ghép từ biến), nên soi chữ thay vì phân tích phép gán. Nghiêng về chặn: chỉ nhắc
++// tên trong một chuỗi cũng bị chặn khi không người trực.
++func gitEnvMentioned(args []string) (string, bool) {
++	for _, a := range args {
++		if m := gitEnvName.FindString(a); m != "" {
++			return "a command that sets or mentions " + m + " (it points git at another repository or injects config) is not allowed while unattended", true
+ 		}
+ 	}
+ 	return "", false
+diff --git a/internal/shell/unattended_gitenv_test.go b/internal/shell/unattended_gitenv_test.go
+index 09f1248f..d56891a0 100644
+--- a/internal/shell/unattended_gitenv_test.go
++++ b/internal/shell/unattended_gitenv_test.go
+@@ -59,6 +59,14 @@ func TestUnattendedGitDeniesRedirectingEnvEndToEnd(t *testing.T) {
+ 		"export in sh -c":   `sh -c 'export GIT_DIR=$O/.git GIT_WORK_TREE=$O; git rm -q precious.txt'`,
+ 		"config injection":  `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="rm -f $O/precious.txt" git status`,
+ 		"config parameters": `GIT_CONFIG_PARAMETERS="'core.fsmonitor'='rm -f $O/precious.txt'" git status`,
++		// Lượt soát 2: các dạng mà phân tích phép gán bỏ sót.
++		"quoted export in sh -c":   `sh -c "export 'GIT_DIR=$O/.git' 'GIT_WORK_TREE=$O'; git rm -q precious.txt"`,
++		"function prefix in sh -c": `sh -c 'f(){ git rm -q precious.txt; }; GIT_DIR=$O/.git GIT_WORK_TREE=$O f'`,
++		"dynamic name in sh -c":    `sh -c 'V=GIT_DIR; W=GIT_WORK_TREE; export "$V=$O/.git" "$W=$O"; git rm -q precious.txt'`,
++		"env -S":                   `env -S 'GIT_DIR=$O/.git GIT_WORK_TREE=$O git rm -q precious.txt'`,
++		"find -exec":               `GIT_DIR=$O/.git GIT_WORK_TREE=$O find . -maxdepth 0 -exec git rm -q precious.txt ';'`,
++		"eval of env value":        `X='GIT_DIR=$O/.git GIT_WORK_TREE=$O git rm -q precious.txt' sh -c 'eval "$X"'`,
++		"env with dynamic words":   `sh -c 'a=GIT_DIR=$O/.git; b=GIT_WORK_TREE=$O; env $a $b git rm -q precious.txt'`,
+ 	}
+ 	for name, tmpl := range cases {
+ 		t.Run(name, func(t *testing.T) {
+@@ -85,7 +93,9 @@ func TestUnattendedGitDeniesRedirectingEnvEndToEnd(t *testing.T) {
+ 	}
+ }
+ 
+-// Biến không liên quan git và lệnh không đụng biến git thì vẫn chạy như cũ.
++// Biến không liên quan git và lệnh không đụng biến git thì vẫn chạy như cũ. (Lệnh
++// KHÔNG phải git mà mang biến git thì bị chặn: biến đi theo tiến trình con, vd
++// make hay find -exec chạy git; xem TestUnattendedGitEnvGuardUnit.)
+ func TestUnattendedGitAllowsUnrelatedEnv(t *testing.T) {
+ 	t.Parallel()
+ 	if _, err := exec.LookPath("git"); err != nil {
+@@ -97,7 +107,7 @@ func TestUnattendedGitAllowsUnrelatedEnv(t *testing.T) {
+ 		`env FOO=1 git status`,
+ 		`FOO=1 git status`,
+ 		`sh -c 'FOO=1 git status'`,
+-		`GIT_DIR=x echo not-git`,
++		`MY_GIT_DIR=x git status`,
+ 	} {
+ 		var reasons []string
+ 		require.NoErrorf(t, runGuarded(t, ws, command, true, &reasons), "%s", command)
+@@ -105,8 +115,9 @@ func TestUnattendedGitAllowsUnrelatedEnv(t *testing.T) {
+ 	}
+ }
+ 
+-// Lớp guard thuần (không chạy shell): biến git trên lệnh git/git-* bị chặn ở mọi
+-// dạng; process guard mặc định không đổi quyết định.
++// Lớp guard thuần (không chạy shell): lệnh nào có chữ nhắc tới biến git (kể cả
++// lệnh không phải git, vì biến đi theo tiến trình con) đều bị chặn khi không người
++// trực; biến khác tên (MY_GIT_DIR, GIT_SSH_COMMAND) thì không.
+ func TestUnattendedGitEnvGuardUnit(t *testing.T) {
+ 	t.Parallel()
+ 	g := UnattendedGuard(func() bool { return true }, func() bool { return false }, nil)
+@@ -129,14 +140,19 @@ func TestUnattendedGitEnvGuardUnit(t *testing.T) {
+ 		{"bash", "-c", "GIT_DIR=x; git status"},
+ 		{"sh", "-c", "declare -x GIT_DIR=x; git status"},
+ 		{"sh", "-c", "g=git; GIT_DIR=x $g rm f"},
++		// Chính sách chặt hơn (lượt soát 2): lệnh không phải git cũng bị chặn.
++		{"env", "GIT_DIR=/o", "ls"},
++		{"sh", "-c", "GIT_DIR=x make"},
++		{"env", "-S", "GIT_DIR=/o git status"},
++		{"find", ".", "-exec", "env", "GIT_DIR=/o", "git", "rm", "f", ";"},
+ 	} {
+ 		require.Truef(t, g(args), "%q must be blocked", args)
+ 	}
+ 	for _, args := range [][]string{
+ 		{"env", "FOO=1", "git", "status"},
+ 		{"env", "GIT_SSH_COMMAND_X=1", "git", "status"},
+-		{"env", "GIT_DIR=/o", "ls"},
+-		{"sh", "-c", "GIT_DIR=x make"},
++		{"env", "MY_GIT_DIR=/o", "git", "status"},
++		{"git", "rev-parse", "--git-dir"},
+ 	} {
+ 		require.Falsef(t, g(args), "%q must pass", args)
+ 	}

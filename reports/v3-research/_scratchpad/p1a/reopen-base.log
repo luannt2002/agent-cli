@@ -1,0 +1,18 @@
+T13/TERM sendB_rc=0
+  before reopen: u[T13-A long turn|stop:] a[|canceled:]
+  after  reopen: u[T13-A long turn|stop:] a[|canceled:] u[reopen check|stop:] a[reopen done|end_turn:]
+T13/KILL sendB_rc=0
+  before reopen: u[T13-A long turn|stop:] a[|UNFINISHED]
+  after  reopen: u[T13-A long turn|stop:] a[|error:] u[reopen check|stop:] a[reopen done|end_turn:]
+T11/1 send_rc=0
+  before reopen: 
+  after  reopen: u[reopen check 1|stop:] a[reopen done|end_turn:]
+T11/2 send_rc=0
+  before reopen: u[T11 trial 2|stop:] a[|UNFINISHED]
+  after  reopen: u[T11 trial 2|stop:] a[|error:] u[reopen check 2|stop:] a[reopen done|end_turn:]
+T11/3 send_rc=0
+  before reopen: u[T11 trial 3|stop:] a[|UNFINISHED]
+  after  reopen: u[T11 trial 3|stop:] a[|error:] u[reopen check 3|stop:] a[reopen done|end_turn:]
+T11/4 send_rc=0
+  before reopen: 
+  after  reopen: u[reopen check 4|stop:] a[reopen done|end_turn:]

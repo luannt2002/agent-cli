@@ -1,0 +1,115 @@
+== R1 local: workspace ở thư mục mở (config.Init(cwd))
+--- FAIL: TestLocalWorkspaceFromSubdirIsTheProject (0.06s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestLocalWorkspaceFromSubdirIsTheProject1293144797/001/repo"
+        	            	actual  : "/tmp/TestLocalWorkspaceFromSubdirIsTheProject1293144797/001/repo/sub"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.110s
+FAIL
+== R2 data_directory của cấu hình ghép theo thư mục mở
+--- FAIL: TestDataDirFromSubdirectory (0.01s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestDataDirFromSubdirectory2519041621/001/.crush"
+        	            	actual  : "/tmp/TestDataDirFromSubdirectory2519041621/002/link/.crush"
+        	Messages:   	through a symlink into the project too
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.023s
+FAIL
+== R3 InitProject: -D tương đối ghép theo gốc (bỏ SmartJoin theo dir)
+--- FAIL: TestPathDedupe_SubdirSharesProjectWorkspace (1.97s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestPathDedupe_SubdirSharesProjectWorkspace2157125180/005/sub/x"
+        	            	actual  : "/tmp/TestPathDedupe_SubdirSharesProjectWorkspace2157125180/005/x"
+        	Messages:   	relative -D is taken from where the client is
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.013s
+FAIL
+== R4 NormalizeWorkspace không dùng ProjectRoot (trả đường vật lý)
+--- FAIL: TestSubdirSharesEntryWithRepoRoot (0.03s)
+        	Error:      	"[{/tmp/TestSubdirSharesEntryWithRepoRoot4108434405/001/repo/a/b d1 2026-10-20 02:14:38.157392319 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false []} {/tmp/TestSubdirSharesEntryWithRepoRoot4108434405/001/repo d1 2026-10-20 02:14:38.150247009 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false []}]" should have 1 item(s), but has 2
+--- FAIL: TestRegisterKeepsKnownDataDirs (0.01s)
+        	Error:      	"[{/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/.crush 2026-10-20 02:14:38.171540626 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false []} {/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub/.crush 2026-01-02 03:04:05 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false [{/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub/.crush 2026-01-02 03:04:05 +0000 UTC}]}]" should have 1 item(s), but has 2
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/projects	0.057s
+FAIL
+== R5 hỏi git không có hạn
+--- FAIL: TestProjectRootGitTimeout (10.00s)
+        	Error:      	"10.003212725s" is not less than "3s"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	10.019s
+FAIL
+== R6 ProjectRoot ngoài git trả đường theo chữ (bỏ EvalSymlinks)
+--- FAIL: TestProjectRoot (0.01s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestProjectRoot1358269798/003"
+        	            	actual  : "/tmp/TestProjectRoot1358269798/004/link-plain"
+        	Messages:   	outside git: the physical path
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.024s
+FAIL
+== R7 LegacyDataDirs bỏ qua sổ dự án (known)
+--- FAIL: TestLegacyDataDirs (0.01s)
+        	Error:      	Not equal: 
+        	            	expected: []string{"/tmp/TestLegacyDataDirs987121481/001/a/b/.crush"}
+        	            	actual  : []string(nil)
+        	Messages:   	from the root, known to the registry
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.028s
+FAIL
+--- FAIL: TestClientServerWarnsAboutDataDirs (0.02s)
+        	Error:      	"" does not contain "warning: /tmp/TestClientServerWarnsAboutDataDirs560932990/001/repo/sub/.crush is not used"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.064s
+FAIL
+== R8 Register xoá locations (như vòng 1)
+--- FAIL: TestRegisterKeepsKnownDataDirs (0.03s)
+        	Error:      	Not equal: 
+        	            	expected: []projects.Location{projects.Location{Cwd:"/tmp/TestRegisterKeepsKnownDataDirs1776829475/001/repo/sub", DataDir:"/tmp/TestRegisterKeepsKnownDataDirs1776829475/001/repo/sub/.crush", LastAccessed:time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)}}
+        	            	actual  : []projects.Location(nil)
+        	Messages:   	copied as is
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/projects	0.043s
+FAIL
+== R9a bỏ lời gọi cảnh báo data dir cũ ở chế độ local
+--- FAIL: TestLocalWorkspaceFromSubdirIsTheProject (0.06s)
+        	Error:      	"" does not contain "warning: /tmp/TestLocalWorkspaceFromSubdirIsTheProject1204711059/001/repo/sub/.crush is not used"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.111s
+FAIL
+== R9b bỏ lời gọi cảnh báo data dir cũ qua server
+--- FAIL: TestClientServerWarnsAboutDataDirs (0.02s)
+        	Error:      	"" does not contain "warning: /tmp/TestClientServerWarnsAboutDataDirs1458902732/001/repo/sub/.crush is not used"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.064s
+FAIL
+== R10a bỏ lời gọi cảnh báo -D lệch
+--- FAIL: TestClientServerWarnsAboutDataDirs (0.02s)
+        	Error:      	"" does not contain "--data-dir /tmp/TestClientServerWarnsAboutDataDirs4191370206/001/repo/sub/x was ignored"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.073s
+FAIL
+== R10b server không báo data dir từ -D
+--- FAIL: TestPathDedupe_SubdirSharesProjectWorkspace (1.60s)
+        	Error:      	Should be true
+        	Messages:   	clients joining later learn the data dir came from -D
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.650s
+FAIL
+== R11 Home tin data_dir của sổ (mục cũ sub/.crush)
+--- FAIL: TestHomeSourceAdd (0.02s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestHomeSourceAdd1344467293/002/.crush"
+        	            	actual  : "/tmp/TestHomeSourceAdd1344467293/002/sub/.crush"
+        	Messages:   	the data dir the TUI opens, not the old sub/.crush
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.070s
+FAIL
+== R12 Home không báo .crush cũ
+--- FAIL: TestLegacyDataDirNote (0.00s)
+        	Error:      	" a  /w/a  · no server: status unknown \n > Search sessions                                                                                                      \n\n → New session                                                                                                          \n No sessions yet\n\n\n type to search · ↑↓ choose · enter open · esc back" does not contain "Not listed: older sessions in /w/a/sub/.crush · open: CRUSH_CLIENT_SERVER=0 agent-cli -c /w/a/sub -D /w/a/sub/.crush"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/ui/home	0.042s
+FAIL
+== khôi phục
+before: ac987da28d113752cffb9f72851ad1dc667b4da9bcdea4598b4ae8dd0ace64c5  -
+after:  ac987da28d113752cffb9f72851ad1dc667b4da9bcdea4598b4ae8dd0ace64c5  -

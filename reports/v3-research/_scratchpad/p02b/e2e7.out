@@ -1,0 +1,5 @@
+local: rc=0 cli env canary names=['OPENAI_API_KEY:original']
+server: rc=0 cli env canary names=['OPENAI_API_KEY:original']
+CLI: NOT_EXPOSED
+LN: Home after Alt+W started '<binary> --cwd repo', not repo/evil: NOT_EXPOSED
+SV: server bash tool sees plain .env variable: PASS

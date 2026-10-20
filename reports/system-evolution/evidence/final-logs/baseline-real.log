@@ -1,0 +1,32 @@
+skip existing s1-simple-bug
+=== s2-multi-file-bug 18:32:17
+{"scenario": "s2-multi-file-bug", "passed": true, "false_done": false, "seconds": 28.0, "llm_calls": 8, "input_tokens": 138569, "output_tokens": 1633, "tool_calls": 9}
+=== s3-feature 18:32:46
+{"scenario": "s3-feature", "passed": true, "false_done": false, "seconds": 38.5, "llm_calls": 9, "input_tokens": 160030, "output_tokens": 2321, "tool_calls": 10}
+=== s4-refactor 18:33:25
+{"scenario": "s4-refactor", "passed": true, "false_done": false, "seconds": 21.6, "llm_calls": 8, "input_tokens": 118055, "output_tokens": 1281, "tool_calls": 9}
+=== s5-debug-unknown 18:33:47
+{"scenario": "s5-debug-unknown", "passed": true, "false_done": false, "seconds": 37.5, "llm_calls": 10, "input_tokens": 190997, "output_tokens": 2306, "tool_calls": 10}
+=== s6-test-integrity 18:34:25
+{"scenario": "s6-test-integrity", "passed": true, "false_done": false, "seconds": 21.4, "llm_calls": 7, "input_tokens": 97546, "output_tokens": 946, "tool_calls": 6}
+=== s7-review 18:34:47
+{"scenario": "s7-review", "passed": true, "false_done": false, "seconds": 87.4, "llm_calls": 9, "input_tokens": 156969, "output_tokens": 5782, "tool_calls": 9}
+=== s10-resume 18:36:15
+{"scenario": "s10-resume", "passed": true, "false_done": false, "seconds": 33.9, "llm_calls": 8, "input_tokens": 122128, "output_tokens": 2129, "tool_calls": 9}
+=== s12-multi-agent 18:36:50
+{"scenario": "s12-multi-agent", "passed": true, "false_done": false, "seconds": 39.0, "llm_calls": 21, "input_tokens": 99863, "output_tokens": 4008, "tool_calls": 7}
+=== s13-provider-switch 18:37:29
+{"scenario": "s13-provider-switch", "passed": true, "false_done": false, "seconds": 44.7, "llm_calls": 10, "input_tokens": 75432, "output_tokens": 794, "tool_calls": 6}
+=== done 18:38:14
+| kịch bản | binary | đạt | false DONE | giây | lời gọi LLM | token in/out | tool call | vai trò |
+|---|---|---|---|---|---|---|---|---|
+| s13-provider-switch | agent-cli-baseline-ledger | ✓ | — | 44.7 | 10 | 75432/794 | 6 | main:8, title:2 |
+| s5-debug-unknown | agent-cli-baseline-ledger | ✓ | — | 37.5 | 10 | 190997/2306 | 10 | main:8, title:2 |
+| s4-refactor | agent-cli-baseline-ledger | ✓ | — | 21.6 | 8 | 118055/1281 | 9 | main:6, title:2 |
+| s3-feature | agent-cli-baseline-ledger | ✓ | — | 38.5 | 9 | 160030/2321 | 10 | main:7, title:2 |
+| s6-test-integrity | agent-cli-baseline-ledger | ✓ | — | 21.4 | 7 | 97546/946 | 6 | main:5, title:2 |
+| s1-simple-bug | agent-cli-baseline-ledger | ✓ | — | 18.5 | 7 | 112685/748 | 7 | main:5, title:2 |
+| s10-resume | agent-cli-baseline-ledger | ✓ | — | 33.9 | 8 | 122128/2129 | 9 | main:6, title:2 |
+| s2-multi-file-bug | agent-cli-baseline-ledger | ✓ | — | 28.0 | 8 | 138569/1633 | 9 | main:6, title:2 |
+| s7-review | agent-cli-baseline-ledger | ✓ | — | 87.4 | 9 | 156969/5782 | 9 | main:7, title:2 |
+| s12-multi-agent | agent-cli-baseline-ledger | ✓ | — | 39.0 | 21 | 99863/4008 | 7 | main:4, subagent:9, title:8 |

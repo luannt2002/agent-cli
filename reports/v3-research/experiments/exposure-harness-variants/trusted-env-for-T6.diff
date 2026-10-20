@@ -1,0 +1,39 @@
+--- agent-cli-v3/scripts/eval/exposure.sh	2026-10-19 17:30:16.697599601 +0700
++++ agent-cli-p02/scripts/eval/exposure.sh	2026-10-19 18:49:19.786348329 +0700
+@@ -406,9 +406,20 @@
+   ac "$P/proj" run --json "T6-fetch research it" > "$P/fetch.json" 2> "$P/fetch.err"
+   ac "$P/proj" run --json "T6-agent delegate it" > "$P/agent.json" 2> "$P/agent.err"
+   # Bật plan như TUI (POST agent/main) trên workspace rảnh: tạo workspace qua API (create grace 30 s), rồi `run` gắn vào.
+-  local wsid
+-  curl -s --unix-socket "$SOCK" -H 'Content-Type: application/json' \
+-    -d "{\"path\":\"$P/proj\",\"client_id\":\"$(python3 -I -c 'import uuid; print(uuid.uuid4())')\"}" http://x/v1/workspaces > "$P/ws-create.json"
++  # Request gửi chính sách tin cậy như client thật (execpolicy.Inputs: đủ 11 khoá của trustedKeys trong
++  # internal/execpolicy/policy.go), thiếu thì server từ chối. Env của ca chỉ đặt HOME; không có tệp env.
++  local wsid body
++  body=$(python3 -I - "$P/proj" "$P/home" <<'PY'
++import json, sys, uuid
++keys = ["AGENT_CLI_ALLOWED_MODELS", "AGENT_CLI_DELEGATION", "AGENT_CLI_UNATTENDED", "AGENT_CLI_UNATTENDED_COMMIT",
++        "AGENT_CLI_ENV_FILE", "AGENT_CLI_LLM_LEDGER", "HOME", "AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_BIN",
++        "AGENT_CLI_CLAUDE_PERMISSION_MODE", "AGENT_CLI_CODEX_SANDBOX"]
++env = {"HOME": sys.argv[2]}
++print(json.dumps({"path": sys.argv[1], "client_id": str(uuid.uuid4()),
++                  "trusted_env": ["%s=%s" % (k, env.get(k, "")) for k in keys]}))
++PY
++)
++  curl -s --unix-socket "$SOCK" -H 'Content-Type: application/json' -d "$body" http://x/v1/workspaces > "$P/ws-create.json"
+   wsid=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("id",""))' "$P/ws-create.json" 2>/dev/null)
+   curl -s -o "$P/setplan.out" -w '%{http_code}' --unix-socket "$SOCK" -H 'Content-Type: application/json' \
+     -d '{"agent_id":"plan"}' "http://x/v1/workspaces/$wsid/agent/main" > "$P/setplan.code"
+@@ -463,6 +474,12 @@
+         findings.append("non-interactive plan names `question` (rare combination)")
+     if role in ("agentic_fetch", "subagent") and absent:
+         findings.append("%s system prompt names %s" % (role, sorted(absent)))
++# Tạo workspace qua API (để bật plan) mà hỏng thì ca plan không được đo: hiện rõ, đừng im lặng.
++try:
++    wc = json.load(open(os.path.join(P, "ws-create.json")))
++except Exception as e:
++    wc = {"message": "unreadable: %s" % e}
++rows.append("ws-create (API, for plan): %s" % ("ok" if wc.get("id") else "FAILED %s" % (wc.get("message") or "")[:120]))
+ print("\n".join(rows))
+ print("FINDINGS: " + ("; ".join(findings) or "none"))
+ have = all(any(r["role"] == role for r in reqs) for role in ("agentic_fetch", "subagent", "plan", "main"))

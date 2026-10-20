@@ -1,0 +1,28 @@
+--- FAIL: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after (0.01s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after (0.01s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after (0.00s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt (0.00s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt
+            	Messages:   	a placeholder is not a model
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/ui/model	0.079s
+FAIL

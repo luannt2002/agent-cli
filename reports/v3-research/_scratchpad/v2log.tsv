@@ -1,0 +1,597 @@
+633cc6df	2026-10-19	impl(M7-T0): write missing M7 red tests
+0ceea97f	2026-10-19	impl(M7-arch): DEVIATIONS D-M7-arch-7 second-pass scope
+4949c3dd	2026-10-19	docs(v2): workflow merger verifies merges, retries, ignores injected chat
+ded3c90e	2026-10-19	impl(M7-S1): record GS1-GS11 sign-off status; M7 not done
+f8d1f299	2026-10-19	impl(M7-R1): DEVIATIONS row for README §5 choices
+cc387ab4	2026-10-19	impl(M7-V2): DEVIATIONS D-M7-V2-1 bundle name and session paths, D-M7-V2-2 Kiro A37 gap
+934a2aca	2026-10-19	impl(M7-V2): v1-migration D4 row parse, VS Code workspace folder, session paths via upgrade table
+d6d30e7f	2026-10-19	impl(M7-V2): v1-migration check script, first version
+b9b3c551	2026-10-19	impl(M7-R1): README §5 per impl/15 §4/§6: agent rows, statusline/flood-guard rows, purge scopes, support line; add readme-upgrading test
+6ab3a52e	2026-10-19	impl(M7-D1): remove GS5 root and docs paths no KEEP-PASS file needs
+c814ef3e	2026-10-19	impl(M7-D2): delete removed-agent configs/hooks/adapters and v1 skills not in KEPT_FOR_KEEP_PASS
+aae5b05e	2026-10-19	impl(M7-C1): ci.yml runs build/check-removed.mjs from gate milestone M7
+be53a1f3	2026-10-19	impl(M7-C1): tests/v2/repo/check-removed.test.mjs (7 cases, green)
+ab25c021	2026-10-19	impl(M7-C1): KEPT_FOR_KEEP_PASS list measured against the 131 KEEP-PASS files (D-M7-arch-3)
+6eaa3def	2026-10-19	impl(M7-G2): GP11 pi-agy e2e cases (#1168 #1266 #1206) and DEVIATIONS D-M7-G2-1
+8a90bbe3	2026-10-19	impl(M7-G2): D3 names the real Pi settings path (PI_CODING_AGENT_DIR, else ~/.pi/agent) (#1168 #1266)
+92d400f7	2026-10-19	impl(M7-N1): GS8 outcome for every item in v2-not-closed.md
+d56c88ee	2026-10-19	impl(M7-G4): GP3/hook-perf-posttool-async case (#1261)
+59e1e97c	2026-10-19	impl(M7-G1): GP1 opencode-clientinfo-detect case + D-M7-G1-1
+94419ad8	2026-10-19	impl(M7-C1): build/check-removed.mjs first version (GS5 gate, tracked tree, literal compares)
+50b1c9a6	2026-10-19	impl(M7-G1): map clientInfo.name opencode to adapter opencode (#1276)
+cf986f1d	2026-10-19	impl(M7-V1): plantV1Install v1 footprint fixtures + tests
+bd8bb77f	2026-10-19	impl(M7-G3): GP1 clean-uninstall-no-residue case (#1058)
+1c5abe93	2026-10-19	impl(M7-arch): answer M6 intern questions in impl/06 A-intern-M6; M7 plan deviations D-M7-arch-1..6
+9fd2f2c6	2026-10-19	impl(M6): done
+e7c5e660	2026-10-19	impl(M6-fix2): gate check-removed layer starts at M7 per D-M6-arch-2
+fad2368b	2026-10-19	impl(M6-Y1): release.yml tests in tests/v2/repo/workflows.test.mjs (9 pass); DEVIATIONS D-M6-Y1-1..5
+365dc6fd	2026-10-19	impl(M6-Y1): release.yml first version (ci/plan/build/publish-stage/smoke/publish-promote/rollback)
+e064f8df	2026-10-19	impl(M6-B2): GP1 release-tree cases (runtime files in SHA256SUMS, bare node) and GP11 release audit, green
+e5e63c9b	2026-10-19	impl(M6-B2): build tests for --version, command skills, SHA256SUMS last; D-M6-B2-1
+f2badb0d	2026-10-19	impl(M6-B2): build.mjs --version into manifests, copy 3 command skills, writeHashes last; no plugin validate (D-M6-arch-3)
+9be7b887	2026-10-19	impl(M6-S1): /release repo skill per impl/13 §13, live-skip streak file, skill test
+96dc0280	2026-10-19	impl(M6-Y2): weekly.yml smoke on release, branch-protection drift, npm audit --omit=dev; workflows test
+dbf0d2c6	2026-10-19	impl(M6-R1): one Install section per host guide, bug form link, no retired tool names
+7d47d6a8	2026-10-19	impl(M6-P2): release-staging-smoke runs hash.mjs and the real claude binary; DEVIATIONS D-M6-P2-1
+7417cf14	2026-10-19	impl(M6-P3): release-staging-smoke live case + check; DEVIATIONS D-M6-P3-1..4
+1a7b367b	2026-10-19	impl(M6-R1): red test GP1/install-docs-per-host
+41693f55	2026-10-19	impl(M6-W1): DEVIATIONS D-M6-W1-1, D-M6-W1-2
+afa9be6d	2026-10-19	impl(M6-P2): live case release-staging-smoke (local, stage into bare repo + smoke.mjs)
+b71ecb1e	2026-10-19	impl(M6-W1): workflows tests for traffic.yml (11 pass)
+2e276407	2026-10-19	impl(M6-I2): issue-intake ALLOWED_KEYS equal ctx_doctor report keys, no regex; GP11/issue-intake-allowed-keys green (D-M6-I2-1)
+65ece473	2026-10-19	impl(M6-P3): tests/v2/release/smoke.test.mjs (8 cases, stub CLIs, local bare repo)
+10d41700	2026-10-19	impl(M6-P2): tests/v2/release/publish.test.mjs (6 cases, green)
+50745120	2026-10-19	impl(M6-W1): merge-traffic tests (8 pass)
+19d8ea98	2026-10-19	impl(M6-W1): traffic.yml first version
+825e245d	2026-10-19	impl(M6-W1): merge-traffic.mjs first version
+3fc0510f	2026-10-19	impl(M6-P3): scripts/release/smoke.mjs first version
+255f7fa5	2026-10-19	impl(M6-P2): scripts/release/publish.mjs --stage/--promote with --remote (first version)
+88cf1580	2026-10-19	impl(M6-B1): branch protection settings JSON, PUT script, weekly drift check + tests
+a7d4a915	2026-10-19	impl(M6-I2): move issue intake scripts, workflow and CONTRIBUTING.md from the intake copy (D-M6-arch-6)
+57aa4845	2026-10-19	impl(M6-V1): verify-sums rejects symlink and non-regular entries; SHA256SUMS must be a regular file
+2bc02512	2026-10-19	impl(M6-P1): local E2E case release-plan-bump
+118af11d	2026-10-19	impl(M6-P1): scripts/release/plan.mjs — trailer range, CC bump, grouped notes, --dry-run, --skip-live, 2.0.0 first
+3e00c629	2026-10-19	impl(M6-P1): plan.mjs tests (red)
+50496d36	2026-10-19	impl(M6-H1): build/hash.mjs writeHashes(outDir) + CLI --out; SHA256SUMS sorted POSIX paths, sha256sum format
+1c839830	2026-10-19	impl(M6-P4): scripts/release/rollback.mjs with --remote; tests/v2/release/rollback.test.mjs (5 cases)
+633cc1d6	2026-10-19	impl(M6-I1): issue forms bug/feature/config; drop PR template, old forms, openclaw pull_request trigger
+92b77ac9	2026-10-19	impl(M6-K1): 3 user command skills verbatim from drafts.md + command-skills test
+9be7c121	2026-10-19	impl(M6-I1): red tests for issue forms and repo-github-files live case
+65c2edf6	2026-10-19	impl(M6-arch): answer M5 intern questions in impl/07 A-intern-M5; M6 plan deviations D-M6-arch-1..7
+bb1faa04	2026-10-19	impl(M5): intern review — 10 ambiguities documented
+1df3a03b	2026-10-19	impl(M5-review): PI_ROLE into constants.ts; review-M5 findings
+92024e66	2026-10-19	impl(M5-F1): GS4 lint treats interpolated specifiers as unresolvable, D-M5-F1-1
+4a71dc1b	2026-10-19	impl(M5-R1): GP11 uninstall-stops-server case, GP11 10/10
+4dda3041	2026-10-19	impl(M5-R1): GP11 fixture git init + TMPDIR, doctor table golden (D-M5-R1-2), GP11 9/9
+7102beae	2026-10-19	impl(M5-R1): server ends the process UPGRADE_STOP_DELAY_MS after an uninstall reply (D-M5-R1-1)
+eefa11b7	2026-10-19	impl(M5-R1): registry swaps ctx_doctor/ctx_upgrade stubs for real handlers (D-M5-arch-6), registry tests 11/11
+855704bc	2026-10-19	impl(M5-D6): tools/doctor.ts thin handler + runDoctorChecks, doctor tests 7/7, DEVIATIONS D-M5-D6-1..3
+e5dd7aa6	2026-10-19	impl(M5-U8): upgrade tests 11/11 green, DEVIATIONS D-M5-U8-1..3
+940cc1cb	2026-10-19	impl(M5-U8): upgrade tests 10/11 green
+cd3e7688	2026-10-19	impl(M5-U8): tools/upgrade.ts first version
+96608be7	2026-10-19	impl(M5-D6): merge D1-D5, O3 deps; clean DEVIATIONS merge markers
+398d48e5	2026-10-19	impl(M5-D2): doctor-config tests green (11/11), DEVIATIONS D-M5-D2-1..4
+f9c7f58c	2026-10-19	impl(M5-D2): doctor-config D3 host config diff, D4 v1 fold, D5b double-fire (first version)
+c368f1ec	2026-10-19	impl(M5-U7): uninstall DEVIATIONS D-M5-U7-1..4, upgrade test expects data-kept row
+2494e03e	2026-10-19	impl(M5-U7): uninstall tests (13 green)
+742d8b03	2026-10-19	impl(M5-U6): DEVIATIONS D-M5-U6-1..3 for v1-remove
+4ab1515d	2026-10-19	impl(M5-U6): ops/v1-remove.ts removes or reports each detectV1 finding
+34db995c	2026-10-19	impl(M5-U7): ops/uninstall.ts first version
+574d56a9	2026-10-19	impl(M5-D3): doctor-hook tests (14 pass) + DEVIATIONS D-M5-D3-1
+f7014524	2026-10-19	impl(M5-D5): ops/db-heal.ts D8 heal (lossless VACUUM INTO or rename-aside recreate) + tests
+0388fde5	2026-10-19	impl(M5-D3): doctor-hook.ts D5 round trip + Codex trust sub-case (first version)
+7c4bf9e7	2026-10-19	impl(M5-U5): host-write tests green (11/11), DEVIATIONS D-M5-U5-1
+f8ef10a2	2026-10-19	impl(M5-U5): host-write.ts first version (regenerateHostConfig with rollback)
+03966af5	2026-10-19	impl(M5-U2): release-fetch.ts clones the release branch into <sha> dir
+df077771	2026-10-19	impl(M5-D1): DEVIATIONS row D-M5-D1-1
+179cd3a0	2026-10-19	impl(M5-D1): doctor-env D1 D2 D6 D7 D10 rows + tests
+f1f7fa4f	2026-10-19	impl(M5-D4): DEVIATIONS rows D-M5-D4-1..4
+177326b0	2026-10-19	impl(M5-D4): doctor-db tests (9 pass)
+d56d179e	2026-10-19	impl(M5-D4): doctor-db D8 schema+integrity, D9 counts (first version)
+c29966ce	2026-10-19	impl(M5-U4): ops/plugin-swap.ts atomic current swap, one rollback generation
+b94bb543	2026-10-19	impl(M5-U3): verify-sums.ts checks the fetched tree against SHA256SUMS
+5c1621d1	2026-10-19	impl(M5-U1): DEVIATIONS rows D-M5-U1-1..6
+053f777c	2026-10-19	impl(M5-U1): constants for wave-2 doctor and upgrade split files
+6a61591e	2026-10-19	impl(M5-B2): build row {pi, src/entries/pi.ts, pi/index.js} (impl/13 §2.2, D-M5-arch-1)
+b0d13dca	2026-10-19	impl(M5-U1): ctx_upgrade constants
+e0a48e1c	2026-10-19	impl(M5-P2): build keeps a pre-existing _generated.ts (D-M5-P2-5), gate v2-unit no longer loses it
+3feef635	2026-10-19	impl(M5-H1): usage test for opencode pending_compact take-once
+3502d71e	2026-10-19	impl(M5-H1): opencode-cache SessionStart reads and clears pending_compact (D-M5-P2-4)
+526e1c57	2026-10-19	impl(M5-P1): Pi in-process extension (pi.on handlers, in-process TOOLS, compact flag), DEVIATIONS D-M5-P1-1
+c5e1bc77	2026-10-19	impl(M5-P2): GP5 pathToFileURL import, DEVIATIONS D-M5-P2-1..4
+af63e93e	2026-10-19	impl(M5-P2): OpenCode 2 plugin {id, setup}, ctx_* tools, one cache-stable system entry, step-finish Usage
+aafd31c9	2026-10-18	impl(M5-O3): ops/report.ts buildReport: typed table, REPORT_CAP cut via capBytes, structural env redaction
+01d02399	2026-10-19	impl(M5-H1): usage test on impl/09 signature, DEVIATIONS D-M5-H1-1
+c020c601	2026-10-19	impl(M5-H1): handleHook maps Usage to one cost journal row
+5d699e11	2026-10-19	docs(v2): workflow task size rule, split big modules
+7d7f47b5	2026-10-19	impl(M5-O2): detectV1 tests green (7/7), VS Code/Pi/tmp scope, DEVIATIONS D-M5-O2-1..5
+608e744a	2026-10-19	impl(M5-O2): first detectV1 (ADR-0011 table + All row) and v1 constants
+95b79e68	2026-10-19	impl(M5-O1): plugin-root resolvePluginRoot and host-config read/merge/write, tests green
+66b4178d	2026-10-18	impl(M5-S1): schema v2 partial unique index on cost (session_id, turn), appendEvent INSERT OR IGNORE for cost rows, SCHEMA_VERSION=2 (D-M5-arch-2, D-M5-S1-1)
+edd59000	2026-10-18	impl(M5-C2): DEVIATIONS rows for doctor texts, shared types, v1 names
+f536926c	2026-10-18	impl(M5-C2): contracts constants and types for doctor, upgrade, detect-v1, plugin-root, pi/opencode
+0f4d1349	2026-10-18	impl(M5-A1): claude-code.test opencode eventMap expects Usage step-finish (D-M5-arch-2, D-M5-A1-1)
+7728aa55	2026-10-18	docs(v2): workflow implementer pace rule and doc-wins rule
+6de299dc	2026-10-18	impl(M5-A1): pi/opencode adapters decode/encode, table drops notBuilt, opencode eventMap Usage, webfetch native name (D-M5-A1-1)
+3da01a96	2026-10-18	impl(M5-B1): build copies e2e/fixtures/hook-roundtrip.json to <out>/fixtures/, --sha sets BUNDLE_SHA via one esbuild define (D-M5-arch-4, D-M5-arch-5, D-M5-B1-1)
+c0de66d4	2026-10-18	impl(M5-merge): remove stray tmp artifacts from M5-M5-T0 merge
+a42cecaf	2026-10-18	impl(M5-T0): write M5 tests (red) — GP11 doctor/upgrade, 14a plugin rows, usage-events-idempotent, ops/doctor/upgrade/plugins/store-cost-dedup unit tests, hook-roundtrip fixture
+849536b9	2026-10-18	impl(M5-C1): contracts for tools-ops: DoctorRow/V1Finding/UpgradeMode/UpgradeChangeRow/HostConfigEdit, AuxEventName Usage, 3 error keys, RELEASE_REPO_URL/RELEASE_BRANCH/BUNDLE_SHA
+e55faeaa	2026-10-18	impl(M5-arch): answer M4 intern questions in impl/06 A-intern-M4; M5 plan deviations D-M5-arch-1..6
+ee9e8e73	2026-10-18	impl(M4): done
+7315d7e8	2026-10-18	impl(M4-review): STATE_CLOSE_TAG into constants.ts; review-M4 second pass (T-CMP live case open, D-M4-F2-1)
+f31516ab	2026-10-18	impl(M4-skeptic): re-verify M4 GP6/GP8/GP10 cases at green gate, no weak test found
+310ba54e	2026-10-18	impl(M4-arch): server journal row uses handler JournalFacts; re-record M1 ctx_stats-stub goldens (GP5/7/8)
+6f9a9549	2026-10-18	fix(gate): ci-checks layer runs the ci.yml-only steps before gp-cases (D-M4-GS4-1)
+ce4d997b	2026-10-18	fix(GS4): GP6 tests only through the release bundle, no src/ import
+17d1070b	2026-10-18	impl(M4-F2): record gate state after unit fix - gp-cases red on GP6 harness wrappers and M1 stub-text goldens for ctx_stats (D-M4-F2-2)
+d1f07992	2026-10-18	impl(M4-F2): restore claude-code compactSummary host; L1 flip came from a run against the ctx_resume stub, not a valid T-CMP arm (a) (D-M4-F2-1)
+53d9c6a8	2026-10-18	impl(M4-merge): merge M4-M4-G1, record gate state (D-M4-merge-2)
+a976934b	2026-10-18	impl(M4-G1): drop statusline KEEP-PASS rows from baseline (green after build); M4 gate still red on GP6/GP8/GP10 (M4-H2 unmerged, stats/purge bugs) — not marked done
+c2e50396	2026-10-18	impl(M4-L1): flip claude-code compactSummary to none after T-CMP live fail
+4533c267	2026-10-18	impl(M4-V1): registry wires real ctx_resume/ctx_stats/ctx_purge handlers, M4 stubs dropped
+5d6abd4a	2026-10-18	impl(M4-V1): red registry tests for real ctx_resume/ctx_stats/ctx_purge handlers
+fcb3a230	2026-10-18	impl(M4-H2): dispatch.ts: compactSummary none via renderState (SessionStart + pending-flag); decision rows + chunk; D-M4-H2-1..4
+9ff68903	2026-10-18	impl(M4-S2): record GP6 resume-seq-pointer blockers outside resume.ts (D-M4-S2-2)
+0e3b3828	2026-10-18	impl(M4-S2): ctx_resume seq pointer read + no-seq block via renderState (D-M4-S2-1)
+0cc221e0	2026-10-18	impl(M4-S2): ctx_resume unit tests (red)
+9098945a	2026-10-18	impl(M4-merge): record gp-cases harness gap (D-M4-merge-1) after wave-1 merge
+0d445216	2026-10-18	impl(M3-fix): one home rule (HOME, then USERPROFILE) in user-deny and subagent, Windows-safe test inputs, D-M3-F-8..9
+83c80d79	2026-10-18	impl(M4-S3): GP10 [M4] e2e cases and GP8/sibling-db-readonly with goldens
+97eaefb2	2026-10-18	impl(M4-S3): ctx_stats sums sandbox_bytes/returned_bytes per scope and agent, own DB read-only (D-M4-S3-1)
+65f6c984	2026-10-18	impl(M4-S3): red unit tests for ctx_stats scopes, per-agent sum, reduction_pct denominator, read-only mtime
+e0611f62	2026-10-18	impl(M3-fix): plugin-root paths in the Claude manifest, case-B deny names only run.mjs, live T-PAR/T-SUB run as plugin with a Bash subagent, D-M3-F-5..7
+2be09652	2026-10-18	impl(M4-S1): compaction candidates, score, renderState(rows, turn) lazy greedy <= STATE_BUDGET
+b1116ef3	2026-10-18	impl(M4-S1): render unit tests, score test follows r9 M7 Math.round, deviations D-M4-S1-1..5
+6b3f2f7d	2026-10-18	impl(M4-I1): DEVIATIONS D-M4-I1-1 (empty-query decision listing, rename on every ctx_index branch)
+19049957	2026-10-18	impl(M4-I1): [M4] GP5 e2e cases: same-session-outranks-cross-session, decision-user-label-renamed, timeline repeat/session scope, offset/after INVALID_ARGS
+5b5538ed	2026-10-18	impl(M4-I1): ctx_search source:"decision" (empty-query listing via ftsListSource, timeline skips reserved chunk sources), ctx_index "decision (user)" rename
+1ff9e65f	2026-10-18	impl(M4-I1): red tests for ctx_search source:"decision", ctx_index "decision (user)" rename, timeline and RRF rule checks
+466b5fa6	2026-10-18	impl(M4-H1): decision.ts: drop numeric literal for the M4 no-literal-number lint
+63623dc4	2026-10-18	impl(M3-fix): tsc before KEEP-PASS in CI and gate, race-free DB_GONE check, hook resolves project without git spawns (GS6), D-M3-F-1..4
+fd954009	2026-10-18	impl(M4-H1): hooks/decision.ts: pure AskUserQuestion answer and option-echo rules (no regex, no word list); DEVIATIONS D-M4-H1-1
+66464daf	2026-10-18	impl(M4-H1): decision.test.mjs (red): AskUserQuestion answer and option-echo rules
+8017464e	2026-10-18	impl(M4-S4): ctx_purge: one scope of session/source/project inside withWrite, exact error and busy lines (D-M4-S4-1)
+8d8cebdd	2026-10-18	impl(M4-S4): red unit tests for ctx_purge scopes, exact error lines, busy line
+a3e575e9	2026-10-18	impl(M4-C0): contracts: M4 reply texts (resume/stats/purge), reserved decision label and row keys, DECAY_SCALE/PERCENT_SCALE/SQLITE_BUSY_CODE, Candidate/ScoredCandidate and M4 tool input types
+cd4fabce	2026-10-18	impl(M4-C0): contracts tests for M4 reply texts, decision label, scale constants, M4 types, no-literal-number lint (red)
+f3f0f5da	2026-10-18	impl(M4-T0): red tests for GP6 journal/resume/decision and compaction candidates/score units
+b8783c8d	2026-10-18	impl(M4-arch): answer M3 intern questions in impl/04 A21, impl/09 A29, impl/11 A6; M4 plan deviations D-M4-arch-1..6
+47b6ea6c	2026-10-18	impl(M3-review): move indexText to index/text.ts (hook bundle drops zod and node:http, GS6), review-M3 second pass, D-M3-R-1
+63bee016	2026-10-18	impl(M3-skeptic): re-verify weak-test mutation checks, flag live-suite flake out of scope
+63cac5c9	2026-10-18	impl(M3-G1): gate M3 green 3x, review/skeptic/intern docs, progress.json M3 done
+caf9d47c	2026-10-18	impl(M3-X1): run-wrapper.ts case B run.mjs + search.mjs, build rows, tests, DEVIATIONS D-M3-X1-1..6
+d610dfe0	2026-10-18	impl(M3-H2): hook entry tests + DEVIATIONS D-M3-H2-1..9
+c0b8e49d	2026-10-18	impl(M3-H2): dispatch unit tests (events, journal kinds, case A/B/C, F1 split)
+8e2a5ec0	2026-10-18	impl(M3-H2): hook entry import check follows handleHook (D-M3-H2-9)
+7d0adb90	2026-10-18	impl(M3-H2): static tools/index import (build rule), hook entry exits after detached writes
+bdb6e17f	2026-10-18	impl(M3-H2): load tools/index lazily on the case B/C path (GS6)
+2c985121	2026-10-18	impl(M3-H2): hooks dispatch handleHook + hook entry main (WIP, tests next)
+84bf5b77	2026-10-18	impl(M3-merge): README codex matcher doc fix + DEVIATIONS row
+fcaba7f1	2026-10-18	impl(M3-E4): no literal numbers in decide.ts, hint text passes contracts import lint
+387fb764	2026-10-18	impl(M3-E4): decide.test.mjs (43 cases: §6.3 golden, V8, Read-deny, B2 blocks), DEVIATIONS D-M3-E4-1..10
+710ad8c7	2026-10-18	impl(M3-E4): decide.ts rule table, deny/hint constants, drafts.md hook text blocks
+59f7b20f	2026-10-18	impl(M3-A7): align claude-code table expectations with wired rows (D-M3-A7-7)
+36981034	2026-10-18	impl(M3-A7): DEVIATIONS D-M3-A7-1..6
+e8856315	2026-10-18	impl(M3-A7): GP3 M3 hook-config cases (timeouts, codex matcher T-CX, unrelated mcp tool, per-host schema)
+b803337c	2026-10-18	impl(M3-A7): build/manifests.ts generateManifests + buildMatcher, build.mjs step 4, GP1 M3 cases
+6a0fc301	2026-10-18	impl(M3-A7): wire gemini/qwen/copilot-cli/vscode/kiro/zcode rows in adapters table + table unit test
+c95cd4f7	2026-10-18	impl(M3-E1): enforcement parser (recursive descent) + unwrap + tests, DEVIATIONS D-M3-E1-1..5
+8a16eaec	2026-10-18	impl(M3-E1): enforcement lexer state machine + tests
+04efc661	2026-10-18	impl(M3-C0): contracts: M3 policy constants (MAX_NEST_DEPTH, READ_DENY_MESSAGE, deny templates, bounded set, jq whitelist) and parser types
+5038fbbb	2026-10-18	impl(M3-C0): contracts tests for M3 policy constants, parser types, no-literal-number lint (red)
+121eeeaa	2026-10-18	impl(M2-CI): fix CI-only GP4/GP8/KEEP-PASS failures (D-M2-CI-1..4)
+dd6d427e	2026-10-18	impl(M3-E2): user-deny.ts readUserDeny (E2 null on bad policy), matchesAnyDenyPattern with V17 Read anchors; tests; D-M3-E2-1..4
+fef6ee6c	2026-10-18	impl(M3-E3): subagent.ts pickSubagentCase A/B/C and toolSet resolution (frontmatter, plugin, --agents, manifest; null -> C per B4); D-M3-E3-1..4
+b9c02045	2026-10-18	impl(M3-A6): T-ZC GP3 case (SKIPPED until a ZCode fixture exists), DEVIATIONS D-M3-A6-1..2
+3fc7e818	2026-10-18	impl(M3-A1): gemini adapter decode/encode (BeforeTool/AfterTool/BeforeAgent/PreCompress) + DEVIATIONS D-M3-A1-1..4
+9cc4c962	2026-10-18	impl(M3-A5): kiro adapter decode/encode, PromptSubmit stdout empty, plain-text exit-2 deny (D-M3-A5-1..3)
+8066fc65	2026-10-18	impl(M3-A6): zcode adapter decode/encode, camelCase twins, PostToolUseFailure -> PostToolUse isError
+a13140c6	2026-10-18	impl(M3-A3): copilot-cli adapter decode/encode (dual-cased payload, plain deny-with-reason, subagent [U])
+6c14ee73	2026-10-18	impl(M3-A6): zcode adapter unit tests (red)
+a05ef582	2026-10-18	impl(M3-E3): subagent case A/B/C and toolSet resolution tests (red)
+bc3113be	2026-10-18	impl(M3-A1): gemini adapter unit tests + GP3 synthetic payloads (red)
+d7b4c1d5	2026-10-18	impl(M3-H1): throttle test checks the project dir only, not shared tmpdir (other agents write there)
+6bbf5e78	2026-10-18	impl(M3-A2): qwen adapter decode/encode, run_shell_command and Shell both map to Bash (§1.5b); PostToolUseFailure -> PostToolUse isError (D-M3-A2-1)
+6857cbfb	2026-10-18	impl(M3-H1): hooks throttle.ts (session-id-only once/everyN meta marker) and detached.ts (fire-and-forget journal append), D-M3-H1-1..3
+c05cc32c	2026-10-18	impl(M3-A4): vscode adapter decode/encode, case C no replace channel
+046930d3	2026-10-18	impl(M3-A4): vscode adapter unit tests (red)
+3d2bec4a	2026-10-18	impl(M3-arch): M3 plan deviations D-M3-arch-1..5 (14a split, renderState in M4, case-B root, manifests in M3, constants)
+8078e63c	2026-10-18	impl(M3-arch): answer M2 intern questions in impl/11 A5
+bee53c5a	2026-10-18	impl(M2): done
+df210d64	2026-10-18	impl(M2-review): re-review E1..F1 range, no blockers, gate green
+525d3518	2026-10-17	impl(M2-F1): fix keep-pass and GP4 timing flakes: wait on child events, not wall-clock; KEEP-PASS runner uses v1 run envelope (D-M2-F1-1..6)
+26a42802	2026-10-17	impl(M2-C1): append E1/E2/O1 deviation rows; diagnose win-sandbox + stdin-eof keep-pass flakes
+7c6c8758	2026-10-17	impl(M2-E3): add M2 GP1/GP7/GP8 e2e cases + goldens
+4d1f00fb	2026-10-17	impl(M2-M2-E2): port M2 14a GP5 unit cases into black-box e2e with goldens
+91ba5b3e	2026-10-17	impl(M2-O1): measure O1 (toolerr session weight) and O2 (turn prompt on edit rows) against R2
+91da8b4b	2026-10-17	impl(M2-M2-E1): port 14a GP4 unit cases into e2e/cases/GP4-execute.e2e.mjs
+d93e3db3	2026-10-17	impl(report): overnight report
+cf755895	2026-10-17	impl(release-check): v2 unit tests compare with realpathSync.native (Windows 8.3 names); CI runs tests/v2 by glob (Node 24 has no dir arg)
+b7371056	2026-10-17	impl(M2-review): UNKNOWN_FIELD on all tool schemas, url fetch time bound, no userinfo in labels, live harness loads the server
+1f7341f8	2026-10-17	impl(skeptic-M2): strengthen weak M2 GP2/GP4/GP5 tests, record findings
+4b81603c	2026-10-17	impl(M2-F1): mock process.kill/timers in server exit-guard test; keep-pass-131 check reads vitest include and map.files (D-M2-F1-1, D-M2-F1-2)
+a11e3c0f	2026-10-17	impl(M2-R6): search 14a cases: UNKNOWN_FIELD names queries, session > worktree > project rank, dedupe, 5 MiB highlight cap, code-point snippet, non-ASCII auto-memory (D-M2-R6-1)
+8e824197	2026-10-17	impl(M2-R2): CI installs v1 runtimes, KEEP-PASS and GP steps use gate milestone selection, generated-only before tests/v2 (D-M2-arch-4/5/6, D-M2-R2-1)
+a3398b98	2026-10-17	impl(M2-R3): sandbox Windows shim/PATH lookup, case-insensitive preload strip, never-reject sync spawn throw, GP4 unit tests (D-M2-R3-1..3)
+6bcd98e4	2026-10-17	impl(M2-R4): batch ingest byte budget (#961, D-M2-R4-1), named GP4/GP5/GP8 tests for exec and batch
+372b07d6	2026-10-17	impl(M2-R1): build.mjs --generated-only, gate v2-unit runs it first, src imports _generated.ts/agents.ts, server starts only as entry (D-M2-arch-6, D-M2-R1-1..3)
+80876f6b	2026-10-17	impl(M2-R5): GP5 chunk/walk/index cases (byte caps, nested fence, rowless tables, ** zero dirs, nested gitignore negation, ingestion caps, proxy, one-line fetch error); trailing ** = one or more segments (D-M2-R5-1)
+9283862f	2026-10-17	impl(M2-R7): project containment: registered external worktrees inside one containmentRoot (commonRoot), GP7 symlink-dot-prefix/worktree/remote-wsl/adapter-root cases (D-M2-R7-1..2)
+b039cce0	2026-10-17	impl(M2-arch): resume plan for M2 remainder, D-M2-arch-1..6 (14a milestone split, #936 vs Q8, #1230, CI selection, CI runtimes, _generated for v2-unit)
+394a3218	2026-10-17	impl(report): add OVERNIGHT-REPORT.md
+99201308	2026-10-17	impl(ci): wire M2 tools into registry, fix GP2/GP4/GP5 cases, record goldens
+ae16191a	2026-10-17	impl(docs): done
+2dc2c868	2026-10-17	impl(readme): rewrite README per ADR-0015 and add 200-line CI check
+2e2a0048	2026-10-17	impl(docs): add algorithms.md and how-it-works.md, note missing docs/v2/benchmarks.md in DEVIATIONS
+e12dc0b7	2026-10-17	impl(docs): add LAUNCH.md with sourced v1/v2 numbers and claims-we-do-not-make list
+63f094a8	2026-10-17	impl(merge): fix pre-existing constants.js->ts import, note registry/server test gap
+0db963c3	2026-10-17	impl(M2-T10): ctx_execute handler (exit class, cancel/timeout, background launcher, index+select past OUTPUT_CAP) (D-M2-T10-1..7)
+54d9ac6f	2026-10-17	impl(M2-T11): ctx_batch with runPool capped flag, one deadline, dedup, per-query share (D-M2-T11-1)
+8b869a3e	2026-10-17	impl(M2-T8): ctx_index + indexText + selectChunks/selectChunksInMemory (D-M2-T8-1)
+dfac356e	2026-10-17	impl(M2-T9): ctx_search relevance + timeline, auto-memory source, O1 measured no gain (D-M2-T9-1, D-M2-T9-2)
+ec271af1	2026-10-17	impl(M2-T3): ftsInsert returns id, ftsQueryTimeline, rankTexts in-memory BM25, canonicalKey, rowid-ranked ftsQuery (D-M2-T3-1)
+45ed10b3	2026-10-17	impl(M2-T6): index chunker (md/html/text, fence/table/code-point safe) and dir walk (nested .gitignore, ** zero dirs, symlink containment) (D-M2-T6-1, D-M2-T6-2)
+4d024df8	2026-10-17	impl(M2-T7): lint.mjs bundle mode (PR1-12, GS5, GS9 on live initialize/discover/tools/list), ci.yml lint step --out release-out, GP2 goldens
+1e10758e	2026-10-17	impl(M2-T5): capBytes code-point-safe cut, safeFetch with proxy env and SSRF per hop (D-M2-T5-1, D-M2-T5-2)
+2cbe0a16	2026-10-17	impl(M2-T5): red tests for capBytes cut offsets, proxy env, NO_PROXY, SSRF ranges, one-line fetch errors
+571ecc13	2026-10-17	impl(M2-T4): sandbox env, runtimes, kill, spawn
+ca9e9c97	2026-10-17	impl(M2-T1): contracts M2 constants, ToolReply.journal, TimelineRow, M2 tool input types
+3adf9cbc	2026-10-17	impl(M2-T2): S-COPILOT blocked, S-SKILLS by source, S-ZCODE instructions row, impl/10 §1.6
+1cd3581b	2026-10-17	impl(M2-T0): red tests for sandbox, index, tools-exec, tools-index, server modules + GP2/GP4/GP5 e2e cases + T-CAP/T-SAVE/T-CMP/T-PAR/T-SUB live case files
+08c6c6ef	2026-10-17	impl(M2-arch): answer M1 intern questions, M2 deviations D-M2-1..6
+e071921f	2026-10-17	impl(M1): done
+3c60fd64	2026-10-17	impl(M1-review): realpath.native for one projectKey, safe ROLLBACK in migrations, COMMIT inside withWrite try, named GP failures, review-M1.md
+c100c3f4	2026-10-17	impl(skeptic-M1): strengthen GP9 lifecycle tests (cwd, ps-spawn, db-scan) + add tty-gate unit test
+7246722c	2026-10-17	impl(M1-fix-r1): end the M1 gate hang - kill spawned servers in t.after, checkGolden + GP7/GP8/GP9 goldens, run.mjs JSON summary and milestone name filter (D-M1-F1-1, D-M1-F1-2)
+e035fbe5	2026-10-17	impl(M1-merge): rebuild bundles after M1-T10-server-wiring merge
+34d951e6	2026-10-17	impl(M1-T10-server-wiring): record D-M1-T10-1 (journal row shape, DB handle hold, cleanup order)
+37f3c27f	2026-10-17	impl(M1-T10-server-wiring): per-call ToolContext, lazy resolveProject/openDb, cleanup once then writeOwnerPid, appendEvent per own call, shutdown removeOwnerPid then closeDb (D-M1-10, D-M1-11)
+706a1f8c	2026-10-17	impl(M1-T7-cleanup): cleanupProject retention + size cap, sweepDeadProjects live-PID check in one withWrite
+1761c7a6	2026-10-17	impl(M1-T8-fts): ftsInsert (INDEX_WRITE_CHUNK batches, sources upsert), ftsQuery (scope filter, session first, BM25/RRF, source arg), highlight clip-then-escape (D-M1-T8-1..4)
+82c9cafb	2026-10-17	impl(M1-T9-journal): appendEvent one write path (created_at inside write, returns seq), readSessionEvents/readEventBySeq (empty/unknown session -> [], no latest-session fallback)
+e1201fb9	2026-10-17	impl(M1-T5-db): openDb (Node gate, DB_GONE sibling check, timeout, migrations, readOnly), withWrite BEGIN IMMEDIATE no retry, closeDb checkpoint TRUNCATE, metaGet/Set/Take (D-M1-T5-1)
+2fd0b4a0	2026-10-17	impl(M1-T6-owners): owners/<serverId>.pid write/remove, listLiveOwners via kill(pid,0) with dead-file self-heal (D-M1-T6-1)
+5e26bdb5	2026-10-17	impl(M1-T3-project): resolveConfigDir, isInside by components, resolveProject by projectSource + git common dir hash (D-M1-T3-1..5)
+475ce834	2026-10-17	impl(M1-T4-schema): schema v1 DDL (events=JournalRow, sources, FTS5 chunks unicode61 remove_diacritics 2, meta) + applyMigrations via PRAGMA user_version
+5a9405b8	2026-10-17	impl(M1-T0-tests): write M1 store/journal unit tests (red) + GP7/GP8/GP9 e2e cases
+7ffeac8b	2026-10-17	impl(M1-T2-gate-ci): v2-unit gate layer (node --test tests/v2/, from M1) and ci.yml step (D-M1-13)
+b2787b07	2026-10-17	impl(M1-T1-contracts): store error keys, constants, DbHandle/SourceRow/Chunk/Hit/SearchScope types (D-M1-2, D-M1-3)
+8bc8c44d	2026-10-17	impl(M1-T2-gate-ci): gate-layers check expects v2-unit layer (red)
+30555de5	2026-10-17	impl(M1-arch): answer M0 intern questions, reconcile store docs (D-M1-1..14)
+e0a07822	2026-10-17	impl(M0): ambiguity review
+769aee3f	2026-10-17	impl(M0-skeptic): GP3 fixture-replay now checks stderr + golden, fix runHookFixture export
+703851e8	2026-10-17	impl(M0-review): constants into constants.ts, hook names fix on bad --agent, review-M0.md
+bdb28c0b	2026-10-17	impl(M0-fix-r1): gate builds release-out before GP cases; tsc green (rewriteRelativeImportExtensions, _generated.d.ts types)
+32d51ce1	2026-10-17	impl(M0-T11-gp3-fixtures): real claude-code+codex hook fixtures, GP3 golden replay, deviations
+ad129cf3	2026-10-17	impl(M0-T7): registry (9 tools, M0 stubs), lifecycle/exit.ts, entries/server.ts over @modelcontextprotocol/server 2.3.1 stdio
+dd6bcd0d	2026-10-17	impl(M0-T8): cite DEVIATIONS D-M0-T8-1 in claude-code encode
+fcf24ada	2026-10-17	impl(M0-T8): adapter table, claude-code + codex decode/encode, M0 hook entry (green)
+c9e52813	2026-10-17	impl(M0-T8): adapter + hook entry unit tests (red)
+3c517568	2026-10-17	impl(M0-T7): prompt files copied byte for byte from docs/v2/prompt/drafts.md
+95121f47	2026-10-17	impl(M0-T9-build): build/build.mjs esbuild server+hook bundles, inline prompt md, ignore release-out and _generated.ts
+baec80e2	2026-10-17	impl(M0-T10): S-CODEX spike closed live (deferred MCP tools confirmed), G25 harness placeholder case
+039c9611	2026-10-17	impl(M0): fix keep-pass baseline format + mcp-client hang, run gate --milestone M0
+cb9bd06b	2026-10-17	impl(install): done
+8c618742	2026-10-17	impl(install): add docs/install/README.md status table and copy guide deviations into DEVIATIONS.md
+176b3ae9	2026-10-17	impl(M0-T4-gate): scripts/gate.mjs (5 layers, stop at first FAIL), .impl/progress.json, DEVIATIONS D-M0-1..10
+95bc98d9	2026-10-17	impl(install-verify): record deviations found while verifying zcode/pi installs
+ac282bca	2026-10-17	impl(M0-T5-ci): v2 ci.yml (3 OS x Node 24.15.0/26, push + workflow_call, no PR/secrets, 10 min) and GS4 lint
+5d9bcfe9	2026-10-17	impl(install-verify): add Verified table from isolated install test
+a2ec0ece	2026-10-17	impl(install-verify): add Verified table from isolated install test
+bd31ccbb	2026-10-17	impl(install-verify): add Verified table from isolated install test
+b32f0018	2026-10-17	impl(tests): KEEP-PASS runner (gen-keep-pass.mjs, keep-pass.list.json, vitest.config.ts, keep-pass-map.json, keep-pass-baseline.json)
+5ed2f48f	2026-10-17	impl(M0-T6-deps): pin esbuild 0.24.0 and @modelcontextprotocol/server 2.3.1, add gate/e2e/keep-pass scripts, update bun.lock
+71e09f18	2026-10-17	impl(install-verify): qwen - CLI installs clean, extension command shape confirmed
+e0e99877	2026-10-17	impl(install-verify): gemini - CLI installs clean, extension install needs owner login
+8f7afc64	2026-10-17	impl(install-verify): codex - mcp add worked in isolated HOME, no v2 build yet
+2a2fa9d6	2026-10-17	impl(install-verify): claude-code - marketplace add needs owner login, no v2 build yet
+5215efc9	2026-10-17	impl(M0-T2): contracts module - agents, types, constants, errors (12/12 unit tests green)
+304ba89d	2026-10-17	impl(M0-T2): contracts unit tests (red)
+19de661b	2026-10-17	impl(M0-T0-tests): write M0 red tests for GP1 install/handshake and GP3 fixture-replay, plus local live-case checks (keep-pass-131, harness-smoke, ci-config, gate-layers)
+bff135e2	2026-10-17	impl(M0-T1-harness): e2e harness (normalize, mcp-client, hook-runner, db-dump, live drivers), run.mjs milestone filter, unit tests
+6fbd154c	2026-10-17	impl(install-opencode): add OpenCode install guide (v2), compares against impl/10-adapters.md §11 and ADR-0011
+043bc9d0	2026-10-17	impl(install-pi): add docs/install/pi.md with Pi install/update/upgrade/uninstall guide
+4bdbc103	2026-10-17	impl(install-claude-code): add Claude Code install/update/uninstall guide
+6fb22bed	2026-10-17	impl(install-zcode): add ZCode install/upgrade/rollback guide with spec diffs
+8a9b7859	2026-10-17	impl(install-qwen): add Qwen Code install guide (docs/install/qwen.md)
+256cdaa6	2026-10-17	impl(install-kiro): kiro user install guide + spec diffs
+99e92d8b	2026-10-17	impl(install-copilot-cli): add Copilot CLI user install/upgrade/uninstall guide
+e7496ac9	2026-10-17	impl(install-vscode): add VS Code user install guide
+20f92aac	2026-10-17	impl(install-gemini): add Gemini CLI install guide with web-researched install/update/rollback steps
+29c0dcf5	2026-10-17	impl(install-codex): add Codex install guide with v2 spec diff notes
+9c9d6d55	2026-10-17	docs(v2): overnight implementation workflow (M0-M7, install, savings, docs, CI)
+e4873926	2026-10-17	docs(v2): every issue-map row has a test verdict (351/351: GP 170, LIVE 2, REMOVED 110, N/A 69); 147 new cases in impl/14a; ADR-0003 exit gate updated
+7f6bb194	2026-10-16	docs(v2): DECISIONS-r9 - implementation-ready: Codex names and matcher, parser gaps, v1 archaeology to golden cases, F1-F8, memory spec questions, issue map fixed; intern loop closed
+9e3f0165	2026-10-16	docs(v2): DECISIONS-r8 - deny unranged Read of files over 16 KB (ranged Read always allowed); deny rules now stop 87.6% of large-output bytes (was 0.11%); synced ADR-0008, impl, TECH-SPEC, PRD, drafts
+69a586f3	2026-10-16	docs(v2): final red-team review - 26 claims: 3 hold (port only), 6 falsified, 17 not tested; deny/compaction/saving/memory measured on real transcripts and live Claude Code, Codex, OpenCode
+9b28b5a3	2026-10-16	docs(v2): ctx_execute description uses the 600000 ms timeout
+63f6a3d9	2026-10-16	docs(v2): DECISIONS-r7 - BM25 per scope + RRF k=60, no MMR, structural decision tag, timeline cursor; synced ADR-0009, impl, PRD, TECH-SPEC; CI smoke no longer overwrites results
+e4055925	2026-10-16	tickets(v2): memory retrieval eval - 90 real queries with structural gold, BM25+RRF best (recall@5 0.48 vs v1 0.27), MMR no gain
+5007a338	2026-10-16	tickets(v2): measure the memory retrieval algorithms (BM25, RRF, MMR, decision tag, timeline)
+9449cb47	2026-10-16	docs(v2): D6 - pointer line after compaction on hosts with their own summary (Claude Code), 2 KB state block elsewhere; compactSummary column, LV-COMPACT in M3
+18951cce	2026-10-16	docs(v2): measured resume quality on 20 real compaction points (keyless, Sonnet low); v2 block adds nothing on Claude Code, matches its summary at 1/10 the bytes
+9db2468d	2026-10-16	docs(v2): compaction + memory r6 - research, deterministic eval on 12 real cases (private data kept local), ADR-0009 kept, ctx_search sort:timeline + structural decision tag, docs synced
+75ad4ffe	2026-10-15	tickets(v2): plan to fix the impl-spec review findings with a review army
+d90d4c66	2026-10-15	docs(v2): line-by-line implementation spec (docs/v2/impl 00-15) and ADR-0018
+f704ae56	2026-10-15	docs(v2): ready for implementation - PRD rewritten to current design, TECH-SPEC r3 with implementation plan M0-M7, README as entry point, all ADRs accepted
+41593791	2026-10-15	docs(v2): r5 spikes measured and applied - Node 24.15.0 minimum, ctx_execute 600 s, ADR-0006 accepted after Opus/Sonnet re-probe
+ae651a1b	2026-10-15	review: tickets/spikes-r5/ADR-0006-reprobe.md
+52c48c66	2026-10-15	review: tickets/spikes-r5/S-TIMEOUT.md
+7a9aa739	2026-10-15	review: tickets/spikes-r5/S-NODE.md
+4b6bb423	2026-10-15	review: docs/v2/review/spikes-r5.workflow.js
+0e2f19f9	2026-10-15	docs(v2): fix-sync r4 - all review findings decided and applied, docs in sync (DECISIONS-r4, 9 tools everywhere, release skill runs KEEP-PASS + live Sonnet low)
+2cbfe7e4	2026-10-15	review: docs/v2/review/out/fix-r4/res-issues-0.json
+c6e516d3	2026-10-15	review: docs/v2/review/DECISIONS-r4.md
+e7bf95a2	2026-10-15	review: docs/v2/review/ISSUE-OUTCOMES-r4.md
+4857cab0	2026-10-15	review: docs/v2/review/fix-sync-r4b.workflow.js
+97d4b6dc	2026-10-15	review: .claude/skills/release/SKILL.md
+41297d1b	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-misc.json
+b37ffcb3	2026-10-15	review: docs/v2/review/ISSUE-OUTCOMES-r4.md
+69c520ce	2026-10-15	review: docs/v2/prompt/drafts.md
+f063fe74	2026-10-15	review: docs/v2/review/DECISIONS-r3.md
+607c7f8f	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-techspec.json
+1505506e	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-adr-d.json
+77cfbef8	2026-10-15	review: docs/v2/review/agent-issue-intake/.github/ISSUE_TEMPLATE/bug.yml
+f3741899	2026-10-15	review: docs/v2/review/agent-issue-intake/README.md
+f84b1265	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-adr-c.json
+3b7f49c5	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-adr-a.json
+5169453b	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-adr-b.json
+30c805de	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-readme.json
+a90362bd	2026-10-15	review: docs/v2/review/out/fix-r4/fixup-prd.json
+3e189ec7	2026-10-15	review: docs/v2/review/out/fix-r4/sync.json
+a19695af	2026-10-15	review: PRD-v2.md
+2d1daa39	2026-10-15	review: docs/v2/review/out/fix-r4/edit-techspec.json
+2133e675	2026-10-15	review: docs/v2/TECH-SPEC.md
+6752d97c	2026-10-15	review: docs/v2/review/out/fix-r4/edit-misc.json
+77034d08	2026-10-15	review: docs/v2/review/ISSUE-OUTCOMES-r4.md
+adba87b5	2026-10-15	review: docs/v2/prompt/drafts.md
+72c31dca	2026-10-15	review: docs/v2/review/DECISIONS-r3.md
+2e9f45d9	2026-10-15	review: docs/v2/review/out/fix-r4/edit-adr-d.json
+51c5ccc4	2026-10-15	review: docs/v2/review/agent-issue-intake/BODY-FORMAT.md
+1b8a715f	2026-10-15	review: docs/v2/review/agent-issue-intake/DO-NOT-SEND.md
+e6f1ed30	2026-10-15	review: docs/v2/review/agent-issue-intake/AGENT_ISSUE.md
+efef584d	2026-10-15	review: docs/v2/review/agent-issue-intake/README.md
+5ba53eb6	2026-10-15	review: docs/v2/adr/0017-e2e-every-step-and-v1-retention.md
+a5de7d59	2026-10-15	review: docs/v2/adr/0016-subagent-context-protection.md
+3a81af98	2026-10-15	review: docs/v2/adr/0015-readme-and-repo-cleanup.md
+19833fc1	2026-10-15	review: docs/v2/adr/0014-issue-forms-and-debug-report.md
+97f2f603	2026-10-15	review: docs/v2/review/out/fix-r4/edit-adr-a.json
+493ee4bd	2026-10-15	review: docs/v2/adr/0004-no-skills-mcp-instructions.md
+4e2f6d87	2026-10-15	review: docs/v2/adr/0003-e2e-only-golden-tests.md
+f91ba6aa	2026-10-15	review: docs/v2/adr/0002-single-db-git-distribution.md
+34ac1d53	2026-10-15	review: docs/v2/adr/0001-claude-code-reference-contract.md
+4ff383e8	2026-10-15	review: docs/v2/review/out/fix-r4/edit-adr-c.json
+7431f306	2026-10-15	review: docs/v2/adr/0013-release-automation.md
+678bc8f7	2026-10-15	review: docs/v2/adr/0012-keyless-live-harness.md
+389edd56	2026-10-15	review: docs/v2/adr/0011-release-and-v1-transition.md
+41430c83	2026-10-15	review: docs/v2/adr/0010-doctor-and-upgrade.md
+6082caf7	2026-10-15	review: docs/v2/review/out/fix-r4/edit-adr-b.json
+5e3e92ae	2026-10-15	review: docs/v2/adr/0009-compaction-and-memory.md
+2b337e56	2026-10-15	review: docs/v2/adr/0008-enforcement-rewrite-and-cap.md
+060f81a7	2026-10-15	review: docs/v2/adr/0007-mcp-2026-07-28.md
+10908455	2026-10-15	review: docs/v2/adr/0006-claude-code-tool-loading.md
+2997f369	2026-10-15	review: docs/v2/review/out/fix-r4/edit-readme.json
+7280c94e	2026-10-15	review: docs/v2/README.md
+884952f2	2026-10-15	review: docs/v2/review/out/fix-r4/edit-prd.json
+71adf56c	2026-10-15	review: PRD-v2.md
+5e138642	2026-10-15	review: docs/v2/review/out/fix-r4/plan.json
+cce2efbc	2026-10-15	review: docs/v2/review/DECISIONS-r4.md
+eb79c570	2026-10-15	review: docs/v2/review/out/fix-r4/res-docs-A.json
+35fc65f4	2026-10-15	review: docs/v2/review/out/fix-r4/res-issues-2.json
+194d2548	2026-10-15	review: docs/v2/review/out/fix-r4/res-issues-1.json
+e41dcfb7	2026-10-15	review: docs/v2/review/out/fix-r4/res-docs-B.json
+1423ba51	2026-10-15	review: docs/v2/review/review-r4-final.workflow.js
+d09f19a5	2026-10-15	review: docs/v2/review/fix-sync-r4.workflow.js
+992b5807	2026-10-15	review: docs/v2/review/out/r4/B/round2/critic/gaps.json
+504594b6	2026-10-15	review: docs/v2/review/out/r4/B/round2/review/qa.json
+56e6559b	2026-10-15	review: docs/v2/review/out/r4/B/round2/review/architect.json
+3fa09c33	2026-10-15	review: docs/v2/review/out/r4/B/round2/review/agent-issue-intake.json
+01a72a3a	2026-10-15	review: docs/v2/review/out/r4/B/round2/review/consistency.json
+12c41a2a	2026-10-15	review: docs/v2/review/out/r4/B/round2/review/v1-migration-sim.json
+c2f06820	2026-10-15	review: docs/v2/review/out/r4/B/round2/review/evidence.json
+1aacda6d	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/qa.json
+038d0b32	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/a-2-1.json
+86b2cae4	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/a-1-4.json
+654e9a99	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/a-1-7.json
+3252bacc	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/a-1-6.json
+095da6d8	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/a-1-5.json
+eb9e0538	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/a-1-0.json
+fcd20fbd	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/windows.json
+b14b162b	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/dx-docs.json
+81e72db3	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/security.json
+18dab413	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/architect.json
+441b2d53	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/algorithms.json
+3ebc8a9e	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/storage.json
+65eb3800	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/prompt.json
+1fd759fc	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-codex-cli.json
+d44de190	2026-10-15	docs(v2): r4 workflow resumes from pushed files, not the cache; fix previous-review inputs
+dc2ec722	2026-10-15	review: docs/v2/review/REVIEW-r4a.md
+1cdcbbc1	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/bottlenecks.json
+c444031e	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-zcode.json
+745bb496	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-pi.json
+83c2957b	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/hooks-perf.json
+f07056c2	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-opencode-2.json
+0de000e5	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/mcp.json
+682f8489	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-vs-code-copilot.json
+084ee9d2	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-qwen-code.json
+75307849	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-copilot-cli.json
+614928e0	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-claude-code.json
+f46f6372	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-kiro.json
+69734b0d	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/agent-gemini-cli.json
+b8a5ff28	2026-10-15	review: docs/v2/review/out/r4/B/round1/intern/q-1.json
+60896d26	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/consistency.json
+63b0bdc2	2026-10-15	review: docs/v2/review/out/r4/B/round1/review/evidence.json
+fdfd1d92	2026-10-15	review: docs/v2/review/ISSUE-OUTCOMES-r4.md
+c8257c90	2026-10-15	review: docs/v2/review/BOTTLENECKS-r4.md
+47f5c168	2026-10-15	review: docs/v2/review/out/r4/A/round2/critic/gaps.json
+15fa5aee	2026-10-15	review: docs/v2/review/out/r4/A/round2/review/issues-P2-2.json
+7024a86b	2026-10-15	review: docs/v2/review/out/r4/A/round2/review/issues-new.json
+c13f0d4c	2026-10-15	review: docs/v2/review/out/r4/A/round2/review/agent-opencode-2.json
+1b9b2df9	2026-10-15	review: docs/v2/review/out/r4/A/round2/review/agent-copilot-cli.json
+2920071a	2026-10-15	review: docs/v2/review/out/r4/A/round2/review/evidence.json
+f35c928d	2026-10-15	review: docs/v2/review/out/r4/A/round2/review/consistency.json
+0946d3b6	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/q-4.json
+8ef26d9f	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/q-3.json
+c8823b93	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/a-2-2.json
+c99408c6	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/a-2-4.json
+1f551c04	2026-10-14	review: docs/v2/review/out/r4/A/round1/votes/issues-P0-1-1-2.json
+dc35dd8d	2026-10-14	review: docs/v2/review/out/r4/A/round1/votes/issues-I1-1-0-2.json
+038a8137	2026-10-14	review: docs/v2/review/out/r4/A/round1/votes/mcp-0-2.json
+c2d90176	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/a-1-1.json
+f2306ff4	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/a-1-6.json
+76416e94	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P3-2.json
+08cf1dd3	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P2-1.json
+be6b8d87	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/a-1-0.json
+0b8c0dc0	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P3-1.json
+72cb3c55	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-new.json
+9e7cd37f	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I3-1.json
+597b4a36	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P1-2.json
+4e459b1c	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P0-1.json
+b6d42ff5	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P1-1.json
+2420713f	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I3-2.json
+b6280de5	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I2-2.json
+e43360f5	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-P0-2.json
+289dff5b	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I2-1.json
+6f11a468	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I1-2.json
+e32851c0	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I1-1.json
+e25c3fdb	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I0-2.json
+3cfc22e1	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/issues-I0-1.json
+4cd77a34	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-issue-intake.json
+90e6efbc	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/v1-migration-sim.json
+3bf6f704	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/release-premortem.json
+1dd86900	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/windows.json
+8beb4c64	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/dx-docs.json
+0a8b301d	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/qa.json
+feac9ad6	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/prompt.json
+c8d4d707	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/security.json
+664da0ff	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/hooks-perf.json
+1ba6ccec	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/storage.json
+aa2a8e0c	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/bottlenecks.json
+25952f54	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/algorithms.json
+56bdbfcc	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-zcode.json
+8d601817	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-vs-code-copilot.json
+71f7a604	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-pi.json
+c5ac930a	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-qwen-code.json
+271141da	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-kiro.json
+98cf68f6	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-copilot-cli.json
+2de8d081	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-claude-code.json
+e23ccacf	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-codex-cli.json
+5e1d46b3	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/agent-gemini-cli.json
+bfc1bf23	2026-10-14	review: docs/v2/review/out/r4/A/round1/intern/q-1.json
+f2fb9057	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/mcp.json
+313b35e9	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/evidence.json
+4981c074	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/architect.json
+04c7accc	2026-10-14	review: docs/v2/review/out/r4/A/round1/review/consistency.json
+4d5355e8	2026-10-14	docs(v2): review army r4 (all agents Sonnet low, deep past-issue analysis with regression chains)
+db8a9ce2	2026-10-14	docs(v2): apply r3 decisions Q1-Q19 to PRD, TECH-SPEC, ADRs; ADR-0017 E2E every step on Sonnet low + v1 retention; keyless step harness with 2 green cases
+8e3bf7c1	2026-10-14	review: docs/v2/review/DECISIONS-r3.md
+f7991987	2026-10-14	review: docs/v2/review/out/r3l/owner-questions.json
+7586083b	2026-10-14	review: docs/v2/review/OWNER-QUESTIONS-r3.md
+da603d00	2026-10-14	review: docs/v2/review/out/r3l/refire.json
+658707f5	2026-10-14	review: docs/v2/review/out/r3l/synth-issues.json
+a704ecf8	2026-10-14	review: docs/v2/review/out/r3l/synth-bottlenecks.json
+037a1edd	2026-10-14	review: docs/v2/review/ISSUE-OUTCOMES-r3.md
+489f764b	2026-10-14	review: docs/v2/review/BOTTLENECKS-r3.md
+db55c434	2026-10-14	review: docs/v2/review/out/r3l/synth-review.json
+741ce1d5	2026-10-14	review: docs/v2/review/REVIEW-r3.md
+ecc3056b	2026-10-14	review: docs/v2/review/out/r3l/verify-0.json
+ab8e5db5	2026-10-14	review: docs/v2/review/out/r3l/verify-1.json
+6dac3eb7	2026-10-14	review: docs/v2/review/out/r3l/staff-architect.json
+5846360c	2026-10-14	review: docs/v2/review/out/r3l/staff-enforcement.json
+9f3dde20	2026-10-14	review: docs/v2/review/out/r3l/staff-storage-release.json
+63ef0580	2026-10-14	review: docs/v2/review/out/r3l/issues-I.json
+3003142d	2026-10-14	review: docs/v2/review/out/r3l/intake.json
+13e24b96	2026-10-14	review: docs/v2/review/agent-issue-intake/issue-intake-act.mjs
+f3268f5e	2026-10-14	review: docs/v2/review/agent-issue-intake/issue-intake.mjs
+8b13432a	2026-10-14	review: docs/v2/review/agent-issue-intake/issue-intake.yml
+63337ef6	2026-10-14	review: docs/v2/review/agent-issue-intake/VALIDATION.md
+edb4c086	2026-10-14	review: docs/v2/review/out/r3l/enforcement.json
+1165c2eb	2026-10-14	review: docs/v2/review/agent-issue-intake/DO-NOT-SEND.md
+84b00032	2026-10-14	review: docs/v2/review/agent-issue-intake/BODY-FORMAT.md
+a18aed26	2026-10-14	review: docs/v2/review/agent-issue-intake/AGENT_ISSUE.md
+136dcf53	2026-10-14	review: docs/v2/review/out/r3l/issues-P.json
+8b072f13	2026-10-14	review: docs/v2/review/out/r3l/bottlenecks.json
+968fe70d	2026-10-14	review: docs/v2/review/out/r3l/intern-q.json
+47b8ebad	2026-10-14	docs(v2): lean r3 review workflow (~16 agents, Sonnet/Opus low)
+be72ca9f	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/agent-vs-code-copilot.json
+06238086	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/agent-qwen-code.json
+416e34b9	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/agent-copilot-cli.json
+383c0398	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/agent-kiro.json
+3bf06a37	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/architect.json
+125fc27d	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/agent-codex-cli.json
+fcfd19b0	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/agent-claude-code.json
+b689159e	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/evidence.json
+2be36bca	2026-10-14	review: docs/v2/review/out/r3/A/round1/review/mcp.json
+9b6e85dc	2026-10-14	review: docs/v2/review/out/r3/A/round1/intern/q-1.json
+136d3534	2026-10-14	docs(v2): review army r3 (two passes, per-item archaeology, bottlenecks, intern loop, owner question tree)
+652899c5	2026-10-14	review: docs/v2/review/RELEASE-AND-MIGRATION-r2.md
+55f2728f	2026-10-14	review: docs/v2/review/ISSUE-OUTCOMES-r2.md
+46e9d866	2026-10-14	review: docs/v2/review/REVIEW-r2.md
+04a134fb	2026-10-14	review: docs/v2/review/out/r2/round1/persist/agent-issue-intake-result.json
+8d195745	2026-10-14	review: docs/v2/review/INTERN-QA-r2.md
+db7cab74	2026-10-14	review: docs/v2/review/agent-issue-intake/README.md
+aeaa9261	2026-10-14	review: docs/v2/review/agent-issue-intake/CONTRIBUTING.md
+7abc1da4	2026-10-14	review: docs/v2/review/agent-issue-intake/.github/scripts/issue-intake-act.mjs
+190862c7	2026-10-14	review: docs/v2/review/agent-issue-intake/.github/scripts/issue-intake.mjs
+59c5caaa	2026-10-14	review: docs/v2/review/agent-issue-intake/.github/workflows/issue-intake.yml
+684e2ea8	2026-10-14	review: docs/v2/review/agent-issue-intake/.github/ISSUE_TEMPLATE/config.yml
+70193c46	2026-10-14	review: docs/v2/review/agent-issue-intake/.github/ISSUE_TEMPLATE/bug.yml
+9cd87857	2026-10-14	review: docs/v2/review/agent-issue-intake/.github/AGENT_ISSUE.md
+00ecd0d7	2026-10-14	review: docs/v2/review/TEST-TRIAGE-r2.md
+1c0f8550	2026-10-14	review: docs/v2/review/out/r2/verify/blockers-1.json
+62ca0636	2026-10-14	review: docs/v2/review/out/r2/verify/blockers-0.json
+77a827fb	2026-10-14	review: docs/v2/review/out/r2/verify/blockers-3.json
+6938cfe4	2026-10-14	review: docs/v2/review/out/r2/verify/blockers-2.json
+a4ecfa5b	2026-10-14	review: docs/v2/review/out/r2/round1/intern/qa.json
+34b80449	2026-10-14	review: docs/v2/review/out/r2/round1/review/tests-1.json
+8fea2f5e	2026-10-14	review: docs/v2/review/out/r2/round1/review/tests-2.json
+08ececb1	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-P1.json
+857d0057	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-P3.json
+97b70365	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-new.json
+ca22fc31	2026-10-14	docs(v2): low-token review-lite workflow reusing saved round-1 results
+454aac8c	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-P2.json
+7b440891	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-I3.json
+25147226	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-I1.json
+175a5c2e	2026-10-14	review: docs/v2/review/out/r2/round1/review/v1-migration-sim.json
+9bb3b9d1	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-I1.json
+2044952d	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-I2.json
+9965f8be	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-P0.json
+872b2c84	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-issue-form.json
+fb72ed3d	2026-10-14	review: docs/v2/review/out/r2/round1/review/issues-I0.json
+41fff459	2026-10-14	review: docs/v2/review/out/r2/round1/review/security.json
+f39d3e28	2026-10-14	review: docs/v2/review/out/r2/round1/review/release-premortem.json
+610c58b5	2026-10-14	review: docs/v2/review/out/r2/round1/review/windows.json
+af3b35a4	2026-10-14	review: docs/v2/review/out/r2/round1/review/dx-docs.json
+ad4e089c	2026-10-14	review: docs/v2/review/out/r2/round1/review/prompt.json
+2f54e284	2026-10-14	review: docs/v2/review/out/r2/round1/review/qa.json
+43afdb08	2026-10-14	review: docs/v2/review/out/r2/round1/review/algorithms.json
+9aebf588	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-gemini-cli.json
+7d7aa3f4	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-pi.json
+a232e842	2026-10-14	review: docs/v2/review/out/r2/round1/review/hooks-perf.json
+fd498eff	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-qwen-code.json
+317242fe	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-opencode-2.json
+dc3a4966	2026-10-14	review: docs/v2/review/out/r2/round1/review/storage.json
+57cb5442	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-zcode.json
+f08f81c9	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-vs-code-copilot.json
+212b81f0	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-kiro.json
+51243aa2	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-copilot-cli.json
+c5afe97a	2026-10-14	review: docs/v2/review/out/r2/round1/review/evidence.json
+ee914bf7	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-claude-code.json
+21cbf21e	2026-10-14	review: docs/v2/review/out/r2/round1/review/consistency.json
+ac25a4b5	2026-10-14	review: docs/v2/review/out/r2/round1/review/agent-codex-cli.json
+1980d354	2026-10-14	review: docs/v2/review/out/r2/round1/review/mcp.json
+9f0c414a	2026-10-14	review: docs/v2/review/out/r2/round1/review/architect.json
+efbcd897	2026-10-14	review: docs/v2/review/out/r2/round1/intern/questions-1.json
+852a6747	2026-10-14	review: docs/v2/review/out/r2/index.json
+f7e39ac1	2026-10-14	docs(v2): review army adds agent-facing issue intake role and intern question loop
+c6997b46	2026-10-14	docs(v2): review army workflow r2 (issue re-audit with git archaeology, v1 test triage, release + migration rehearsal) and persist helper
+fdf2b9b1	2026-10-14	docs(v2): ADR-0016 large output must not enter subagent context; ADR-0008 points to it
+f105f45d	2026-10-14	docs(v2): ADR-0008 r3 keep v1 deny scope, replace the mechanisms behind its issues
+4f8ca841	2026-10-14	docs(v2): ADR-0008 deny every time, no repeat pass; dead-end freedom by construction
+aab7c216	2026-10-14	docs(v2): ADR-0013 title matches one-command release
+51570583	2026-10-14	docs(v2): algorithmic deny + compaction (ADR-0008/0009 r2), keyless harness, release automation, issue forms, README/cleanup; add /release skill
+a1c01ea0	2026-10-14	docs(v2): ADR-0008..0011 (enforcement, compaction, doctor/upgrade, release); live E2E without nightly; branch v2
+4b860977	2026-10-14	docs(v2): ADR-0007 target MCP spec 2026-07-28, keep serving 2025-xx initialize clients
+51c2994c	2026-10-14	docs(v2): keep ctx_doctor and ctx_upgrade, add /ctx-stats /ctx-doctor /ctx-upgrade skills
+ac6a7961	2026-10-14	docs(v2): add v2 design docs, ADRs, prompt drafts and evidence

@@ -1,0 +1,7 @@
+base: tests=4684 {'pass': 4658, 'fail': 14, 'skip': 12} | packages {'skip': 17, 'pass': 64, 'fail': 4}
+new : tests=4685 {'pass': 4659, 'fail': 14, 'skip': 12} | packages {'skip': 17, 'pass': 64, 'fail': 4}
+missing in new (0):
+status changed (0):
+added in new (1):
+   ('internal/agent', 'TestMCPInstructionsFollowRunTools') pass
+fail sets identical by name: True | base fails=14 new fails=14

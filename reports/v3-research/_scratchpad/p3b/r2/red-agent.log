@@ -1,0 +1,5 @@
+--- FAIL: TestLedgerWriteErrorSurvivesTheTurnsOwnContinuation (0.03s)
+        	Error:      	"" does not contain "no space left on device"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.048s
+FAIL

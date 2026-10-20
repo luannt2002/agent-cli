@@ -1,0 +1,11 @@
+--- FAIL: TestConnectToServerSendsNoAgentRuns (0.00s)
+    no_agent_runs_test.go:79: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/no_agent_runs_test.go:79
+        	Error:      	Not equal: 
+        	            	expected: false
+        	            	actual  : true
+        	Test:       	TestConnectToServerSendsNoAgentRuns
+        	Messages:   	run
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.050s
+FAIL

@@ -1,0 +1,287 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 7966e76b..2c589c1b 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -524,22 +524,20 @@ func (app *App) UpdateAgentModel(ctx context.Context) error {
+ 
+ // sessionModelNote đọc lời trả lời thật cuối của session và trả
+ // SessionModelNote so với model lớn của workspace (model lượt này chạy). Đọc
+-// cả danh sách tin vì GetLastAssistantMessage trả cả tin giữ chỗ của prompt
+-// chưa chạy (DB do server ghi, chế độ local đọc lại), mà tin đó không phải
+-// lời trả lời.
++// cả danh sách tin để chọn bằng message.LastReply, cùng một quy tắc với TUI
++// và CLI qua server.
+ func (app *App) sessionModelNote(ctx context.Context, sessionID string) string {
+ 	msgs, err := app.Messages.List(ctx, sessionID)
+ 	if err != nil {
+ 		slog.Warn("Failed to read the session's last model", "error", err)
+ 		return ""
+ 	}
+-	for i := len(msgs) - 1; i >= 0; i-- {
+-		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && !message.IsPromptPlaceholder(m) {
+-			last := config.SelectedModel{Provider: m.Provider, Model: m.Model}
+-			return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
+-		}
++	reply, ok := message.LastReply(msgs)
++	if !ok {
++		return ""
+ 	}
+-	return ""
++	last := config.SelectedModel{Provider: reply.Provider, Model: reply.Model}
++	return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
+ }
+ 
+ // SessionModelNote nói session từng chạy model last, khác model current của
+diff --git a/internal/cmd/run.go b/internal/cmd/run.go
+index f90e4c39..6b2ee609 100644
+--- a/internal/cmd/run.go
++++ b/internal/cmd/run.go
+@@ -283,18 +283,13 @@ type runJSONResult struct {
+ }
+ 
+ // lastReplyModel trả provider/model của lời trả lời thật cuối cùng trong
+-// session: bỏ bản tóm tắt, tin không có model và tin giữ chỗ của prompt chưa
+-// chạy (cột model của nó là ID tin user, không phải model).
++// session (message.LastReply), rỗng khi chưa có.
+ func lastReplyModel(msgs []message.Message) (provider, model string) {
+-	for i := len(msgs) - 1; i >= 0; i-- {
+-		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" && !message.IsPromptPlaceholder(m) {
+-			return m.Provider, m.Model
+-		}
+-	}
+-	return "", ""
++	m, _ := message.LastReply(msgs)
++	return m.Provider, m.Model
+ }
+ 
+-// protoReplies chép từ tin của server các trường lastReplyModel cần.
++// protoReplies chép từ tin của server các trường message.LastReply cần.
+ func protoReplies(msgs []proto.Message) []message.Message {
+ 	out := make([]message.Message, len(msgs))
+ 	for i, m := range msgs {
+diff --git a/internal/cmd/run_reply_model_test.go b/internal/cmd/run_reply_model_test.go
+index d9ba11f9..fc30a626 100644
+--- a/internal/cmd/run_reply_model_test.go
++++ b/internal/cmd/run_reply_model_test.go
+@@ -10,36 +10,18 @@ import (
+ 
+ // Tin giữ chỗ của prompt chưa chạy (provider "agent-cli-pending", model = ID
+ // tin user) không phải lời trả lời của model nào: `run --json` không được báo
+-// nó là provider/model.
++// nó là provider/model. Các ca của message.LastReply ở gói message; ở đây chỉ
++// kiểm đường server: protoReplies chép đủ trường để LastReply nhận ra tin giữ
++// chỗ.
+ func TestLastReplyModelSkipsPromptPlaceholders(t *testing.T) {
+ 	t.Parallel()
+-	placeholder := func(userID string) message.Message {
+-		return message.Message{Role: message.Assistant, Provider: message.PendingReplyProvider, Model: userID}
++	msgs := []proto.Message{
++		{ID: "u1", Role: proto.User},
++		{Role: proto.Assistant, Provider: "openai", Model: "gpt-5"},
++		{ID: "u2", Role: proto.User},
++		{Role: proto.Assistant, Provider: message.PendingReplyProvider, Model: "u2"},
+ 	}
+-
+-	// Lượt hỏng trước khi chạy (thiếu key, provider tắt): chỉ có tin giữ chỗ
+-	// đã đóng lỗi, nên không có provider/model nào để báo.
+-	p, m := lastReplyModel([]message.Message{{ID: "u1", Role: message.User}, placeholder("u1")})
+-	require.Empty(t, p)
+-	require.Empty(t, m)
+-
+-	// Sau lời trả lời thật đã có prompt khác được ghi: báo nhãn của lời trả lời thật.
+-	msgs := []message.Message{
+-		{ID: "u1", Role: message.User},
+-		{Role: message.Assistant, Provider: "openai", Model: "gpt-5"},
+-		{ID: "u2", Role: message.User},
+-		placeholder("u2"),
+-	}
+-	p, m = lastReplyModel(msgs)
+-	require.Equal(t, "openai", p)
+-	require.Equal(t, "gpt-5", m)
+-
+-	// Đường server: cùng kết quả qua tin proto.
+-	var protoMsgs []proto.Message
+-	for _, x := range msgs {
+-		protoMsgs = append(protoMsgs, proto.Message{Role: proto.MessageRole(x.Role), Provider: x.Provider, Model: x.Model})
+-	}
+-	p, m = lastReplyModel(protoReplies(protoMsgs))
++	p, m := lastReplyModel(protoReplies(msgs))
+ 	require.Equal(t, "openai", p)
+ 	require.Equal(t, "gpt-5", m)
+ }
+diff --git a/internal/db/messages.sql.go b/internal/db/messages.sql.go
+index 34480959..4544719b 100644
+--- a/internal/db/messages.sql.go
++++ b/internal/db/messages.sql.go
+@@ -91,6 +91,7 @@ const getLastAssistantMessageBySession = `-- name: GetLastAssistantMessageBySess
+ SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at, provider, is_summary_message, prism_model_id, prism_model_name, prism_hypercredit_savings, prism_dollar_savings
+ FROM messages
+ WHERE session_id = ? AND role = 'assistant' AND is_summary_message = 0
++  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
+ ORDER BY created_at DESC
+ LIMIT 1
+ `
+diff --git a/internal/db/sql/messages.sql b/internal/db/sql/messages.sql
+index 202cb66f..4a1a02e7 100644
+--- a/internal/db/sql/messages.sql
++++ b/internal/db/sql/messages.sql
+@@ -77,5 +77,6 @@ LIMIT 200;
+ SELECT *
+ FROM messages
+ WHERE session_id = ? AND role = 'assistant' AND is_summary_message = 0
++  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
+ ORDER BY created_at DESC
+ LIMIT 1;
+diff --git a/internal/message/content.go b/internal/message/content.go
+index c088bd19..cc313ee0 100644
+--- a/internal/message/content.go
++++ b/internal/message/content.go
+@@ -687,3 +687,14 @@ const PendingReplyProvider = "agent-cli-pending"
+ func IsPromptPlaceholder(m Message) bool {
+ 	return m.Role == Assistant && m.Provider == PendingReplyProvider
+ }
++
++// LastReply trả lời trả lời thật cuối cùng trong msgs: bỏ bản tóm tắt, tin
++// không có model và tin giữ chỗ của prompt chưa chạy. ok là false khi chưa có.
++func LastReply(msgs []Message) (Message, bool) {
++	for i := len(msgs) - 1; i >= 0; i-- {
++		if m := msgs[i]; m.Role == Assistant && !m.IsSummaryMessage && m.Model != "" && !IsPromptPlaceholder(m) {
++			return m, true
++		}
++	}
++	return Message{}, false
++}
+diff --git a/internal/ui/model/model_restore.go b/internal/ui/model/model_restore.go
+index 8f0d8bcf..dfd4b659 100644
+--- a/internal/ui/model/model_restore.go
++++ b/internal/ui/model/model_restore.go
+@@ -8,33 +8,31 @@ import (
+ 	"github.com/charmbracelet/crush/internal/ui/util"
+ )
+ 
+-// sessionModelNote báo trên thanh trạng thái khi tin assistant cuối của session
+-// vừa mở chạy model khác model lớn của workspace. Mở session không ghi gì: model
+-// thuộc workspace và chỉ đổi khi người dùng chọn (alt+m, alt+p). Tin giữ chỗ
+-// của prompt chưa chạy không phải lời trả lời: lùi về lời trả lời trước nó.
++// sessionModelNote báo trên thanh trạng thái khi lời trả lời thật cuối của
++// session vừa mở (message.LastReply) chạy model khác model lớn của workspace.
++// Mở session không ghi gì: model thuộc workspace và chỉ đổi khi người dùng chọn
++// (alt+m, alt+p).
+ func (m *UI) sessionModelNote(msgs []message.Message) tea.Cmd {
+ 	cfg := m.com.Config()
+ 	if cfg == nil {
+ 		return nil
+ 	}
+-	for i := len(msgs) - 1; i >= 0; i-- {
+-		if msgs[i].Role != message.Assistant || msgs[i].IsSummaryMessage || message.IsPromptPlaceholder(msgs[i]) {
+-			continue
+-		}
+-		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}
+-		current := cfg.Models[config.SelectedModelTypeLarge]
+-		note := app.SessionModelNote(last, current)
+-		if note == "" {
+-			return nil
+-		}
+-		// alt+m chỉ liệt kê model của provider đang dùng (keys.go).
+-		hint := " (alt+m to change model)"
+-		if last.Provider != current.Provider {
+-			hint = " (alt+p to change provider)"
+-		}
+-		return util.ReportInfo("This session " + note + hint)
++	reply, ok := message.LastReply(msgs)
++	if !ok {
++		return nil
++	}
++	last := config.SelectedModel{Provider: reply.Provider, Model: reply.Model}
++	current := cfg.Models[config.SelectedModelTypeLarge]
++	note := app.SessionModelNote(last, current)
++	if note == "" {
++		return nil
++	}
++	// alt+m chỉ liệt kê model của provider đang dùng (keys.go).
++	hint := " (alt+m to change model)"
++	if last.Provider != current.Provider {
++		hint = " (alt+p to change provider)"
+ 	}
+-	return nil
++	return util.ReportInfo("This session " + note + hint)
+ }
+ 
+ // appliesNextNote là phần nói thêm khi đổi model/effort lúc có run: lượt đang
+diff --git a/internal/message/last_reply_test.go b/internal/message/last_reply_test.go
+new file mode 100644
+index 00000000..16cfab2d
+--- /dev/null
++++ b/internal/message/last_reply_test.go
+@@ -0,0 +1,71 @@
++package message
++
++import (
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/db"
++	"github.com/charmbracelet/crush/internal/session"
++	"github.com/stretchr/testify/require"
++)
++
++// Tin giữ chỗ của prompt chưa chạy (provider "agent-cli-pending", model = ID
++// tin user) không phải lời trả lời của model nào; bản tóm tắt và tin không có
++// model cũng không. LastReply lùi về lời trả lời thật trước chúng.
++func TestLastReply(t *testing.T) {
++	t.Parallel()
++	placeholder := func(userID string) Message {
++		return Message{Role: Assistant, Provider: PendingReplyProvider, Model: userID}
++	}
++	reply := Message{ID: "r1", Role: Assistant, Provider: "openai", Model: "gpt-5"}
++
++	for name, tc := range map[string]struct {
++		msgs []Message
++		want string // ID lời trả lời; rỗng: không có.
++	}{
++		"no messages": {},
++		// Lượt hỏng trước khi chạy (thiếu key, provider tắt): chỉ có tin giữ
++		// chỗ đã đóng lỗi, nên không có lời trả lời nào.
++		"only a placeholder": {msgs: []Message{{ID: "u1", Role: User}, placeholder("u1")}},
++		// Sau lời trả lời thật đã có prompt khác được ghi.
++		"placeholder after a reply": {msgs: []Message{{ID: "u1", Role: User}, reply, {ID: "u2", Role: User}, placeholder("u2")}, want: "r1"},
++		"summary after a reply":     {msgs: []Message{reply, {ID: "s", Role: Assistant, Provider: "openai", Model: "gpt-5", IsSummaryMessage: true}}, want: "r1"},
++		"no model after a reply":    {msgs: []Message{reply, {ID: "x", Role: Assistant}}, want: "r1"},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			got, ok := LastReply(tc.msgs)
++			require.Equal(t, tc.want != "", ok)
++			require.Equal(t, tc.want, got.ID)
++		})
++	}
++}
++
++// GetLastAssistantMessage không trả tin giữ chỗ (DB do server ghi, chế độ local
++// đọc lại): tin giữ chỗ sau lời trả lời thật thì hàm trả lời trả lời thật.
++func TestGetLastAssistantMessageSkipsPromptPlaceholders(t *testing.T) {
++	t.Parallel()
++	conn, err := db.Connect(t.Context(), t.TempDir())
++	require.NoError(t, err)
++	t.Cleanup(func() { _ = conn.Close() })
++	q := db.New(conn)
++	sess, err := session.NewService(q, conn).Create(t.Context(), "test")
++	require.NoError(t, err)
++	svc := NewService(q)
++
++	// created_at tính bằng giây: đặt rõ thứ tự để tin giữ chỗ là tin mới nhất.
++	for i, p := range []CreateMessageParams{
++		{Role: Assistant, Provider: "pp", Model: "m-pp"},
++		{ID: "u2", Role: User},
++		{Role: Assistant, Provider: PendingReplyProvider, Model: "u2"},
++	} {
++		m, err := svc.Create(t.Context(), sess.ID, p)
++		require.NoError(t, err)
++		_, err = conn.ExecContext(t.Context(), `UPDATE messages SET created_at = ? WHERE id = ?`, 1000+i, m.ID)
++		require.NoError(t, err)
++	}
++
++	last, err := svc.GetLastAssistantMessage(t.Context(), sess.ID)
++	require.NoError(t, err)
++	require.Equal(t, "pp", last.Provider)
++	require.Equal(t, "m-pp", last.Model)
++}

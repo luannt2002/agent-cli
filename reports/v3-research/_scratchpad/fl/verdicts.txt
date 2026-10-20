@@ -1,0 +1,4 @@
+T2: NOT_EXPOSED — session of client two in w/s/repo/.crush/crush.db; workspaces: w/s/repo|w/s/repo/.crush
+T3: NOT_EXPOSED — order1: sub-first db=.crush/crush.db root db=.crush/crush.db sub-again db=.crush/crush.db | order2: root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=1 repo2=1 | session list repo1 root sees 3/3, repo1/sub sees 3/3
+T13: NOT_EXPOSED — send B rc=0 | session show: A=True B=True | 'T13-B' bytes anywhere in crush.db*=True | B reached LLM=True
+T17: NOT_EXPOSED — X1->['pp'] Y1->['qq'] X2->['qq'] Y2->['qq'] N1->['qq'] | <data>/crush.json before run -s X: <absent> | after: models={}

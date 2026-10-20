@@ -1,0 +1,17 @@
+--- FAIL: TestGetLastAssistantMessageSkipsPromptPlaceholders (0.03s)
+    last_reply_test.go:69: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/message/last_reply_test.go:69
+        	Error:      	Not equal: 
+        	            	expected: "pp"
+        	            	actual  : "agent-cli-pending"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-pp
+        	            	+agent-cli-pending
+        	Test:       	TestGetLastAssistantMessageSkipsPromptPlaceholders
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/message	0.040s
+FAIL

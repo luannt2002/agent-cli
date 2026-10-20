@@ -1,0 +1,2 @@
+be972ef25f5159d8703e36ee1f51d19d98f1f48d18b765aa56483ef880ba2f4f  internal/message/content.go
+f5c734cf6d2c5ac054d7fb3982df0a345751f57eee3e1231b4c7edf5ab3449bf  internal/db/messages.sql.go

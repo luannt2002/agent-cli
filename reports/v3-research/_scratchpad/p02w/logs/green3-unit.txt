@@ -1,0 +1,117 @@
+=== RUN   TestChildEnvsIgnoreProjectDotenv
+--- PASS: TestChildEnvsIgnoreProjectDotenv (0.05s)
+=== RUN   TestRunsNoAgentExactCommandSet
+=== PAUSE TestRunsNoAgentExactCommandSet
+=== RUN   TestConnectToServerSendsNoAgentRuns
+--- FAIL: TestConnectToServerSendsNoAgentRuns (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x38 pc=0x27dceae]
+
+goroutine 25 [running]:
+testing.tRunner.func1.2({0x572e3a8, 0x5e752f0})
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2123 +0x232
+testing.tRunner.func1()
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2126 +0x329
+panic({0x572e3a8?, 0x5e752f0?})
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/charmbracelet/crush/internal/cmd.shouldEnableMetrics(0x0)
+	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/root.go:1215 +0x4e
+github.com/charmbracelet/crush/internal/cmd.connectToServer(0x2cd568963c40)
+	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/root.go:621 +0x5f0
+github.com/charmbracelet/crush/internal/cmd.TestConnectToServerSendsNoAgentRuns(0x2cd5684ffd48)
+	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/no_agent_runs_test.go:69 +0x5c5
+testing.tRunner(0x2cd5684ffd48, 0x5bfb140)
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2193 +0xea
+created by testing.(*T).Run in goroutine 1
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2258 +0x4d4
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.107s
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/same_policy
+2026/10/19 19:43:57 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:57 INFO Fetching Hyper provider
+2026/10/19 19:43:57 INFO Fetching providers from Catwalk
+2026/10/19 19:43:58 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy3872472816/004/crush/hyper.json
+2026/10/19 19:43:59 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy3872472816/004/crush/providers.json
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/plain_env_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/allowlist_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/delegation_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/other_trusted_var_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/yolo_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/older_client_sends_no_policy
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_yolo_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=6cb3bcf8-6651-4d6c-b3bf-5e311afa797c path=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di3532528890/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di3532528890/006 requested_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di3532528890/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/client_sends_a_key_the_server_does_not_know
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_allowlist_differs
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+--- PASS: TestCreateWorkspace_TrustPolicyMismatch (1.88s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/same_policy (1.57s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/plain_env_differs (0.04s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/allowlist_differs (0.04s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/delegation_differs (0.04s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/other_trusted_var_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/yolo_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/older_client_sends_no_policy (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_yolo_differs (0.04s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/client_sends_a_key_the_server_does_not_know (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_allowlist_differs (0.04s)
+=== RUN   TestCreateWorkspace_ClosingServerBeatsPolicyMismatch
+--- PASS: TestCreateWorkspace_ClosingServerBeatsPolicyMismatch (0.00s)
+=== RUN   TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace
+2026/10/19 19:43:59 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:43:59 WARN No providers configured
+2026/10/19 19:43:59 WARN No agent configuration found
+2026/10/19 19:43:59 INFO Initializing MCP clients
+--- PASS: TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace (0.03s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/backend	1.977s
+=== RUN   TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns
+=== PAUSE TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns
+=== CONT  TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns
+--- PASS: TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns (0.00s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/client	0.050s
+=== RUN   TestInputsHermeticInTests
+=== PAUSE TestInputsHermeticInTests
+=== CONT  TestInputsHermeticInTests
+--- PASS: TestInputsHermeticInTests (0.00s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/execpolicy	0.006s
+FAIL

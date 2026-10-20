@@ -1,0 +1,1083 @@
+# Sinh bởi: python3 -I issue_refs.py <repo> 6006a3511ea2afde3e413cf635ba1da85ac8a8aa <out>  (script: scratchpad/issue_refs.py, nội dung tóm tắt dưới)
+#   git -C <repo> log 6006a3511ea2afde3e413cf635ba1da85ac8a8aa --format='%H<US>%ad<US>%s<US>%B<RS>' --date=short
+#   ref = regex (?<![\w/&])#(\d{1,5})(?![\w]) trên subject+body (loại owner/repo#N, &#N; HTML entity)
+#   loại = tiền tố subject: fix|feat|revert (kể cả 'Revert "..."'), còn lại = khác
+#   fix_commits = số commit loại fix nhắc ref; fix_subjects = số subject fix KHÁC NHAU (gộp commit trùng do merge/cherry-pick)
+#   repeat = REPEAT khi fix_subjects >= 2 (ứng viên 'bug lặp', overlay mục 17) — CHỈ là ứng viên, chưa đọc diff
+#   Giới hạn: số '#N' trong message có thể không phải issue (vd 'Issue #4' trỏ repo khác, '#1 of 5'); không lọc thủ công.
+ref	commit	ngày	tiêu đề commit	loại	fix_commits	fix_subjects	repeat
+#1	6da6490c	2026-03-14	Merge pull request #1 from ipedro/copilot/add-openclaw-plugin	khác	5	4	REPEAT
+#1	25af73cb	2026-04-13	docs: add Hacker News #1 badge and company adoption list to README	khác	5	4	REPEAT
+#1	bf19878c	2026-04-25	fix(web): replace shields.io badges with native design-system tags	fix	5	4	REPEAT
+#1	e9ff29fa	2026-04-25	fix(web): replace shields.io badges with native design-system tags	fix	5	4	REPEAT
+#1	65aa685f	2026-05-02	fix(security+release): PR #401 5-mode review follow-up — B3 redaction, SSRF guard, SHELL allowlist + 6 hardening fixes	fix	5	4	REPEAT
+#1	131079db	2026-05-03	fix(opencode-plugin+db+server): v1.0.106 — Mickey resume injection follow-up + version-check TTL	fix	5	4	REPEAT
+#1	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	5	4	REPEAT
+#1	8b9b441f	2026-05-12	docs(skill): replace 8 session-specific Lessons with 12 timeless MUST rules	khác	5	4	REPEAT
+#1	d4c36479	2026-06-01	feat(hooks): seed-parity envelope — per-event enrichment + session rollup	feat	5	4	REPEAT
+#1	ee71b5ae	2026-06-02	fix: cost_usd derivation + tilde/equals-form git parsing (Gaps #1, #2)	fix	5	4	REPEAT
+#1	f6166631	2026-06-02	feat(extract): P1 batch — 4 new tool-response extractors	feat	5	4	REPEAT
+#2	f5a51f3b	2026-03-14	Merge pull request #2 from ipedro/copilot/sync-original-fork-and-fix-conflicts	khác	6	6	REPEAT
+#2	65aa685f	2026-05-02	fix(security+release): PR #401 5-mode review follow-up — B3 redaction, SSRF guard, SHELL allowlist + 6 hardening fixes	fix	6	6	REPEAT
+#2	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	6	6	REPEAT
+#2	eea5877b	2026-05-03	fix(opencode-plugin+executor+routing): Mickey 3-issue + Issue #406 timeout policy	fix	6	6	REPEAT
+#2	3f204f2d	2026-05-04	fix(stats): lifetime monotonic + Parallel I/O PO copy (#2 #3)	fix	6	6	REPEAT
+#2	e4848500	2026-05-14	fix(gemini-cli): excise dead writeRoutingInstructions block (closes #558 partial — 2 of 4)	fix	6	6	REPEAT
+#2	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	6	6	REPEAT
+#2	b9779025	2026-06-01	feat(hooks): universal bridge — algorithmic Bash classifier, lifecycle anchor	feat	6	6	REPEAT
+#2	ee71b5ae	2026-06-02	fix: cost_usd derivation + tilde/equals-form git parsing (Gaps #1, #2)	fix	6	6	REPEAT
+#3	3f204f2d	2026-05-04	fix(stats): lifetime monotonic + Parallel I/O PO copy (#2 #3)	fix	1	1	
+#3	1d7affa3	2026-06-01	feat(hooks): classifiers for error/command/duration metadata	feat	1	1	
+#3	b9779025	2026-06-01	feat(hooks): universal bridge — algorithmic Bash classifier, lifecycle anchor	feat	1	1	
+#3	9480b556	2026-06-02	feat(extract): /plan slash detector for UserPromptSubmit (Issue #3)	feat	1	1	
+#4	57e6c41b	2026-03-01	merge: PR #4 — wire searchWithFallback, eliminate ephemeral DB, harden store	khác	1	1	
+#4	60bd2e88	2026-03-01	release: v0.8.0	khác	1	1	
+#4	96e37bc0	2026-03-01	test: add QA verification tests for PR #4 fixes	khác	1	1	
+#4	5e652e52	2026-05-14	feat(util/db-lock): per-DB lockfile primitive for single-writer enforcement (#560 slice 5)	feat	1	1	
+#4	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	1	1	
+#4	973969e1	2026-06-02	feat: session settings snapshot + ExitPlanMode metadata (Issues #4, #6)	feat	1	1	
+#4	ec43e5b7	2026-06-02	feat(extract): AgentOutput.usage capture (Issue #4)	feat	1	1	
+#4	f6166631	2026-06-02	feat(extract): P1 batch — 4 new tool-response extractors	feat	1	1	
+#5	60bd2e88	2026-03-01	release: v0.8.0	khác	1	1	
+#5	c08b8273	2026-03-01	merge: PR #5 — stream-level byte cap to prevent OOM	khác	1	1	
+#5	e638bd62	2026-05-02	fix(stats): restore Auto-memory, Opus pricing, and business-value footer	fix	1	1	
+#5	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#5	25f74f88	2026-06-02	refactor(extract): align prompt features with §11 (10 fields + word tokens)	khác	1	1	
+#5	32211a4a	2026-06-02	feat(extract): privacy-aware prompt features (Issue #9)	feat	1	1	
+#5	f6166631	2026-06-02	feat(extract): P1 batch — 4 new tool-response extractors	feat	1	1	
+#6	4c16e6ce	2026-02-23	fix: enforce file-based Playwright workflow and prevent index(content:) anti-pattern (v0.5.11)	fix	1	1	
+#6	973969e1	2026-06-02	feat: session settings snapshot + ExitPlanMode metadata (Issues #4, #6)	feat	1	1	
+#6	f6166631	2026-06-02	feat(extract): P1 batch — 4 new tool-response extractors	feat	1	1	
+#7	4c16e6ce	2026-02-23	fix: enforce file-based Playwright workflow and prevent index(content:) anti-pattern (v0.5.11)	fix	1	1	
+#7	17e1636c	2026-03-01	merge: PR #7 — fix shell $-expansion in executeFile paths	khác	1	1	
+#7	60bd2e88	2026-03-01	release: v0.8.0	khác	1	1	
+#7	f6166631	2026-06-02	feat(extract): P1 batch — 4 new tool-response extractors	feat	1	1	
+#8	4c16e6ce	2026-02-23	fix: enforce file-based Playwright workflow and prevent index(content:) anti-pattern (v0.5.11)	fix	1	1	
+#8	60bd2e88	2026-03-01	release: v0.8.0	khác	1	1	
+#8	88fc78b8	2026-03-01	merge: PR #8 — add Elixir language support	khác	1	1	
+#8	b7886910	2026-05-29	ops: add Git Archaeologist as a core agent role	khác	1	1	
+#8	25f74f88	2026-06-02	refactor(extract): align prompt features with §11 (10 fields + word tokens)	khác	1	1	
+#8	f6166631	2026-06-02	feat(extract): P1 batch — 4 new tool-response extractors	feat	1	1	
+#9	60bd2e88	2026-03-01	release: v0.8.0	khác	2	2	REPEAT
+#9	67296ecf	2026-03-01	fix: use npx tsx src/cli.ts in skills instead of build/cli.js	fix	2	2	REPEAT
+#9	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	2	2	REPEAT
+#9	32211a4a	2026-06-02	feat(extract): privacy-aware prompt features (Issue #9)	feat	2	2	REPEAT
+#9	4d252fca	2026-06-02	refactor(extract): align Issue #9 with F1 §2 PromptFeatures spec	khác	2	2	REPEAT
+#12	60bd2e88	2026-03-01	release: v0.8.0	khác	0	0	
+#12	ca2ffcd7	2026-03-01	merge: PR #12 — pass CLAUDE_PROJECT_DIR to executor for relative paths	khác	0	0	
+#16	47c52de7	2026-05-12	fix(env-leak): Pi bridge scrubs foreign workspace env from spawned child  (closes #545 partial — 5 of 7)	fix	2	2	REPEAT
+#16	a9a2b85c	2026-05-12	fix(env-leak): 15x14x3 leak-matrix regression — MUST-3 invariant  (closes #545 partial — 7 of 7)	fix	2	2	REPEAT
+#16	0d50d48d	2026-05-13	test(adapters): CI invariant locks claude-code on buildNodeCommand  (algo defense 3 of 6)	khác	2	2	REPEAT
+#16	a52bf602	2026-05-13	feat(adapters): HealthCheck protocol on HookAdapter, claude-code uses direct existsSync  (algo defense 4 of 6)	feat	2	2	REPEAT
+#16	f9b8ea87	2026-05-13	feat(adapters/types): parseNodeCommand as strict inverse of buildNodeCommand  (algo defense 1 of 6)	feat	2	2	REPEAT
+#16	554ef81b	2026-05-14	test(matrix): extend leak matrix with identification ban invariant (#561)	khác	2	2	REPEAT
+#16	8172c291	2026-05-14	feat(adapters/detect): add foreignIdentificationEnv helper (#561)	feat	2	2	REPEAT
+#17	29d4da49	2026-03-01	Merge pull request #17 from rjkaes/feat/turndown-html-to-markdown	khác	0	0	
+#17	a52bf602	2026-05-13	feat(adapters): HealthCheck protocol on HookAdapter, claude-code uses direct existsSync  (algo defense 4 of 6)	feat	0	0	
+#18	98235955	2026-03-01	Merge pull request #18 from rjkaes/fix/extract-snippet-stemmed-matches	khác	0	0	
+#18	32211a4a	2026-06-02	feat(extract): privacy-aware prompt features (Issue #9)	feat	0	0	
+#22	3e059bd5	2026-03-05	fix: pass direnv/nix/venv env vars through sandbox (#22)	fix	1	1	
+#22	0a8bb7b7	2026-03-15	feat: replace env allowlist with denylist for sandbox executor	feat	1	1	
+#26	8647b22a	2026-03-02	fix: handle missing shell runtime on Windows (spawn sh ENOENT)	fix	1	1	
+#29	dd5ec257	2026-03-03	Merge pull request #29 from joeinnes/fix/ssh-auth-sock-passthrough	khác	0	0	
+#29	0a8bb7b7	2026-03-15	feat: replace env allowlist with denylist for sandbox executor	feat	0	0	
+#30	4acfe039	2026-03-02	Merge pull request #30 from mksglu/fix/windows-shell-support	khác	0	0	
+#31	26d346d2	2026-03-02	Merge pull request #31 from mksglu/fix/windows-ebusy-cleanup	khác	0	0	
+#32	c658432b	2026-03-03	Merge pull request #32 from rjkaes/feature/xml-prompt-optimization	khác	0	0	
+#34	8471820d	2026-03-03	feat(v0.9.18): cross-platform Windows fix, JSON chunking, intent-aware Read guidance (#43)	feat	0	0	
+#34	b3f93eba	2026-03-03	feat(security): add permission enforcement for MCP sandbox tools	feat	0	0	
+#36	63550bcc	2026-03-02	Merge pull request #36 from xxnbyy/fix/windows-git-bash-detection	khác	0	0	
+#38	47fa507b	2026-03-05	feat: aggressive redirect for gradle/maven build tools to sandbox	feat	1	1	
+#38	c47f1672	2026-03-05	fix: sandbox network stats tracking, zombie cleanup, Python SSL	fix	1	1	
+#41	6e591e8f	2026-03-03	Merge pull request #41 from xxnbyy/fix/windows-utf8-execute-file	khác	0	0	
+#43	8471820d	2026-03-03	feat(v0.9.18): cross-platform Windows fix, JSON chunking, intent-aware Read guidance (#43)	feat	1	1	
+#43	99215837	2026-03-03	fix: replace cpSync with manual recursive copy for Windows non-ASCII path support	fix	1	1	
+#44	4970027b	2026-03-03	fix(executor): run shell commands in project directory, not sandbox temp	fix	1	1	
+#44	8471820d	2026-03-03	feat(v0.9.18): cross-platform Windows fix, JSON chunking, intent-aware Read guidance (#43)	feat	1	1	
+#45	e4cf8a67	2026-03-19	feat(sqlite): add bun:sqlite fallback adapter for Bun runtime (#45)	feat	4	4	REPEAT
+#45	6c4dd7a9	2026-04-03	docs: pin Codex ≤0.116.0 for exec-mode MCP, add version check to debug script	khác	4	4	REPEAT
+#45	c678fe37	2026-04-05	fix(cursor): add stop hook, sync .mdc with routing block, clean HOOK_SCRIPTS	fix	4	4	REPEAT
+#45	21a1cfec	2026-04-14	fix(insight): adapter-aware paths, EADDRINUSE check, robust timeouts (#45)	fix	4	4	REPEAT
+#45	6b177573	2026-04-25	fix(openclaw): register MCP sidecar on install so ctx_* tools surface to agent (#339)	fix	4	4	REPEAT
+#45	640c7368	2026-05-24	Merge branch 'fix/codex-cwd-session-log' into release-1.0.149 (#45 c4529042182)	khác	4	4	REPEAT
+#45	a12a64c2	2026-05-24	fix(server): recover project cwd from Codex session log (#45)	fix	4	4	REPEAT
+#46	49e0d7f1	2026-03-05	refactor: flatten monorepo to src/ and add adapter pattern for multi-platform hooks	khác	0	0	
+#47	7cdffae6	2026-03-03	fix(cli): route bin entry through cli.js to prevent stdio hang (#47)	fix	1	1	
+#48	3f346d57	2026-03-04	refactor: rename skill commands with ctx- prefix to avoid built-in collisions	khác	0	0	
+#50	87ea855a	2026-03-04	fix: update MCP tool names to plugin-format in routing-block and pretooluse (#56)	fix	2	2	REPEAT
+#50	d58725cc	2026-03-04	fix: normalize hook paths to forward slashes on Windows (#58)	fix	2	2	REPEAT
+#50	d9cfef5c	2026-03-04	Add Discord badge to README (#50)	khác	2	2	REPEAT
+#51	1b646ef8	2026-03-04	fix: discord badge link (#51)	fix	3	3	REPEAT
+#51	87ea855a	2026-03-04	fix: update MCP tool names to plugin-format in routing-block and pretooluse (#56)	fix	3	3	REPEAT
+#51	d58725cc	2026-03-04	fix: normalize hook paths to forward slashes on Windows (#58)	fix	3	3	REPEAT
+#52	80d30fc4	2026-03-04	Fix Discord link in README (#52)	khác	2	2	REPEAT
+#52	87ea855a	2026-03-04	fix: update MCP tool names to plugin-format in routing-block and pretooluse (#56)	fix	2	2	REPEAT
+#52	d58725cc	2026-03-04	fix: normalize hook paths to forward slashes on Windows (#58)	fix	2	2	REPEAT
+#55	d58725cc	2026-03-04	fix: normalize hook paths to forward slashes on Windows (#58)	fix	1	1	
+#56	87ea855a	2026-03-04	fix: update MCP tool names to plugin-format in routing-block and pretooluse (#56)	fix	1	1	
+#58	d58725cc	2026-03-04	fix: normalize hook paths to forward slashes on Windows (#58)	fix	1	1	
+#60	ff319705	2026-03-04	docs: add llms.txt and llms-full.txt for LLM-native documentation (#60)	khác	0	0	
+#61	49694ea0	2026-03-05	fix: batch_execute per-command execution, Tier 2 cross-source warning, heredoc-aware routing	fix	1	1	
+#62	0b27e3b0	2026-03-05	Fix/contributing doctor command (#62)	khác	0	0	
+#63	3383299c	2026-03-05	Fix false-positive HTTP regex matching inside quoted arguments	khác	0	0	
+#64	08ca7007	2026-03-05	Fix subagent routing: support Agent tool alongside deprecated Task	khác	0	0	
+#66	4d2c771e	2026-03-05	feat: ctx_ tool prefix, Bash routing nudge, cross-platform fixes	feat	0	0	
+#67	80c07c7d	2026-03-05	feat: deduplicate FTS5 index on re-index with same source label (#67)	feat	0	0	
+#68	0eb72d46	2026-03-05	fix: redirect fd 2 to /dev/null for native module stderr, bump v1.0.4	fix	3	3	REPEAT
+#68	a6283700	2026-03-05	fix: suppress native module stderr in hooks cross-platform, bump v1.0.3	fix	3	3	REPEAT
+#68	0207897c	2026-03-06	fix: ensure cli.js has execute permission after build, bump v1.0.5	fix	3	3	REPEAT
+#72	51aa6512	2026-03-06	fix: use pathToFileURL for dynamic imports on Windows (#72)	fix	1	1	
+#73	44c9c6f2	2026-03-06	chore: add .gitattributes to enforce LF line endings on Windows (#73)	khác	0	0	
+#74	46796db1	2026-05-10	feat(stats/B3b-slices3.2-3.6): wire multi-adapter renderer into formatReport	feat	0	0	
+#76	b8be454e	2026-03-06	fix: detect OpenCode platform via OPENCODE and OPENCODE_PID env vars (#76)	fix	1	1	
+#78	58952f15	2026-03-06	fix: prevent EALREADY crash when context-mode used as OpenCode plugin (#78)	fix	1	1	
+#82	0dcaf123	2026-03-06	fix: replace hardcoded username in Windows non-ASCII path test (#82)	fix	1	1	
+#84	061fef00	2026-03-06	fix(windows): replace fetch() with node:https to prevent UV_HANDLE_CLOSING assertion on doctor exit (#84)	fix	1	1	
+#86	9cc72db2	2026-03-07	fix: add NODE_EXTRA_CA_CERTS to subprocess env passthrough	fix	1	1	
+#86	0a8bb7b7	2026-03-15	feat: replace env allowlist with denylist for sandbox executor	feat	1	1	
+#87	a01106ed	2026-03-10	Feat: "sessionStart: true"  platforms autocreate instructions on windows (#87)	feat	0	0	
+#88	bef8224b	2026-03-08	fix(windows): use forks pool on Windows to prevent ACCESS_VIOLATION crash (#88)	fix	1	1	
+#89	e29a51ec	2026-03-10	feat: add native Cursor support via event hooks (#89)	feat	0	0	
+#91	efebaa94	2026-03-10	feat(opencode): add ~/.config/opencode/opencode.json to config search paths (#91)	feat	0	0	
+#92	eaf8d106	2026-03-10	fix(skills): trim description to 1024 chars, fix user-invocable typo (#92)	fix	1	1	
+#94	4d57afa4	2026-03-10	fix(doctor): check plugin hooks.json when validating hooks (#94)	fix	1	1	
+#95	ca363ec2	2026-03-11	fix(executor): expose 'path' alias in ctx_execute_file sandbox scripts (#95)	fix	1	1	
+#103	939c5ca8	2026-03-13	fix: add process lifecycle guard to prevent orphaned MCP servers (#103)	fix	3	3	REPEAT
+#103	bfbf6548	2026-04-13	fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)	fix	3	3	REPEAT
+#103	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	3	3	REPEAT
+#110	fc6f0a1f	2026-03-13	fix: use correct Claude Code hook field names for PreToolUse responses (#110)	fix	1	1	
+#112	c02b184d	2026-03-13	fix: kill process group on Unix to prevent orphaned children (#112)	fix	1	1	
+#113	875d60d2	2026-03-13	fix: throttle advisory PreToolUse guidance to once-per-session (#113)	fix	2	1	
+#113	dfe38d94	2026-03-13	fix: throttle advisory PreToolUse guidance to once-per-session (#113)	fix	2	1	
+#117	4b29eebe	2026-03-14	fix: session hooks use bundle-only loading (fixes #117)	fix	1	1	
+#119	367fdbb1	2026-03-15	fix(hooks): resolve infinite loop in Gemini CLI with dynamic subagent field injection (#119)	fix	1	1	
+#122	71013e2b	2026-03-15	refactor(openclaw): address round 2 PR #122 review feedback	khác	1	1	
+#122	b2f8ba08	2026-03-15	fix(openclaw): address PR #122 review feedback	fix	1	1	
+#122	505d0db0	2026-03-16	Merge PR #122: feat(openclaw): add OpenClaw platform adapter	khác	1	1	
+#123	54e0246c	2026-03-19	feat(openclaw): improve install UX with preflight guards and npm alias (#147)	feat	1	1	
+#123	6599b634	2026-03-19	fix(openclaw): env var passthrough, printf portability, and docs alignment	fix	1	1	
+#125	452c3d6a	2026-03-15	fix: add z.preprocess coercion for array params to handle double-serialization (#126)	fix	1	1	
+#126	452c3d6a	2026-03-15	fix: add z.preprocess coercion for array params to handle double-serialization (#126)	fix	1	1	
+#128	6643f617	2026-03-15	feat: worktree session isolation via CONTEXT_MODE_SESSION_SUFFIX (#128)	feat	0	0	
+#130	b40d6bdb	2026-03-16	feat: add MCP clientInfo detection + Antigravity and Kiro adapters	feat	0	0	
+#131	02e65eba	2026-03-16	fix: rebuild better-sqlite3 on upgrade and write .mcp.json with absolute path	fix	1	1	
+#132	02e65eba	2026-03-16	fix: rebuild better-sqlite3 on upgrade and write .mcp.json with absolute path	fix	1	1	
+#136	e09a103e	2026-03-17	test: add OpenClaw E2E synthetic test + CI workflow (#136)	khác	0	0	
+#137	77ad0fd2	2026-03-17	feat(kiro): add full hook support for Kiro IDE (#137)	feat	0	0	
+#138	a9e6c142	2026-03-19	feat(pi): add Pi coding agent extension with shared session modules	feat	0	0	
+#139	a6a9e7e5	2026-03-17	fix: strip UTF-8 BOM from stdin before JSON.parse in hooks (#139)	fix	1	1	
+#141	f387a66b	2026-03-17	fix: preserve original cwd for worktree/SDK project directory resolution	fix	1	1	
+#142	ef9b9f0f	2026-03-19	feat: add Zed editor support (MCP-only adapter)	feat	0	0	
+#145	b9f9614e	2026-03-19	fix: use path.basename() instead of endsWith() in session-loaders.mjs	fix	1	1	
+#147	54e0246c	2026-03-19	feat(openclaw): improve install UX with preflight guards and npm alias (#147)	feat	0	0	
+#148	0ec46f0c	2026-03-19	refactor(native): extract ABI caching into testable module with 7 TDD tests	khác	1	1	
+#148	882fe46b	2026-03-19	test(native): add packaging guard tests for native-abi.mjs	khác	1	1	
+#148	c85a11cf	2026-03-19	fix(native): auto-detect and cache ABI-specific better-sqlite3 binaries	fix	1	1	
+#154	98d958b7	2026-03-20	fix(ctx_search): return early with clear error when index is empty (#154)	fix	1	1	
+#156	182fc472	2026-03-20	fix: improve nvm4w postinstall — detect all shim locations, fix stale shims (#156)	fix	5	5	REPEAT
+#156	4c319eb4	2026-03-20	fix: inline ensureNativeCompat into start.mjs & add nvm4w junction fix (#156)	fix	5	5	REPEAT
+#156	518bcdcf	2026-03-20	fix: cross-OS compatibility for Windows installs (#156)	fix	5	5	REPEAT
+#156	702901fc	2026-03-20	fix: change bin entry to cli.bundle.mjs for Windows/nvm4w compatibility (#156)	fix	5	5	REPEAT
+#156	815de2b5	2026-03-21	fix: marketplace sync, OpenCode hooks, routing guard, OpenClaw env vars (#156 #158 #159 #160)	fix	5	5	REPEAT
+#158	2b5cfef7	2026-03-21	feat: platform-aware tool naming + disable auto-write routing files (#158 #163 #164)	feat	1	1	
+#158	815de2b5	2026-03-21	fix: marketplace sync, OpenCode hooks, routing guard, OpenClaw env vars (#156 #158 #159 #160)	fix	1	1	
+#159	815de2b5	2026-03-21	fix: marketplace sync, OpenCode hooks, routing guard, OpenClaw env vars (#156 #158 #159 #160)	fix	1	1	
+#160	815de2b5	2026-03-21	fix: marketplace sync, OpenCode hooks, routing guard, OpenClaw env vars (#156 #158 #159 #160)	fix	1	1	
+#163	10f80b61	2026-03-21	refactor: simplify SQLite driver selection — check globalThis.Bun first (#163)	khác	3	3	REPEAT
+#163	2b5cfef7	2026-03-21	feat: platform-aware tool naming + disable auto-write routing files (#158 #163 #164)	feat	3	3	REPEAT
+#163	71b34568	2026-03-21	fix: validate better-sqlite3 by instantiation, not just typeof (#163)	fix	3	3	REPEAT
+#163	7caf53ba	2026-03-21	fix: Bun require("better-sqlite3") returns undefined instead of throwing (#163)	fix	3	3	REPEAT
+#163	4a9c5b21	2026-03-22	fix: move native deps to optionalDependencies for Bun compatibility (#163)	fix	3	3	REPEAT
+#164	2b5cfef7	2026-03-21	feat: platform-aware tool naming + disable auto-write routing files (#158 #163 #164)	feat	0	0	
+#166	2731ca25	2026-03-22	feat: allow curl/wget with silent file-output, block stdout floods (#166)	feat	0	0	
+#167	0e31e917	2026-03-28	fix(kilo): correct tool-naming key, schema URL, add AGENTS.md (#167)	fix	1	1	
+#167	e9fb4ba8	2026-03-28	feat: add KiloCode platform adapter (#167)	feat	1	1	
+#168	7a43b3fb	2026-03-24	fix: prepublishOnly now includes bundle step — stale bundle in npm tarball (#168)	fix	2	2	REPEAT
+#168	f15d95fe	2026-03-24	fix: register empty prompts/resources handlers to prevent -32601 (#168)	fix	2	2	REPEAT
+#171	502cbb16	2026-03-25	Update README with npm build command (#171)	khác	0	0	
+#172	6a7a6b2e	2026-03-24	fix: shared dep bootstrap for hooks — better-sqlite3 missing in plugin cache (#172)	fix	1	1	
+#175	adea1b71	2026-03-25	fix(opencode): preserve selected config path (#175)	fix	1	1	
+#176	86ccce7e	2026-03-25	docs: fix PR target branch — main not next (#176)	khác	0	0	
+#180	b77736a5	2026-03-29	test: isolate HOME during vitest runs (#180)	khác	0	0	
+#181	013e6fa5	2026-03-28	fix: defer cache dir cleanup to avoid breaking active sessions	fix	6	6	REPEAT
+#181	10ce5fb4	2026-05-04	fix(v1.0.108): #415 hook destruction + #411 mcp path + #414 win hook resilience	fix	6	6	REPEAT
+#181	7c159c2c	2026-05-04	fix(#418): /ctx-upgrade now syncs the marketplace clone (git fetch + reset)	fix	6	6	REPEAT
+#181	c6d9cfd1	2026-05-04	fix(statusline): heartbeat liveness + post-upgrade self-locate fallback	fix	6	6	REPEAT
+#181	11474111	2026-05-20	fix(sessionstart): use lstatSync for age-gated cache cleanup (#644)	fix	6	6	REPEAT
+#181	79e7bb52	2026-06-14	fix(cleanup): leave a breadcrumb link when sweeping old version dirs (#814, #807) (#823)	fix	6	6	REPEAT
+#182	a364586d	2026-03-28	fix(store): scope batch_execute to exact source label (#182)	fix	1	1	
+#183	2b0a8c2a	2026-03-28	fix: post-merge fixes for PRs #183, #190, #192	fix	3	3	REPEAT
+#183	8c36eddf	2026-03-28	fix: defer AGENTS.md write to session_start to avoid cwd pollution (#183)	fix	3	3	REPEAT
+#183	c8054108	2026-05-08	fix(pi): bridge MCP tools into pi.registerTool() so the LLM can call them (#426) (#472)	fix	3	3	REPEAT
+#185	45a8ffcb	2026-03-28	fix: replace execSync with execFileSync in upgrade path (#185)	fix	1	1	
+#186	0467ae5b	2026-03-28	fix: dot-prefix temp dirs to prevent VS Code auto-open (#186)	fix	1	1	
+#187	25868eaf	2026-03-28	fix(hooks): self-heal updates ALL hook types, not just PreToolUse (#187)	fix	2	2	REPEAT
+#187	1c559258	2026-03-29	fix(hooks): clean stale hook paths from settings during upgrade (#188)	fix	2	2	REPEAT
+#187	f9b8ea87	2026-05-13	feat(adapters/types): parseNodeCommand as strict inverse of buildNodeCommand  (algo defense 1 of 6)	feat	2	2	REPEAT
+#188	1c559258	2026-03-29	fix(hooks): clean stale hook paths from settings during upgrade (#188)	fix	1	1	
+#190	2b0a8c2a	2026-03-28	fix: post-merge fixes for PRs #183, #190, #192	fix	5	5	REPEAT
+#190	f69b0d27	2026-03-28	fix: use process.execPath and probe ~/.bun/bin for snap/PATH-limited envs (#190)	fix	5	5	REPEAT
+#190	3bff2d56	2026-05-31	fix(runtime): fall back to PATH node when execPath is not a JS runtime (#731)	fix	5	5	REPEAT
+#190	813da2a6	2026-06-09	fix(runtime): add liveness guard to resolveJavascriptRuntime for Homebrew Cellar ENOENT (#800) (#803)	fix	5	5	REPEAT
+#190	b1cca82d	2026-06-21	fix(runtime): liveness-guard pinned hook execPath so mise/asdf/nvm Node upgrades don't break hooks (#841)	fix	5	5	REPEAT
+#191	ba69df7d	2026-03-28	fix(openclaw): stop owning compaction to preserve thinking blocks	fix	1	1	
+#192	2b0a8c2a	2026-03-28	fix: post-merge fixes for PRs #183, #190, #192	fix	1	1	
+#192	3df75cea	2026-03-29	Add Windows notes for script execution and path handling (#192)	khác	1	1	
+#195	6dae20c9	2026-04-02	refactor: remove writeRoutingInstructions from all adapters	khác	0	0	
+#197	ee628da5	2026-04-02	fix: remove smartTruncate from executor, auto-index large outputs into FTS5	fix	1	1	
+#198	a075baed	2026-04-02	fix(claude-code): skip settings.json hook registration when plugin hooks.json exists (#211)	fix	1	1	
+#200	bfd7a95c	2026-04-04	feat: add ctx_purge tool, platform-isolated content DB, fix #227 and #200	feat	0	0	
+#201	38d83e4f	2026-04-02	fix: prevent ctx_execute from being used as file-writing bypass	fix	1	1	
+#202	38d83e4f	2026-04-02	fix: prevent ctx_execute from being used as file-writing bypass	fix	1	1	
+#203	174f9f7d	2026-04-02	feat: support CONTEXT_MODE_NODE env var for custom Node.js path (#214)	feat	1	1	
+#203	256f631f	2026-04-02	refactor: auto ABI protection for hooks via ensure-deps.mjs (#215)	khác	1	1	
+#203	c2db5245	2026-04-02	fix: remove CONTEXT_MODE_NODE env var — auto ABI compat is sufficient (#203)	fix	1	1	
+#205	7189ed6c	2026-04-02	feat(opencode): add JSONC config support without external dependency (#205)	feat	0	0	
+#206	b6d50e4b	2026-04-02	test: add ensure-deps native binary detection tests (#206)	khác	1	1	
+#206	bfbc4df1	2026-04-02	fix: auto-rebuild better-sqlite3 when native binary missing (closes #206)	fix	1	1	
+#208	390873ea	2026-04-02	refactor(opencode): improve settings reading, plugin root detection, dynamic platform naming (#208)	khác	0	0	
+#209	8ea8b8dd	2026-04-02	fix: use real OS temp dir for shell TMPDIR instead of project root	fix	1	1	
+#210	6fa01462	2026-04-02	refactor(opencode): fix all 7 review items from PR #210	khác	0	0	
+#211	a075baed	2026-04-02	fix(claude-code): skip settings.json hook registration when plugin hooks.json exists (#211)	fix	1	1	
+#214	174f9f7d	2026-04-02	feat: support CONTEXT_MODE_NODE env var for custom Node.js path (#214)	feat	0	0	
+#215	256f631f	2026-04-02	refactor: auto ABI protection for hooks via ensure-deps.mjs (#215)	khác	0	0	
+#218	13dcec21	2026-04-02	fix: handle SQLITE_BUSY with retry logic and graceful errors (closes #218)	fix	1	1	
+#221	6f01c2b4	2026-04-02	refactor(plugin): initialize adapter directly in ContextModePlugin (#221)	khác	0	0	
+#223	4eba5aaf	2026-04-03	feat: add cross-platform debug script + update issue/PR templates	feat	0	0	
+#225	5ade0be6	2026-04-03	fix(codex): remove PreToolUse from Codex hooks — additionalContext unsupported	fix	5	5	REPEAT
+#225	607dc702	2026-04-03	fix(codex): add dedicated hook scripts and fix wire protocol (#225)	fix	5	5	REPEAT
+#225	3d32829d	2026-04-04	fix(codex): always emit valid JSON from pretooluse hook on passthrough (#225)	fix	5	5	REPEAT
+#225	cf2c7ea3	2026-04-04	fix(hooks): ad-hoc codesign native binary after ABI cache swap on macOS (#225)	fix	5	5	REPEAT
+#225	ff5b0cff	2026-06-22	fix(codex): MCP sentinel namespace + PreToolUse rewrites + tool annotations (#844 #845 #846) (#851)	fix	5	5	REPEAT
+#226	4b88a82c	2026-04-04	feat(executor): add inheritEnvKeys parameter for env var passthrough (#226)	feat	0	0	
+#226	a2e9c719	2026-04-04	revert(executor): remove inheritEnvKeys — unverified claim (#226)	revert	0	0	
+#227	bfd7a95c	2026-04-04	feat: add ctx_purge tool, platform-isolated content DB, fix #227 and #200	feat	0	0	
+#228	41cc6da0	2026-04-04	fix: smart skill sync in upgrade, add grill-me blocking gate to releases	fix	4	4	REPEAT
+#228	302bb7b8	2026-04-13	feat: add node:sqlite adapter to avoid SIGSEGV on Linux (#228)	feat	4	4	REPEAT
+#228	bb6552d6	2026-04-13	fix: prevent ctx_doctor resource leaks (#247)	fix	4	4	REPEAT
+#228	a70b9c94	2026-05-07	fix(db-base): probe FTS5 before adopting node:sqlite picker (#461) (#464)	fix	4	4	REPEAT
+#228	7afa0f45	2026-05-19	fix(db-base): propagate busy_timeout on node:sqlite branch (closes #642)	fix	4	4	REPEAT
+#229	ece3abb1	2026-04-13	fix: narrow PostToolUse matcher + remove Task from PreToolUse (#229, #241)	fix	1	1	
+#230	04569b12	2026-04-13	fix: graceful MCP redirect fallback via readiness sentinel (#230)	fix	3	3	REPEAT
+#230	0f80c851	2026-04-13	test: add MCP sentinel setup to all routing test files (#230)	khác	3	3	REPEAT
+#230	415ce57d	2026-04-13	Revert "fix: graceful WebFetch fallback when MCP tools unavailable (#230)"	revert	3	3	REPEAT
+#230	b4edff18	2026-04-13	fix: graceful WebFetch fallback when MCP tools unavailable (#230)	fix	3	3	REPEAT
+#230	b46a7af4	2026-04-27	fix(hooks): scope MCP sentinel scan via env override for tests (#355)	fix	3	3	REPEAT
+#233	245cd8af	2026-04-13	fix: omit ctx_commands from subagent routing block (#233)	fix	1	1	
+#236	156a1cd4	2026-04-13	fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)	fix	6	5	REPEAT
+#236	2e44cf6b	2026-04-13	Revert "fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)"	revert	6	5	REPEAT
+#236	ae734126	2026-04-13	test(lifecycle): add regression guards for stdin listener removal (#236)	khác	6	5	REPEAT
+#236	bfbf6548	2026-04-13	fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)	fix	6	5	REPEAT
+#236	1c66d5cb	2026-04-25	fix(lifecycle): shut down when grandparent reparents to init (#311)	fix	6	5	REPEAT
+#236	259077c4	2026-05-02	fix(lifecycle): trigger isParentAlive re-check on stdin EOF to close 30s CPU-spin window (#388) (#389)	fix	6	5	REPEAT
+#236	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	6	5	REPEAT
+#236	d56a9fc0	2026-05-12	test(lifecycle): pin stdin EOF recheck contract behind #534 (closes #534 partial — 3 of 4)	khác	6	5	REPEAT
+#236	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	6	5	REPEAT
+#236	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	6	5	REPEAT
+#237	156a1cd4	2026-04-13	fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)	fix	2	1	
+#237	bfbf6548	2026-04-13	fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)	fix	2	1	
+#238	442ccde7	2026-04-14	fix(native): validate ABI cache via child-process probe before trusting it (#238)	fix	1	1	
+#239	d89a34fe	2026-04-13	fix: quote CLAUDE_PLUGIN_ROOT in hook commands for Windows spaces (#239)	fix	1	1	
+#241	ece3abb1	2026-04-13	fix: narrow PostToolUse matcher + remove Task from PreToolUse (#229, #241)	fix	1	1	
+#243	d5a5b474	2026-04-13	fix: wrap insertEvent with withRetry for concurrent PostToolUse hooks (#243)	fix	2	2	REPEAT
+#243	73635a0c	2026-04-16	test(db-base): cover withRetry, corruption predicate, and cleanup helpers (#292)	khác	2	2	REPEAT
+#243	7afa0f45	2026-05-19	fix(db-base): propagate busy_timeout on node:sqlite branch (closes #642)	fix	2	2	REPEAT
+#244	9e246a8e	2026-04-13	fix: WAL checkpoint on exit + corrupt DB recovery (#244)	fix	1	1	
+#244	73635a0c	2026-04-16	test(db-base): cover withRetry, corruption predicate, and cleanup helpers (#292)	khác	1	1	
+#247	bb6552d6	2026-04-13	fix: prevent ctx_doctor resource leaks (#247)	fix	1	1	
+#247	c71c2299	2026-04-13	test: regression coverage for ctx_doctor resource cleanup (#247) (#268)	khác	1	1	
+#249	f03be284	2026-04-13	fix: migrate 9 platform hooks from build/session/ to session-loaders.mjs (#249)	fix	2	2	REPEAT
+#249	64e3bccc	2026-05-14	fix(security): bundle-first resolution for initSecurity (closes #558 partial — 1 of 4)	fix	2	2	REPEAT
+#251	aea633c0	2026-04-13	fix: use relative path in .mcp.json to silence CLAUDE_PLUGIN_ROOT warning (#253)	fix	1	1	
+#253	aea633c0	2026-04-13	fix: use relative path in .mcp.json to silence CLAUDE_PLUGIN_ROOT warning (#253)	fix	6	6	REPEAT
+#253	2a9cabf9	2026-05-12	fix(install): .mcp.json source template uses ${CLAUDE_PLUGIN_ROOT}/start.mjs (closes #531 partial — 1 of 10)	fix	6	6	REPEAT
+#253	4362fa53	2026-05-12	fix(install): healMcpJsonArgs deep module for .mcp.json drift (closes #531 partial — 2-6 of 10)	fix	6	6	REPEAT
+#253	8cc6c011	2026-05-12	test(install): update .mcp.json test contract for architectural untrack (#531)	khác	6	6	REPEAT
+#253	8e34dd12	2026-05-12	test(install): update stale .mcp.json test that locked in the #531 regression	khác	6	6	REPEAT
+#253	92613770	2026-05-12	fix(install): untrack .mcp.json + stop shipping in npm tarball (closes #531 architectural)	fix	6	6	REPEAT
+#253	951cd925	2026-05-12	fix(install): CI invariant prevents future .mcp.json / plugin.json asymmetric drift (closes #531 partial — 9 of 10)	fix	6	6	REPEAT
+#253	beb72dee	2026-05-12	fix(install): postinstall.mjs runs healMcpJsonArgs alongside #523 heal (closes #531 partial — 10 of 10)	fix	6	6	REPEAT
+#253	9f34c6f1	2026-06-21	Add GitHub Copilot CLI + Antigravity CLI (agy) support (#787)	khác	6	6	REPEAT
+#255	156a1cd4	2026-04-13	fix(lifecycle): remove stdin listeners causing spurious MCP -32000 errors (#236)	fix	1	1	
+#255	ae734126	2026-04-13	test(lifecycle): add regression guards for stdin listener removal (#236)	khác	1	1	
+#256	4e9baedc	2026-04-13	docs: add label field guidance to batch_execute across all 12 adapters (#256)	khác	0	0	
+#258	53d3c1ec	2026-04-13	perf: cap vitest maxWorkers to 3 to reduce fork exhaustion (#258)	khác	0	0	
+#263	01470ec7	2026-04-13	fix(store): wrap indexPlainText, indexJSON, searchTrigram with withRetry (#263)	fix	1	1	
+#263	73635a0c	2026-04-16	test(db-base): cover withRetry, corruption predicate, and cleanup helpers (#292)	khác	1	1	
+#264	fafef116	2026-04-13	test: add hook latency regression guard (<3ms p95) (#264)	khác	0	0	
+#265	393839ac	2026-04-13	feat(search): content-type-aware title boost in reranking (#265)	feat	0	0	
+#266	bca115d6	2026-04-13	perf(search): periodic FTS5 optimize to defragment indexes (#266)	khác	0	0	
+#266	be3cb3a9	2026-04-13	perf: enable mmap_size pragma for read-heavy FTS5 search (#267)	khác	0	0	
+#266	dff4e31f	2026-04-13	perf(search): periodic FTS5 optimize to defragment indexes (#266)	khác	0	0	
+#266	fb76bd1c	2026-04-14	Revert "perf(search): periodic FTS5 optimize to defragment indexes (#266)"	revert	0	0	
+#267	be3cb3a9	2026-04-13	perf: enable mmap_size pragma for read-heavy FTS5 search (#267)	khác	0	0	
+#268	c71c2299	2026-04-13	test: regression coverage for ctx_doctor resource cleanup (#247) (#268)	khác	0	0	
+#269	f095388f	2026-04-13	test: search relevance eval — ranking quality guard for BM25/RRF/proximity (#269)	khác	0	0	
+#271	707c4aea	2026-04-13	fix(search): filter stopwords from FTS5 queries and proximity reranking (#271)	fix	1	1	
+#272	6b675f26	2026-04-13	perf(search): skip fuzzy correction on stopwords and cache cleanup statements (#272)	khác	0	0	
+#279	5fc8ceab	2026-04-14	fix(pi): show ctx command output in UI (#279)	fix	1	1	
+#281	dbbc1dae	2026-04-14	fix: coerce string-typed numeric tool inputs to numbers (#281)	fix	1	1	
+#282	6713dc7a	2026-04-14	fix: prevent duplicate hook processes when hooks.json is present (#282)	fix	1	1	
+#284	d0d71e30	2026-04-16	perf(bench): add fuzzy-cache and token-dedup search micro-benchmarks (#284)	khác	0	0	
+#287	af6d9432	2026-04-16	test(adapters/detect): cover config-directory branch and env-var priority chain (#287)	khác	0	0	
+#290	e7dbf587	2026-04-28	feat: unified persistent memory & timeline search (#367)	feat	0	0	
+#292	73635a0c	2026-04-16	test(db-base): cover withRetry, corruption predicate, and cleanup helpers (#292)	khác	0	0	
+#293	3def2cf5	2026-04-25	fix(insight): remove permissive CORS headers from local API (#293)	fix	1	1	
+#294	3def2cf5	2026-04-25	fix(insight): remove permissive CORS headers from local API (#293)	fix	2	2	REPEAT
+#294	60427a60	2026-04-25	fix(insight): harden CORS follow-up — OPTIONS 405, wider port range, Bun test	fix	2	2	REPEAT
+#298	4f6f7cb6	2026-04-25	fix(routing): scope guidance throttle by session, not process.ppid (#298)	fix	1	1	
+#299	1c519add	2026-04-25	fix(gemini-cli): emit SessionStart as structured JSON, not plaintext (#299) (#314)	fix	1	1	
+#300	6519cbe9	2026-04-25	docs(codex): update hook docs for stable dispatch (#300)	khác	0	0	
+#310	d0816bfe	2026-04-28	fix(insight): move showAllInsights useState before early return (React #310)	fix	2	1	
+#310	dbd57ff1	2026-04-28	fix(insight): move showAllInsights useState before early return (React #310)	fix	2	1	
+#310	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	2	1	
+#311	1c66d5cb	2026-04-25	fix(lifecycle): shut down when grandparent reparents to init (#311)	fix	6	6	REPEAT
+#311	517e4d4e	2026-04-25	fix(insight): terminate dashboard when Claude/MCP exits (#311)	fix	6	6	REPEAT
+#311	259077c4	2026-05-02	fix(lifecycle): trigger isParentAlive re-check on stdin EOF to close 30s CPU-spin window (#388) (#389)	fix	6	6	REPEAT
+#311	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	6	6	REPEAT
+#311	ff29948e	2026-05-12	fix(lifecycle): bridge-child fast poll via CONTEXT_MODE_BRIDGE_DEPTH (closes #534 partial — 2 of 4)	fix	6	6	REPEAT
+#311	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	6	6	REPEAT
+#311	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	6	6	REPEAT
+#314	1c519add	2026-04-25	fix(gemini-cli): emit SessionStart as structured JSON, not plaintext (#299) (#314)	fix	1	1	
+#317	472634ac	2026-04-25	feat(store): hash-based stale detection with auto-refresh on search (#317)	feat	0	0	
+#318	d328c247	2026-04-25	fix(hooks): tighten better-sqlite3 binary detection and self-healing rebuild (#318)	fix	1	1	
+#321	496b84ac	2026-04-25	feat(adapter): add JetBrains Copilot adapter (#321)	feat	0	0	
+#322	3e65ee54	2026-04-25	fix(hooks): add parseStdin for safe empty-stdin handling across all 22 hook sites (#322)	fix	1	1	
+#325	270a56f0	2026-04-25	feat(session): per-event project attribution for session tracking (#325)	feat	0	0	
+#325	79e0d7ee	2026-04-25	refactor(session): extract DRY attribution helper + named confidence constants	khác	0	0	
+#325	ba571f72	2026-05-31	feat(search): plumb per-project session-id allow-set through ContentStore	feat	0	0	
+#327	496b84ac	2026-04-25	feat(adapter): add JetBrains Copilot adapter (#321)	feat	0	0	
+#329	2d623ba1	2026-04-22	feat(extract): capture MCP tool_response so ctx_search finds the data the MCP returned	feat	0	0	
+#331	74bcf65d	2026-04-25	fix(tests): extract hasModernSqlite helper in ABI test loader (#331)	fix	4	4	REPEAT
+#331	d328c247	2026-04-25	fix(hooks): tighten better-sqlite3 binary detection and self-healing rebuild (#318)	fix	4	4	REPEAT
+#331	f351fd1a	2026-04-25	fix(hooks): skip better-sqlite3 bootstrap on Node >=22.5 / Bun (#331)	fix	4	4	REPEAT
+#331	6471cf3b	2026-05-12	fix(ensure-deps): skip rebuild when binary already loads on modern Node (#540)	fix	4	4	REPEAT
+#339	6b177573	2026-04-25	fix(openclaw): register MCP sidecar on install so ctx_* tools surface to agent (#339)	fix	1	1	
+#341	ceb49688	2026-04-25	Security: Potential XSS via unsanitized `highlighted` content rendered with `dangerouslySetInnerHTML` (#341)	khác	0	0	
+#342	2861d45f	2026-04-25	feat(adapter): add Qwen Code adapter with TDD tests	feat	0	0	
+#344	337ad7eb	2026-04-26	fix(windows): resolve npm ENOENT/EINVAL on Windows Node v20+ (#344)	fix	1	1	
+#347	35e264ca	2026-04-26	fix(hooks): replace PPID sentinel with directory-scan for MCP readiness (#347)	fix	3	2	REPEAT
+#347	e56f17c1	2026-04-26	fix(hooks): replace PPID sentinel with directory-scan for MCP readiness (#347)	fix	3	2	REPEAT
+#347	26b0ca79	2026-04-27	test: update MCP readiness tests to match directory-scan behavior (#347)	khác	3	2	REPEAT
+#347	f4e8d2ac	2026-05-02	test(hooks): add cross-platform regression matrix for MCP readiness (#354)	khác	3	2	REPEAT
+#347	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	3	2	REPEAT
+#347	9940f374	2026-05-31	fix(test): write MCP-ready sentinel in Kimi pretooluse hook tests	fix	3	2	REPEAT
+#349	2c63add6	2026-04-26	fix(search): reward phrase frequency in FTS5 reranker (#349)	fix	1	1	
+#350	22939e6d	2026-04-26	fix(store): treat empty content as missing when path provided (#350) (#351)	fix	1	1	
+#351	22939e6d	2026-04-26	fix(store): treat empty content as missing when path provided (#350) (#351)	fix	1	1	
+#353	106d70cf	2026-04-26	fix(plugin): use KILO_PID env variable for platform detection (#353)	fix	1	1	
+#354	f4e8d2ac	2026-05-02	test(hooks): add cross-platform regression matrix for MCP readiness (#354)	khác	0	0	
+#354	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	0	0	
+#355	5b36bd78	2026-04-27	fix(test): restore graceful degradation tests with isolated sentinel dir (#355)	fix	2	2	REPEAT
+#355	b46a7af4	2026-04-27	fix(hooks): scope MCP sentinel scan via env override for tests (#355)	fix	2	2	REPEAT
+#359	2a9ae3a9	2026-04-27	feat(qwen-code): improve adapter — configureAllHooks, getInstalledVersion, projectDir fallback, PostToolUse matchers (#359)	feat	0	0	
+#360	91cd6dfe	2026-04-27	feat(codex): wire prompt and stop hooks (#360)	feat	0	0	
+#363	859b87ca	2026-04-27	fix: replace bare tool shorthands with correct ctx_ prefixed names (#363)	fix	1	1	
+#363	e7dbf587	2026-04-28	feat: unified persistent memory & timeline search (#367)	feat	1	1	
+#363	19a75902	2026-05-31	feat(ctx_search): add `project:` filter for shared-DB mode (#737)	feat	1	1	
+#365	683df4e2	2026-05-02	refactor(server): unify ad-hoc project-dir resolution on getProjectDir()	khác	2	2	REPEAT
+#365	98154042	2026-05-02	fix(server): re-apply path-resolution + adapter-aware fixes lost in b392c2f	fix	2	2	REPEAT
+#365	b392c2fe	2026-05-02	feat(concurrency): opt-in parallelism for I/O-bound MCP tools	feat	2	2	REPEAT
+#365	1d431fe6	2026-05-03	fix(mcp): resolve ctx_index relative paths from project dir (#365)	fix	2	2	REPEAT
+#365	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	2	2	REPEAT
+#365	79513570	2026-05-12	test(env-leak): strip claude-code identification vars in JetBrains projectRoot test	khác	2	2	REPEAT
+#367	e7dbf587	2026-04-28	feat: unified persistent memory & timeline search (#367)	feat	1	1	
+#367	6262c132	2026-05-02	fix(memory): adapter-aware persistent memory across all 14 platforms	fix	1	1	
+#367	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#367	19a75902	2026-05-31	feat(ctx_search): add `project:` filter for shared-DB mode (#737)	feat	1	1	
+#367	ba571f72	2026-05-31	feat(search): plumb per-project session-id allow-set through ContentStore	feat	1	1	
+#369	05018878	2026-04-28	fix(test): normalize pluginRoot path separators for Windows (#369)	fix	8	7	REPEAT
+#369	36fefe20	2026-04-28	feat(insight): session analytics — 90 metrics, 37 insights, 4 composite scores	feat	8	7	REPEAT
+#369	b9522ba4	2026-04-28	fix(test): normalize pluginRoot path separators for Windows (#369)	fix	8	7	REPEAT
+#369	259077c4	2026-05-02	fix(lifecycle): trigger isParentAlive re-check on stdin EOF to close 30s CPU-spin window (#388) (#389)	fix	8	7	REPEAT
+#369	35b6f90b	2026-05-02	fix(test): normalize scriptPath separators in cache-heal-self-heal assertion	fix	8	7	REPEAT
+#369	622b82da	2026-05-02	fix(windows): normalize hooks.json placeholders on startup (#378)	fix	8	7	REPEAT
+#369	a9b1970a	2026-05-02	fix(hooks): passthrough on `ask` in headless mode (CLAUDE_CODE_HEADLESS) (#380)	fix	8	7	REPEAT
+#369	db5534dd	2026-05-02	fix(openclaw): route native tool aliases (#383)	fix	8	7	REPEAT
+#369	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	8	7	REPEAT
+#369	d6ac3826	2026-05-13	feat(adapters/claude-code): emit hooks via buildNodeCommand for every event  (algo defense 2 of 6)	feat	8	7	REPEAT
+#369	b1cca82d	2026-06-21	fix(runtime): liveness-guard pinned hook execPath so mise/asdf/nvm Node upgrades don't break hooks (#841)	fix	8	7	REPEAT
+#370	6262c132	2026-05-02	fix(memory): adapter-aware persistent memory across all 14 platforms	fix	1	1	
+#370	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#371	36fefe20	2026-04-28	feat(insight): session analytics — 90 metrics, 37 insights, 4 composite scores	feat	0	0	
+#372	36fefe20	2026-04-28	feat(insight): session analytics — 90 metrics, 37 insights, 4 composite scores	feat	1	1	
+#372	622b82da	2026-05-02	fix(windows): normalize hooks.json placeholders on startup (#378)	fix	1	1	
+#372	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#372	d6ac3826	2026-05-13	feat(adapters/claude-code): emit hooks via buildNodeCommand for every event  (algo defense 2 of 6)	feat	1	1	
+#376	4e75d113	2026-05-02	fix(adapters/detect): full 14-platform PLATFORM_ENV_VARS audit + opencode-plugin DRY	fix	4	4	REPEAT
+#376	6262c132	2026-05-02	fix(memory): adapter-aware persistent memory across all 14 platforms	fix	4	4	REPEAT
+#376	131079db	2026-05-03	fix(opencode-plugin+db+server): v1.0.106 — Mickey resume injection follow-up + version-check TTL	fix	4	4	REPEAT
+#376	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	4	4	REPEAT
+#376	eea5877b	2026-05-03	fix(opencode-plugin+executor+routing): Mickey 3-issue + Issue #406 timeout policy	fix	4	4	REPEAT
+#378	622b82da	2026-05-02	fix(windows): normalize hooks.json placeholders on startup (#378)	fix	4	3	REPEAT
+#378	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	4	3	REPEAT
+#378	b7ca040d	2026-05-04	fix(tests): Windows CI — pathToFileURL for ESM imports + read committed plugin.json (#419 follow-up)	fix	4	3	REPEAT
+#378	e14f92b1	2026-05-04	fix(tests): Windows CI — pathToFileURL for ESM imports + read committed plugin.json (#419 follow-up)	fix	4	3	REPEAT
+#378	caba9246	2026-05-20	fix(hooks): quote rewritten hook paths in legacy settings.json self-heal (#636)	fix	4	3	REPEAT
+#378	aa1afc01	2026-05-31	feat(hooks): plumb jsRuntimePath through normalize-hooks for bun rewrite (#738)	feat	4	3	REPEAT
+#379	6262c132	2026-05-02	fix(memory): adapter-aware persistent memory across all 14 platforms	fix	1	1	
+#379	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#380	a9b1970a	2026-05-02	fix(hooks): passthrough on `ask` in headless mode (CLAUDE_CODE_HEADLESS) (#380)	fix	1	1	
+#380	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#383	db5534dd	2026-05-02	fix(openclaw): route native tool aliases (#383)	fix	1	1	
+#383	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#384	21c44d69	2026-05-02	fix(executor): full Windows shell coverage — bash -c source + SHELL override (#384)	fix	3	3	REPEAT
+#384	2b5f3d82	2026-05-02	fix(test): make Windows-host assertions platform-aware	fix	3	3	REPEAT
+#384	9d1f44fb	2026-05-02	fix(executor): hide Windows console + drop .sh extension for shell exec (#384)	fix	3	3	REPEAT
+#384	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	3	3	REPEAT
+#385	9d1f44fb	2026-05-02	fix(executor): hide Windows console + drop .sh extension for shell exec (#384)	fix	1	1	
+#385	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#388	259077c4	2026-05-02	fix(lifecycle): trigger isParentAlive re-check on stdin EOF to close 30s CPU-spin window (#388) (#389)	fix	2	2	REPEAT
+#388	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	2	2	REPEAT
+#388	d56a9fc0	2026-05-12	test(lifecycle): pin stdin EOF recheck contract behind #534 (closes #534 partial — 3 of 4)	khác	2	2	REPEAT
+#388	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	2	2	REPEAT
+#389	259077c4	2026-05-02	fix(lifecycle): trigger isParentAlive re-check on stdin EOF to close 30s CPU-spin window (#388) (#389)	fix	1	1	
+#389	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#398	46f3d748	2026-05-02	fix(sessionstart): filter resume events by session id (cross-session bleed) (#398)	fix	1	1	
+#398	7e6c243a	2026-05-02	test(session): regression test for cross-session bleed (#398)	khác	1	1	
+#398	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#399	80118193	2026-05-02	feat(stats): persist runtime stats + status line bar (#399)	feat	1	1	
+#399	b8e11bfd	2026-05-02	fix(stats): persist dollars_saved_lifetime for statusline (#402)	fix	1	1	
+#399	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#400	69daaac2	2026-05-02	Add Insight directory overrides (#400)	khác	1	1	
+#400	98154042	2026-05-02	fix(server): re-apply path-resolution + adapter-aware fixes lost in b392c2f	fix	1	1	
+#400	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#401	65aa685f	2026-05-02	fix(security+release): PR #401 5-mode review follow-up — B3 redaction, SSRF guard, SHELL allowlist + 6 hardening fixes	fix	2	2	REPEAT
+#401	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	2	2	REPEAT
+#401	5985b58a	2026-06-02	fix(ci): sync 2 stale Opus 4 assertions + statusline Windows timeout	fix	2	2	REPEAT
+#402	b8e11bfd	2026-05-02	fix(stats): persist dollars_saved_lifetime for statusline (#402)	fix	1	1	
+#402	734bdbc2	2026-05-03	v1.0.104 (#401)	khác	1	1	
+#404	11f24f73	2026-05-03	fix(insight): keep directory overrides in source (#404)	fix	1	1	
+#405	427efae2	2026-05-03	fix: add ps1 extension for Windows PowerShell -File scripts (#405)	fix	1	1	
+#406	eea5877b	2026-05-03	fix(opencode-plugin+executor+routing): Mickey 3-issue + Issue #406 timeout policy	fix	1	1	
+#406	9f34c6f1	2026-06-21	Add GitHub Copilot CLI + Antigravity CLI (agy) support (#787)	khác	1	1	
+#407	358673d9	2026-05-03	fix: handle batch env prefix by shell (#407)	fix	1	1	
+#408	10ce5fb4	2026-05-04	fix(v1.0.108): #415 hook destruction + #411 mcp path + #414 win hook resilience	fix	3	3	REPEAT
+#408	5432575a	2026-05-04	fix(install): self-heal missing better-sqlite3 binding on Windows (#408) (#410)	fix	3	3	REPEAT
+#408	368b6187	2026-05-11	fix(doctor): distinguish package-missing from binding-missing (closes #514 partial — 4 of 4)	fix	3	3	REPEAT
+#409	7e64e4fa	2026-05-03	docs: update README with OpenCode session continuity improvements (#409)	khác	0	0	
+#410	10ce5fb4	2026-05-04	fix(v1.0.108): #415 hook destruction + #411 mcp path + #414 win hook resilience	fix	3	3	REPEAT
+#410	5432575a	2026-05-04	fix(install): self-heal missing better-sqlite3 binding on Windows (#408) (#410)	fix	3	3	REPEAT
+#410	df648f57	2026-05-04	fix(upgrade): skip npm rebuild when better-sqlite3 binding is present	fix	3	3	REPEAT
+#411	10ce5fb4	2026-05-04	fix(v1.0.108): #415 hook destruction + #411 mcp path + #414 win hook resilience	fix	9	9	REPEAT
+#411	7c159c2c	2026-05-04	fix(#418): /ctx-upgrade now syncs the marketplace clone (git fetch + reset)	fix	9	9	REPEAT
+#411	550ca732	2026-05-11	fix(install): healPluginJsonMcpServers detects tmpdir-prefixed args[0] (closes #523 partial — 1 of 8)	fix	9	9	REPEAT
+#411	8c65c3da	2026-05-11	fix(install): cli.ts upgrade() asserts plugin.json args[0] post-bump (closes #523 partial — 7 of 8)	fix	9	9	REPEAT
+#411	666b5565	2026-05-12	fix(install): cli.ts upgrade() asserts .mcp.json args[0] placeholder post-bump (closes #531 partial — 8 of 10)	fix	9	9	REPEAT
+#411	92613770	2026-05-12	fix(install): untrack .mcp.json + stop shipping in npm tarball (closes #531 architectural)	fix	9	9	REPEAT
+#411	951cd925	2026-05-12	fix(install): CI invariant prevents future .mcp.json / plugin.json asymmetric drift (closes #531 partial — 9 of 10)	fix	9	9	REPEAT
+#411	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	9	9	REPEAT
+#411	97792c59	2026-05-18	fix(hooks): re-point stale cache-version paths after Claude Code auto-update (#604) (#611)	fix	9	9	REPEAT
+#413	c3d04679	2026-05-04	fix(#413): /resume snapshot fallback in SessionStart hook	fix	1	1	
+#414	10ce5fb4	2026-05-04	fix(v1.0.108): #415 hook destruction + #411 mcp path + #414 win hook resilience	fix	3	2	REPEAT
+#414	85188304	2026-05-12	fix(postinstall): gate hook-normalization heal with isGlobalInstall (#531 fix-of-fix)	fix	3	2	REPEAT
+#414	ceaec16e	2026-05-12	fix(postinstall): gate hook-normalization heal with isGlobalInstall (#531 fix-of-fix)	fix	3	2	REPEAT
+#415	10ce5fb4	2026-05-04	fix(v1.0.108): #415 hook destruction + #411 mcp path + #414 win hook resilience	fix	1	1	
+#416	dc892b10	2026-05-04	Fix/missing toolname prefix (#416)	khác	0	0	
+#418	7c159c2c	2026-05-04	fix(#418): /ctx-upgrade now syncs the marketplace clone (git fetch + reset)	fix	2	2	REPEAT
+#418	c6d9cfd1	2026-05-04	fix(statusline): heartbeat liveness + post-upgrade self-locate fallback	fix	2	2	REPEAT
+#419	92997e40	2026-05-04	feat(session): allow omitting data_hash and widen AttributionSource (#419)	feat	2	1	
+#419	b7ca040d	2026-05-04	fix(tests): Windows CI — pathToFileURL for ESM imports + read committed plugin.json (#419 follow-up)	fix	2	1	
+#419	e14f92b1	2026-05-04	fix(tests): Windows CI — pathToFileURL for ESM imports + read committed plugin.json (#419 follow-up)	fix	2	1	
+#422	3ef7b6eb	2026-05-04	feat(plugin): add context injection support for additionalContext (#422)	feat	0	0	
+#423	4048d5f2	2026-05-04	refactor(opencode): update routePreToolUse to use platform parameter (#423)	khác	1	1	
+#423	64516e72	2026-05-04	fix(tests): align rebuild test with v1.0.110 heal-helper delegation	fix	1	1	
+#424	41f65799	2026-05-04	fix(detect): update kilo platform detection to check KILO=1 and KILO_PID (#424)	fix	1	1	
+#424	58ad104f	2026-05-09	test(detect): backfill KILO+OPENCODE fork-precedence regression + fix mislabeled test (#424 follow-up)	khác	1	1	
+#426	25a8f844	2026-05-08	feat(ci): tier-2 E2E smoke scaffolding (#477) (#478)	feat	1	1	
+#426	c8054108	2026-05-08	fix(pi): bridge MCP tools into pi.registerTool() so the LLM can call them (#426) (#472)	fix	1	1	
+#428	b46a0f52	2026-05-05	fix(skills): move UPSTREAM-CREDITS.md out of skills/ to silence Pi skill conflict warning (#428)	fix	2	2	REPEAT
+#428	e70e09ea	2026-05-11	fix(skills): ship skills/.ignore so Pi loader skips non-skill markdown (#496) (#527)	fix	2	2	REPEAT
+#431	46419740	2026-05-08	fix(upgrade): copy package files in inline fallback (#431)	fix	1	1	
+#435	61fd3fb0	2026-05-09	Fix worktree suffix project root detection (#435)	khác	3	3	REPEAT
+#435	82bd971b	2026-05-10	test(hooks): normalize projectDir before SHA so Windows hash matches hook (#435 round-4)	khác	3	3	REPEAT
+#435	d2be2f7b	2026-05-10	fix(statusline): use file:// URL for dynamic import (Windows CI fix)	fix	3	3	REPEAT
+#435	e1a935ec	2026-05-10	test: normalize Windows path separators across D2 + multi-adapter test fixtures	khác	3	3	REPEAT
+#435	faf3101f	2026-05-10	fix(hooks): thread projectDir through cursor/gemini/jetbrains/vscode session helpers (#435 round-3)	fix	3	3	REPEAT
+#435	ffdd2e83	2026-05-10	fix(session): case-fold worktree path compare on macOS/Windows (#435 round-4)	fix	3	3	REPEAT
+#439	138f22fe	2026-05-09	refactor(skills): move maintainer-only skills to .claude/skills/ (#439)	khác	0	0	
+#439	329ed22b	2026-05-09	docs: refresh UPSTREAM-CREDITS to referenced (not vendored) skills (#439 follow-up)	khác	0	0	
+#441	1f70bee0	2026-05-07	fix(ctx_insight): cap helper spawnSync + locale-independent Windows netstat parser (#469)	fix	2	2	REPEAT
+#441	5baeb74f	2026-05-07	fix(security): replace ctx_insight execSync interpolation with spawnSync + tighten port schema (#441) (#452)	fix	2	2	REPEAT
+#442	82690b8b	2026-05-07	fix(security): apply Read deny-policy to ctx_index path argument (#442) (#451)	fix	2	2	REPEAT
+#442	8b0f2d49	2026-05-10	fix(security): close ctx_index TOCTOU via fd-bound reads + refresh deny re-check (#442 round-3)	fix	2	2	REPEAT
+#442	f7499570	2026-05-24	feat(ctx_index): support directory paths with bounded traversal (#687)	feat	2	2	REPEAT
+#443	82690b8b	2026-05-07	fix(security): apply Read deny-policy to ctx_index path argument (#442) (#451)	fix	1	1	
+#446	637d0bd4	2026-05-07	[codex] Fix stale better-sqlite3 ABI repair (#446)	khác	0	0	
+#448	51fd51e4	2026-05-06	fix(opencode-plugin):add structured logging, remove per-session dedup sets, tighten plugin types (#448)	fix	2	2	REPEAT
+#448	087bfa9c	2026-05-09	fix(opencode): wrap debug logger awaits in safeLog to preserve turn (#448 follow-up)	fix	2	2	REPEAT
+#451	82690b8b	2026-05-07	fix(security): apply Read deny-policy to ctx_index path argument (#442) (#451)	fix	3	3	REPEAT
+#451	00d2f29c	2026-05-10	fix(security): cross-adapter deny-policy parity via adapter getSettingsPath (#451 round-3)	fix	3	3	REPEAT
+#451	0e806c5c	2026-05-24	fix(test): sandbox HOME in CLAUDE_CONFIG_DIR security suite so npm test doesn't clobber ~/.claude/settings.json (#702)	fix	3	3	REPEAT
+#452	5baeb74f	2026-05-07	fix(security): replace ctx_insight execSync interpolation with spawnSync + tighten port schema (#441) (#452)	fix	1	1	
+#453	5e7ff514	2026-05-07	fix(adapters): honor CLAUDE_CONFIG_DIR in Claude Code adapter (#453) (#460)	fix	3	3	REPEAT
+#453	3e3c176c	2026-05-08	fix(adapters/claude-code): honor $CLAUDE_CONFIG_DIR (#453) (#458)	fix	3	3	REPEAT
+#453	fb55ed03	2026-05-15	fix(start): honor CLAUDE_CONFIG_DIR in cache-heal layer (#577)	fix	3	3	REPEAT
+#454	f287ee65	2026-05-07	fix(hooks): robust rmSync for Windows + non-ASCII tmpdir paths (#454) (#456)	fix	1	1	
+#454	6cbad3c9	2026-05-09	test(runtime): pin Windows MS Store stub filter + py fallback (#454 follow-up)	khác	1	1	
+#454	3ba914d0	2026-05-12	test(runtime): update mocks for #537 DEP0190 fix (Windows execSync, POSIX no-shell)	khác	1	1	
+#455	fb4bc5ad	2026-05-07	fix(runtime): filter Windows MS Store Python stubs and verify runnabi… (#457)	fix	1	1	
+#456	f287ee65	2026-05-07	fix(hooks): robust rmSync for Windows + non-ASCII tmpdir paths (#454) (#456)	fix	1	1	
+#457	fb4bc5ad	2026-05-07	fix(runtime): filter Windows MS Store Python stubs and verify runnabi… (#457)	fix	1	1	
+#458	3e3c176c	2026-05-08	fix(adapters/claude-code): honor $CLAUDE_CONFIG_DIR (#453) (#458)	fix	2	2	REPEAT
+#458	d2be2f7b	2026-05-10	fix(statusline): use file:// URL for dynamic import (Windows CI fix)	fix	2	2	REPEAT
+#458	e1a935ec	2026-05-10	test: normalize Windows path separators across D2 + multi-adapter test fixtures	khác	2	2	REPEAT
+#458	f529471a	2026-05-10	test(claude-code): use path.sep so Windows assertion is not vacuous (#458 round-4)	khác	2	2	REPEAT
+#459	702dc751	2026-05-07	fix: preserve shell executor PATH after startup (#459)	fix	1	1	
+#460	5e7ff514	2026-05-07	fix(adapters): honor CLAUDE_CONFIG_DIR in Claude Code adapter (#453) (#460)	fix	4	4	REPEAT
+#460	3e3c176c	2026-05-08	fix(adapters/claude-code): honor $CLAUDE_CONFIG_DIR (#453) (#458)	fix	4	4	REPEAT
+#460	338167a9	2026-05-09	fix(adapters,security): honor CLAUDE_CONFIG_DIR across settings reads (#460 follow-up)	fix	4	4	REPEAT
+#460	83c6f12c	2026-05-10	fix(adapters,security): sweep ~/.claude hardcodes through resolveClaudeConfigDir (#460 round-3)	fix	4	4	REPEAT
+#461	a70b9c94	2026-05-07	fix(db-base): probe FTS5 before adopting node:sqlite picker (#461) (#464)	fix	1	1	
+#463	f8d23289	2026-05-08	fix(routing): skip Bash nudge for structurally-bounded commands (#463) (#470)	fix	1	1	
+#464	a70b9c94	2026-05-07	fix(db-base): probe FTS5 before adopting node:sqlite picker (#461) (#464)	fix	1	1	
+#465	767a958e	2026-05-07	fix(pi): use correct extension lifecycle events (#465)	fix	1	1	
+#466	74f52143	2026-05-08	Fix/security fail open build missing (#468)	khác	0	0	
+#466	21f95b76	2026-05-14	test(hooks): inject CONTEXT_MODE_SECURITY_BUNDLE_PATH in #466 loud-failure tests (CI fix for v1.0.127 bundle-first)	khác	0	0	
+#468	74f52143	2026-05-08	Fix/security fail open build missing (#468)	khác	0	0	
+#468	a4ab72eb	2026-05-09	feat(security): CONTEXT_MODE_REQUIRE_SECURITY=1 opt-in fail-closed mode (#468 follow-up)	feat	0	0	
+#469	1f70bee0	2026-05-07	fix(ctx_insight): cap helper spawnSync + locale-independent Windows netstat parser (#469)	fix	2	2	REPEAT
+#469	bd327123	2026-05-09	fix(server): route ctx_upgrade port cleanup through killProcessOnPort (#469 follow-up)	fix	2	2	REPEAT
+#469	11b8b587	2026-06-21	feat(insight): pivot ctx_insight from local dashboard to hosted product	feat	2	2	REPEAT
+#470	f8d23289	2026-05-08	fix(routing): skip Bash nudge for structurally-bounded commands (#463) (#470)	fix	2	2	REPEAT
+#470	28e77e2b	2026-05-09	fix(routing): close newline/carriage-return bypass in shell allowlist (#470 follow-up)	fix	2	2	REPEAT
+#471	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	1	1	
+#472	c8054108	2026-05-08	fix(pi): bridge MCP tools into pi.registerTool() so the LLM can call them (#426) (#472)	fix	3	3	REPEAT
+#472	b1dd5539	2026-05-10	fix(pi): pipe stderr + SIGKILL fallback + shutdown bridge-ready race (#472 round-3)	fix	3	3	REPEAT
+#472	e68b1b0e	2026-05-10	test(pi): skip POSIX-signal-only SIGKILL escalation cases on win32 (#472 round-4)	khác	3	3	REPEAT
+#472	bebc7529	2026-06-23	fix(pi): keep the foreground MCP bridge alive + route diagnostics off the TUI (#868)	fix	3	3	REPEAT
+#473	84b8d15c	2026-05-08	feat(adapters): add OMP (Oh My Pi) platform adapter (#473) (#480)	feat	1	1	
+#473	5a6fe4bd	2026-05-09	feat(adapters): add PiAdapter to fix getAdapter('pi') fallthrough (#473 follow-up)	feat	1	1	
+#473	a862e4e3	2026-05-10	fix(pi): route extension sessions dir through PiAdapter.getSessionDir (#473 round-3)	fix	1	1	
+#476	8ef04c6a	2026-05-09	fix(security): manual redirect handling in ctx_fetch subprocess to close rebinding chain (#476 follow-up)	fix	3	3	REPEAT
+#476	ef9eeaa4	2026-05-09	fix(security): close DNS rebinding gap in ctx_fetch_and_index SSRF guard (#476)	fix	3	3	REPEAT
+#476	6017d856	2026-05-10	fix(security): IPv6 zone-id strip + generic dns.resolve patch in fetch subprocess (#476 round-3)	fix	3	3	REPEAT
+#477	25a8f844	2026-05-08	feat(ci): tier-2 E2E smoke scaffolding (#477) (#478)	feat	0	0	
+#478	25a8f844	2026-05-08	feat(ci): tier-2 E2E smoke scaffolding (#477) (#478)	feat	0	0	
+#479	990586a2	2026-05-09	fix(codex): normalize hook errors and guard patch continuity (#479)	fix	1	1	
+#480	84b8d15c	2026-05-08	feat(adapters): add OMP (Oh My Pi) platform adapter (#473) (#480)	feat	0	0	
+#482	d05a3758	2026-05-10	feat(prose): retire prose-style enforcement entirely (#482)	feat	2	2	REPEAT
+#482	d2be2f7b	2026-05-10	fix(statusline): use file:// URL for dynamic import (Windows CI fix)	fix	2	2	REPEAT
+#482	f7f45891	2026-05-10	fix(round-5): four surgical fixes from cross-cluster archaeology	fix	2	2	REPEAT
+#485	7b86ee5a	2026-05-09	feat(cursor): add Marketplace plugin packaging (#489)	feat	0	0	
+#486	7337687d	2026-05-09	chore: ignore temporary checkout dirs (#486)	khác	0	0	
+#487	5aade767	2026-05-09	fix(opencode): remove duplicate routing block injection and AGENTS.md capture (#487)	fix	3	3	REPEAT
+#487	9b5c3b9d	2026-05-09	fix(opencode): replace overlapping quorum markers with distinct tokens (#487 follow-up)	fix	3	3	REPEAT
+#487	dedb433d	2026-05-09	fix(opencode): restore AGENTS.md capture for snapshot/auto-memory parity (#487 follow-up)	fix	3	3	REPEAT
+#488	228c34d5	2026-05-09	fix(pi): parse session age timestamps as UTC (#488)	fix	1	1	
+#489	7b86ee5a	2026-05-09	feat(cursor): add Marketplace plugin packaging (#489)	feat	0	0	
+#489	8d731d34	2026-05-10	test(cursor): pin detectPluginInstalls + plugin-aware checkPluginRegistration (#489 round-3)	khác	0	0	
+#490	d66f7679	2026-05-09	fix(pi): await MCP bridge bootstrap in before_agent_start (#490)	fix	1	1	
+#492	043a1f52	2026-05-09	[codex] add compact hook support (#492)	khác	0	0	
+#492	b08ce651	2026-05-09	test(codex): pin matcher parity and PreCompact integrity (#492 follow-up)	khác	0	0	
+#492	aee831a2	2026-05-10	feat(codex): expose plugin to Codex CLI marketplace	feat	0	0	
+#496	e70e09ea	2026-05-11	fix(skills): ship skills/.ignore so Pi loader skips non-skill markdown (#496) (#527)	fix	1	1	
+#497	1af60a3f	2026-05-09	Fix/pi extension routing and session start (#497)	khác	0	0	
+#497	18c66c65	2026-05-10	chore(pi): drop dead _routingInjected Set (#497 round-3)	khác	0	0	
+#498	3ff11c94	2026-05-09	docs: update context-mode routing rules and documentation (#498)	khác	0	0	
+#499	961a749c	2026-05-09	docs: update grep documentation and remove routing markers (#499)	khác	0	0	
+#506	432621a1	2026-05-10	fix(runtime): resolve absolute bun.exe path on Windows when installed via npm (#506)	fix	1	1	
+#506	4c74a1bf	2026-05-31	feat(runtime): add resolveHookRuntime + buildHookRuntimeCommand for bun auto-detection (#738)	feat	1	1	
+#506	9056c0ce	2026-05-31	test(hook-runtime): skip POSIX-fixture bun tests on Windows	khác	1	1	
+#511	0bcea04a	2026-05-11	chore(ci): slice 4 — regression guard against real production bundles	khác	3	3	REPEAT
+#511	0e298cb4	2026-05-11	chore(ci): slice 5 — wire assert-bundle into bundle.yml and ci.yml	khác	3	3	REPEAT
+#511	18f8b96e	2026-05-11	merge: v119/issue-511-esm-sweep — createRequire for cli.ts + qwen-code (closes #511 partial)	khác	3	3	REPEAT
+#511	35f09ad4	2026-05-11	fix(esm): replace inline require with static import in cli.ts (closes #511 partial — 1 of 2)	fix	3	3	REPEAT
+#511	61f85398	2026-05-11	chore(ci): slice 1 — assert-bundle script detects 'Dynamic require of' shim	khác	3	3	REPEAT
+#511	bb97bf38	2026-05-11	fix(core): make project-dir transcript fallback ESM-safe (#513, closes #511 partial)	fix	3	3	REPEAT
+#511	f472d859	2026-05-11	fix(esm): replace inline require with static import in qwen-code adapter (closes #511 partial — 2 of 2)	fix	3	3	REPEAT
+#512	308a80f9	2026-05-11	fix(codex): add .codex-plugin/* to version-sync targets (extends PR #512 by @tedjy971)	fix	3	3	REPEAT
+#512	3a12609c	2026-05-11	fix(codex): repair .cursor-plugin drift + lockstep guard (extends PR #512 by @tedjy971)	fix	3	3	REPEAT
+#512	46ac5c6b	2026-05-11	merge: v119/pr-512-codex-marketplace — Codex marketplace + version-sync targets (extends PR #512 by @tedjy971)	khác	3	3	REPEAT
+#512	b4ec5351	2026-05-11	fix(codex): repair mcp.json shape for marketplace install (extends PR #512 by @tedjy971)	fix	3	3	REPEAT
+#513	bb97bf38	2026-05-11	fix(core): make project-dir transcript fallback ESM-safe (#513, closes #511 partial)	fix	1	1	
+#514	0b5717c5	2026-05-11	fix(heal): install better-sqlite3 when package directory is missing (closes #514 partial — 2 of 4)	fix	5	5	REPEAT
+#514	368b6187	2026-05-11	fix(doctor): distinguish package-missing from binding-missing (closes #514 partial — 4 of 4)	fix	5	5	REPEAT
+#514	43397e8f	2026-05-11	fix(deps): promote better-sqlite3 to dependencies (closes #514 partial — 1 of 4)	fix	5	5	REPEAT
+#514	5b6ef81a	2026-05-11	fix(upgrade): verify better-sqlite3 binding after install, fail loud (closes #514 partial — 3 of 4)	fix	5	5	REPEAT
+#514	e0880c21	2026-05-11	merge: v119/issue-514-better-sqlite3 — promote to dependencies + active heal + binding verifier (closes #514)	khác	5	5	REPEAT
+#514	76559cf9	2026-05-19	fix(upgrade): fail loud when Step 1 GitHub clone/install throws (#628)	fix	5	5	REPEAT
+#515	a16c3dc9	2026-05-11	test(windows): add withIsolatedEnv helper for Windows-aware test isolation	khác	0	0	
+#515	bd5821a8	2026-05-11	test(windows): refactor PR #515's statusline tests onto buildIsolatedEnvObject	khác	0	0	
+#516	0eb87090	2026-05-11	merge: v119/issue-516-pi-fork-bomb — resolveJsRuntimeForBridge + depth guard (closes #516)	khác	4	4	REPEAT
+#516	dfd922f1	2026-05-11	fix(pi): prevent MCP bridge fork bomb when execPath is pi (closes #516)	fix	4	4	REPEAT
+#516	ff29948e	2026-05-12	fix(lifecycle): bridge-child fast poll via CONTEXT_MODE_BRIDGE_DEPTH (closes #534 partial — 2 of 4)	fix	4	4	REPEAT
+#516	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	4	4	REPEAT
+#516	b86f7c06	2026-05-20	fix(pi): remove bridge-imposed timeout on tools/call (#643)	fix	4	4	REPEAT
+#517	1302f246	2026-05-11	merge: v119/issue-517-safe-cmd-patterns — allow uname/realpath/ln/id (closes #517)	khác	1	1	
+#517	2b1c73cd	2026-05-11	feat(routing): allow uname in SAFE_COMMAND_PATTERNS (closes #517 partial — 1 of 5)	feat	1	1	
+#517	53899008	2026-05-11	feat(routing): regression guard for operator composition on new SAFE_COMMAND_PATTERNS (closes #517 partial — 5 of 5)	feat	1	1	
+#517	5d80ea41	2026-05-11	feat(routing): allow realpath in SAFE_COMMAND_PATTERNS (closes #517 partial — 3 of 5)	feat	1	1	
+#517	6c8e29d2	2026-05-11	feat(routing): allow ln in SAFE_COMMAND_PATTERNS (closes #517 partial — 4 of 5)	feat	1	1	
+#517	9844e3e4	2026-05-11	feat(routing): allow id in SAFE_COMMAND_PATTERNS (closes #517 partial — 2 of 5)	feat	1	1	
+#517	5b00d1ff	2026-05-13	fix(routing): cp/mv/rm/ln carve-out catches `v` anywhere in flag bundle  (closes #517 partial — 1 of 1)	fix	1	1	
+#520	4eac5d47	2026-05-11	merge: v120/issue-520-scoped-purge — scoped ctx_purge with sessionId+scope (closes #520)	khác	0	0	
+#520	548036a2	2026-05-11	feat(purge): per-session FTS5 chunk wipe via session_id column (closes #520 partial — 3 of 8)	feat	0	0	
+#520	823fd366	2026-05-11	feat(purge): scoped ctx_purge handler + schema (closes #520 partial — 4-8 of 8)	feat	0	0	
+#520	9db0920d	2026-05-11	feat(purge): scope discipline for purgeSession (closes #520 partial — 1 of 8)	feat	0	0	
+#520	a319cf6b	2026-05-11	docs(purge): adapter descriptor + SKILL.md describe scoped purge (closes #520)	khác	0	0	
+#520	c58819d4	2026-05-11	feat(purge): per-session DB row wipe via SessionDB.deleteSession (closes #520 partial — 2 of 8)	feat	0	0	
+#520	d11c5837	2026-05-11	feat(purge): contract-style MCP description with MUST/MUST NOT (issue #520 polish)	feat	0	0	
+#521	18df7df8	2026-05-11	merge: v119/issue-521-cursor-projectdir — CURSOR_CWD + platform-gated transcriptsRoot (closes #521)	khác	2	2	REPEAT
+#521	6bb6421f	2026-05-11	fix(cursor): honor CURSOR_CWD env override (closes #521 partial — 1 of 2)	fix	2	2	REPEAT
+#521	6be9b2a4	2026-05-11	fix(cursor): gate transcriptsRoot on Claude Code platform (closes #521 partial — 2 of 2)	fix	2	2	REPEAT
+#522	8970ba59	2026-05-11	fix(server): suppress startup banner when running as MCP child (#522)	fix	1	1	
+#523	49d1a8ab	2026-05-11	fix(install): start.mjs + postinstall wire Layer 5b plugin.json heal (closes #523 partial — 8 of 8)	fix	9	9	REPEAT
+#523	50f706fd	2026-05-11	test(install): healPluginJsonMcpServers preserves unrelated mcpServers entries (closes #523 partial — 5 of 8)	khác	9	9	REPEAT
+#523	550ca732	2026-05-11	fix(install): healPluginJsonMcpServers detects tmpdir-prefixed args[0] (closes #523 partial — 1 of 8)	fix	9	9	REPEAT
+#523	6a79a3fe	2026-05-11	test(install): healPluginJsonMcpServers handles Windows AppData\Local\Temp paths (closes #523 partial — 6 of 8)	khác	9	9	REPEAT
+#523	723b7120	2026-05-11	test(install): healPluginJsonMcpServers idempotent on healthy placeholder (closes #523 partial — 3 of 8)	khác	9	9	REPEAT
+#523	7d4ee359	2026-05-11	test(install): healPluginJsonMcpServers rewrites even when tmpdir still exists (closes #523 partial — 2 of 8)	khác	9	9	REPEAT
+#523	8c65c3da	2026-05-11	fix(install): cli.ts upgrade() asserts plugin.json args[0] post-bump (closes #523 partial — 7 of 8)	fix	9	9	REPEAT
+#523	94aa22d2	2026-05-11	test(install): healPluginJsonMcpServers traversal guard refuses outside cache root (closes #523 partial — 4 of 8)	khác	9	9	REPEAT
+#523	94d72c1e	2026-05-11	merge: v119/issue-523-heal-layer-5 — healPluginJsonMcpServers + Layer 5b boot heal (closes #523)	khác	9	9	REPEAT
+#523	2a9cabf9	2026-05-12	fix(install): .mcp.json source template uses ${CLAUDE_PLUGIN_ROOT}/start.mjs (closes #531 partial — 1 of 10)	fix	9	9	REPEAT
+#523	4362fa53	2026-05-12	fix(install): healMcpJsonArgs deep module for .mcp.json drift (closes #531 partial — 2-6 of 10)	fix	9	9	REPEAT
+#523	4bf5d3ae	2026-05-12	test(cli-upgrade): widen upgradeBody window so manual-fix one-liner is sliceable (#542 follow-up)	khác	9	9	REPEAT
+#523	666b5565	2026-05-12	fix(install): cli.ts upgrade() asserts .mcp.json args[0] placeholder post-bump (closes #531 partial — 8 of 10)	fix	9	9	REPEAT
+#523	8d23766d	2026-05-12	docs(skill): add Lessons-Learned + refs/ evidence base + clone-on-demand	khác	9	9	REPEAT
+#523	92613770	2026-05-12	fix(install): untrack .mcp.json + stop shipping in npm tarball (closes #531 architectural)	fix	9	9	REPEAT
+#523	beb72dee	2026-05-12	fix(install): postinstall.mjs runs healMcpJsonArgs alongside #523 heal (closes #531 partial — 10 of 10)	fix	9	9	REPEAT
+#523	d0c9e248	2026-05-12	test(cli-upgrade): widen upgradeBody window so manual-fix one-liner is sliceable (#542 follow-up)	khác	9	9	REPEAT
+#523	97792c59	2026-05-18	fix(hooks): re-point stale cache-version paths after Claude Code auto-update (#604) (#611)	fix	9	9	REPEAT
+#525	1e73a13d	2026-05-11	fix(codex): make plugin discoverable via .agents/plugins/marketplace.json (#525)	fix	3	2	REPEAT
+#525	de8200d6	2026-05-11	fix(assert-bundle): Windows entry-point detection (closes #525 windows ci)	fix	3	2	REPEAT
+#525	e9a7e696	2026-05-11	fix(assert-bundle): Windows entry-point detection (closes #525 windows ci)	fix	3	2	REPEAT
+#527	e70e09ea	2026-05-11	fix(skills): ship skills/.ignore so Pi loader skips non-skill markdown (#496) (#527)	fix	1	1	
+#528	13d13427	2026-05-11	fix(ctx-upgrade): stop baking tmpdir path into hooks.json (#528, Windows hotfix)	fix	2	2	REPEAT
+#528	2d48f945	2026-05-11	test(ctx-upgrade): gap-fill for PR #528 cli.ts post-cpSync + legacy self-heal	khác	2	2	REPEAT
+#528	97792c59	2026-05-18	fix(hooks): re-point stale cache-version paths after Claude Code auto-update (#604) (#611)	fix	2	2	REPEAT
+#529	3900db8c	2026-05-12	feat(gemini-cli): route external MCP tools through PreToolUse (closes #529 partial — gemini-cli)	feat	1	1	
+#529	74245655	2026-05-12	feat(qwen-code): route external MCP tools through PreToolUse (closes #529 partial — qwen-code)	feat	1	1	
+#529	7dc26dd4	2026-05-12	feat(cursor): route external MCP tools through PreToolUse (closes #529 partial — cursor)	feat	1	1	
+#529	855e330d	2026-05-12	feat(hooks): route external MCP tools through PreToolUse (#532, closes #529)	feat	1	1	
+#529	996f8c44	2026-05-12	feat(codex): route external MCP tools through PreToolUse (closes #529 partial — codex)	feat	1	1	
+#529	ac0c7611	2026-05-12	feat(kiro): route external MCP tools through PreToolUse (closes #529 partial — kiro)	feat	1	1	
+#529	fcc66350	2026-05-12	merge: v122/issue-529-15-adapter-coverage — extend #532 routing to codex/cursor/gemini-cli/qwen-code/kiro (closes #529 fully)	khác	1	1	
+#529	752d5236	2026-05-16	fix(routing): re-fire external-MCP nudge periodically, not once per session (#593)	fix	1	1	
+#531	0fe10785	2026-05-12	fix(install): start.mjs Layer 5b runs healMcpJsonArgs on every MCP boot (closes #531 partial — 7 of 10)	fix	12	11	REPEAT
+#531	2a9cabf9	2026-05-12	fix(install): .mcp.json source template uses ${CLAUDE_PLUGIN_ROOT}/start.mjs (closes #531 partial — 1 of 10)	fix	12	11	REPEAT
+#531	4362fa53	2026-05-12	fix(install): healMcpJsonArgs deep module for .mcp.json drift (closes #531 partial — 2-6 of 10)	fix	12	11	REPEAT
+#531	4bf5d3ae	2026-05-12	test(cli-upgrade): widen upgradeBody window so manual-fix one-liner is sliceable (#542 follow-up)	khác	12	11	REPEAT
+#531	4da170e0	2026-05-12	fix(ci): assert-asymmetric-drift reads .mcp.json.example after #531 untrack	fix	12	11	REPEAT
+#531	5a3091a9	2026-05-12	fix(tests): asymmetric-drift uses .mcp.json.example + postinstall-heal 90s timeout	fix	12	11	REPEAT
+#531	666b5565	2026-05-12	fix(install): cli.ts upgrade() asserts .mcp.json args[0] placeholder post-bump (closes #531 partial — 8 of 10)	fix	12	11	REPEAT
+#531	719171b8	2026-05-12	merge: #531 continuation slices 2-10 (healMcpJsonArgs + wiring + CI invariant)	khác	12	11	REPEAT
+#531	85188304	2026-05-12	fix(postinstall): gate hook-normalization heal with isGlobalInstall (#531 fix-of-fix)	fix	12	11	REPEAT
+#531	8cc6c011	2026-05-12	test(install): update .mcp.json test contract for architectural untrack (#531)	khác	12	11	REPEAT
+#531	8d23766d	2026-05-12	docs(skill): add Lessons-Learned + refs/ evidence base + clone-on-demand	khác	12	11	REPEAT
+#531	8e34dd12	2026-05-12	test(install): update stale .mcp.json test that locked in the #531 regression	khác	12	11	REPEAT
+#531	92613770	2026-05-12	fix(install): untrack .mcp.json + stop shipping in npm tarball (closes #531 architectural)	fix	12	11	REPEAT
+#531	951cd925	2026-05-12	fix(install): CI invariant prevents future .mcp.json / plugin.json asymmetric drift (closes #531 partial — 9 of 10)	fix	12	11	REPEAT
+#531	beb72dee	2026-05-12	fix(install): postinstall.mjs runs healMcpJsonArgs alongside #523 heal (closes #531 partial — 10 of 10)	fix	12	11	REPEAT
+#531	ceaec16e	2026-05-12	fix(postinstall): gate hook-normalization heal with isGlobalInstall (#531 fix-of-fix)	fix	12	11	REPEAT
+#531	d0c9e248	2026-05-12	test(cli-upgrade): widen upgradeBody window so manual-fix one-liner is sliceable (#542 follow-up)	khác	12	11	REPEAT
+#531	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	12	11	REPEAT
+#532	3900db8c	2026-05-12	feat(gemini-cli): route external MCP tools through PreToolUse (closes #529 partial — gemini-cli)	feat	0	0	
+#532	74245655	2026-05-12	feat(qwen-code): route external MCP tools through PreToolUse (closes #529 partial — qwen-code)	feat	0	0	
+#532	7dc26dd4	2026-05-12	feat(cursor): route external MCP tools through PreToolUse (closes #529 partial — cursor)	feat	0	0	
+#532	855e330d	2026-05-12	feat(hooks): route external MCP tools through PreToolUse (#532, closes #529)	feat	0	0	
+#532	996f8c44	2026-05-12	feat(codex): route external MCP tools through PreToolUse (closes #529 partial — codex)	feat	0	0	
+#532	ac0c7611	2026-05-12	feat(kiro): route external MCP tools through PreToolUse (closes #529 partial — kiro)	feat	0	0	
+#532	fcc66350	2026-05-12	merge: v122/issue-529-15-adapter-coverage — extend #532 routing to codex/cursor/gemini-cli/qwen-code/kiro (closes #529 fully)	khác	0	0	
+#533	a910c42b	2026-05-12	fix(heal): override conda PYTHON for better-sqlite3 build (closes #533)	fix	1	1	
+#534	a5556a0d	2026-05-12	test(pi): integration guard — pi --help leaves zero orphan candidates (closes #534 partial — 4 of 4)	khác	4	4	REPEAT
+#534	cd012d5d	2026-05-12	fix(pi): skip MCP bridge bootstrap on --help / --version short-circuit (closes #534 partial — 1 of 4)	fix	4	4	REPEAT
+#534	d56a9fc0	2026-05-12	test(lifecycle): pin stdin EOF recheck contract behind #534 (closes #534 partial — 3 of 4)	khác	4	4	REPEAT
+#534	ff29948e	2026-05-12	fix(lifecycle): bridge-child fast poll via CONTEXT_MODE_BRIDGE_DEPTH (closes #534 partial — 2 of 4)	fix	4	4	REPEAT
+#534	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	4	4	REPEAT
+#534	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	4	4	REPEAT
+#535	0268ffe3	2026-05-12	test(extract): migrate session-extract / session-pipeline fixtures to universal-rule shapes (#535)	khác	1	1	
+#535	062e691b	2026-05-12	test(extract): mixed-script CJK intent guard (closes #535 partial — 6 of 7)	khác	1	1	
+#535	13754738	2026-05-12	feat(extract): CJK blocker_resolved patterns (closes #535 partial — 5 of 7)	feat	1	1	
+#535	1cf78762	2026-05-12	feat(extract): CJK decision patterns (closes #535 partial — 2 of 7)	feat	1	1	
+#535	269c7050	2026-05-12	feat(extract): implement intent via imperative-tone structural rule (closes #535 partial — 4 of 10)	feat	1	1	
+#535	362709c2	2026-05-12	feat(snapshot): raw-prompt safety-net section <recent_user_messages> (closes #535 partial — 9 of 10)	feat	1	1	
+#535	58ede033	2026-05-12	test(extract): 8-language × 5-category regression matrix (closes #535 partial — 10 of 10)	khác	1	1	
+#535	5e202358	2026-05-12	feat(extract): CJK blocker patterns (closes #535 partial — 4 of 7)	feat	1	1	
+#535	5eedbafe	2026-05-12	test(extract): guard Arabic question mark coverage (closes #535 partial — 2 of 10)	khác	1	1	
+#535	6be10a45	2026-05-12	feat(extract): role via universal lexical-density structural rule (closes #535 partial — 6 of 10)	feat	1	1	
+#535	8a38420d	2026-05-12	feat(extract): investigate intent via Unicode question-mark family (closes #535 partial — 1 of 10)	feat	1	1	
+#535	8d23766d	2026-05-12	docs(skill): add Lessons-Learned + refs/ evidence base + clone-on-demand	khác	1	1	
+#535	b3354f95	2026-05-12	test(extract): behavioral guards for blocker_resolved markers (closes #535 partial — 8 of 10)	khác	1	1	
+#535	b43268ef	2026-05-12	feat(extract): blocker via universal programming-domain markers (closes #535 partial — 7 of 10)	feat	1	1	
+#535	b5694619	2026-05-12	test(extract): guard Spanish ¿ opening question mark (closes #535 partial — 3 of 10)	khác	1	1	
+#535	d09034c9	2026-05-12	feat(extract): CJK role patterns (closes #535 partial — 3 of 7)	feat	1	1	
+#535	dd217fe9	2026-05-12	feat(extract): decision via universal clause-separator structural rule (closes #535 partial — 5 of 10)	feat	1	1	
+#535	ec48d8a8	2026-05-12	feat(extract): CJK intent patterns (closes #535 partial — 1 of 7)	feat	1	1	
+#535	f2628529	2026-06-22	fix(session): stop casual phrases freezing as re-injected behavioral_directive (#856)	fix	1	1	
+#537	07c329ee	2026-05-12	test(windows): mock execSync in 'go version' probe test (CI 25741355786)	khác	2	2	REPEAT
+#537	3ba914d0	2026-05-12	test(runtime): update mocks for #537 DEP0190 fix (Windows execSync, POSIX no-shell)	khác	2	2	REPEAT
+#537	8c32df45	2026-05-12	merge: v122/pr-537-test-fix — runtime.test.ts mocks for #537 + Windows quote hardening	khác	2	2	REPEAT
+#537	9b8fda28	2026-05-12	test(windows): fix two POSIX-only test bugs surfaced by CI run 25740169321	khác	2	2	REPEAT
+#537	aed7ee59	2026-05-12	test(windows): fix two POSIX-only test bugs surfaced by CI run 25740169321	khác	2	2	REPEAT
+#537	d0a4bf0d	2026-05-12	test(windows): mock execSync in 'go version' probe test (CI 25741355786)	khác	2	2	REPEAT
+#537	f2a184b2	2026-05-12	fix(runtime): widen Windows quote predicate to all cmd.exe metacharacters	fix	2	2	REPEAT
+#537	f918d290	2026-05-12	fix: eliminate DEP0190 DeprecationWarning on Windows (#537)	fix	2	2	REPEAT
+#539	0ff24134	2026-05-12	fix(copilot-base): anchor getSettingsPath on projectDir for CWD consistency (closes #539 partial — 5 of 5)	fix	3	3	REPEAT
+#539	14b042a5	2026-05-12	test(detect): regression guard — plain VS Code stays vscode-copilot (closes #539 partial — 3 of 5)	khác	3	3	REPEAT
+#539	466d5b5f	2026-05-12	fix(detect): disambiguate Claude Code from vscode-copilot via CC env vars (closes #539 partial — 1 of 5)	fix	3	3	REPEAT
+#539	8b9d13a1	2026-05-12	test(detect): pin MCP clientInfo priority over env-var detection (closes #539 partial — 4 of 5)	khác	3	3	REPEAT
+#539	bbcbd40a	2026-05-12	test(detect): wipe CC env vars in beforeEach (issue #539 slice 1 fixup)	khác	3	3	REPEAT
+#539	f8913eac	2026-05-12	fix(detect): installed_plugins.json fallback for issue #539 (closes #539 partial — 2 of 5)	fix	3	3	REPEAT
+#540	6471cf3b	2026-05-12	fix(ensure-deps): skip rebuild when binary already loads on modern Node (#540)	fix	1	1	
+#542	1616f0bb	2026-05-12	test(detect): add all-pairs config-dir ambiguity matrix (closes #542 partial — 6 of 6)	khác	5	5	REPEAT
+#542	2cd32e09	2026-05-12	fix(detect): replace dead PI_PROJECT_DIR marker with Pi runtime envs (closes #542 partial — 5 of 6)	fix	5	5	REPEAT
+#542	47856924	2026-05-12	merge: v123/issue-542-pi-misdetect — Pi/OMP detection cascade fix (closes #542)	khác	5	5	REPEAT
+#542	4bf5d3ae	2026-05-12	test(cli-upgrade): widen upgradeBody window so manual-fix one-liner is sliceable (#542 follow-up)	khác	5	5	REPEAT
+#542	7e67952c	2026-05-12	fix(detect): thread MCP clientInfo through ctx_upgrade to upgrade() (closes #542 partial — 3 of 6)	fix	5	5	REPEAT
+#542	7eea11a8	2026-05-12	fix(env-leak): tag PLATFORM_ENV_VARS rows with workspace/identification roles  (closes #545 partial — 1 of 7)	fix	5	5	REPEAT
+#542	92a6f2a6	2026-05-12	test(detect): verify omp-coding-agent clientInfo resolves to OMPAdapter (closes #542 partial — 2 of 6)	khác	5	5	REPEAT
+#542	a9869a60	2026-05-12	fix(detect): reorder config-dir tier so CLI agents beat host IDEs (closes #542 partial — 4 of 6)	fix	5	5	REPEAT
+#542	b145c950	2026-05-12	test(cli): relax upgrade() entrypoint matcher for --platform arg (#542 follow-up)	khác	5	5	REPEAT
+#542	d0c9e248	2026-05-12	test(cli-upgrade): widen upgradeBody window so manual-fix one-liner is sliceable (#542 follow-up)	khác	5	5	REPEAT
+#542	eec0861e	2026-05-12	fix(detect): map omp-coding-agent clientInfo to omp adapter (closes #542 partial — 1 of 6)	fix	5	5	REPEAT
+#543	33d0a470	2026-05-12	fix(deps): seed better-sqlite3 ABI cache under Bun (closes #543)	fix	1	1	
+#543	d3dbd6a7	2026-05-12	merge: v123/issue-543-bun-abi-cache — seed ABI cache under Bun (closes #543)	khác	1	1	
+#543	4c74a1bf	2026-05-31	feat(runtime): add resolveHookRuntime + buildHookRuntimeCommand for bun auto-detection (#738)	feat	1	1	
+#543	a9dc376e	2026-05-31	feat(adapters): route hook spawn commands through buildHookRuntimeCommand (#738)	feat	1	1	
+#543	aa1afc01	2026-05-31	feat(hooks): plumb jsRuntimePath through normalize-hooks for bun rewrite (#738)	feat	1	1	
+#545	03b157ff	2026-05-12	fix(env-leak): assert PI_WORKSPACE_DIR registered as Pi workspace var  (closes #545 partial — 3 of 7)	fix	10	10	REPEAT
+#545	47c52de7	2026-05-12	fix(env-leak): Pi bridge scrubs foreign workspace env from spawned child  (closes #545 partial — 5 of 7)	fix	10	10	REPEAT
+#545	741853b6	2026-05-12	fix(env-leak): resolveProjectDir({ strictPlatform }) algorithmic over registry  (closes #545 partial — 2 of 7)	fix	10	10	REPEAT
+#545	7eea11a8	2026-05-12	fix(env-leak): tag PLATFORM_ENV_VARS rows with workspace/identification roles  (closes #545 partial — 1 of 7)	fix	10	10	REPEAT
+#545	a9a2b85c	2026-05-12	fix(env-leak): 15x14x3 leak-matrix regression — MUST-3 invariant  (closes #545 partial — 7 of 7)	fix	10	10	REPEAT
+#545	ab73792c	2026-05-12	fix(env-leak): resolvePiWorkspaceDir() rejects ~/.pi/ as project root  (closes #545 partial — 4 of 7)	fix	10	10	REPEAT
+#545	de853e52	2026-05-12	fix(env-leak): server getProjectDir passes strictPlatform for ALL adapters  (closes #545 partial — 6 of 7)	fix	10	10	REPEAT
+#545	4ef1c78f	2026-05-14	fix(adapters/pi): scrub foreign identification env on bridge spawn (#561)	fix	10	10	REPEAT
+#545	554ef81b	2026-05-14	test(matrix): extend leak matrix with identification ban invariant (#561)	khác	10	10	REPEAT
+#545	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	10	10	REPEAT
+#545	b86f7c06	2026-05-20	fix(pi): remove bridge-imposed timeout on tools/call (#643)	fix	10	10	REPEAT
+#546	2607f21d	2026-05-13	docs(csharp): bump language count 11 to 12 across docs	khác	1	1	
+#546	3e351753	2026-05-13	feat(runtime): add C# support via dotnet-script (#546)	feat	1	1	
+#546	e0e79b7b	2026-05-13	fix(executor): strip DOTNET profiler/DiagnosticPorts/COMPlus_* runtime hijack vectors  (closes #546 partial — 1 of 1)	fix	1	1	
+#547	16e2bfc8	2026-05-13	fix(claude-code): align EXTERNAL_MCP_MATCHER_PATTERN with universal hooks.json bundle  (closes #547 partial — followup)	fix	2	2	REPEAT
+#547	675fec69	2026-05-13	fix(codex): drop look-around from PreToolUse matcher  (closes #547 partial — 1 of 1)	fix	2	2	REPEAT
+#548	0d50d48d	2026-05-13	test(adapters): CI invariant locks claude-code on buildNodeCommand  (algo defense 3 of 6)	khác	0	0	
+#548	a52bf602	2026-05-13	feat(adapters): HealthCheck protocol on HookAdapter, claude-code uses direct existsSync  (algo defense 4 of 6)	feat	0	0	
+#548	d6ac3826	2026-05-13	feat(adapters/claude-code): emit hooks via buildNodeCommand for every event  (algo defense 2 of 6)	feat	0	0	
+#548	f9b8ea87	2026-05-13	feat(adapters/types): parseNodeCommand as strict inverse of buildNodeCommand  (algo defense 1 of 6)	feat	0	0	
+#549	3434b18e	2026-05-13	fix(claude-code): quote pluginRoot in generated hook commands so paths with spaces parse correctly (#549)	fix	1	1	
+#550	9457d436	2026-05-13	feat(adapters/claude-code): doctor surfaces plugin-cache integrity via HealthCheck protocol  (algo defense 6 of 6)	feat	0	0	
+#550	df561af0	2026-05-13	feat(start): plugin-cache integrity check derived from package.json files[]  (algo defense 5 of 6)	feat	0	0	
+#551	16e2bfc8	2026-05-13	fix(claude-code): align EXTERNAL_MCP_MATCHER_PATTERN with universal hooks.json bundle  (closes #547 partial — followup)	fix	2	2	REPEAT
+#551	d5181b70	2026-05-13	fix(db-base): widen node:sqlite gate to hasModernSqlite() for Node 26 V8 ABI break  (closes #551 partial — 1 of 1)	fix	2	2	REPEAT
+#553	a510c37e	2026-05-13	Fix Windows path compatibility in ctx-debug.sh (#553)	khác	0	0	
+#555	4f55b0b6	2026-05-13	fix(project-dir): ignore stale Claude transcript cwd (#555)	fix	1	1	
+#558	21f95b76	2026-05-14	test(hooks): inject CONTEXT_MODE_SECURITY_BUNDLE_PATH in #466 loud-failure tests (CI fix for v1.0.127 bundle-first)	khác	4	4	REPEAT
+#558	40edcf4f	2026-05-14	fix(security): surface init failure as agent-facing additionalContext (closes #558 partial — 4 of 4)	fix	4	4	REPEAT
+#558	43b24775	2026-05-14	fix(integrity): algorithmic Algo-D4 — derive required siblings from scripts.bundle (closes #558 partial — 3 of 4)	fix	4	4	REPEAT
+#558	64e3bccc	2026-05-14	fix(security): bundle-first resolution for initSecurity (closes #558 partial — 1 of 4)	fix	4	4	REPEAT
+#558	e4848500	2026-05-14	fix(gemini-cli): excise dead writeRoutingInstructions block (closes #558 partial — 2 of 4)	fix	4	4	REPEAT
+#559	065799f8	2026-05-14	fix(db-base): rollback v1.0.128 lockfile + EXCLUSIVE pragma (v1.0.130 slice 2)	fix	4	4	REPEAT
+#559	11e39301	2026-05-14	docs(adr): SessionDB is multi-writer-safe (v1.0.130 slice 8)	khác	4	4	REPEAT
+#559	4f68bd5e	2026-05-14	feat(cli/upgrade): kill sibling MCP servers before npm install (#559 slices 3-4)	feat	4	4	REPEAT
+#559	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	4	4	REPEAT
+#559	b9da7eb6	2026-05-14	feat(util/sibling-mcp): discover and terminate sibling MCP servers (#559 slices 1-2)	feat	4	4	REPEAT
+#559	e24934f6	2026-05-14	feat(db-base): wire lockfile + EXCLUSIVE locking into SQLiteBase (#560 slices 6-7)	feat	4	4	REPEAT
+#559	6c671dc7	2026-05-31	fix(cache-heal): add rewriteShellSnapshots for #710 stale PATH	fix	4	4	REPEAT
+#559	73955f34	2026-05-31	fix(cli): rewrite stale shell snapshots during /ctx-upgrade (#710 Layer 1)	fix	4	4	REPEAT
+#560	065799f8	2026-05-14	fix(db-base): rollback v1.0.128 lockfile + EXCLUSIVE pragma (v1.0.130 slice 2)	fix	3	3	REPEAT
+#560	4ef1c78f	2026-05-14	fix(adapters/pi): scrub foreign identification env on bridge spawn (#561)	fix	3	3	REPEAT
+#560	5e652e52	2026-05-14	feat(util/db-lock): per-DB lockfile primitive for single-writer enforcement (#560 slice 5)	feat	3	3	REPEAT
+#560	77b6c156	2026-05-14	test(db-base): regression guard for SQLiteBase EXCLUSIVE locking (#560)	khác	3	3	REPEAT
+#560	e24934f6	2026-05-14	feat(db-base): wire lockfile + EXCLUSIVE locking into SQLiteBase (#560 slices 6-7)	feat	3	3	REPEAT
+#560	f6c61535	2026-05-14	fix(db-base): scope EXCLUSIVE locking to SQLiteBase ctor (#560 hotfix)	fix	3	3	REPEAT
+#561	065799f8	2026-05-14	fix(db-base): rollback v1.0.128 lockfile + EXCLUSIVE pragma (v1.0.130 slice 2)	fix	4	4	REPEAT
+#561	11e39301	2026-05-14	docs(adr): SessionDB is multi-writer-safe (v1.0.130 slice 8)	khác	4	4	REPEAT
+#561	4ef1c78f	2026-05-14	fix(adapters/pi): scrub foreign identification env on bridge spawn (#561)	fix	4	4	REPEAT
+#561	554ef81b	2026-05-14	test(matrix): extend leak matrix with identification ban invariant (#561)	khác	4	4	REPEAT
+#561	8172c291	2026-05-14	feat(adapters/detect): add foreignIdentificationEnv helper (#561)	feat	4	4	REPEAT
+#561	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	4	4	REPEAT
+#561	b86f7c06	2026-05-20	fix(pi): remove bridge-imposed timeout on tools/call (#643)	fix	4	4	REPEAT
+#562	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	1	1	
+#563	61e680f1	2026-05-14	fix(v1.0.132): stats measurement + #563/#564/#567/#569 + PR follow-ups	fix	1	1	
+#564	1b7d7a72	2026-05-14	fix(v1.0.133): hotfix v1.0.132 stale bundles + classifyIp + stats bar	fix	7	6	REPEAT
+#564	61e680f1	2026-05-14	fix(v1.0.132): stats measurement + #563/#564/#567/#569 + PR follow-ups	fix	7	6	REPEAT
+#564	f985afa0	2026-05-14	fix(linux): re-exec with Bun on Linux to avoid better-sqlite3 SIGSEGV (#564) (#578)	fix	7	6	REPEAT
+#564	5850cea6	2026-05-15	fix: strict BCP 47 validator + anchor cli ordering test on real statements	fix	7	6	REPEAT
+#564	84fe42e2	2026-05-15	fix: strict BCP 47 validator + anchor cli ordering test on real statements	fix	7	6	REPEAT
+#564	ce1dda42	2026-05-15	test(lifecycle-e2e): skipIf(linux) until start.mjs migrates to node:sqlite (#564)	khác	7	6	REPEAT
+#564	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	7	6	REPEAT
+#564	dfff7b87	2026-06-22	fix(lifecycle): propagate client death through the Linux re-exec proxy (#862)	fix	7	6	REPEAT
+#565	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	4	4	REPEAT
+#565	3e39ff7d	2026-05-15	fix(pi): move respawn guard to request() + single-flight + smoke pin (#583 follow-up) (#585)	fix	4	4	REPEAT
+#565	5bcff7ed	2026-05-17	fix(lifecycle): make MCP idle shutdown opt-in outside OpenCode/Kilo (#592) (#595)	fix	4	4	REPEAT
+#565	09efefdc	2026-05-18	feat(opencode): register ctx tools natively via plugin (#574) (#597)	feat	4	4	REPEAT
+#565	a888cac6	2026-05-18	revert: lifecycle idle-shutdown (#568 + #595) — restore tools on 12 hosts (#602)	revert	4	4	REPEAT
+#565	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	4	4	REPEAT
+#566	8e2d5684	2026-05-14	fix(win32): detect VS year via vswhere displayName for VS 2026+ (#571)	fix	1	1	
+#567	61e680f1	2026-05-14	fix(v1.0.132): stats measurement + #563/#564/#567/#569 + PR follow-ups	fix	2	2	REPEAT
+#567	752d5236	2026-05-16	fix(routing): re-fire external-MCP nudge periodically, not once per session (#593)	fix	2	2	REPEAT
+#568	61e680f1	2026-05-14	fix(v1.0.132): stats measurement + #563/#564/#567/#569 + PR follow-ups	fix	5	5	REPEAT
+#568	ac11f103	2026-05-14	fix(lifecycle): idle self-shutdown + generalized sibling sweep (#565) (#568)	fix	5	5	REPEAT
+#568	b326c512	2026-05-14	Merge PR #571 + #568 + v1.0.132 fixes	khác	5	5	REPEAT
+#568	3e39ff7d	2026-05-15	fix(pi): move respawn guard to request() + single-flight + smoke pin (#583 follow-up) (#585)	fix	5	5	REPEAT
+#568	9df6fa19	2026-05-15	fix(pi): respawn MCP child after idle self-shutdown (#583)	fix	5	5	REPEAT
+#568	5bcff7ed	2026-05-17	fix(lifecycle): make MCP idle shutdown opt-in outside OpenCode/Kilo (#592) (#595)	fix	5	5	REPEAT
+#568	a888cac6	2026-05-18	revert: lifecycle idle-shutdown (#568 + #595) — restore tools on 12 hosts (#602)	revert	5	5	REPEAT
+#569	61e680f1	2026-05-14	fix(v1.0.132): stats measurement + #563/#564/#567/#569 + PR follow-ups	fix	1	1	
+#571	61e680f1	2026-05-14	fix(v1.0.132): stats measurement + #563/#564/#567/#569 + PR follow-ups	fix	2	2	REPEAT
+#571	8e2d5684	2026-05-14	fix(win32): detect VS year via vswhere displayName for VS 2026+ (#571)	fix	2	2	REPEAT
+#571	b326c512	2026-05-14	Merge PR #571 + #568 + v1.0.132 fixes	khác	2	2	REPEAT
+#574	03db6fe1	2026-05-18	fix(opencode): surface diagnostic when ctx_* tools suppressed on legacy MCP child (#623)	fix	3	3	REPEAT
+#574	09efefdc	2026-05-18	feat(opencode): register ctx tools natively via plugin (#574) (#597)	feat	3	3	REPEAT
+#574	a7c74303	2026-05-18	fix(opencode): run zod schema parse on native plugin tool args (#621)	fix	3	3	REPEAT
+#574	b1b8c5df	2026-05-20	fix(opencode): return empty tools/list (not -32601) on suppressed legacy MCP child (#637)	fix	3	3	REPEAT
+#575	572d451f	2026-05-17	fix(codex): harden plugin hook routing (#575)	fix	1	1	
+#577	fb55ed03	2026-05-15	fix(start): honor CLAUDE_CONFIG_DIR in cache-heal layer (#577)	fix	2	2	REPEAT
+#577	6274f459	2026-05-31	fix(hooks): self-heal shell snapshots on SessionStart (#710 Layer 2)	fix	2	2	REPEAT
+#578	2a7ff376	2026-05-14	fix(linux): normalize hooks.json on Linux so bare node resolves for /bin/sh (#582)	fix	2	2	REPEAT
+#578	f985afa0	2026-05-14	fix(linux): re-exec with Bun on Linux to avoid better-sqlite3 SIGSEGV (#564) (#578)	fix	2	2	REPEAT
+#579	7f1e1e8e	2026-05-14	fix(upgrade): heal ~/.claude.json user MCP registrations after version bump (#579)	fix	1	1	
+#580	e57f0516	2026-05-15	fix(codex): capture AGENTS rules on session start (#580)	fix	1	1	
+#581	e63271b2	2026-05-15	fix(opencode): detect desktop sessions via OPENCODE_CLIENT/OPENCODE_TERMINAL (#581)	fix	1	1	
+#582	2a7ff376	2026-05-14	fix(linux): normalize hooks.json on Linux so bare node resolves for /bin/sh (#582)	fix	1	1	
+#583	2f0fc94b	2026-05-15	fix(test): use ESM imports in pi-mcp-bridge fake server (#583 CI fix)	fix	6	6	REPEAT
+#583	3e39ff7d	2026-05-15	fix(pi): move respawn guard to request() + single-flight + smoke pin (#583 follow-up) (#585)	fix	6	6	REPEAT
+#583	9df6fa19	2026-05-15	fix(pi): respawn MCP child after idle self-shutdown (#583)	fix	6	6	REPEAT
+#583	5bcff7ed	2026-05-17	fix(lifecycle): make MCP idle shutdown opt-in outside OpenCode/Kilo (#592) (#595)	fix	6	6	REPEAT
+#583	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	6	6	REPEAT
+#583	b86f7c06	2026-05-20	fix(pi): remove bridge-imposed timeout on tools/call (#643)	fix	6	6	REPEAT
+#585	3e39ff7d	2026-05-15	fix(pi): move respawn guard to request() + single-flight + smoke pin (#583 follow-up) (#585)	fix	1	1	
+#586	b839dd6c	2026-05-15	fix(session/extract): record selected answer label for AskUserQuestion (#586)	fix	1	1	
+#591	28d58774	2026-05-17	fix: atomically swap cached native binary (#591)	fix	1	1	
+#592	5bcff7ed	2026-05-17	fix(lifecycle): make MCP idle shutdown opt-in outside OpenCode/Kilo (#592) (#595)	fix	1	1	
+#592	09efefdc	2026-05-18	feat(opencode): register ctx tools natively via plugin (#574) (#597)	feat	1	1	
+#592	a888cac6	2026-05-18	revert: lifecycle idle-shutdown (#568 + #595) — restore tools on 12 hosts (#602)	revert	1	1	
+#592	ccd5911e	2026-05-20	docs(readme): remove dead Lifecycle env-var section + complete redaction list	khác	1	1	
+#593	752d5236	2026-05-16	fix(routing): re-fire external-MCP nudge periodically, not once per session (#593)	fix	1	1	
+#594	7ae9ee7f	2026-05-17	feat: Make context-mode output collapsible (#594)	feat	0	0	
+#595	5bcff7ed	2026-05-17	fix(lifecycle): make MCP idle shutdown opt-in outside OpenCode/Kilo (#592) (#595)	fix	1	1	
+#595	a888cac6	2026-05-18	revert: lifecycle idle-shutdown (#568 + #595) — restore tools on 12 hosts (#602)	revert	1	1	
+#597	09efefdc	2026-05-18	feat(opencode): register ctx tools natively via plugin (#574) (#597)	feat	1	1	
+#597	a7c74303	2026-05-18	fix(opencode): run zod schema parse on native plugin tool args (#621)	fix	1	1	
+#597	ccd5911e	2026-05-20	docs(readme): remove dead Lifecycle env-var section + complete redaction list	khác	1	1	
+#598	4ced18cb	2026-06-21	fix(pi): stop mutating systemPrompt, inject via context hook to preserve prefix cache (#822)	fix	1	1	
+#601	3de856e4	2026-05-17	fix(pi): move behavioral_directive to end of system prompt (#601)	fix	1	1	
+#602	a888cac6	2026-05-18	revert: lifecycle idle-shutdown (#568 + #595) — restore tools on 12 hosts (#602)	revert	1	1	
+#602	ccd5911e	2026-05-20	docs(readme): remove dead Lifecycle env-var section + complete redaction list	khác	1	1	
+#602	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	1	1	
+#603	a4052f2c	2026-05-18	fix(codex): doctor warns on duplicate context-mode hook entries (#603) (#615)	fix	1	1	
+#604	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	2	2	REPEAT
+#604	97792c59	2026-05-18	fix(hooks): re-point stale cache-version paths after Claude Code auto-update (#604) (#611)	fix	2	2	REPEAT
+#605	2d4f7c13	2026-05-18	fix(pi): add attribution to all insertEvent calls + session_meta fallback (#605)	fix	1	1	
+#605	ba571f72	2026-05-31	feat(search): plumb per-project session-id allow-set through ContentStore	feat	1	1	
+#607	7d5b5294	2026-05-18	fix(pi): handle EPIPE when writing MCP frames (#607)	fix	3	3	REPEAT
+#607	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	3	3	REPEAT
+#607	b86f7c06	2026-05-20	fix(pi): remove bridge-imposed timeout on tools/call (#643)	fix	3	3	REPEAT
+#608	485570eb	2026-05-18	fix(plugin): point skills path to actual location (#608)	fix	1	1	
+#609	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	1	1	
+#611	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	2	2	REPEAT
+#611	97792c59	2026-05-18	fix(hooks): re-point stale cache-version paths after Claude Code auto-update (#604) (#611)	fix	2	2	REPEAT
+#613	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	1	1	
+#615	a4052f2c	2026-05-18	fix(codex): doctor warns on duplicate context-mode hook entries (#603) (#615)	fix	1	1	
+#617	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	3	2	REPEAT
+#617	58b76ad0	2026-05-24	fix(stats): v1.0.148 hotfix — schema migration + META-scope + strict-compression formula (#685)	fix	3	2	REPEAT
+#617	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	3	2	REPEAT
+#617	f1878a70	2026-05-24	fix(stats): v1.0.148 hotfix — schema migration + META-scope + strict-compression formula (#685)	fix	3	2	REPEAT
+#619	eb1a629e	2026-05-18	docs(opencode): note plugin-native upgrade cleanup (#619)	khác	0	0	
+#620	6cb1490c	2026-05-18	fix(family-A): persistence-tier rules — drop stale .mcp.json + portable Tier C hooks (#620)	fix	1	1	
+#621	a7c74303	2026-05-18	fix(opencode): run zod schema parse on native plugin tool args (#621)	fix	2	2	REPEAT
+#621	7c822200	2026-05-19	fix(opencode): coerce stringified primitives on native plugin path (#627)	fix	2	2	REPEAT
+#623	03db6fe1	2026-05-18	fix(opencode): surface diagnostic when ctx_* tools suppressed on legacy MCP child (#623)	fix	2	2	REPEAT
+#623	0c838a3d	2026-05-19	docs(readme): clarify plugin+legacy-mcp coexistence in OpenCode/KiloCode sections	khác	2	2	REPEAT
+#623	b1b8c5df	2026-05-20	fix(opencode): return empty tools/list (not -32601) on suppressed legacy MCP child (#637)	fix	2	2	REPEAT
+#624	b7597092	2026-05-19	fix(pi): normalise context_mode_ prefix and path→file_path for event extraction (#624)	fix	1	1	
+#625	5235f3fd	2026-05-19	fix(pi): curl/wget escape hatch + quoted-arg false positives (closes #625)	fix	1	1	
+#626	227230d8	2026-05-19	docs: Replace outdated Smart Truncation with FTS5 externalization (#626)	khác	0	0	
+#627	7c822200	2026-05-19	fix(opencode): coerce stringified primitives on native plugin path (#627)	fix	1	1	
+#628	76559cf9	2026-05-19	fix(upgrade): fail loud when Step 1 GitHub clone/install throws (#628)	fix	1	1	
+#629	605177a9	2026-05-19	fix(gemini): map beforeagent in dispatcher and fix doctor paths (#629)	fix	1	1	
+#632	45100c75	2026-05-19	fix(opencode): convert zod v3 schemas to v4 for kilo platform compatibility (#632)	fix	1	1	
+#634	49860196	2026-05-19	fix(codex): detach background npm install so MCP boot doesn't blow Codex's 30s timeout (#634) (#638)	fix	2	2	REPEAT
+#634	e918eac6	2026-06-22	fix(windows): stop boot-install EPERM + cmd-window flash from shell:true dropping cwd (#861)	fix	2	2	REPEAT
+#636	caba9246	2026-05-20	fix(hooks): quote rewritten hook paths in legacy settings.json self-heal (#636)	fix	1	1	
+#637	b1b8c5df	2026-05-20	fix(opencode): return empty tools/list (not -32601) on suppressed legacy MCP child (#637)	fix	1	1	
+#638	49860196	2026-05-19	fix(codex): detach background npm install so MCP boot doesn't blow Codex's 30s timeout (#634) (#638)	fix	1	1	
+#642	7afa0f45	2026-05-19	fix(db-base): propagate busy_timeout on node:sqlite branch (closes #642)	fix	1	1	
+#643	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	3	3	REPEAT
+#643	b86f7c06	2026-05-20	fix(pi): remove bridge-imposed timeout on tools/call (#643)	fix	3	3	REPEAT
+#643	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	3	3	REPEAT
+#644	11474111	2026-05-20	fix(sessionstart): use lstatSync for age-gated cache cleanup (#644)	fix	2	2	REPEAT
+#644	79e7bb52	2026-06-14	fix(cleanup): leave a breadcrumb link when sweeping old version dirs (#814, #807) (#823)	fix	2	2	REPEAT
+#645	019562f6	2026-05-20	fix(pi,omp): route SessionDB through resolveSessionDbPath so MCP server reads same file (#645)	fix	2	2	REPEAT
+#645	d09585eb	2026-05-20	fix(openclaw): route SessionDB through resolveSessionDbPath (#645 follow-up)	fix	2	2	REPEAT
+#646	9dd92d74	2026-05-20	fix(store): escape LIKE wildcards in `ctx_search` source filter (#646)	fix	1	1	
+#647	9c28ff63	2026-05-20	fix(pi): retry MCP bridge initialize on slow handshake (#647)	fix	1	1	
+#649	fa6541fb	2026-05-20	fix(adapter): CONTEXT_MODE_DATA_DIR universal storage override (#649)	fix	1	1	
+#650	3e51e53b	2026-05-20	feat(opencode): streamline installation process and improve CLI upgrade (#650)	feat	0	0	
+#654	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	1	1	
+#656	3988090a	2026-05-23	fix(batch_execute): preserve heredoc commands (#657)	fix	1	1	
+#656	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#657	3988090a	2026-05-23	fix(batch_execute): preserve heredoc commands (#657)	fix	1	1	
+#657	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#659	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#659	9c5c8f72	2026-05-23	fix(server): surrogate-safe preview truncation in ctx_fetch_and_index (#659) (#660)	fix	1	1	
+#660	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#660	9c5c8f72	2026-05-23	fix(server): surrogate-safe preview truncation in ctx_fetch_and_index (#659) (#660)	fix	1	1	
+#661	fa615709	2026-05-22	Fix Claude plugin skills path and pack integrity guard (#661)	khác	0	0	
+#661	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	0	0	
+#663	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#663	afd109b7	2026-05-23	fix(auto-memory): scope memory dir by projectDir to stop cross-project leak (#663) (#664)	fix	1	1	
+#664	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#664	afd109b7	2026-05-23	fix(auto-memory): scope memory dir by projectDir to stop cross-project leak (#663) (#664)	fix	1	1	
+#665	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#665	dee946c6	2026-05-23	fix(pi): prevent mixed-width TUI over-width crashes (CJK/Korean/emoji) (#676)	fix	1	1	
+#666	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#666	04ff30fc	2026-05-24	feat(fetch): add per-call cache ttl (#666)	feat	1	1	
+#666	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	1	1	
+#676	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#676	dee946c6	2026-05-23	fix(pi): prevent mixed-width TUI over-width crashes (CJK/Korean/emoji) (#676)	fix	1	1	
+#677	891fdbe5	2026-05-24	fix(omp): switch manifest key omp.hooks -> omp.extensions (closes #677)	fix	2	2	REPEAT
+#677	e0c3bb2a	2026-06-23	fix(adapters/omp): self-register MCP server on plugin load (#677) (#872)	fix	2	2	REPEAT
+#679	3d8db08b	2026-05-23	feat: add runtime storage override (#617)	feat	1	1	
+#679	7a3482ed	2026-05-24	fix(server): add z.preprocess coercions to ctx_fetch_and_index force and requests params (#679)	fix	1	1	
+#683	58b76ad0	2026-05-24	fix(stats): v1.0.148 hotfix — schema migration + META-scope + strict-compression formula (#685)	fix	3	2	REPEAT
+#683	9e29a940	2026-05-24	fix(server): comprehensive ctx_* tool description audit + WebFetch refusal (substitutes #654) (#683)	fix	3	2	REPEAT
+#683	f1878a70	2026-05-24	fix(stats): v1.0.148 hotfix — schema migration + META-scope + strict-compression formula (#685)	fix	3	2	REPEAT
+#685	58b76ad0	2026-05-24	fix(stats): v1.0.148 hotfix — schema migration + META-scope + strict-compression formula (#685)	fix	2	1	
+#685	f1878a70	2026-05-24	fix(stats): v1.0.148 hotfix — schema migration + META-scope + strict-compression formula (#685)	fix	2	1	
+#686	44d2ba25	2026-05-24	fix(codex): report standalone doctor status accurately (#686)	fix	2	1	
+#686	c79b6fb8	2026-05-24	fix(codex): report standalone doctor status accurately (#686)	fix	2	1	
+#687	0f50407d	2026-05-24	Merge branch 'fix/ctx-index-directory-support' into release-1.0.149 (#687)	khác	0	0	
+#687	f7499570	2026-05-24	feat(ctx_index): support directory paths with bounded traversal (#687)	feat	0	0	
+#689	3d3e4248	2026-05-24	fix(vscode-copilot): VSCODE_CWD cascade + docs(ops): fan-out claim verification gate (#692)	fix	2	2	REPEAT
+#689	a01c8531	2026-05-25	fix(doctor): surface missing launch files when integrity helper is absent (#689)	fix	2	2	REPEAT
+#692	3d3e4248	2026-05-24	fix(vscode-copilot): VSCODE_CWD cascade + docs(ops): fan-out claim verification gate (#692)	fix	1	1	
+#695	9e2e6237	2026-05-31	feat(session): persist /goal directives across compaction and resume (#695)	feat	0	0	
+#697	50ec3b99	2026-05-31	fix(server): query_scope + throttle visibility + cache observability (#697) (#698)	fix	1	1	
+#697	11b8b587	2026-06-21	feat(insight): pivot ctx_insight from local dashboard to hosted product	feat	1	1	
+#698	19a75902	2026-05-31	feat(ctx_search): add `project:` filter for shared-DB mode (#737)	feat	1	1	
+#698	50ec3b99	2026-05-31	fix(server): query_scope + throttle visibility + cache observability (#697) (#698)	fix	1	1	
+#699	606383e2	2026-05-31	fix(hooks): self-heal partial plugin cache install from marketplace clone (#699)	fix	1	1	
+#702	0e806c5c	2026-05-24	fix(test): sandbox HOME in CLAUDE_CONFIG_DIR security suite so npm test doesn't clobber ~/.claude/settings.json (#702)	fix	1	1	
+#704	115afc32	2026-05-25	fix(codex): approve marketplace MCP tools by default (#704)	fix	1	1	
+#705	d7fa8ac5	2026-05-25	test(insight): use junction for Windows node_modules link (#705)	khác	0	0	
+#706	d281e9f4	2026-05-25	fix(insight): count analytics totals independently (#706)	fix	1	1	
+#708	4d9cf1e5	2026-05-25	fix(opencode): handle host binary detection for in-process plugin platforms (#708)	fix	2	2	REPEAT
+#708	3bff2d56	2026-05-31	fix(runtime): fall back to PATH node when execPath is not a JS runtime (#731)	fix	2	2	REPEAT
+#709	59f4d10d	2026-05-25	fix(executor): handle Windows shell runtimes robustly (#709)	fix	1	1	
+#710	6274f459	2026-05-31	fix(hooks): self-heal shell snapshots on SessionStart (#710 Layer 2)	fix	3	3	REPEAT
+#710	6c671dc7	2026-05-31	fix(cache-heal): add rewriteShellSnapshots for #710 stale PATH	fix	3	3	REPEAT
+#710	73955f34	2026-05-31	fix(cli): rewrite stale shell snapshots during /ctx-upgrade (#710 Layer 1)	fix	3	3	REPEAT
+#711	63d0a3ae	2026-05-31	fix(upgrade): stop baking stale version paths during /ctx-upgrade (#711) (#713)	fix	1	1	
+#712	139431d2	2026-05-31	test(adapters): cross-adapter hook path parity guard (#712)	khác	1	1	
+#712	27bfe50a	2026-05-31	feat(gemini-cli): add getHealthChecks override for doctor (#712)	feat	1	1	
+#712	6815d91f	2026-05-31	fix(gemini-cli): emit hook paths under hooks/gemini-cli subdir (#712)	fix	1	1	
+#713	63d0a3ae	2026-05-31	fix(upgrade): stop baking stale version paths during /ctx-upgrade (#711) (#713)	fix	1	1	
+#715	14ce9c10	2026-05-26	perf: remove redundant allocations in search reranking and analytics rendering (#715)	khác	0	0	
+#716	547c18b6	2026-05-31	security: containment, info-disclosure, and test-isolation hardening (#716)	khác	0	0	
+#717	38117ad1	2026-05-31	fix(execute): prepend fenced source-code echo before stdout (#717, #736)	fix	4	4	REPEAT
+#717	a54c666f	2026-05-31	fix(execute_file): prepend path + fenced source-code echo before stdout (#717, #736)	fix	4	4	REPEAT
+#717	c1030ca5	2026-05-31	fix(batch_execute): add `## Commands` inventory to summary (#717, #736)	fix	4	4	REPEAT
+#717	f7af3caf	2026-05-31	fix(batch_execute): echo `$ command` per section + truncate at 500 chars (#717, #736)	fix	4	4	REPEAT
+#718	ddcb7112	2026-05-29	openclaw: fix adapter compatibility and tool contracts (#718)	khác	0	0	
+#719	1420daf0	2026-05-31	fix(hooks): prevent stdin idle hangs on Bun/Windows hosts (#719)	fix	1	1	
+#721	19a75902	2026-05-31	feat(ctx_search): add `project:` filter for shared-DB mode (#737)	feat	0	0	
+#721	b51873fd	2026-05-31	feat(cli): add indexing and search commands (#721)	feat	0	0	
+#722	a90d399c	2026-05-26	fix(codex): set platform env for plugin MCP server (#722)	fix	1	1	
+#724	b1ba5cc9	2026-05-31	fix(routing): bootstrap deferred ctx_* tools in subagent prompts (#724) (#725)	fix	1	1	
+#725	b1ba5cc9	2026-05-31	fix(routing): bootstrap deferred ctx_* tools in subagent prompts (#724) (#725)	fix	1	1	
+#727	a342dd54	2026-05-31	fix(hooks): narrow Layer 1 forward-heal to hooks.json only (#727) (#728)	fix	1	1	
+#728	6274f459	2026-05-31	fix(hooks): self-heal shell snapshots on SessionStart (#710 Layer 2)	fix	4	4	REPEAT
+#728	6c671dc7	2026-05-31	fix(cache-heal): add rewriteShellSnapshots for #710 stale PATH	fix	4	4	REPEAT
+#728	73955f34	2026-05-31	fix(cli): rewrite stale shell snapshots during /ctx-upgrade (#710 Layer 1)	fix	4	4	REPEAT
+#728	a342dd54	2026-05-31	fix(hooks): narrow Layer 1 forward-heal to hooks.json only (#727) (#728)	fix	4	4	REPEAT
+#729	1b4f2be8	2026-05-31	feat(adapter): add Kimi Code CLI hook integration (#729)	feat	0	0	
+#730	4ba92057	2026-05-31	docs(codex): document Windows plugin symlink workaround (#730)	khác	0	0	
+#731	3bff2d56	2026-05-31	fix(runtime): fall back to PATH node when execPath is not a JS runtime (#731)	fix	1	1	
+#733	e939b9a5	2026-05-31	fix(codex): guard plugin install paths from Codex Desktop transcripts (#733)	fix	1	1	
+#734	926481e8	2026-05-31	fix(opencode): convert Zod v3 schemas to v4 for in-process plugin host (#734)	fix	1	1	
+#736	38117ad1	2026-05-31	fix(execute): prepend fenced source-code echo before stdout (#717, #736)	fix	4	4	REPEAT
+#736	a54c666f	2026-05-31	fix(execute_file): prepend path + fenced source-code echo before stdout (#717, #736)	fix	4	4	REPEAT
+#736	c1030ca5	2026-05-31	fix(batch_execute): add `## Commands` inventory to summary (#717, #736)	fix	4	4	REPEAT
+#736	f7af3caf	2026-05-31	fix(batch_execute): echo `$ command` per section + truncate at 500 chars (#717, #736)	fix	4	4	REPEAT
+#737	19a75902	2026-05-31	feat(ctx_search): add `project:` filter for shared-DB mode (#737)	feat	0	0	
+#737	ba571f72	2026-05-31	feat(search): plumb per-project session-id allow-set through ContentStore	feat	0	0	
+#738	4bc292fc	2026-05-31	fix(hooks): claude-code Bash modify → deny (CC ignores updatedInput.command)	fix	1	1	
+#738	4c74a1bf	2026-05-31	feat(runtime): add resolveHookRuntime + buildHookRuntimeCommand for bun auto-detection (#738)	feat	1	1	
+#738	a9dc376e	2026-05-31	feat(adapters): route hook spawn commands through buildHookRuntimeCommand (#738)	feat	1	1	
+#738	aa1afc01	2026-05-31	feat(hooks): plumb jsRuntimePath through normalize-hooks for bun rewrite (#738)	feat	1	1	
+#741	b70498a7	2026-05-31	feat(pi): fix adapter routing, MCP bridge, startup diet, and pricing (#741)	feat	0	0	
+#746	ec48166e	2026-06-01	fix(codex): dedupe plugin-owned context-mode hooks (#746)	fix	1	1	
+#748	b4b1e44a	2026-06-01	fix(codex): avoid marketplace symlink source on Windows (#748)	fix	1	1	
+#763	c1933fba	2026-06-21	fix(security): harden shell command evaluation and fix test isolation (#763)	fix	1	1	
+#765	498460d9	2026-06-13	fix: pin Claude ctx_execute cwd to session cwd (#765)	fix	1	1	
+#766	eac9373a	2026-06-02	test: make cross-project attribution shell setup portable (#766)	khác	0	0	
+#768	1aee4808	2026-06-21	fix(install): derive version from package.json across all manifests so none bake stale (#768)	fix	1	1	
+#769	3a45eb1c	2026-06-21	fix(search): correct project-filter strictness (#827) + per-agent flood-guard (#769)	fix	1	1	
+#771	98d239b7	2026-06-14	fix(codex): resolve plugin-manager root for doctor and upgrade (#771)	fix	1	1	
+#772	1df5d3ca	2026-06-03	Fix mobile overflow on Insights persona cards (#772)	khác	0	0	
+#772	62bc5ad6	2026-06-03	Fix mobile overflow on Insights persona cards (#772)	khác	0	0	
+#773	9f63a0b2	2026-06-21	fix(hooks): capture Stop turn ends (#773)	fix	1	1	
+#774	9f34c6f1	2026-06-21	Add GitHub Copilot CLI + Antigravity CLI (agy) support (#787)	khác	0	0	
+#775	9f34c6f1	2026-06-21	Add GitHub Copilot CLI + Antigravity CLI (agy) support (#787)	khác	0	0	
+#778	a67c4fb8	2026-06-04	fix(pi): detect package server via PI_CODING_AGENT (#778)	fix	1	1	
+#780	fcc44834	2026-06-21	fix(session): stop re-injecting stale prior-leg events (#780) + reference (not inline) large tool-outputs in Data References (#840)	fix	1	1	
+#781	6f699fac	2026-06-13	fix(store): enforce MAX_CHUNK_BYTES in #chunkPlainText to prevent FTS5 DB bloat (#789)	fix	1	1	
+#782	89f4e736	2026-06-21	fix(sandbox): suppress MinGW path-conv for Windows ctx_execute child (#782) + clean .ctx-mode-* temp + pin cwd (#788)	fix	1	1	
+#784	ca63ff56	2026-06-21	fix(insight): count git_commit events in commit metrics (#785)	fix	1	1	
+#785	ca63ff56	2026-06-21	fix(insight): count git_commit events in commit metrics (#785)	fix	1	1	
+#787	8ca114c4	2026-06-10	fix(opencode): string-aware JSONC stripping via shared util/jsonc (#808)	fix	1	1	
+#787	9f34c6f1	2026-06-21	Add GitHub Copilot CLI + Antigravity CLI (agy) support (#787)	khác	1	1	
+#787	2608e344	2026-06-22	refactor(antigravity-cli): one-command agy plugin install (drop npm wrapper) + doc cleanup (#853)	khác	1	1	
+#788	89f4e736	2026-06-21	fix(sandbox): suppress MinGW path-conv for Windows ctx_execute child (#782) + clean .ctx-mode-* temp + pin cwd (#788)	fix	1	1	
+#789	6f699fac	2026-06-13	fix(store): enforce MAX_CHUNK_BYTES in #chunkPlainText to prevent FTS5 DB bloat (#789)	fix	1	1	
+#794	85f64d2c	2026-06-21	fix(hooks): respect subagent ctx tool availability (#834)	fix	1	1	
+#795	ed913262	2026-06-10	fix(server): canonicalize cacheRoot in healCacheMidSession via realpathSync for symlinked ~/.claude (#795) (#805)	fix	1	1	
+#796	6b6193e7	2026-06-21	Fix Windows shell runtime and PowerShell UTF-8 handling (#796)	khác	0	0	
+#797	6891def8	2026-06-21	fix(statusline): resolve session id from stdin payload so per-session KPI renders (#797)	fix	1	1	
+#800	813da2a6	2026-06-09	fix(runtime): add liveness guard to resolveJavascriptRuntime for Homebrew Cellar ENOENT (#800) (#803)	fix	2	2	REPEAT
+#800	b1cca82d	2026-06-21	fix(runtime): liveness-guard pinned hook execPath so mise/asdf/nvm Node upgrades don't break hooks (#841)	fix	2	2	REPEAT
+#803	813da2a6	2026-06-09	fix(runtime): add liveness guard to resolveJavascriptRuntime for Homebrew Cellar ENOENT (#800) (#803)	fix	1	1	
+#805	ed913262	2026-06-10	fix(server): canonicalize cacheRoot in healCacheMidSession via realpathSync for symlinked ~/.claude (#795) (#805)	fix	1	1	
+#806	8ca114c4	2026-06-10	fix(opencode): string-aware JSONC stripping via shared util/jsonc (#808)	fix	1	1	
+#807	79e7bb52	2026-06-14	fix(cleanup): leave a breadcrumb link when sweeping old version dirs (#814, #807) (#823)	fix	1	1	
+#808	8ca114c4	2026-06-10	fix(opencode): string-aware JSONC stripping via shared util/jsonc (#808)	fix	1	1	
+#810	7cc9d3be	2026-06-21	fix(upgrade): skip settings.json wiring only for true plugin installs (#810)	fix	1	1	
+#813	5c18c673	2026-06-11	fix(pi): lazy bootstrap MCP bridge for agent turns (#813)	fix	1	1	
+#814	79e7bb52	2026-06-14	fix(cleanup): leave a breadcrumb link when sweeping old version dirs (#814, #807) (#823)	fix	1	1	
+#815	56e9e9a7	2026-06-12	fix: preserve ZodEffects preprocess and ZodType coerce in zod3tov4 (#815)	fix	1	1	
+#817	dcab56fd	2026-06-21	fix(hooks): add size threshold so small Bash/WebFetch calls skip interception (#817)	fix	1	1	
+#822	4ced18cb	2026-06-21	fix(pi): stop mutating systemPrompt, inject via context hook to preserve prefix cache (#822)	fix	1	1	
+#823	79e7bb52	2026-06-14	fix(cleanup): leave a breadcrumb link when sweeping old version dirs (#814, #807) (#823)	fix	1	1	
+#826	e2bce0b5	2026-06-13	fix(windows): preserve Git Bash path conversion for native git (#826)	fix	2	2	REPEAT
+#826	6b6193e7	2026-06-21	Fix Windows shell runtime and PowerShell UTF-8 handling (#796)	khác	2	2	REPEAT
+#826	89f4e736	2026-06-21	fix(sandbox): suppress MinGW path-conv for Windows ctx_execute child (#782) + clean .ctx-mode-* temp + pin cwd (#788)	fix	2	2	REPEAT
+#827	3a45eb1c	2026-06-21	fix(search): correct project-filter strictness (#827) + per-agent flood-guard (#769)	fix	1	1	
+#832	85f64d2c	2026-06-21	fix(hooks): respect subagent ctx tool availability (#834)	fix	1	1	
+#833	c5e0fbc0	2026-06-16	fix(server): exit on fatal uncaught exception storm (#833)	fix	1	1	
+#834	85f64d2c	2026-06-21	fix(hooks): respect subagent ctx tool availability (#834)	fix	1	1	
+#837	6c513fbf	2026-06-16	test: isolate next full-suite env assumptions (#837)	khác	0	0	
+#839	10e2850d	2026-06-21	Fix PowerShell Unicode path handling (#839)	khác	0	0	
+#840	fcc44834	2026-06-21	fix(session): stop re-injecting stale prior-leg events (#780) + reference (not inline) large tool-outputs in Data References (#840)	fix	1	1	
+#841	b1cca82d	2026-06-21	fix(runtime): liveness-guard pinned hook execPath so mise/asdf/nvm Node upgrades don't break hooks (#841)	fix	1	1	
+#844	ff5b0cff	2026-06-22	fix(codex): MCP sentinel namespace + PreToolUse rewrites + tool annotations (#844 #845 #846) (#851)	fix	1	1	
+#845	ff5b0cff	2026-06-22	fix(codex): MCP sentinel namespace + PreToolUse rewrites + tool annotations (#844 #845 #846) (#851)	fix	1	1	
+#846	ff5b0cff	2026-06-22	fix(codex): MCP sentinel namespace + PreToolUse rewrites + tool annotations (#844 #845 #846) (#851)	fix	1	1	
+#848	0fb15c7d	2026-06-21	fix(executor): prevent SIGPIPE killing child on background detach (#848)	fix	1	1	
+#849	59e6df8d	2026-06-21	fix(opencode): write into existing opencode.jsonc instead of shadowing it with opencode.json (#849)	fix	1	1	
+#851	ff5b0cff	2026-06-22	fix(codex): MCP sentinel namespace + PreToolUse rewrites + tool annotations (#844 #845 #846) (#851)	fix	1	1	
+#852	a88a7579	2026-06-22	test(security): de-regex project-boundary source-introspection assertions (#852)	khác	1	1	
+#852	d1ae5625	2026-06-22	fix(security): confine ctx_execute_file to the project boundary (#852)	fix	1	1	
+#853	2608e344	2026-06-22	refactor(antigravity-cli): one-command agy plugin install (drop npm wrapper) + doc cleanup (#853)	khác	0	0	
+#854	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	2	2	REPEAT
+#854	bebc7529	2026-06-23	fix(pi): keep the foreground MCP bridge alive + route diagnostics off the TUI (#868)	fix	2	2	REPEAT
+#855	77e22a46	2026-06-22	fix(lifecycle): reap idle MCP bridge children to stop pi/omp accumulation (#854) (#855)	fix	1	1	
+#856	f2628529	2026-06-22	fix(session): stop casual phrases freezing as re-injected behavioral_directive (#856)	fix	1	1	
+#861	a349365c	2026-06-22	merge: promote next (#862 Linux orphan reap, #861 Windows boot-install) for v1.0.165	khác	1	1	
+#861	e918eac6	2026-06-22	fix(windows): stop boot-install EPERM + cmd-window flash from shell:true dropping cwd (#861)	fix	1	1	
+#862	a349365c	2026-06-22	merge: promote next (#862 Linux orphan reap, #861 Windows boot-install) for v1.0.165	khác	1	1	
+#862	dfff7b87	2026-06-22	fix(lifecycle): propagate client death through the Linux re-exec proxy (#862)	fix	1	1	
+#868	bebc7529	2026-06-23	fix(pi): keep the foreground MCP bridge alive + route diagnostics off the TUI (#868)	fix	1	1	
+#870	8b1c0186	2026-06-24	docs(readme): correct Zed MCP config shape (#870)	khác	0	0	
+#872	e0c3bb2a	2026-06-23	fix(adapters/omp): self-register MCP server on plugin load (#677) (#872)	fix	1	1	
+#875	4112e848	2026-06-24	docs(readme): sync Zed config fix to next (#875)	khác	0	0	
+#4967	b2f8ba08	2026-03-15	fix(openclaw): address PR #122 review feedback	fix	1	1	
+#5513	b2f8ba08	2026-03-15	fix(openclaw): address PR #122 review feedback	fix	1	1	
+#15660	9480b556	2026-06-02	feat(extract): /plan slash detector for UserPromptSubmit (Issue #3)	feat	0	0	
+#15824	607dc702	2026-04-03	fix(codex): add dedicated hook scripts and fix wire protocol (#225)	fix	1	1	
+#16685	607dc702	2026-04-03	fix(codex): add dedicated hook scripts and fix wire protocol (#225)	fix	1	1	
+#20259	d05a3758	2026-05-10	feat(prose): retire prose-style enforcement entirely (#482)	feat	0	0	
+#41868	ece3abb1	2026-04-13	fix: narrow PostToolUse matcher + remove Task from PreToolUse (#229, #241)	fix	1	1	

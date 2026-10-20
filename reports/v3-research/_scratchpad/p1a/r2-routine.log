@@ -1,0 +1,27 @@
+ok   routine new ghi định nghĩa 0600 (rc=0 mode=600)
+ok   routine new thiếu --verify -> rc=2, không ghi tệp (rc=2)
+ok   routine list: chưa chạy lần nào
+ok   routine run -> GREEN, rc=0 (rc=0 GREEN)
+ok   agent làm trong worktree (/tmp/aclrtn.C6Lk3E/home/d/crush/routines/green/wt/20261019-144706), không phải checkout của người dùng
+ok   repo gốc nguyên vẹn (status rỗng, HEAD không đổi), nhánh routine/green-20261019-144706 có mặt
+ok   báo cáo chỉ chủ đọc, nằm ngoài worktree (mode 600)
+ok   routine list hiện lần chạy cuối GREEN
+ok   routine: agent thử git push -> bị chặn, remote vẫn rỗng (rc=1 MAX_REPAIRS refs='')
+ok   đối chứng: lệnh run (không chế độ không người trực) cùng lệnh PUSH ĐƯỢC (rc=0 refs='db21217e1ac731bb8d224db5f9d289da4c8aea68 commit	refs/heads/pushed')
+ok   routine: git -c alias.p=push p bị chặn, remote vẫn rỗng (rc=1 refs='')
+ok   đối chứng: cùng lệnh alias qua run PUSH ĐƯỢC (rc=0 refs='2601a439c7164bdcba2df92cfde762ef39b8b1f2 commit	refs/heads/aliased')
+ok   routine run --cwd bị từ chối (rc=2)
+ok   đang giữ khoá -> rc=75, không tạo nhánh (rc=75 1->1)
+ok   nhả khoá -> chạy lại được (rc=0)
+ok   --scheduled với việc có đích (goal) -> rc=2 (rc=2)
+ok   --expect-sha lệch -> rc=2, nêu 'changed' (rc=2)
+ok   schedule --print in unit systemd có Persistent và hash đã ghim (rc=0)
+ok   schedule không có --print -> rc=2 (không tự cài gì) (rc=2)
+ok   schedule việc có đích -> rc=2 (rc=2)
+ok   không tự cài timer systemd nào (thư mục: '')
+ok   hash khớp + --scheduled (maintenance) -> chạy được (rc=0)
+ok   SIGTERM giữa lượt -> CANCELLED, rc=1, báo cáo vẫn được ghi (rc=1 CANCELLED)
+ok   sau khi bị huỷ khoá đã được nhả (flock rc=0)
+ok   SIGKILL giữa lượt -> lượt cuối ABANDONED, không hiện báo cáo CANCELLED cũ (ABANDONED)
+ok   sau SIGKILL khoá đã nhả, lượt khác chạy được (flock rc=0)
+PASS

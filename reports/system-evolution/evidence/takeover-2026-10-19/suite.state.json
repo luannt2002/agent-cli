@@ -1,0 +1,1 @@
+{"case": "suite", "exit": 0, "seconds": 323.23, "command": ["go", "test", "-p", "2", "./...", "-count=1", "-json"], "state": "finished"}

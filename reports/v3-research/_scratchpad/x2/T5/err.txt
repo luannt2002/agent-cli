@@ -1,0 +1,9 @@
+          
+   ERROR  
+          
+  Failed to load config from paths [/etc/crush/crush.json /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-    
+  4a9d-b148-f58af7166a87/scratchpad/x2/T5/home/cfg/crush.json /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-
+  4a9d-b148-f58af7166a87/scratchpad/x2/T5/home/cfg/crushrc /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-   
+  4a9d-b148-f58af7166a87/scratchpad/x2/T5/home/data/crush.json]: invalid JSON in config file /tmp/claude-1000/-home-  
+  luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/x2/T5/home/cfg/crush.json.                       
+

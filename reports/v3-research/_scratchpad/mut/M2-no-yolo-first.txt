@@ -1,0 +1,58 @@
+2026/10/19 18:25:42 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:42 INFO Fetching Hyper provider
+2026/10/19 18:25:42 INFO Fetching providers from Catwalk
+2026/10/19 18:25:43 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy2486670651/004/crush/hyper.json
+2026/10/19 18:25:44 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy2486670651/004/crush/providers.json
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=c982e380-b61b-464b-b295-48411effcf8c path=/tmp/TestCreateWorkspace_TrustPolicyMismatchyolo_differs1413013048/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchyolo_differs1413013048/006 requested_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchyolo_differs1413013048/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_TrustPolicyMismatch (1.84s)
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/yolo_differs (0.03s)
+        trusted_policy_test.go:89: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:89
+            	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/yolo_differs
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No providers configured
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 WARN No agent configuration found
+2026/10/19 18:25:44 INFO Initializing MCP clients
+2026/10/19 18:25:44 INFO Initializing MCP clients
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.989s
+FAIL

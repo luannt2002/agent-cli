@@ -1,0 +1,7 @@
+pane: 
+FAIL TUI -s X shows the model note in the status bar
+after open: data-models={"large": {"model": "m-pp", "provider": "pp"}}
+FAIL TUI -s X writes no model to <data>/crush.json
+after alt+m: data-models={"large": {"model": "m-pp", "provider": "pp"}}
+FAIL alt+m picking m-qq writes models.large=qq (explicit choice)
+fails=3

@@ -1,0 +1,21 @@
+=== RUN   TestMCPTool_LargeTextIsCappedAndSpilled
+    mcp-tools_test.go:81: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p1b/internal/agent/tools/mcp-tools_test.go:81
+        	Error:      	"5242906" is not less than "31024"
+        	Test:       	TestMCPTool_LargeTextIsCappedAndSpilled
+        	Messages:   	MCP output sent to the model must be capped like bash
+2026/10/19 19:31:02 INFO Removing MCP server no longer in config name=p1b-big
+--- FAIL: TestMCPTool_LargeTextIsCappedAndSpilled (0.30s)
+=== RUN   TestMCPTool_SmallTextIsUnchanged
+2026/10/19 19:31:02 INFO Removing MCP server no longer in config name=p1b-small
+--- PASS: TestMCPTool_SmallTextIsUnchanged (0.00s)
+=== RUN   TestMCPTool_IsErrorReachesToolResponse
+    mcp-tools_test.go:104: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p1b/internal/agent/tools/mcp-tools_test.go:104
+        	Error:      	Should be true
+        	Test:       	TestMCPTool_IsErrorReachesToolResponse
+2026/10/19 19:31:02 INFO Removing MCP server no longer in config name=p1b-fail
+--- FAIL: TestMCPTool_IsErrorReachesToolResponse (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent/tools	0.327s
+FAIL

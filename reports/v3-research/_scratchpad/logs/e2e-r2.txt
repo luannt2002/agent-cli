@@ -1,0 +1,17 @@
+== m11 controls
+s5-send: PASS rc=1 refused=True out='te workspace: status code 500: trust policy differs from the running      \n  agent-cli server: --yolo; a running server ke
+s5-loop: PASS rc=1 refused=True out='te workspace: status code 500: trust policy differs from the running      \n  agent-cli server: --yolo; a running server ke
+s5-jobs: FAIL rc=1 refused=True out='te workspace: status code 500: trust policy differs from the running      \n  agent-cli server: --yolo; a running server ke
+s5-logout: FAIL rc=1 refused=True out='te workspace: status code 500: trust policy differs from the running      \n  agent-cli server: --yolo; a running server 
+s7-jobs: FAIL rc=1 refused=True out='s code 500: trust policy differs from the running      \n  agent-cli server: AGENT_CLI_ALLOWED_MODELS; a running server kee
+CONTROLS: FAIL
+== C5 r2
+C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist qwen-only: second client -> ['none'] err='failed to create workspace: failed to
+== T6 r2 (harness sửa)
+T6: EXPOSED — FINDINGS: agentic_fetch gets the todo reminder without `todos`; non-interactive plan names `question` (rare combination); main names `find_references` (no such tool); green row: subagent (sys-e2dba55a9910.txt): absent tools named in system prompt=[] | todo-reminder-without-todos=False; set-plan HTTP 200
+== T6 before (harness sửa)
+T6: EXPOSED — FINDINGS: agentic_fetch gets the todo reminder without `todos`; non-interactive plan names `question` (rare combination); main names `find_references` (no such tool); green row: subagent (sys-34207a4b124e.txt): absent tools named in system prompt=[] | todo-reminder-without-todos=False; set-plan HTTP 200
+faults rc=0 FAULTS: PASS
+qwen-only rc=0 QWEN-ONLY: PASS
+workspaces rc=0 WORKSPACES: PASS
+run-json rc=0 PASS

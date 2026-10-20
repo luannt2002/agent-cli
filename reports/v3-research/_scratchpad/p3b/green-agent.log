@@ -1,0 +1,13 @@
+    agent_v3exposure_test.go:219: T15 control-writable turn 1: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:219: T15 control-writable turn 2: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:219: T15 unwritable-dir turn 1: run_err=<nil> runcomplete_err="" ledger_warn_logs=1 visible=true
+    agent_v3exposure_test.go:219: T15 unwritable-dir turn 2: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:193: T15 write-fails-dev-full: precondition write error = write /dev/full: no space left on device
+    agent_v3exposure_test.go:219: T15 write-fails-dev-full turn 1: run_err=<nil> runcomplete_err="" ledger_warn_logs=1 visible=true
+    agent_v3exposure_test.go:219: T15 write-fails-dev-full turn 2: run_err=<nil> runcomplete_err="" ledger_warn_logs=1 visible=true
+--- PASS: TestV3Exposure_T15_LedgerFailureIsVisible (0.07s)
+--- PASS: TestLedgerRecordsEachCallWithRoleProviderAndUsage (0.02s)
+--- PASS: TestLedgerWriteFailureIsReportedOncePerTurn (0.04s)
+--- PASS: TestLedgerOffReturnsTheModelUnchanged (0.00s)
+--- PASS: TestLedgerRecordsTheErrorKindNotItsText (0.00s)
+ok  	github.com/charmbracelet/crush/internal/agent	0.156s

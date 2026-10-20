@@ -1,0 +1,18 @@
+--- PASS: TestContinuedRunKeepsTheWorkspaceModel (0.01s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_--reasoning-effort (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-C (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model (0.00s)
+ok  	github.com/charmbracelet/crush/internal/cmd	0.072s
+--- PASS: TestContinuedLocalRunKeepsTheWorkspaceModel (0.00s)
+ok  	github.com/charmbracelet/crush/internal/app	0.043s
+--- PASS: TestModelSwitchAllowedWhileAnySessionBusy (0.01s)
+--- PASS: TestModelSelectionWritesWorkspaceScope (0.00s)
+--- PASS: TestModelTweaksWriteWorkspaceScope (0.01s)
+    --- PASS: TestModelTweaksWriteWorkspaceScope/thinking (0.00s)
+    --- PASS: TestModelTweaksWriteWorkspaceScope/reasoning_effort (0.00s)
+--- PASS: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+ok  	github.com/charmbracelet/crush/internal/ui/model	0.100s

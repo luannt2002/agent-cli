@@ -1,0 +1,59 @@
+[g.sh] MemAvailable=9188MB
+=== RUN   TestFilterToolsForChannel
+=== PAUSE TestFilterToolsForChannel
+=== RUN   TestFilterToolsForChannel_SeesThroughHookedTool
+=== PAUSE TestFilterToolsForChannel_SeesThroughHookedTool
+=== RUN   TestFilterDisabledMCPTools_SeesThroughHookedTool
+=== RUN   TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook
+=== RUN   TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook
+    hooked_tool_test.go:220: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2d/internal/agent/hooked_tool_test.go:220
+        	Error:      	Not equal: 
+        	            	expected: []string{"plain"}
+        	            	actual  : []string{"plain", "mcp_p2d-off_send"}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,3 +1,4 @@
+        	            	-([]string) (len=1) {
+        	            	- (string) (len=5) "plain"
+        	            	+([]string) (len=2) {
+        	            	+ (string) (len=5) "plain",
+        	            	+ (string) (len=16) "mcp_p2d-off_send"
+        	            	 }
+        	Test:       	TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook
+--- FAIL: TestFilterDisabledMCPTools_SeesThroughHookedTool (0.04s)
+    --- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook (0.00s)
+    --- FAIL: TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook (0.00s)
+=== CONT  TestFilterToolsForChannel
+--- PASS: TestFilterToolsForChannel (0.00s)
+=== CONT  TestFilterToolsForChannel_SeesThroughHookedTool
+=== RUN   TestFilterToolsForChannel_SeesThroughHookedTool/no_hook
+=== PAUSE TestFilterToolsForChannel_SeesThroughHookedTool/no_hook
+=== RUN   TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+=== PAUSE TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+=== CONT  TestFilterToolsForChannel_SeesThroughHookedTool/no_hook
+=== CONT  TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+    hooked_tool_test.go:175: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2d/internal/agent/hooked_tool_test.go:175
+        	Error:      	Not equal: 
+        	            	expected: []string{"signal_send", "plain"}
+        	            	actual  : []string{"signal_send", "telegram_send", "plain"}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,3 +1,4 @@
+        	            	-([]string) (len=2) {
+        	            	+([]string) (len=3) {
+        	            	  (string) (len=11) "signal_send",
+        	            	+ (string) (len=13) "telegram_send",
+        	            	  (string) (len=5) "plain"
+        	Test:       	TestFilterToolsForChannel_SeesThroughHookedTool/with_hook
+--- FAIL: TestFilterToolsForChannel_SeesThroughHookedTool (0.00s)
+    --- PASS: TestFilterToolsForChannel_SeesThroughHookedTool/no_hook (0.00s)
+    --- FAIL: TestFilterToolsForChannel_SeesThroughHookedTool/with_hook (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.065s
+FAIL

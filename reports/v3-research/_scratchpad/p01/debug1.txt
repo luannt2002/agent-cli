@@ -1,0 +1,31 @@
+=== RUN   TestRunWaitIsSafeAgainstConcurrentAgentBuild
+DEBUG matched:
+goroutine 40 [chan receive]:
+github.com/charmbracelet/crush/internal/agent.holdReadiness(0xc000144af0)
+	/home/luannt/application/opensource/agent-cli-p01/internal/agent/coordinator_readiness_test.go:191 +0x29
+github.com/charmbracelet/crush/internal/agent.TestRunWaitIsSafeAgainstConcurrentAgentBuild.func3()
+	/home/luannt/application/opensource/agent-cli-p01/internal/agent/coordinator_readiness_test.go:169 +0x2f
+golang.org/x/sync/errgroup.(*Group).Go.func1()
+	/home/luannt/go/pkg/mod/golang.org/x/sync@v0.24.0/errgroup/errgroup.go:93 +0x87
+created by golang.org/x/sync/errgroup.(*Group).Go in goroutine 6
+	/home/luannt/go/pkg/mod/golang.org/x/sync@v0.24.0/errgroup/errgroup.go:78 +0x11d
+
+DEBUG matched:
+goroutine 37 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0x0?, 0x0?)
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/runtime/sema.go:114 +0x2e
+sync.(*WaitGroup).Wait(0xc0001b8698)
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/sync/waitgroup.go:206 +0xc5
+golang.org/x/sync/errgroup.(*Group).Wait(0xc0001b8690)
+	/home/luannt/go/pkg/mod/golang.org/x/sync@v0.24.0/errgroup/errgroup.go:56 +0x35
+github.com/charmbracelet/crush/internal/agent.(*coordinator).run(0xc0001b8580, {0x69dcaf0, 0xc00046cf00}, 0x0, {0xc00015d650, 0x24}, {0x3df102e, 0x2}, {0x0, 0x0, ...})
+	/home/luannt/application/opensource/agent-cli-p01/internal/agent/coordinator.go:313 +0x7f
+github.com/charmbracelet/crush/internal/agent.(*coordinator).Run(...)
+	/home/luannt/application/opensource/agent-cli-p01/internal/agent/coordinator.go:299
+github.com/charmbracelet/crush/internal/agent.TestRunWaitIsSafeAgainstConcurrentAgentBuild.func2()
+	/home/luannt/application/opensource/agent-cli-p01/internal/agent/coordinator_readiness_test.go:161 +0x172
+created by github.com/charmbracelet/crush/internal/agent.TestRunWaitIsSafeAgainstConcurrentAgentBuild in goroutine 6
+	/home/luannt/application/opensource/agent-cli-p01/internal/agent/coordinator_readiness_test.go:154 +0xbcb
+--- PASS: TestRunWaitIsSafeAgainstConcurrentAgentBuild (0.34s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/agent	1.404s

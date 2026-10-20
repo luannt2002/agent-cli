@@ -1,0 +1,20 @@
+--- FAIL: TestSendMessage_PreRunErrorClosesPromptWithError (1.65s)
+--- FAIL: TestSendMessage_SettleLeavesAcceptedPromptOpen (0.05s)
+--- FAIL: TestSendMessage_PendingPromptsFoldInOrder (0.04s)
+--- FAIL: TestSendMessage_PendingRunIDPromptsInOrder (0.08s)
+--- FAIL: TestSendMessage_DroppedQueuedPromptNotInHistory (0.00s)
+    --- FAIL: TestSendMessage_DroppedQueuedPromptNotInHistory/cancel (0.03s)
+    --- FAIL: TestSendMessage_DroppedQueuedPromptNotInHistory/clear_queue (0.03s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.312s
+--- FAIL: TestSummarizeLeavesOutPendingPrompts (0.04s)
+--- FAIL: TestRunEarlyErrorClosesRecordedPrompt (0.05s)
+--- FAIL: TestQueueDropWritesOutsideDispatchLock (0.00s)
+    --- FAIL: TestQueueDropWritesOutsideDispatchLock/Cancel (0.03s)
+    --- FAIL: TestQueueDropWritesOutsideDispatchLock/nextQueued (0.03s)
+    --- FAIL: TestQueueDropWritesOutsideDispatchLock/CancelRun (0.03s)
+    --- FAIL: TestQueueDropWritesOutsideDispatchLock/ClearQueue (0.03s)
+--- FAIL: TestRecordedPromptStaysOutOfEarlierTurn (5.03s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	5.104s
+FAIL

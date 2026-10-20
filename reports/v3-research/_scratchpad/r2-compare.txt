@@ -1,0 +1,19 @@
+base names: 4684 after names: 4693
+LOST: 3
+  - github.com/charmbracelet/crush/internal/ui/model TestRestoreModelFromSessionWhileBusyStillRestores pass
+  - github.com/charmbracelet/crush/internal/ui/model TestRestoreModelLatestRequestWins pass
+  - github.com/charmbracelet/crush/internal/ui/model TestRestoreModelQuickBackAndForthEndsOnLastSession pass
+NEW: 12
+  + github.com/charmbracelet/crush/internal/app TestSessionModelNote pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-C pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s_--reasoning-effort pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m pass
+  + github.com/charmbracelet/crush/internal/cmd TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel/other_model pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel/other_provider pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session pass
+  + github.com/charmbracelet/crush/internal/ui/model TestOpeningSessionKeepsTheWorkspaceModel/same_model pass
+CHANGED: 0

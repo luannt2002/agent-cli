@@ -1,0 +1,42 @@
+HEAD 474a51f5
+build rc=0
+agent-cli version v0.2.1-0.20261019174027-474a51f5d77a
+suite rc=0
+suite-compare rc=0
+race rc=0
+data-race-warnings=0
+e2e-run-json rc=0
+e2e-loop rc=0
+e2e-routine rc=0
+e2e-tmux rc=0
+e2e-wrapper rc=0
+gate-faults rc=0
+gate-qwen-only rc=0
+gate-workspaces rc=0
+gate-session-model rc=0
+gate-ledger rc=0
+exposure-unit rc=1
+exposure-bin rc=0
+T1M: EXPOSED — harm: second prompt sent 1.6s after the long turn started (long turn lasts 8s) -> RAN CONCURRENTLY; ps rows for S (path,busy)=[('repo', True), ('repo/sub', False)]; workspaces=['repo', 'repo/sub']; control: second prompt sent 8.0s after the long turn started (long turn lasts 8s) -> queued; ps rows for S (path,busy)=[('repo', True)]; workspaces=['repo']; crush.db under repo=['repo/.crush/crush.db']
+T2: NOT_EXPOSED — a|OK|server_cwd=a/w/s/A; workspaces: path='/home/luannt/.cache/v3ev/vf-r2-exp/T2/a/w/s/repo'(-> a/w/s/repo) data_dir='/home/luannt/.cache/v3ev/vf-r2-exp/T2/a/w/s/repo/.crush'(-> a/w/s/repo/.crush); session db=w/s/repo/.crush/crush.db (want w/s/repo/.crush/crush.db) b1|OK|server_cwd=b1/w/s/repo/internal; workspaces: path='/home/luannt/.cache/v3ev/vf-r2-exp/T2/b1/w/s/repo'(-> b1/w/s/repo) data_dir='/home/luannt/.cache/v3ev/vf-r2-exp/T2/b1/w/s/repo/.crush'(-> b1/w/s/repo/.crush); session db=w/s/repo/.crush/crush.db (want w/s/repo/.crush/crush.db) b2|OK|server_cwd=b2/w/s/repo/internal; workspaces: path='/home/luannt/.cache/v3ev/vf-r2-exp/T2/b2/w/s/repo'(-> b2/w/s/repo) data_dir='/home/luannt/.cache/v3ev/vf-r2-exp/T2/b2/w/s/repo/.crush'(-> b2/w/s/repo/.crush); session db=w/s/repo/.crush/crush.db (want w/s/repo/.crush/crush.db) c|OK|server_cwd=c/w/s/repo; workspaces: path='/home/luannt/.cache/v3ev/vf-r2-exp/T2/c/w/s/repo'(-> c/w/s/repo) data_dir='/home/luannt/.cache/v3ev/vf-r2-exp/T2/c/w/s/repo/.crush'(-> c/w/s/repo/.crush); session db=w/s/repo/.crush/crush.db (want w/s/repo/.crush/crush.db) ctl|OK|server_cwd=ctl/w/s/A; workspaces: path='/home/luannt/.cache/v3ev/vf-r2-exp/T2/ctl/w/s/repo'(-> ctl/w/s/repo) data_dir='/home/luannt/.cache/v3ev/vf-r2-exp/T2/ctl/w/s/repo/.crush'(-> ctl/w/s/repo/.crush); session db=w/s/repo/.crush/crush.db (want w/s/repo/.crush/crush.db) 
+T3: EXPOSED — local|EXPOSED|order1 sub-first db=sub/.crush/crush.db root db=.crush/crush.db sub-again db=sub/.crush/crush.db | order2 (control) root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=2 repo2=1 | repo1 root sees 1/3, repo1/sub sees 2/3 server|EXPOSED|order1 sub-first db=sub/.crush/crush.db root db=.crush/crush.db sub-again db=sub/.crush/crush.db | order2 (control) root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=2 repo2=1 | repo1 root sees 1/3, repo1/sub sees 2/3 
+T4: NOT_EXPOSED — control: busy rows=['repo-agents/t4control'] | rm --force rc=3, worktree still exists=yes, rm stderr='4/repo-agents/t4control\nagent-cli-tmux: worktree còn session BUSY/WAITING (agent-cli ps), không xoá: /home/luannt/.cache/v3ev/vf-r2-exp/T4/repo-agents/t4control' | busy run rc=0 out='{"session_id":"a49de625-8d79-464f-b831-56aa2e234719","text":"busy done","prompt_tokens":12019,"completion_tokens":7,"cost":0,"provider":"qwen","model":"m-qwen"}' sub: busy rows=['repo-agents/t4sub/sub'] | rm --force rc=3, worktree still exists=yes, rm stderr='r2-exp/T4/repo-agents/t4sub\nagent-cli-tmux: worktree còn session BUSY/WAITING (agent-cli ps), không xoá: /home/luannt/.cache/v3ev/vf-r2-exp/T4/repo-agents/t4sub' | busy run rc=0 out='{"session_id":"3cb6af13-9bcc-4fa0-9534-2ba239547167","text":"busy done","prompt_tokens":11980,"completion_tokens":7,"cost":0,"provider":"qwen","model":"m-qwen"}' 
+T5: NOT_EXPOSED — with MCP: main=2 (mcp-instructions in 2, sys ['sys-49cb1dc15c88.txt']) subagent=1 (mcp-instructions in 0, sys ['sys-6bee14a1470f.txt'], bytes [961], mcp tools []) | control without MCP: main=2 (mcp-instructions in 0, sys ['sys-ce6a754efc6c.txt']) subagent=1 (mcp-instructions in 0, sys ['sys-ef2a8ac43ef4.txt'], bytes [964], mcp tools [])
+T6: EXPOSED — FINDINGS: agentic_fetch gets the todo reminder without `todos`; main names `find_references` (no such tool); green row: subagent (sys-05e83c16d9cc.txt): absent tools named in system prompt=[] | todo-reminder-without-todos=False; set-plan HTTP 307
+T9: NOT_EXPOSED — bash 5 MiB (control): next request +30448 bytes, crush.db* +65536 bytes | MCP 5 MiB: next request +31302 bytes, crush.db* +32768 bytes, stored tool_result chars=[30625] | spill files=2
+T11: NOT_EXPOSED — trials=8 killed at once: rc0+in_db=8, rc0+missing=0, other=0; control (kill after 2 s) in_db=yes (T11/trials.txt)
+T13: NOT_EXPOSED — queued B: send B rc=0 | messages=['user:text=T13-A long turn,finish=stop', 'assistant:finish=canceled', 'user:text=T13-B queued prompt,finish=stop', 'assistant:finish=canceled'] | 'T13-B' bytes in crush.db*=True | B reached LLM=False | control (A instant, B not queued) -> NOT_EXPOSED: send B rc=0 | messages=['user:text=T13-A long turn,finish=stop', 'assistant:text=A done,finish=end_turn', 'user:text=T13-B queued prompt,finish=stop', 'assistant:text=B done,finish=end_turn'] | 'T13-B' bytes in crush.db*=True | B reached LLM=True
+T17: NOT_EXPOSED — run -s X: X1->['pp'] Y1->['qq'] X2->['qq'] Y2->['qq'] N1->['qq'] | <data>/crush.json before: <absent> | after: models={} | control send -s X -> NOT_EXPOSED: X1->['pp'] Y1->['qq'] X2->['qq'] Y2->['qq'] N1->['qq'] | <data>/crush.json before: <absent> | after: models={}
+T19: NOT_EXPOSED — MCP tool_result (name, is_error, content)=[('mcp_v3stub_stub_fail', True, 'V3-MCP-FAIL boom')] | control view tool_result=[('view', True, 'File not found: /home/luannt/.cache/v3ev/vf-r2-exp/T19/proj/')]
+T20: NOT_EXPOSED — concurrent trials=10, failed=0 | warm server (own stderr), 10 concurrent run per trial: trials=10, failed=0 | control sequential: rc0=10/10 server starts=1 panic=''
+T21: MEASURED — server: files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0) (run rc=0) | server -d: files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0) (run rc=0) | local -d: files_holding_canary=4 (crush.db*=1 shell-output=1 logs=1 journal=1 other=0) (run rc=0) | T21c pre-existing .crush 0755: umask(test shell)=0002 proj/.crush 755 proj/.crush/crush.db 644  (per-file lists: T21*/summary.txt; loop runs in local mode)
+T21b: EXPOSED — `env` run by the model, started inside repo: .env canary present=True | control (started outside, -c repo): present=False | documented: README.md:79-80 (by design per README; the -c path differs from cd)
+T23: NOT_EXPOSED — busy delete rc=0 ({"id":"41956b0e41ea94b7","uuid":"0ef5256c-8bba-425e-b78c-719ffb2069f0","title":") -> session row=0, messages left=[] | control idle delete rc=0 -> row=0, messages left=[] | orphan messages in DB=0
+C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist qwen-only: second client -> ['none'] err='failed to create workspace: status code 500: trust policy differs from the running agent-c', control alone -> ['none'] err='failed to create workspace: status code 500: failed to create app workspace: failed to ini' | holders: ['c1'] ['pp']
+--- FAIL: TestV3Exposure_T1_IdentityResolversAgree (0.22s)
+--- PASS: TestV3Exposure_T12_SummaryNotPromotedToUser (0.04s)
+--- PASS: TestV3Exposure_T15_LedgerFailureIsVisible (0.06s)
+--- FAIL: TestV3Exposure_C9_ToolsOutsideWorkingDir (0.00s)
+--- PASS: TestV3Exposure_C9_PermissionInsideWorkingDir (0.00s)
+--- FAIL: TestV3Exposure_C9_ShellLeavesWorkspace (0.00s)
+DONE

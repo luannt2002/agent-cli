@@ -1,0 +1,1 @@
+{"case": "race", "exit": 0, "seconds": 579.21, "command": ["go", "test", "-race", "-p", "2", "-count=1", "./internal/backend/...", "./internal/agent/...", "./internal/cmd/...", "./internal/ui/...", "./internal/workspace/...", "./internal/projects/...", "./internal/permission/...", "./internal/server/..."], "state": "finished"}

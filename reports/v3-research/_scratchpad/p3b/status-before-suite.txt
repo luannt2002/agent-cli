@@ -1,0 +1,18 @@
+ M internal/agent/agent.go
+ M internal/agent/llm_ledger.go
+ M internal/agent/llm_ledger_test.go
+ M internal/agent/notify/notify.go
+ M internal/cmd/loop.go
+ M internal/cmd/run.go
+ M internal/cmd/run_interrupt_test.go
+ M internal/cmd/run_json_test.go
+ M internal/cmd/run_stream_test.go
+ M internal/proto/proto.go
+ M internal/server/events.go
+ M internal/workspace/client_workspace.go
+?? internal/agent/agent_v3exposure_test.go
+?? internal/agent/tools/outside_v3exposure_test.go
+?? internal/backend/identity_v3exposure_test.go
+?? internal/permission/inside_v3exposure_test.go
+?? internal/shell/leaves_v3exposure_test.go
+?? scripts/eval/exposure.sh

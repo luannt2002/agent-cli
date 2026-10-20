@@ -1,0 +1,8 @@
+--- FAIL: TestInputsHermeticInTests (0.00s)
+    policy_test.go:292: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/execpolicy/policy_test.go:292
+        	Error:      	[]string{"TAMPERED=1", "AGENT_CLI_DELEGATION=", "AGENT_CLI_UNATTENDED=", "AGENT_CLI_UNATTENDED_COMMIT=", "AGENT_CLI_ENV_FILE=", "AGENT_CLI_LLM_LEDGER=", "HOME=", "AGENT_CLI_CLAUDE_BIN=", "AGENT_CLI_CODEX_BIN=", "AGENT_CLI_CLAUDE_PERMISSION_MODE=", "AGENT_CLI_CODEX_SANDBOX="} should not contain "TAMPERED=1"
+        	Test:       	TestInputsHermeticInTests
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/execpolicy	0.004s
+FAIL

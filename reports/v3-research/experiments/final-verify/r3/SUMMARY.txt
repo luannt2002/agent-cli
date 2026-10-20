@@ -1,0 +1,18 @@
+HEAD 300c8dd1
+build rc=0
+agent-cli version v0.2.1-0.20261020030742-300c8dd141db
+suite rc=0
+suite-compare rc=0
+race rc=0
+data-race-warnings=0
+e2e-run-json rc=0
+e2e-loop rc=0
+e2e-routine rc=0
+e2e-tmux rc=0
+e2e-wrapper rc=0
+gate-faults rc=0
+gate-qwen-only rc=0
+gate-workspaces rc=0
+gate-session-model rc=0
+gate-ledger rc=0
+exposure-unit rc=1

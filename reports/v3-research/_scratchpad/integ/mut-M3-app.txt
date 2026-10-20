@@ -1,0 +1,60 @@
+--- FAIL: TestSessionModelNote (0.00s)
+    --- FAIL: TestSessionModelNote/only_a_pending_prompt (0.04s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: ""
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/only_a_pending_prompt
+    --- FAIL: TestSessionModelNote/other_model,_prompt_canceled_after (0.05s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: "last ran on pp/m-pp; continuing on the project model qq/m-qq"
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-last ran on pp/m-pp; continuing on the project model qq/m-qq
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/other_model,_prompt_canceled_after
+    --- FAIL: TestSessionModelNote/same_model,_prompt_pending_after (0.03s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: ""
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/same_model,_prompt_pending_after
+    --- FAIL: TestSessionModelNote/other_model,_prompt_pending_after (0.03s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: "last ran on pp/m-pp; continuing on the project model qq/m-qq"
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-last ran on pp/m-pp; continuing on the project model qq/m-qq
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/other_model,_prompt_pending_after
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/app	0.130s
+FAIL

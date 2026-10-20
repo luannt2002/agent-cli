@@ -1,0 +1,10 @@
+{"case": "build", "exit": 0, "seconds": 33.23, "command": ["go", "build", "-p", "2", "-o", "/home/luannt/.cache/agent-cli-takeover-20261019/agent-cli", "."], "state": "finished"}
+{"case": "run-json", "exit": 0, "seconds": 75.77, "command": ["bash", "scripts/test-agent-cli-run-json.sh"], "state": "finished"}
+{"case": "loop", "exit": 0, "seconds": 24.65, "command": ["bash", "scripts/test-agent-cli-loop.sh"], "state": "finished"}
+{"case": "routine", "exit": 0, "seconds": 30.56, "command": ["bash", "scripts/test-agent-cli-routine.sh"], "state": "finished"}
+{"case": "faults", "exit": 0, "seconds": 172.78, "command": ["bash", "scripts/eval/faults.sh", "/home/luannt/.cache/agent-cli-takeover-20261019/faults-data", "/home/luannt/.cache/agent-cli-takeover-20261019/agent-cli"], "state": "finished"}
+{"case": "qwen-only", "exit": 0, "seconds": 2.9, "command": ["bash", "scripts/eval/qwen-only.sh", "/home/luannt/.cache/agent-cli-takeover-20261019/qwen-only-data", "/home/luannt/.cache/agent-cli-takeover-20261019/agent-cli"], "state": "finished"}
+{"case": "workspaces", "exit": 0, "seconds": 3.39, "command": ["bash", "scripts/eval/workspaces.sh", "/home/luannt/.cache/agent-cli-takeover-20261019/workspaces-data", "/home/luannt/.cache/agent-cli-takeover-20261019/agent-cli"], "state": "finished"}
+{"case": "suite", "exit": 0, "seconds": 323.23, "command": ["go", "test", "-p", "2", "./...", "-count=1", "-json"], "state": "finished"}
+{"case": "vet", "exit": 1, "seconds": 2.57, "command": ["go", "vet", "-p", "2", "./..."], "state": "finished"}
+{"case": "race", "exit": 0, "seconds": 579.21, "command": ["go", "test", "-race", "-p", "2", "-count=1", "./internal/backend/...", "./internal/agent/...", "./internal/cmd/...", "./internal/ui/...", "./internal/workspace/...", "./internal/projects/...", "./internal/permission/...", "./internal/server/..."], "state": "finished"}

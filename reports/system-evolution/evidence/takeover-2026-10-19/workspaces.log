@@ -1,0 +1,14 @@
+ok   all seven runs returned a session id
+ok   E-A1: model saw its own context file and not the other project's
+ok   E-B1: model saw its own context file and not the other project's
+ok   E-A2: model saw its own context file and not the other project's
+ok   E-B2: model saw its own context file and not the other project's
+ok   E-A2 resumed A1 (history has 3 user/assistant turns)
+ok   A2 kept A1's session id, B2 kept B1's (A -> B -> A -> B)
+ok   E-B2 request carries B1 history and nothing from A
+ok   X2 kept X1's session id, Y1 is a different session
+ok   F-X2 request carries X1 history but not Y1's
+ok   E-A2 request carries A1 history and nothing from B
+ok   session list of A has A1, X1, Y1 and not B1
+ok   session list of B has only B1
+WORKSPACES: PASS

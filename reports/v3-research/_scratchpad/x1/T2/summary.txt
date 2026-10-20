@@ -1,0 +1,1 @@
+workspaces(path|data_dir)=..|../../.crush session_db=.crush/crush.db dbs=w/.crush/crush.db w/s/A/.crush/crush.db 

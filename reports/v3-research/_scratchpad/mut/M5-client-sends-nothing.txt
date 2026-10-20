@@ -1,0 +1,49 @@
+2026/10/19 18:26:34 INFO Re-registered workspace after server-side loss old_id=ws-1 new_id=ws-2
+2026/10/19 18:26:34 WARN Workspace event stream closed; reconnecting retry_in=1ms
+2026/10/19 18:26:34 WARN Workspace event stream closed; reconnecting retry_in=1ms
+2026/10/19 18:26:34 WARN Workspace event stream closed; reconnecting retry_in=1ms
+--- FAIL: TestClientWorkspace_ConfigChangedRefreshesSiblingCache (0.00s)
+    multiclient_integration_test.go:82: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:82
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestClientWorkspace_ConfigChangedRefreshesSiblingCache
+--- FAIL: TestClientWorkspace_ConfigChangedSignalArrives (0.00s)
+    multiclient_integration_test.go:159: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:159
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestClientWorkspace_ConfigChangedSignalArrives
+--- FAIL: TestServer_ConcurrentSessionsSameDirShareOneWorkspace (0.00s)
+    multiclient_integration_test.go:206: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:206
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestServer_ConcurrentSessionsSameDirShareOneWorkspace
+--- FAIL: TestServer_ConcurrentSessionsDifferentDirsAreIndependent (0.00s)
+    multiclient_integration_test.go:231: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:231
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestServer_ConcurrentSessionsDifferentDirsAreIndependent
+--- FAIL: TestServer_RefusesShutdownWhileWorkspaceLive (0.00s)
+    multiclient_integration_test.go:257: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:257
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestServer_RefusesShutdownWhileWorkspaceLive
+--- FAIL: TestServer_DetachGraceSurvivesStreamBlip (0.00s)
+    multiclient_integration_test.go:281: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:281
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestServer_DetachGraceSurvivesStreamBlip
+--- FAIL: TestClientWorkspace_RecoversAfterServerSideTeardown (0.00s)
+    multiclient_integration_test.go:324: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/workspace/multiclient_integration_test.go:324
+        	Error:      	Received unexpected error:
+        	            	failed to create workspace: status code 500: trust policy differs from the running agent-cli server: trust policy not sent (older agent-cli client); a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+        	Test:       	TestClientWorkspace_RecoversAfterServerSideTeardown
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/workspace	0.080s
+FAIL

@@ -1,0 +1,7 @@
+pane: This session last ran on pp/m-pp; continuing on the project model qq/m-qq (alt+m to change)
+PASS TUI -s X shows the model note in the status bar
+after open: data-models=<absent>
+PASS TUI -s X writes no model to <data>/crush.json
+after alt+m: data-models={"large": {"max_tokens": 1000, "model": "m-qq", "provider": "qq"}}
+PASS alt+m picking m-qq writes models.large=qq (explicit choice)
+fails=0

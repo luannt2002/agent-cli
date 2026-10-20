@@ -1,0 +1,3 @@
+T11: NOT_EXPOSED — trials=8 killed at once: rc0+in_db=8, rc0+missing=0, other=0; control (kill after 2 s) in_db=yes (T11/trials.txt)
+T13: NOT_EXPOSED — queued B: send B rc=0 | messages=['user:text=T13-A long turn,finish=stop', 'assistant:finish=canceled', 'user:text=T13-B queued prompt,finish=stop', 'assistant:finish=canceled'] | 'T13-B' bytes in crush.db*=True | B reached LLM=False | control (A instant, B not queued) -> NOT_EXPOSED: send B rc=0 | messages=['user:text=T13-A long turn,finish=stop', 'assistant:text=A done,finish=end_turn', 'user:text=T13-B queued prompt,finish=stop', 'assistant:text=B done,finish=end_turn'] | 'T13-B' bytes in crush.db*=True | B reached LLM=True
+EXPOSURE: ran 2 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p1a-r3-exp1/verdicts.txt

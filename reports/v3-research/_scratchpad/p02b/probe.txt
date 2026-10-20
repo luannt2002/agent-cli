@@ -1,0 +1,7 @@
+=== RUN   TestProbeRoutineVerifyUnattended
+    zz_unattended_probe_test.go:40: PROC AGENT_CLI_UNATTENDED=1
+    zz_unattended_probe_test.go:40: VERIFY AGENT_CLI_UNATTENDED=unset AGENT_CLI_UNATTENDED_COMMIT=unset
+--- PASS: TestProbeRoutineVerifyUnattended (0.05s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/cmd	0.112s
+rc=0

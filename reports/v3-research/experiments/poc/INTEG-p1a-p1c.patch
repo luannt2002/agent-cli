@@ -1,0 +1,328 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 7420ba0b..7966e76b 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -522,18 +522,24 @@ func (app *App) UpdateAgentModel(ctx context.Context) error {
+ 	return app.AgentCoordinator.UpdateModels(ctx)
+ }
+ 
+-// sessionModelNote đọc tin assistant cuối của session và trả SessionModelNote
+-// so với model lớn của workspace (model lượt này chạy).
++// sessionModelNote đọc lời trả lời thật cuối của session và trả
++// SessionModelNote so với model lớn của workspace (model lượt này chạy). Đọc
++// cả danh sách tin vì GetLastAssistantMessage trả cả tin giữ chỗ của prompt
++// chưa chạy (DB do server ghi, chế độ local đọc lại), mà tin đó không phải
++// lời trả lời.
+ func (app *App) sessionModelNote(ctx context.Context, sessionID string) string {
+-	lastMsg, err := app.Messages.GetLastAssistantMessage(ctx, sessionID)
++	msgs, err := app.Messages.List(ctx, sessionID)
+ 	if err != nil {
+-		if !errors.Is(err, sql.ErrNoRows) {
+-			slog.Warn("Failed to read the session's last model", "error", err)
+-		}
++		slog.Warn("Failed to read the session's last model", "error", err)
+ 		return ""
+ 	}
+-	last := config.SelectedModel{Provider: lastMsg.Provider, Model: lastMsg.Model}
+-	return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
++	for i := len(msgs) - 1; i >= 0; i-- {
++		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && !message.IsPromptPlaceholder(m) {
++			last := config.SelectedModel{Provider: m.Provider, Model: m.Model}
++			return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
++		}
++	}
++	return ""
+ }
+ 
+ // SessionModelNote nói session từng chạy model last, khác model current của
+diff --git a/internal/app/session_model_test.go b/internal/app/session_model_test.go
+index fb8eab6a..e0c4286e 100644
+--- a/internal/app/session_model_test.go
++++ b/internal/app/session_model_test.go
+@@ -1,40 +1,80 @@
+ package app
+ 
+ import (
+-	"context"
+ 	"testing"
+ 
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/db"
+ 	"github.com/charmbracelet/crush/internal/message"
++	"github.com/charmbracelet/crush/internal/session"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+-// lastAssistantMessages là message.Service giả chỉ trả tin assistant cuối.
+-type lastAssistantMessages struct {
+-	message.Service
+-	last message.Message
+-}
+-
+-func (m lastAssistantMessages) GetLastAssistantMessage(context.Context, string) (message.Message, error) {
+-	return m.last, nil
++// sessionModelApp ghi msgs vào một session mới trên DB thật, tin sau muộn hơn
++// tin trước một giây (created_at tính bằng giây), và trả App có model lớn của
++// workspace là qq/m-qq cùng ID session đó.
++func sessionModelApp(t *testing.T, msgs ...message.CreateMessageParams) (*App, string) {
++	t.Helper()
++	conn, err := db.Connect(t.Context(), t.TempDir())
++	require.NoError(t, err)
++	t.Cleanup(func() { _ = conn.Close() })
++	q := db.New(conn)
++	sess, err := session.NewService(q, conn).Create(t.Context(), "test")
++	require.NoError(t, err)
++	svc := message.NewService(q)
++	for i, p := range msgs {
++		m, err := svc.Create(t.Context(), sess.ID, p)
++		require.NoError(t, err)
++		_, err = conn.ExecContext(t.Context(), `UPDATE messages SET created_at = ? WHERE id = ?`, 1000+i, m.ID)
++		require.NoError(t, err)
++	}
++	app := &App{
++		config: config.NewTestStore(&config.Config{
++			Models: map[config.SelectedModelType]config.SelectedModel{
++				config.SelectedModelTypeLarge: {Provider: "qq", Model: "m-qq"},
++			},
++		}),
++		Messages: svc,
++	}
++	return app, sess.ID
+ }
+ 
+ // Dòng báo của `run -s/-C` local: nêu model lượt cuối của session và model của
+-// workspace mà lượt này chạy; im khi trùng hoặc session chưa có trả lời. Việc
+-// lượt local thật sự chạy model của workspace (không đổi trong RAM) do
++// workspace mà lượt này chạy; im khi trùng hoặc session chưa có trả lời. Tin
++// giữ chỗ của prompt chưa chạy (DB do server ghi, local đọc lại) không phải
++// lời trả lời: dòng báo dựa vào lời trả lời thật trước nó. Việc lượt local thật
++// sự chạy model của workspace (không đổi trong RAM) do
+ // scripts/eval/session-model.sh kiểm trên binary thật.
+ func TestSessionModelNote(t *testing.T) {
+ 	t.Parallel()
+ 
+-	qq := config.SelectedModel{Provider: "qq", Model: "m-qq"}
+-	app := &App{
+-		config: config.NewTestStore(&config.Config{
+-			Models: map[config.SelectedModelType]config.SelectedModel{config.SelectedModelTypeLarge: qq},
+-		}),
+-		Messages: lastAssistantMessages{last: message.Message{Role: message.Assistant, Provider: "pp", Model: "m-pp"}},
++	const want = "last ran on pp/m-pp; continuing on the project model qq/m-qq"
++	reply := func(provider, model string) message.CreateMessageParams {
++		return message.CreateMessageParams{Role: message.Assistant, Provider: provider, Model: model}
+ 	}
++	user := message.CreateMessageParams{ID: "u2", Role: message.User}
++	pending := message.CreateMessageParams{Role: message.Assistant, Provider: message.PendingReplyProvider, Model: "u2"}
++	closed := pending
++	closed.Parts = []message.ContentPart{message.Finish{Reason: message.FinishReasonCanceled, Message: "User canceled request"}}
+ 
+-	require.Equal(t, "last ran on pp/m-pp; continuing on the project model qq/m-qq", app.sessionModelNote(t.Context(), "x"))
++	for name, tc := range map[string]struct {
++		msgs []message.CreateMessageParams
++		want string
++	}{
++		"other model":                        {msgs: []message.CreateMessageParams{reply("pp", "m-pp")}, want: want},
++		"other model, prompt pending after":  {msgs: []message.CreateMessageParams{reply("pp", "m-pp"), user, pending}, want: want},
++		"other model, prompt canceled after": {msgs: []message.CreateMessageParams{reply("pp", "m-pp"), user, closed}, want: want},
++		"same model, prompt pending after":   {msgs: []message.CreateMessageParams{reply("qq", "m-qq"), user, pending}},
++		"only a pending prompt":              {msgs: []message.CreateMessageParams{user, pending}},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			app, sessionID := sessionModelApp(t, tc.msgs...)
++			require.Equal(t, tc.want, app.sessionModelNote(t.Context(), sessionID))
++		})
++	}
++
++	qq := config.SelectedModel{Provider: "qq", Model: "m-qq"}
+ 	require.Empty(t, SessionModelNote(qq, qq), "same model: nothing to say")
+ 	require.Empty(t, SessionModelNote(config.SelectedModel{}, qq), "no assistant reply yet")
+ }
+diff --git a/internal/cmd/run.go b/internal/cmd/run.go
+index ed0b4127..f90e4c39 100644
+--- a/internal/cmd/run.go
++++ b/internal/cmd/run.go
+@@ -969,23 +969,19 @@ func overrideModels(
+ 	return c.UpdateAgent(ctx, ws.ID)
+ }
+ 
+-// noteSessionModel in một dòng ra stderr khi tin assistant cuối của session
+-// chạy model khác model lớn của workspace (model lượt này chạy).
++// noteSessionModel in một dòng ra stderr khi lời trả lời thật cuối của session
++// (lastReplyModel: không tính tin giữ chỗ) chạy model khác model lớn của
++// workspace (model lượt này chạy).
+ func noteSessionModel(ctx context.Context, c *client.Client, ws *proto.Workspace, sessionID string) {
+ 	msgs, err := c.ListMessages(ctx, ws.ID, sessionID)
+ 	if err != nil {
+ 		slog.Warn("Failed to read the session's last model", "error", err)
+ 		return
+ 	}
+-	for i := len(msgs) - 1; i >= 0; i-- {
+-		if msgs[i].Role != proto.Assistant || msgs[i].IsSummaryMessage {
+-			continue
+-		}
+-		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}
+-		if note := app.SessionModelNote(last, ws.Config.Models[config.SelectedModelTypeLarge]); note != "" {
+-			fmt.Fprintf(runStderr, "session %s %s (pick another with -m)\n", sessionID, note)
+-		}
+-		return
++	var last config.SelectedModel
++	last.Provider, last.Model = lastReplyModel(protoReplies(msgs))
++	if note := app.SessionModelNote(last, ws.Config.Models[config.SelectedModelTypeLarge]); note != "" {
++		fmt.Fprintf(runStderr, "session %s %s (pick another with -m)\n", sessionID, note)
+ 	}
+ }
+ 
+diff --git a/internal/cmd/run_session_model_test.go b/internal/cmd/run_session_model_test.go
+index 0844aa2e..84660cee 100644
+--- a/internal/cmd/run_session_model_test.go
++++ b/internal/cmd/run_session_model_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/client"
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/csync"
++	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/charmbracelet/crush/internal/pubsub"
+ 	"github.com/stretchr/testify/require"
+@@ -28,6 +29,9 @@ type sessionModelRun struct {
+ 	largeModel string // `-m`.
+ 	effort     string // `--reasoning-effort`.
+ 	lastModel  string // Model lượt cuối của x (mặc định m-pp trên pp).
++
++	after   []proto.Message // Tin sau lời trả lời cuối (prompt khác đã ghi).
++	noReply bool            // x chưa có lời trả lời nào, chỉ có after.
+ }
+ 
+ // runOnSessionX chạy runNonInteractive trên server giả và trả các lần ghi
+@@ -49,6 +53,10 @@ func runOnSessionX(t *testing.T, o sessionModelRun) ([]config.SelectedModel, str
+ 	if o.lastModel != "" {
+ 		last.Provider, last.Model, _ = strings.Cut(o.lastModel, "/")
+ 	}
++	msgs := append([]proto.Message{last}, o.after...)
++	if o.noReply {
++		msgs = o.after
++	}
+ 
+ 	var (
+ 		mu     sync.Mutex
+@@ -81,7 +89,7 @@ func runOnSessionX(t *testing.T, o sessionModelRun) ([]config.SelectedModel, str
+ 		case p == "/sessions" && r.Method == http.MethodGet:
+ 			_ = json.NewEncoder(w).Encode([]proto.Session{{ID: "x"}})
+ 		case p == "/sessions/x/messages":
+-			_ = json.NewEncoder(w).Encode([]proto.Message{last})
++			_ = json.NewEncoder(w).Encode(msgs)
+ 		case p == "/events":
+ 			w.Header().Set("Content-Type", "text/event-stream")
+ 			w.WriteHeader(http.StatusOK)
+@@ -128,6 +136,11 @@ func TestContinuedRunKeepsTheWorkspaceModel(t *testing.T) {
+ 	// Not parallel: swaps runStderr.
+ 	const note = "pp/m-pp"
+ 	qqHigh := config.SelectedModel{Provider: "qq", Model: "m-qq", ReasoningEffort: "high"}
++	// Tin giữ chỗ của prompt u2 (đang chờ, hoặc đã đóng khi bị huỷ/lỗi) không
++	// phải lời trả lời: dòng báo dựa vào lời trả lời thật trước nó.
++	pending := []proto.Message{{ID: "u2", Role: proto.User}, {Role: proto.Assistant, Provider: message.PendingReplyProvider, Model: "u2"}}
++	closed := []proto.Message{pending[0], pending[1]}
++	closed[1].AddFinish(proto.FinishReasonCanceled, "User canceled request", "")
+ 	cases := map[string]struct {
+ 		run        sessionModelRun
+ 		wantWrites []config.SelectedModel
+@@ -138,17 +151,23 @@ func TestContinuedRunKeepsTheWorkspaceModel(t *testing.T) {
+ 		"run -s --reasoning-effort": {run: sessionModelRun{effort: "high"}, wantWrites: []config.SelectedModel{qqHigh}, wantNote: true},
+ 		"run -s -m":                 {run: sessionModelRun{largeModel: "pp/m-pp"}, wantWrites: []config.SelectedModel{{Provider: "pp", Model: "m-pp"}}},
+ 		"run -s same model":         {run: sessionModelRun{lastModel: "qq/m-qq"}},
++
++		"run -s, prompt pending after":            {run: sessionModelRun{after: pending}, wantNote: true},
++		"run -C, prompt canceled after":           {run: sessionModelRun{useLast: true, after: closed}, wantNote: true},
++		"run -s same model, prompt pending after": {run: sessionModelRun{lastModel: "qq/m-qq", after: pending}},
++		"run -s, only a pending prompt":           {run: sessionModelRun{noReply: true, after: pending}},
+ 	}
+ 	for name, tc := range cases {
+ 		t.Run(name, func(t *testing.T) {
+ 			writes, stderr := runOnSessionX(t, tc.run)
+ 			require.Equal(t, tc.wantWrites, writes, "model writes to the project config")
++			require.NotContains(t, stderr, message.PendingReplyProvider, "a placeholder is not a model")
+ 			if tc.wantNote {
+ 				require.Contains(t, stderr, note, "stderr names the session's last model")
+ 				require.Contains(t, stderr, "qq/m-qq", "stderr names the model this run uses")
+ 				require.Equal(t, 1, strings.Count(stderr, "\n"), "one line: %q", stderr)
+ 			} else {
+-				require.NotContains(t, stderr, note)
++				require.NotContains(t, stderr, "last ran on")
+ 			}
+ 		})
+ 	}
+diff --git a/internal/ui/model/model_restore.go b/internal/ui/model/model_restore.go
+index dabd34a3..8f0d8bcf 100644
+--- a/internal/ui/model/model_restore.go
++++ b/internal/ui/model/model_restore.go
+@@ -10,14 +10,15 @@ import (
+ 
+ // sessionModelNote báo trên thanh trạng thái khi tin assistant cuối của session
+ // vừa mở chạy model khác model lớn của workspace. Mở session không ghi gì: model
+-// thuộc workspace và chỉ đổi khi người dùng chọn (alt+m, alt+p).
++// thuộc workspace và chỉ đổi khi người dùng chọn (alt+m, alt+p). Tin giữ chỗ
++// của prompt chưa chạy không phải lời trả lời: lùi về lời trả lời trước nó.
+ func (m *UI) sessionModelNote(msgs []message.Message) tea.Cmd {
+ 	cfg := m.com.Config()
+ 	if cfg == nil {
+ 		return nil
+ 	}
+ 	for i := len(msgs) - 1; i >= 0; i-- {
+-		if msgs[i].Role != message.Assistant || msgs[i].IsSummaryMessage {
++		if msgs[i].Role != message.Assistant || msgs[i].IsSummaryMessage || message.IsPromptPlaceholder(msgs[i]) {
+ 			continue
+ 		}
+ 		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}
+diff --git a/internal/ui/model/model_restore_test.go b/internal/ui/model/model_restore_test.go
+index 3c058a33..fddd8b01 100644
+--- a/internal/ui/model/model_restore_test.go
++++ b/internal/ui/model/model_restore_test.go
+@@ -62,15 +62,28 @@ func modelWithID(id string) catwalk.Model { return catwalk.Model{ID: id} }
+ func TestOpeningSessionKeepsTheWorkspaceModel(t *testing.T) {
+ 	t.Parallel()
+ 
++	// Tin giữ chỗ của prompt u2 (đang chờ, hoặc đã đóng khi bị huỷ/lỗi) không
++	// phải lời trả lời: thông báo dựa vào lời trả lời thật trước nó.
++	pending := []message.Message{{ID: "u2", Role: message.User}, {Role: message.Assistant, Provider: message.PendingReplyProvider, Model: "u2"}}
++	closed := []message.Message{pending[0], pending[1]}
++	closed[1].AddFinish(message.FinishReasonCanceled, "User canceled request", "")
++
+ 	for name, tc := range map[string]struct {
+ 		session  string
+ 		last     message.Message
+ 		wantHint string // Rỗng: không có thông báo.
++
++		after []message.Message // Tin sau last.
+ 	}{
+ 		"other provider":          {session: "s2", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}, wantHint: "alt+p"},
+ 		"other model":             {session: "s2", last: lastAssistantFor("b")[0], wantHint: "alt+m"},
+ 		"same model":              {session: "s2", last: lastAssistantFor("a")[0]},
+ 		"reload of shown session": {session: "s1", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}},
++
++		"other model, prompt pending after":  {session: "s2", last: lastAssistantFor("b")[0], after: pending, wantHint: "alt+m"},
++		"other model, prompt canceled after": {session: "s2", last: lastAssistantFor("b")[0], after: closed, wantHint: "alt+m"},
++		"same model, prompt pending after":   {session: "s2", last: lastAssistantFor("a")[0], after: pending},
++		"only a pending prompt":              {session: "s2", last: pending[0], after: pending[1:]},
+ 	} {
+ 		t.Run(name, func(t *testing.T) {
+ 			t.Parallel()
+@@ -85,11 +98,15 @@ func TestOpeningSessionKeepsTheWorkspaceModel(t *testing.T) {
+ 			ws.cfg.Providers.Set("p", config.ProviderConfig{ID: "p", Models: []catwalk.Model{modelWithID("a"), modelWithID("b")}})
+ 			m.userThemeSelected = true
+ 
+-			_, next := m.Update(loadSessionMsg{session: &session.Session{ID: tc.session}, messages: []message.Message{tc.last}})
++			msgs := append([]message.Message{tc.last}, tc.after...)
++			_, next := m.Update(loadSessionMsg{session: &session.Session{ID: tc.session}, messages: msgs})
+ 			var notes []string
+ 			for _, msg := range leafMsgs(next) {
+-				if info, ok := msg.(util.InfoMsg); ok && strings.Contains(info.Msg, "last ran on") {
+-					notes = append(notes, info.Msg)
++				if info, ok := msg.(util.InfoMsg); ok {
++					require.NotContains(t, info.Msg, message.PendingReplyProvider, "a placeholder is not a model")
++					if strings.Contains(info.Msg, "last ran on") {
++						notes = append(notes, info.Msg)
++					}
+ 				}
+ 			}
+ 

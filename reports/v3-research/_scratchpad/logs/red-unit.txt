@@ -1,0 +1,91 @@
+2026/10/19 18:08:36 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:36 INFO Fetching Hyper provider
+2026/10/19 18:08:36 INFO Fetching providers from Catwalk
+2026/10/19 18:08:36 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy314674525/004/crush/hyper.json
+2026/10/19 18:08:37 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy314674525/004/crush/providers.json
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=4294603f-1585-4f07-9e41-ef9b974a9fd7 path=/tmp/TestCreateWorkspace_TrustPolicyMismatchyolo_differs3777092554/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchyolo_differs3777092554/006 requested_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchyolo_differs3777092554/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_TrustPolicyMismatch (1.66s)
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/allowlist_differs (0.03s)
+        trusted_policy_test.go:87: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:87
+            	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/allowlist_differs
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/delegation_differs (0.03s)
+        trusted_policy_test.go:87: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:87
+            	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/delegation_differs
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/other_trusted_var_differs (0.03s)
+        trusted_policy_test.go:87: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:87
+            	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/other_trusted_var_differs
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/yolo_differs (0.03s)
+        trusted_policy_test.go:87: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:87
+            	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/yolo_differs
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/older_client_sends_no_policy (0.03s)
+        trusted_policy_test.go:87: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:87
+            	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/older_client_sends_no_policy
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace (0.06s)
+    trusted_policy_test.go:114: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:114
+        	Error:      	Expected error with "trust policy differs from the running agent-cli server" in chain but got nil.
+        	Test:       	TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No providers configured
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 INFO Initializing MCP clients
+2026/10/19 18:08:37 WARN No agent configuration found
+2026/10/19 18:08:37 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=33bfe1b8-4bbc-4f9d-8439-a5c60f2f2b1e path=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1771093672/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1771093672/006 requested_data_dir=/tmp/TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO1771093672/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 18:08:37 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.04s)
+    trusted_policy_test.go:145: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:145
+        	Error:      	Target error should not be in err chain:
+        	            	found: "workspace shared with a client that asked for another --yolo"
+        	            	in chain: "workspace shared with a client that asked for another --yolo"
+        	Test:       	TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.812s
+FAIL

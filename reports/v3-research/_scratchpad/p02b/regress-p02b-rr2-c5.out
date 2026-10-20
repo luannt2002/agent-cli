@@ -1,0 +1,2 @@
+C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist qwen-only: second client -> ['none'] err='failed to create workspace: status code 500: trust policy differs from the running agent-c', control alone -> ['none'] err='failed to create workspace: status code 500: failed to create app workspace: failed to ini' | holders: ['c1'] ['pp']
+EXPOSURE: ran 1 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p02b-rr2-c5/verdicts.txt

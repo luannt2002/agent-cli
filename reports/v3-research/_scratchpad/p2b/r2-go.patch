@@ -1,0 +1,82 @@
+diff --git a/internal/cmd/root.go b/internal/cmd/root.go
+index 4d739fb5..d2eaa822 100644
+--- a/internal/cmd/root.go
++++ b/internal/cmd/root.go
+@@ -1238,11 +1238,20 @@ func resolveWorkspaceSessionID(ctx context.Context, ws workspace.Workspace, id s
+ func ResolveCwd(cmd *cobra.Command) (string, error) {
+ 	cwd, _ := cmd.Flags().GetString("cwd")
+ 	if cwd != "" {
+-		err := os.Chdir(cwd)
++		// Tuyệt đối theo cwd của lệnh, trước khi chdir: server ghép đường
++		// tương đối theo cwd CỦA NÓ, nên workspace và DB rơi sai chỗ.
++		abs, err := filepath.Abs(cwd)
++		if err != nil {
++			return "", fmt.Errorf("failed to resolve directory: %v", err)
++		}
++		err = os.Chdir(abs)
+ 		if err != nil {
+ 			return "", fmt.Errorf("failed to change directory: %v", err)
+ 		}
+-		return cwd, nil
++		// Ghi lại cờ: lệnh gọi hàm này hai lần (vd. `loop`) thì lần sau không
++		// ghép `..` thêm từ thư mục vừa chdir vào.
++		_ = cmd.Flags().Set("cwd", abs)
++		return abs, nil
+ 	}
+ 	cwd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/internal/config/load.go b/internal/config/load.go
+index 4837264b..8bb9e042 100644
+--- a/internal/config/load.go
++++ b/internal/config/load.go
+@@ -618,10 +618,15 @@ func (c *Config) setDefaults(workingDir, dataDir string) {
+ 		if path, ok := fsext.LookupClosestBounded(workingDir, projectBoundary(workingDir), defaultDataDirectory); ok {
+ 			c.Options.DataDirectory = path
+ 		} else {
+-			c.Options.DataDirectory = filepath.Join(workingDir, defaultDataDirectory)
++			c.Options.DataDirectory = defaultDataDirectory
+ 		}
+ 	}
++	// Ghép gốc đúng một lần ở đây. Tuyệt đối để lần nạp lại (đưa giá trị này
++	// vào làm dataDir) không ghép thêm khi workingDir là đường tương đối.
+ 	c.Options.DataDirectory = filepath.Clean(filepathext.SmartJoin(workingDir, c.Options.DataDirectory))
++	if abs, err := filepath.Abs(c.Options.DataDirectory); err == nil {
++		c.Options.DataDirectory = abs
++	}
+ 	if c.Providers == nil {
+ 		c.Providers = csync.NewMap[string, ProviderConfig]()
+ 	}
+diff --git a/internal/config/load_test.go b/internal/config/load_test.go
+index 53dfa54b..7f9b3c0e 100644
+--- a/internal/config/load_test.go
++++ b/internal/config/load_test.go
+@@ -353,6 +353,29 @@ func TestConfig_setDefaults(t *testing.T) {
+ 		require.Equal(t, absDir, cfg.Options.DataDirectory)
+ 	})
+ 
++	t.Run("relative working directory gets the data directory once", func(t *testing.T) {
++		// `logs -c foo` nạp config với gốc tương đối, không chdir. Data dir
++		// từng bị ghép gốc hai lần (foo/foo/.crush), và thêm lần nữa khi
++		// nạp lại vì workspace có .crush/crush.json.
++		root, err := filepath.EvalSymlinks(t.TempDir())
++		require.NoError(t, err)
++		require.NoError(t, os.Mkdir(filepath.Join(root, "foo"), 0o755))
++		t.Chdir(root)
++		want := filepath.Join(root, "foo", defaultDataDirectory)
++
++		cfg := &Config{}
++		cfg.setDefaults("foo", "")
++		got, err := filepath.Abs(cfg.Options.DataDirectory)
++		require.NoError(t, err)
++		require.Equal(t, want, got)
++
++		// Như nhánh nạp lại workspace config trong Load.
++		cfg.setDefaults("foo", cfg.Options.DataDirectory)
++		got, err = filepath.Abs(cfg.Options.DataDirectory)
++		require.NoError(t, err)
++		require.Equal(t, want, got)
++	})
++
+ 	t.Run("workspace merge re-entry keeps an absolute data directory", func(t *testing.T) {
+ 		// Simulate the load and reload paths: defaults are applied
+ 		// twice with the data directory potentially carried through

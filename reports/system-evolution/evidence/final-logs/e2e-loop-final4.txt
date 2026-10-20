@@ -1,0 +1,18 @@
+ok   local: verify xanh sau lượt đầu -> GREEN, rc=0, tệp được tạo (rc=0 GREEN 1)
+ok   local: journal có dòng stop GREEN (stop GREEN)
+ok   local: journal chỉ chủ đọc, quan sát 600
+ok   local: không tiến triển -> STALLED sau 2 lượt, rc=1 (rc=1 STALLED 2)
+ok   local: --max-repairs 0 -> MAX_REPAIRS sau đúng 1 lượt (rc=1 MAX_REPAIRS 1)
+ok   local: verify không chạy được -> UNMEASURED, 0 lượt agent (rc=1 UNMEASURED, lượt: 5 -> 5)
+ok   local: thiếu --verify -> rc=2, stdout rỗng (rc=2)
+ok   local: SIGTERM giữa lượt -> CANCELLED + JSON, rc=1 (rc=1 CANCELLED)
+ok   clientserver: verify xanh sau lượt đầu -> GREEN, rc=0, tệp được tạo (rc=0 GREEN 1)
+ok   clientserver: journal có dòng stop GREEN (stop GREEN)
+ok   clientserver: journal chỉ chủ đọc, quan sát 600
+ok   clientserver: không tiến triển -> STALLED sau 2 lượt, rc=1 (rc=1 STALLED 2)
+ok   clientserver: --max-repairs 0 -> MAX_REPAIRS sau đúng 1 lượt (rc=1 MAX_REPAIRS 1)
+ok   clientserver: verify không chạy được -> UNMEASURED, 0 lượt agent (rc=1 UNMEASURED, lượt: 11 -> 11)
+ok   clientserver: thiếu --verify -> rc=2, stdout rỗng (rc=2)
+ok   clientserver: SIGTERM giữa lượt -> CANCELLED + JSON, rc=1 (rc=1 CANCELLED)
+ok   không còn server process
+PASS

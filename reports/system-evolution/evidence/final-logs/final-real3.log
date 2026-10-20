@@ -1,0 +1,43 @@
+=== s1-simple-bug 23:04:06
+{"scenario": "s1-simple-bug", "passed": true, "false_done": false, "seconds": 22.9, "llm_calls": 7, "input_tokens": 128674, "output_tokens": 945, "tool_calls": 7}
+=== s2-multi-file-bug 23:04:30
+{"scenario": "s2-multi-file-bug", "passed": true, "false_done": false, "seconds": 56.4, "llm_calls": 7, "input_tokens": 158456, "output_tokens": 2311, "tool_calls": 10}
+=== s3-feature 23:05:27
+{"scenario": "s3-feature", "passed": true, "false_done": false, "seconds": 16.9, "llm_calls": 6, "input_tokens": 90078, "output_tokens": 902, "tool_calls": 6}
+=== s4-refactor 23:05:44
+{"scenario": "s4-refactor", "passed": true, "false_done": false, "seconds": 28.2, "llm_calls": 9, "input_tokens": 148896, "output_tokens": 1671, "tool_calls": 12}
+=== s5-debug-unknown 23:06:13
+{"scenario": "s5-debug-unknown", "passed": true, "false_done": false, "seconds": 60.4, "llm_calls": 9, "input_tokens": 178107, "output_tokens": 2109, "tool_calls": 9}
+=== s6-test-integrity 23:07:14
+{"scenario": "s6-test-integrity", "passed": true, "false_done": false, "seconds": 25.0, "llm_calls": 7, "input_tokens": 130085, "output_tokens": 1340, "tool_calls": 7}
+=== s7-review 23:07:39
+{"scenario": "s7-review", "passed": true, "false_done": false, "seconds": 38.0, "llm_calls": 5, "input_tokens": 73376, "output_tokens": 2348, "tool_calls": 6}
+=== s10-resume 23:08:18
+{"scenario": "s10-resume", "passed": true, "false_done": false, "seconds": 34.2, "llm_calls": 7, "input_tokens": 113127, "output_tokens": 1386, "tool_calls": 8}
+=== s12-multi-agent 23:08:53
+{"scenario": "s12-multi-agent", "passed": true, "false_done": false, "seconds": 43.0, "llm_calls": 12, "input_tokens": 88133, "output_tokens": 2787, "tool_calls": 5}
+=== s14-wrong-context 23:09:36
+{"scenario": "s14-wrong-context", "passed": true, "false_done": false, "seconds": 26.6, "llm_calls": 6, "input_tokens": 91837, "output_tokens": 977, "tool_calls": 7}
+=== s16-review-shared 23:10:03
+{"scenario": "s16-review-shared", "passed": true, "false_done": false, "seconds": 29.6, "llm_calls": 5, "input_tokens": 72720, "output_tokens": 1822, "tool_calls": 5}
+=== s17-single-agent 23:10:33
+{"scenario": "s17-single-agent", "passed": true, "false_done": false, "seconds": 12.1, "llm_calls": 4, "input_tokens": 53547, "output_tokens": 628, "tool_calls": 4}
+=== s13-provider-switch 23:10:45
+{"scenario": "s13-provider-switch", "passed": false, "false_done": false, "seconds": 128.9, "llm_calls": 5, "input_tokens": 52767, "output_tokens": 360, "tool_calls": 2}
+=== done 23:12:55
+| kịch bản | binary | đạt | false DONE | giây | lời gọi LLM | token in/out | tool call | vai trò |
+|---|---|---|---|---|---|---|---|---|
+| s13-provider-switch | agent-cli-final3 | ✗ | — | 128.9 | 5 | 52767/360 | 2 | main:4, title:1 |
+| s5-debug-unknown | agent-cli-final3 | ✓ | — | 60.4 | 9 | 178107/2109 | 9 | main:8, title:1 |
+| s4-refactor | agent-cli-final3 | ✓ | — | 28.2 | 9 | 148896/1671 | 12 | main:8, title:1 |
+| s3-feature | agent-cli-final3 | ✓ | — | 16.9 | 6 | 90078/902 | 6 | main:5, title:1 |
+| s6-test-integrity | agent-cli-final3 | ✓ | — | 25.0 | 7 | 130085/1340 | 7 | main:6, title:1 |
+| s1-simple-bug | agent-cli-final3 | ✓ | — | 22.9 | 7 | 128674/945 | 7 | main:6, title:1 |
+| s16-review-shared | agent-cli-final3 | ✓ | — | 29.6 | 5 | 72720/1822 | 5 | main:4, title:1 |
+| s10-resume | agent-cli-final3 | ✓ | — | 34.2 | 7 | 113127/1386 | 8 | main:6, title:1 |
+| s17-single-agent | agent-cli-final3 | ✓ | — | 12.1 | 4 | 53547/628 | 4 | main:3, title:1 |
+| s2-multi-file-bug | agent-cli-final3 | ✓ | — | 56.4 | 7 | 158456/2311 | 10 | main:6, title:1 |
+| s14-wrong-context | agent-cli-final3 | ✓ | — | 26.6 | 6 | 91837/977 | 7 | main:5, title:1 |
+| s7-review | agent-cli-final3 | ✓ | — | 38.0 | 5 | 73376/2348 | 6 | main:4, title:1 |
+| s12-multi-agent | agent-cli-final3 | ✓ | — | 43.0 | 12 | 88133/2787 | 5 | main:4, subagent:7, title:1 |
+run-suite exit=0

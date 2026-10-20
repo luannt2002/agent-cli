@@ -1,0 +1,21 @@
+2026/10/19 19:51:14 WARN Server version differs but it will not stand down; reusing it server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tty8q527b error="server busy: server shutdown failed: 409 Conflict"
+2026/10/19 19:51:14 INFO Stale server accepted shutdown, restarting server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tty8q527b
+2026/10/19 19:51:14 INFO Stale server accepted shutdown, restarting server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tty8q527b
+2026/10/19 19:51:14 WARN Server version differs but it will not stand down; reusing it server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tty8q527b error="server busy: server shutdown failed: 409 Conflict"
+--- FAIL: TestRestartIfStale_HonorsRefusedShutdown (0.00s)
+    restart_stale_test.go:145: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/restart_stale_test.go:145
+        	Error:      	Received unexpected error:
+        	            	this project's agent-cli server is another build and is busy: the server is not-devel (build stale-build), this agent-cli is devel (build dm8tty8q527b), and an agent run is never sent to a server of another build: exit every agent-cli client of this project, wait for its server to exit (about a minute later, see agent-cli ps), then reopen
+        	Test:       	TestRestartIfStale_HonorsRefusedShutdown
+2026/10/19 19:51:14 WARN Server version differs and has active workspaces; reusing it server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tty8q527b workspaces=3
+--- FAIL: TestRestartIfStale_LeavesLegacyServerBusy (0.00s)
+    restart_stale_test.go:167: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/restart_stale_test.go:167
+        	Error:      	Received unexpected error:
+        	            	this project's agent-cli server is another build and is busy: the server is not-devel (build stale-build), this agent-cli is devel (build dm8tty8q527b), and an agent run is never sent to a server of another build: exit every agent-cli client of this project, wait for its server to exit (about a minute later, see agent-cli ps), then reopen
+        	Test:       	TestRestartIfStale_LeavesLegacyServerBusy
+2026/10/19 19:51:14 WARN Server version differs and has active workspaces; reusing it server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tty8q527b workspaces=3
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.051s
+FAIL

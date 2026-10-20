@@ -1,0 +1,2590 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..032e8cc1 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -92,6 +92,19 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+ 
+ ### Sửa lỗi
+ 
++- **Prompt server đã báo nhận không còn mất im lặng** (chế độ client/server, tức qua launcher: `send` không `--wait`,
++  prompt xếp hàng sau lượt đang chạy, kể cả prompt gõ trong TUI). Trước đây server báo nhận trước khi ghi tin user, và
++  prompt xếp hàng chỉ nằm trong RAM: server bị SIGKILL ngay sau `send` (rc 0) thì 7/8 lần session không có prompt;
++  SIGTERM khi prompt còn xếp hàng thì prompt biến mất, không có bản ghi huỷ, chưa tới LLM (binary thật, LLM giả: ca
++  T11, T13 của bộ phơi nhiễm V3). Nay server ghi tin user cùng một lời trả lời giữ chỗ TRƯỚC khi báo nhận; lượt chạy
++  tiếp quản chúng (không ghi tin user lần hai, kể cả khi prompt được gộp vào lượt đang chạy). Prompt không chạy được
++  vẫn hiện trong session với đúng trạng thái: huỷ (Esc, Ctrl+C trên `run`, xoá hàng đợi, server tắt), lỗi thật (vd
++  provider thiếu key hay bị tắt), hoặc "Interrupted" khi server chết (ghi lúc mở lại session, cơ chế settle sẵn có).
++  Không tự chạy lại. Prompt chưa từng tới model không vào lịch sử gửi model của các lượt sau (như trước khi có bản
++  sửa, khi nó biến mất), và không lọt vào request hay bản tóm tắt của lượt khác. Prompt xếp hàng nay hiện trong
++  session ngay khi gửi, kèm lời trả lời đang chờ. Chế độ in-process (`CRUSH_CLIENT_SERVER=0`) không đổi. Lời trả lời
++  đang chờ được lưu với provider `agent-cli-pending`: thống kê theo model và thời gian phản hồi không tính nó, và
++  config báo lỗi nếu có provider tự đặt trùng ID này.
+ - **Lời gọi ẩn không còn sang provider khác.** Model nhỏ nằm ở provider khác model chính từng nhận lời gọi đặt tiêu đề
+   (kèm nguyên văn prompt đầu của bạn) và `agentic_fetch`, không cảnh báo: phiên chọn Qwen local vẫn gửi prompt sang
+   provider của model nhỏ. Bộ tiêm lỗi với provider giả: bản trước có lời gọi lọt ở cả 8/8 ca (kể cả khi provider
+diff --git a/README.md b/README.md
+index 08de100f..883337f1 100644
+--- a/README.md
++++ b/README.md
+@@ -193,7 +193,7 @@ MODEL NÓI XONG ≠ AGENT-CLI ĐÃ XONG.
+ | Lệnh | Thoát 0 | Thoát 1 | Khác |
+ |---|---|---|---|
+ | `run`, `send --wait` | lượt chạy hết, không lỗi runtime (không có nghĩa là đúng) | lỗi | 2: sai cú pháp |
+-| `send` (không `--wait`) | server đã nhận prompt (lượt có thể chưa chạy xong) | lỗi | 2: sai cú pháp |
++| `send` (không `--wait`) | server đã nhận và đã ghi prompt vào session (lượt có thể chưa chạy; không chạy được thì prompt hiện là huỷ, lỗi hoặc Interrupted) | lỗi | 2: sai cú pháp |
+ | `loop` | `GREEN` | mọi lý do dừng khác | 2: sai cú pháp |
+ | `routine run` | `GREEN`; `NO_CHANGE` của `maintenance` | lý do khác; `NO_CHANGE` của `goal` | 2: sai cú pháp, hoặc định nghĩa đã đổi so với lịch; 75: lượt khác đang giữ khoá |
+ 
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 7b9d5ab8..be3526f8 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -468,7 +468,12 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"
+   `run`; khi đó không có TUI nào để duyệt quyền, nên nhắm vào dự án đã mở.
+   `send` chỉ khởi tạo agent khi server chưa có; server đã sẵn sàng thì giữ nguyên (không thay
+   coordinator đang chạy của TUI).
+-- Không `--wait`: về ngay khi server nhận prompt; stdout là `session_id` (hoặc `{"session_id":"..."}`).
++- Không `--wait`: về ngay khi server đã nhận và ghi prompt vào session; stdout là `session_id` (hoặc
++  `{"session_id":"..."}`). Lượt đó không chạy được (server tắt hay chết, bị huỷ, hàng đợi bị xoá, lỗi trước khi
++  chạy như provider thiếu key) thì prompt vẫn còn trong session, hiện là huỷ, lỗi đó, hoặc "Interrupted" khi mở lại;
++  không tự chạy lại và không vào lịch sử gửi model của lượt sau. Prompt chưa chạy được lưu kèm một lời trả lời giữ
++  chỗ: `session show --json` hiện nó là tin `assistant` có `provider` `agent-cli-pending` và `model` là ID tin user
++  của prompt đó (không phải model nào).
+ - `--wait`: đợi đúng run của lần gửi này (khớp session và run ID, run khác trên cùng session bị
+   bỏ qua), rồi in text cuối. `--json` in cùng dạng với `run --json`: `session_id`, `text`,
+   `error`, `prompt_tokens`, `completion_tokens`, `cost`. Token là usage của bước cuối, không phải tổng; `cost` là
+@@ -917,8 +922,9 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n
+   `crush.md`) không được nạp trên Linux; plan mode và agent con không nhận context của dự án.
+ - **`run` không có trần thời gian cho cả lượt.** Mỗi request LLM chỉ có `request-timeout` (mặc định 2 phút không có
+   dữ liệu); script cần trần thì tự bọc `timeout`. `loop`/`routine` có `--run-timeout`.
+-- **Server bị SIGKILL (PRB-16).** Tiến trình job còn lại không được theo dõi nữa, prompt đang xếp hàng mất không dấu
+-  vết, TUI không tự dựng lại server.
++- **Server bị SIGKILL (PRB-16).** Tiến trình job còn lại không được theo dõi nữa, TUI không tự dựng lại server. Prompt
++  đang xếp hàng (chế độ client/server) không còn mất không dấu vết: nó vẫn ở trong session và hiện là "Interrupted"
++  khi mở lại; không tự chạy lại và không vào lịch sử gửi model.
+ - **Routine chạy mã cấu hình của repo (PRB-68).** `crushrc`, `$(...)` và hook của repo chạy ngoài lớp chặn không người
+   trực: chỉ chạy routine trên repo bạn tin. Worktree và nhánh của các lượt tích luỹ cho tới khi bạn dọn.
+ 
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 919e8383..9ca4f20a 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -46,6 +46,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/session"
+ 	"github.com/charmbracelet/crush/internal/stringext"
+ 	"github.com/charmbracelet/crush/internal/version"
++	"github.com/google/uuid"
+ )
+ 
+ const (
+@@ -180,6 +181,20 @@ type SessionAgentCall struct {
+ 	// bị cắt output) đang phục vụ. Prompt của lượt làm tiếp chỉ là lời nhắc,
+ 	// nên bọc lại nó sẽ lồng "yêu cầu gốc" nhiều lớp và làm mất yêu cầu thật.
+ 	originalPrompt string
++	// recorded: cặp tin AcceptedRun.Record đã ghi cho prompt này trước khi
++	// người gửi được báo nhận. Run lấy nó từ Accepted; lượt chạy hay bước
++	// gộp tiếp quản cặp tin thay vì ghi tin user mới, đường bỏ hàng đợi đóng
++	// nó là huỷ. Nil với người gọi trong tiến trình: giữ nguyên đường cũ.
++	recorded *recordedPrompt
++}
++
++// recordedPrompt là dấu vết bền của một prompt đã nhận mà chưa chạy: tin
++// user và, ngay sau nó, một tin trợ lý giữ chỗ chưa xong. Tiến trình chết
++// hay tắt khi prompt còn chờ thì tin giữ chỗ còn dở, và ReadSettledMessages
++// đóng nó là "Interrupted" khi mở lại session (settle.go).
++type recordedPrompt struct {
++	userMsgID    string
++	pendingMsgID string
+ }
+ 
+ // sameModel cho biết hai lựa chọn có cùng provider và model hay không.
+@@ -278,6 +293,8 @@ type SessionAgent interface {
+ 	CancelRun(sessionID, runID string)
+ 	CancelAll()
+ 	IsSessionBusy(sessionID string) bool
++	// HasPendingPrompts: session còn prompt đã nhận hay đang xếp hàng mà chưa chạy.
++	HasPendingPrompts(sessionID string) bool
+ 	IsBusy() bool
+ 	QueuedPrompts(sessionID string) int
+ 	QueuedPromptsList(sessionID string) []string
+@@ -437,6 +454,31 @@ type AcceptedRun struct {
+ 	// never poisoned by it.
+ 	seq  uint64
+ 	done atomic.Bool
++	// recorded: dấu vết Record đã ghi, Run chép sang call.
++	recorded *recordedPrompt
++}
++
++// Record ghi bền prompt của lượt đã nhận, để người gửi chỉ được báo nhận
++// (backend.SendMessage trả nil) khi prompt đã có dấu vết trong DB: tin user
++// và một tin trợ lý giữ chỗ chưa xong ngay sau nó. Gọi trước khi dispatch.
++// Handle nil (coordinator giả trong test) thì không có gì để ghi.
++func (r *AcceptedRun) Record(ctx context.Context, call SessionAgentCall) (err error) {
++	if r == nil {
++		return nil
++	}
++	_, r.recorded, err = r.agent.recordPrompt(ctx, call)
++	return err
++}
++
++// Fail đóng tin giữ chỗ của prompt đã ghi bằng err khi lượt hỏng trước khi
++// tới sessionAgent.Run (readiness, MCP, model/provider không dùng được), để
++// prompt không quay mãi rồi thành "Interrupted". Không có gì để đóng (handle
++// nil, chưa ghi, lượt đã tiếp quản hay đã đóng) thì không làm gì.
++func (r *AcceptedRun) Fail(err error) {
++	if r == nil || r.recorded == nil {
++		return
++	}
++	r.agent.failRecordedPrompt(r.sessionID, r.recorded.pendingMsgID, err)
+ }
+ 
+ // Close decrements the accept counter for this reservation. It is safe
+@@ -589,9 +631,10 @@ func (a *sessionAgent) enqueueCall(call SessionAgentCall) {
+ // observed inconsistently.
+ //
+ // Calls covered by a pending cancel are dropped; the dropped ones that
+-// carry a RunID are returned in canceledWithRunID so the caller can
+-// publish their terminal cancelled RunComplete (a caller waiting on that
+-// RunID, e.g. `crush run`, would otherwise hang). Uncanceled calls without
++// carry a RunID or a recorded prompt are returned in canceled so the caller
++// can publish their terminal cancelled RunComplete (a caller waiting on that
++// RunID, e.g. `crush run`, would otherwise hang) and close their recorded
++// trace as canceled (publishCanceledQueueDrops). Uncanceled calls without
+ // a RunID are returned in fold to be folded into the active turn,
+ // preserving the existing follow-up behavior. Uncanceled calls that carry
+ // a RunID are left in the queue so each runs as its own turn via the
+@@ -600,7 +643,7 @@ func (a *sessionAgent) enqueueCall(call SessionAgentCall) {
+ // absorbed into another turn. Calls pinned to a model other than runModel
+ // (the active turn's model) are left queued too. fold is processed by the
+ // caller without the lock held.
+-func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.SelectedModel) (fold, canceledWithRunID []SessionAgentCall) {
++func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.SelectedModel) (fold, canceled []SessionAgentCall) {
+ 	dispatchLock := a.sessionMu(sessionID)
+ 	dispatchLock.Lock()
+ 	defer dispatchLock.Unlock()
+@@ -608,8 +651,8 @@ func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.Selec
+ 	var keep []SessionAgentCall
+ 	for _, queued := range queuedCalls {
+ 		if a.canceledBySeq(sessionID, queued.acceptSeq) {
+-			if queued.RunID != "" {
+-				canceledWithRunID = append(canceledWithRunID, queued)
++			if queued.RunID != "" || queued.recorded != nil {
++				canceled = append(canceled, queued)
+ 			}
+ 			continue
+ 		}
+@@ -631,7 +674,7 @@ func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.Selec
+ 	} else {
+ 		a.messageQueue.Set(sessionID, keep)
+ 	}
+-	return fold, canceledWithRunID
++	return fold, canceled
+ }
+ 
+ // publishCanceledQueueDrops emits a terminal cancelled RunComplete for
+@@ -639,24 +682,26 @@ func (a *sessionAgent) drainQueueForStep(sessionID string, runModel config.Selec
+ // from the queue without ever running — covered by a pending cancel, or
+ // cleared by Cancel/ClearQueue — would otherwise leave a caller blocked on
+ // that RunID: `crush run` ignores live message events and exits only on a
+-// RunComplete whose RunID matches. Calls without a RunID had no such waiter
+-// and are dropped silently as before. A detached, bounded context keeps the
++// RunComplete whose RunID matches. A dropped call with a recorded prompt
++// (acked by backend.SendMessage) first gets its trace closed as canceled,
++// so the prompt the sender was told was accepted reads as canceled rather
++// than vanishing. Other calls had no waiter and no trace and are dropped
++// silently as before. A detached, bounded context keeps the writes and the
+ // must-deliver publish alive even when the run context that triggered the
+ // drop is already canceled.
+ func (a *sessionAgent) publishCanceledQueueDrops(drops []SessionAgentCall) {
+-	var hasRunID bool
+-	for _, d := range drops {
+-		if d.RunID != "" {
+-			hasRunID = true
+-			break
+-		}
+-	}
+-	if !hasRunID {
++	if !slices.ContainsFunc(drops, func(d SessionAgentCall) bool { return d.RunID != "" || d.recorded != nil }) {
+ 		return
+ 	}
+ 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+ 	defer cancel()
+ 	for _, d := range drops {
++		if d.recorded != nil {
++			if err := a.persistCanceledTurn(ctx, d, true); err != nil {
++				slog.Error("Failed to record a dropped queued prompt as canceled",
++					"session_id", d.SessionID, "error", err)
++			}
++		}
+ 		if d.RunID == "" {
+ 			continue
+ 		}
+@@ -668,17 +713,15 @@ func (a *sessionAgent) publishCanceledQueueDrops(drops []SessionAgentCall) {
+ 	}
+ }
+ 
+-// clearQueueAndNotify removes all queued prompts for the session and
+-// publishes a terminal cancelled RunComplete for any that carried a RunID,
+-// so callers waiting on those RunIDs (e.g. `crush run`) are not left
+-// hanging when their queued prompt is discarded without running.
+-func (a *sessionAgent) clearQueueAndNotify(sessionID string) {
+-	queued, ok := a.messageQueue.Get(sessionID)
++// takeQueue removes all queued prompts for the session and returns them.
++// The caller hands them to publishCanceledQueueDrops after releasing the
++// session's dispatch mutex, so callers waiting on their RunIDs (e.g.
++// `crush run`) are not left hanging and recorded prompts read as canceled,
++// without DB I/O under the lock.
++func (a *sessionAgent) takeQueue(sessionID string) []SessionAgentCall {
++	queued, _ := a.messageQueue.Get(sessionID)
+ 	a.messageQueue.Del(sessionID)
+-	if !ok {
+-		return
+-	}
+-	a.publishCanceledQueueDrops(queued)
++	return queued
+ }
+ 
+ // clearPendingCancel removes any pending-cancel mark for sessionID. It
+@@ -713,12 +756,21 @@ func (a *sessionAgent) canceledBySeq(sessionID string, seq uint64) bool {
+ // was canceled before (or just as) streaming would have produced them.
+ // It creates the user message only when it was not already created by an
+ // earlier createUserMessage call (userMsgCreated), then writes an
+-// assistant message with FinishReasonCanceled. Both writes use
+-// context.WithoutCancel(ctx) so workspace shutdown (which cancels the run
+-// context) can't drop them.
++// assistant message with FinishReasonCanceled. A call with a recorded
++// prompt already has both records, so its placeholder is closed instead.
++// All writes use context.WithoutCancel(ctx) so workspace shutdown (which
++// cancels the run context) can't drop them.
+ func (a *sessionAgent) persistCanceledTurn(ctx context.Context, call SessionAgentCall, userMsgCreated bool) error {
+ 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+ 	defer cancel()
++	if call.recorded != nil {
++		pending, err := a.messages.Get(writeCtx, call.recorded.pendingMsgID)
++		if err != nil {
++			return err
++		}
++		pending.AddFinish(message.FinishReasonCanceled, "User canceled request", "")
++		return a.messages.Update(writeCtx, pending)
++	}
+ 	if !userMsgCreated {
+ 		if _, err := a.createUserMessage(writeCtx, call); err != nil {
+ 			return err
+@@ -778,6 +830,15 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 	if err := ValidateCall(call); err != nil {
+ 		return nil, err
+ 	}
++	if call.recorded == nil && call.Accepted != nil {
++		call.recorded = call.Accepted.recorded
++	}
++	// Lượt hỏng trước khi có lời trả lời: tin giữ chỗ mang lỗi thật.
++	defer func() {
++		if call.recorded != nil && retErr != nil && !errors.Is(retErr, context.Canceled) {
++			a.failRecordedPrompt(call.SessionID, call.recorded.pendingMsgID, retErr)
++		}
++	}()
+ 
+ 	if call.Channel != "" && call.channelMeta == nil {
+ 		call.channelMeta, _ = parseChannelMeta(call.Prompt)
+@@ -998,6 +1059,17 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to get session messages: %w", err)
+ 	}
++	// Cặp tin của prompt lượt này nằm cuối session (sau nó chỉ còn prompt
++	// khác đang chờ) thì giữ chỗ; không thì phải dời xuống cuối.
++	unsent := unsentPrompt(msgs)
++	var recordedAtTail bool
++	if r := call.recorded; r != nil {
++		i := slices.IndexFunc(msgs, func(m message.Message) bool { return m.ID == r.userMsgID })
++		recordedAtTail = i >= 0 && !slices.ContainsFunc(msgs[i+1:], func(m message.Message) bool { return !unsent(m) })
++	}
++	// Prompt chưa từng tới model (kể cả của lượt này: nó đi riêng ở Prompt)
++	// không thuộc lịch sử, và không làm session trông như đã có prompt.
++	msgs = slices.DeleteFunc(msgs, unsent)
+ 
+ 	// Generate title from the first real (non-shell) user prompt.
+ 	// can take tens of seconds. Blocking Run on it delays the
+@@ -1010,8 +1082,18 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 		go a.GenerateTitle(titleCtx, call.SessionID, call.Prompt)
+ 	}
+ 
+-	// Add the user message to the session.
+-	_, err = a.createUserMessage(ctx, call)
++	// Add the user message to the session. Prompt đã ghi lúc nhận thì tin
++	// user đã có: chỉ chuyển cặp tin xuống cuối khi tin khác đã vượt qua nó.
++	// Tin giữ chỗ còn đứng tới khi lời trả lời của lượt có (PrepareStep).
++	if call.recorded == nil {
++		_, err = a.createUserMessage(ctx, call)
++	} else if !recordedAtTail {
++		// Dời hỏng thì cặp cũ còn nguyên (rollback): giữ nó để defer ghi lỗi.
++		var moved *recordedPrompt
++		if _, moved, err = a.moveRecordedPrompt(ctx, call); err == nil {
++			call.recorded = moved
++		}
++	}
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -1090,11 +1172,33 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 			// into this turn; uncanceled prompts with a RunID are left
+ 			// queued so each runs as its own turn (with its own
+ 			// RunComplete) via the recursive run path below.
+-			fold, canceledRunIDs := a.drainQueueForStep(call.SessionID, largeModel.ModelCfg)
+-			a.publishCanceledQueueDrops(canceledRunIDs)
++			fold, canceledDrops := a.drainQueueForStep(call.SessionID, largeModel.ModelCfg)
++			a.publishCanceledQueueDrops(canceledDrops)
++			// Tin giữ chỗ của các prompt gộp ở bước này: xoá cùng lần tạo lời
++			// trả lời, hay mang lỗi nếu bước hỏng trước đó.
++			var foldPending []string
++			failFolded := func(err error) {
++				for _, id := range foldPending {
++					a.failRecordedPrompt(call.SessionID, id, err)
++				}
++			}
+ 			for _, queued := range fold {
+-				userMessage, createErr := a.createUserMessage(callContext, queued)
++				var userMessage message.Message
++				var createErr error
++				if queued.recorded != nil {
++					var moved *recordedPrompt
++					userMessage, moved, createErr = a.moveRecordedPrompt(callContext, queued)
++					if createErr == nil {
++						foldPending = append(foldPending, moved.pendingMsgID)
++					} else {
++						// Dời hỏng thì cặp cũ còn nguyên (rollback): nó mang lỗi.
++						a.failRecordedPrompt(call.SessionID, queued.recorded.pendingMsgID, createErr)
++					}
++				} else {
++					userMessage, createErr = a.createUserMessage(callContext, queued)
++				}
+ 				if createErr != nil {
++					failFolded(createErr)
+ 					return callContext, prepared, createErr
+ 				}
+ 				prepared.Messages = append(prepared.Messages, userMessage.ToAIMessage()...)
+@@ -1127,15 +1231,32 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 			sessionLock.Unlock()
+ 
+ 			var assistantMsg message.Message
+-			assistantMsg, err = a.messages.Create(callContext, call.SessionID, message.CreateMessageParams{
++			reply := message.CreateMessageParams{
+ 				Role:     message.Assistant,
+ 				Parts:    []message.ContentPart{},
+ 				Model:    largeModel.ModelCfg.Model,
+ 				Provider: largeModel.ModelCfg.Provider,
+-			})
++			}
++			// Lời trả lời thật thay tin giữ chỗ của prompt lượt này (bước đầu)
++			// và của các prompt vừa gộp trong cùng một lần ghi: không bao giờ
++			// có hai bản trả lời, cũng không có prompt trần.
++			replaced := foldPending
++			if call.recorded != nil {
++				replaced = append(slices.Clone(foldPending), call.recorded.pendingMsgID)
++			}
++			if len(replaced) == 0 {
++				assistantMsg, err = a.messages.Create(callContext, call.SessionID, reply)
++			} else {
++				var created []message.Message
++				if created, err = a.messages.WriteBatch(callContext, call.SessionID, []message.CreateMessageParams{reply}, replaced); err == nil {
++					assistantMsg = created[0]
++				}
++			}
+ 			if err != nil {
++				failFolded(err)
+ 				return callContext, prepared, err
+ 			}
++			call.recorded = nil
+ 			callContext = context.WithValue(callContext, tools.MessageIDContextKey, assistantMsg.ID)
+ 			callContext = context.WithValue(callContext, tools.ChannelContextKey, call.Channel)
+ 			callContext = context.WithValue(callContext, tools.SupportsImagesContextKey, largeModel.CatwalkCfg.SupportsImages)
+@@ -1421,6 +1542,9 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 				if persistErr := a.persistCanceledTurn(ctx, call, userMsgCreated); persistErr != nil {
+ 					return nil, persistErr
+ 				}
++			} else if call.recorded != nil {
++				// afterError có thể trả lỗi của lượt kế: ghi lỗi của lượt này ngay.
++				a.failRecordedPrompt(call.SessionID, call.recorded.pendingMsgID, err)
+ 			}
+ 			return afterError(result, err)
+ 		}
+@@ -1761,6 +1885,8 @@ func owesOwnRunComplete(call, next SessionAgentCall, remaining []SessionAgentCal
+ // Session đã có run khác đang chạy, hoặc còn prompt đang chuyển vào Run,
+ // thì không lấy: chúng tự chạy tiếp hàng đợi (lấy ở đây sẽ đảo thứ tự).
+ func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, remaining []SessionAgentCall, ok bool) {
++	var canceledDrops []SessionAgentCall
++	defer func() { a.publishCanceledQueueDrops(canceledDrops) }() // sau khi nhả khoá
+ 	mu := a.sessionMu(sessionID)
+ 	mu.Lock()
+ 	defer mu.Unlock()
+@@ -1770,11 +1896,10 @@ func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, rema
+ 	queuedMessages, _ := a.messageQueue.Get(sessionID)
+ 	if mark, ok := a.cancelMark.Get(sessionID); ok && mark > 0 && len(queuedMessages) > 0 {
+ 		var kept []SessionAgentCall
+-		var canceledRunIDDrops []SessionAgentCall
+ 		for _, q := range queuedMessages {
+ 			if q.acceptSeq == 0 || q.acceptSeq <= mark {
+-				if q.RunID != "" {
+-					canceledRunIDDrops = append(canceledRunIDDrops, q)
++				if q.RunID != "" || q.recorded != nil {
++					canceledDrops = append(canceledDrops, q)
+ 				}
+ 				continue
+ 			}
+@@ -1784,8 +1909,8 @@ func (a *sessionAgent) nextQueued(sessionID string) (next SessionAgentCall, rema
+ 		a.messageQueue.Set(sessionID, kept)
+ 		// A dropped prompt carrying a RunID must still publish its
+ 		// terminal cancelled RunComplete so a caller waiting on that
+-		// RunID does not hang.
+-		a.publishCanceledQueueDrops(canceledRunIDDrops)
++		// RunID does not hang; a recorded one is closed as canceled.
++		// Both happen in the deferred publish, after the unlock.
+ 	}
+ 	if len(queuedMessages) == 0 {
+ 		a.messageQueue.Del(sessionID)
+@@ -1832,6 +1957,7 @@ func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fan
+ 	if err != nil {
+ 		return err
+ 	}
++	msgs = slices.DeleteFunc(msgs, unsentPrompt(msgs))
+ 	if len(msgs) == 0 {
+ 		// Nothing to summarize.
+ 		return nil
+@@ -2029,17 +2155,75 @@ func sessionHeaders(sessionID string) map[string]string {
+ 	}
+ }
+ 
+-func (a *sessionAgent) createUserMessage(ctx context.Context, call SessionAgentCall) (message.Message, error) {
++// recordPrompt ghi cặp tin của một prompt đã nhận mà chưa chạy trong một
++// transaction: tin user và tin giữ chỗ trỏ về nó (xem recordedPrompt). Các tin
++// deleteIDs (cặp cũ khi dời) bị xoá trong cùng lần ghi.
++func (a *sessionAgent) recordPrompt(ctx context.Context, call SessionAgentCall, deleteIDs ...string) (message.Message, *recordedPrompt, error) {
++	user := userMessageParams(call)
++	user.ID = uuid.NewString()
++	created, err := a.messages.WriteBatch(ctx, call.SessionID, []message.CreateMessageParams{user, {
++		Role:     message.Assistant,
++		Parts:    []message.ContentPart{},
++		Provider: message.PendingReplyProvider,
++		Model:    user.ID,
++	}}, deleteIDs)
++	if err != nil {
++		return message.Message{}, nil, fmt.Errorf("failed to record prompt: %w", err)
++	}
++	return created[0], &recordedPrompt{userMsgID: created[0].ID, pendingMsgID: created[1].ID}, nil
++}
++
++// unsentPrompt trả hàm cho biết một tin thuộc prompt chưa từng tới model: tin
++// giữ chỗ (đang chờ, hay đã đóng huỷ, lỗi, Interrupted) và tin user mà một tin
++// giữ chỗ trỏ về. Dựa vào liên kết lưu trong DB chứ không vào vị trí, nên đúng
++// dưới mọi thứ tự xen kẽ của các lần ghi và cả sau khi tiến trình chết. Chỉ
++// áp cho lịch sử gửi model; transcript (UI) vẫn hiện chúng.
++func unsentPrompt(msgs []message.Message) func(message.Message) bool {
++	linked := make(map[string]bool)
++	for _, m := range msgs {
++		if message.IsPromptPlaceholder(m) {
++			linked[m.Model] = true
++		}
++	}
++	return func(m message.Message) bool {
++		return message.IsPromptPlaceholder(m) || (m.Role == message.User && linked[m.ID])
++	}
++}
++
++// moveRecordedPrompt ghi lại cặp tin của prompt ở cuối session và xoá cặp cũ
++// trong cùng một transaction, khi prompt đã chờ sau tin khác: thứ tự trong DB
++// khớp thứ tự model thấy, như khi tin user chỉ được ghi lúc chạy. Lỗi thì cặp
++// cũ còn nguyên.
++func (a *sessionAgent) moveRecordedPrompt(ctx context.Context, call SessionAgentCall) (message.Message, *recordedPrompt, error) {
++	return a.recordPrompt(ctx, call, call.recorded.userMsgID, call.recorded.pendingMsgID)
++}
++
++// failRecordedPrompt đóng tin giữ chỗ pendingID còn mở bằng err. Tin đã đóng
++// (huỷ, lỗi, Interrupted) hay đã bị xoá (lượt đã có lời trả lời) thì giữ nguyên.
++func (a *sessionAgent) failRecordedPrompt(sessionID, pendingID string, err error) {
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++	defer cancel()
++	pending, getErr := a.messages.Get(ctx, pendingID)
++	if getErr != nil || pending.IsFinished() {
++		return
++	}
++	pending.AddFinish(message.FinishReasonError, "Prompt not run", err.Error())
++	if updateErr := a.messages.Update(ctx, pending); updateErr != nil {
++		slog.Error("Failed to record why a prompt did not run", "session_id", sessionID, "error", updateErr)
++	}
++}
++
++// userMessageParams dựng tin user của call: prompt và tệp đính kèm.
++func userMessageParams(call SessionAgentCall) message.CreateMessageParams {
+ 	parts := []message.ContentPart{message.TextContent{Text: call.Prompt, Hidden: call.HiddenUserMessage}}
+-	var attachmentParts []message.ContentPart
+ 	for _, attachment := range call.Attachments {
+-		attachmentParts = append(attachmentParts, message.BinaryContent{Path: attachment.FilePath, MIMEType: attachment.MimeType, Data: attachment.Content})
++		parts = append(parts, message.BinaryContent{Path: attachment.FilePath, MIMEType: attachment.MimeType, Data: attachment.Content})
+ 	}
+-	parts = append(parts, attachmentParts...)
+-	msg, err := a.messages.Create(ctx, call.SessionID, message.CreateMessageParams{
+-		Role:  message.User,
+-		Parts: parts,
+-	})
++	return message.CreateMessageParams{Role: message.User, Parts: parts}
++}
++
++func (a *sessionAgent) createUserMessage(ctx context.Context, call SessionAgentCall) (message.Message, error) {
++	msg, err := a.messages.Create(ctx, call.SessionID, userMessageParams(call))
+ 	if err != nil {
+ 		return message.Message{}, fmt.Errorf("failed to create user message: %w", err)
+ 	}
+@@ -2598,6 +2782,9 @@ func (a *sessionAgent) Cancel(sessionID string) {
+ 	// request, an accepted run (recorded as a pending cancel), or a
+ 	// queue entry it then clears. If none of those hold, an idle Escape
+ 	// is a true no-op and must not poison the next prompt.
++	var drops []SessionAgentCall
++	// Đăng ký trước Unlock nên chạy sau khi nhả khoá: không ghi DB dưới khoá.
++	defer func() { a.publishCanceledQueueDrops(drops) }()
+ 	mu := a.sessionMu(sessionID)
+ 	mu.Lock()
+ 	defer mu.Unlock()
+@@ -2643,7 +2830,7 @@ func (a *sessionAgent) Cancel(sessionID string) {
+ 
+ 	if a.QueuedPrompts(sessionID) > 0 {
+ 		slog.Debug("Clearing queued prompts", "session_id", sessionID)
+-		a.clearQueueAndNotify(sessionID)
++		drops = a.takeQueue(sessionID)
+ 	}
+ }
+ 
+@@ -2660,6 +2847,8 @@ func (a *sessionAgent) CancelRun(sessionID, runID string) {
+ 	if runID == "" {
+ 		return
+ 	}
++	var drops []SessionAgentCall
++	defer func() { a.publishCanceledQueueDrops(drops) }() // sau khi nhả khoá
+ 	mu := a.sessionMu(sessionID)
+ 	mu.Lock()
+ 	defer mu.Unlock()
+@@ -2678,7 +2867,7 @@ func (a *sessionAgent) CancelRun(sessionID, runID string) {
+ 			} else {
+ 				a.messageQueue.Set(sessionID, rest)
+ 			}
+-			a.publishCanceledQueueDrops([]SessionAgentCall{dropped})
++			drops = []SessionAgentCall{dropped}
+ 			return
+ 		}
+ 	}
+@@ -2702,12 +2891,14 @@ func (a *sessionAgent) takeCanceledRun(runID string) bool {
+ }
+ 
+ func (a *sessionAgent) ClearQueue(sessionID string) {
++	var drops []SessionAgentCall
++	defer func() { a.publishCanceledQueueDrops(drops) }() // sau khi nhả khoá
+ 	mu := a.sessionMu(sessionID)
+ 	mu.Lock()
+ 	defer mu.Unlock()
+ 	if a.QueuedPrompts(sessionID) > 0 {
+ 		slog.Debug("Clearing queued prompts", "session_id", sessionID)
+-		a.clearQueueAndNotify(sessionID)
++		drops = a.takeQueue(sessionID)
+ 	}
+ }
+ 
+@@ -2746,6 +2937,16 @@ func (a *sessionAgent) IsSessionBusy(sessionID string) bool {
+ 	return busy
+ }
+ 
++func (a *sessionAgent) HasPendingPrompts(sessionID string) bool {
++	if a.QueuedPrompts(sessionID) > 0 {
++		return true
++	}
++	a.acceptedMu.Lock()
++	defer a.acceptedMu.Unlock()
++	n, _ := a.acceptedRuns.Get(sessionID)
++	return n > 0
++}
++
+ func (a *sessionAgent) QueuedPrompts(sessionID string) int {
+ 	l, ok := a.messageQueue.Get(sessionID)
+ 	if !ok {
+diff --git a/internal/agent/agenttest/coordinator.go b/internal/agent/agenttest/coordinator.go
+index 531c180f..722e9e5d 100644
+--- a/internal/agent/agenttest/coordinator.go
++++ b/internal/agent/agenttest/coordinator.go
+@@ -37,9 +37,22 @@ func NewCoordinator(
+ 	sessions session.Service,
+ 	messages message.Service,
+ ) (agent.Coordinator, error) {
++	coord, _, err := NewCoordinatorWithConfig(ctx, workingDir, sessions, messages)
++	return coord, err
++}
++
++// NewCoordinatorWithConfig là NewCoordinator kèm config store của nó, để test
++// đổi cấu hình provider sau khi dựng (vd tắt provider: lượt hỏng trước khi
++// chạy như khi thiếu key).
++func NewCoordinatorWithConfig(
++	ctx context.Context,
++	workingDir string,
++	sessions session.Service,
++	messages message.Service,
++) (agent.Coordinator, *config.ConfigStore, error) {
+ 	cfg, err := config.Init(workingDir, "", false)
+ 	if err != nil {
+-		return nil, err
++		return nil, nil, err
+ 	}
+ 
+ 	const (
+@@ -64,10 +77,11 @@ func NewCoordinator(
+ 	coderCfg.AllowedTools = nil
+ 	cfg.Config().Agents[config.AgentCoder] = coderCfg
+ 
+-	return agent.NewCoordinator(ctx, agent.CoordinatorOptions{
++	coord, err := agent.NewCoordinator(ctx, agent.CoordinatorOptions{
+ 		Config:      cfg,
+ 		Sessions:    sessions,
+ 		Messages:    messages,
+ 		Permissions: permission.NewPermissionService(workingDir, true, nil),
+ 	})
++	return coord, cfg, err
+ }
+diff --git a/internal/agent/coordinator.go b/internal/agent/coordinator.go
+index 085e78cd..28d7b849 100644
+--- a/internal/agent/coordinator.go
++++ b/internal/agent/coordinator.go
+@@ -140,6 +140,9 @@ type Coordinator interface {
+ 	CancelRun(sessionID, runID string)
+ 	CancelAll()
+ 	IsSessionBusy(sessionID string) bool
++	// HasPendingPrompts: session còn prompt đã nhận hay đang xếp hàng mà
++	// chưa chạy (xem SettleBusy).
++	HasPendingPrompts(sessionID string) bool
+ 	IsBusy() bool
+ 	QueuedPrompts(sessionID string) int
+ 	QueuedPromptsList(sessionID string) []string
+@@ -1537,6 +1540,10 @@ func (c *coordinator) IsSessionBusy(sessionID string) bool {
+ 	return c.currentAgent().IsSessionBusy(sessionID)
+ }
+ 
++func (c *coordinator) HasPendingPrompts(sessionID string) bool {
++	return c.currentAgent().HasPendingPrompts(sessionID)
++}
++
+ func (c *coordinator) Model() Model {
+ 	return c.currentAgent().Model()
+ }
+diff --git a/internal/agent/coordinator_test.go b/internal/agent/coordinator_test.go
+index 3f6f2a21..ff7540a4 100644
+--- a/internal/agent/coordinator_test.go
++++ b/internal/agent/coordinator_test.go
+@@ -42,6 +42,7 @@ func (m *mockSessionAgent) Cancel(sessionID string) {
+ }
+ func (m *mockSessionAgent) CancelRun(string, string)                    {}
+ func (m *mockSessionAgent) CancelAll()                                  {}
++func (m *mockSessionAgent) HasPendingPrompts(string) bool               { return false }
+ func (m *mockSessionAgent) IsSessionBusy(sessionID string) bool         { return false }
+ func (m *mockSessionAgent) IsBusy() bool                                { return false }
+ func (m *mockSessionAgent) QueuedPrompts(sessionID string) int          { return 0 }
+diff --git a/internal/agent/durable_ack_test.go b/internal/agent/durable_ack_test.go
+new file mode 100644
+index 00000000..96f58c52
+--- /dev/null
++++ b/internal/agent/durable_ack_test.go
+@@ -0,0 +1,396 @@
++package agent
++
++import (
++	"context"
++	"errors"
++	"slices"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"charm.land/catwalk/pkg/catwalk"
++	"charm.land/fantasy"
++	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/message"
++	"github.com/stretchr/testify/require"
++)
++
++// Prompt đã ghi lúc nhận mà bị cancel mark phủ khi còn trong hàng đợi (hai
++// đường bỏ theo mark: bước gộp drainQueueForStep và nextQueued lúc chuyển
++// lượt) thì dấu vết của nó được đóng là huỷ, không bị bỏ im lặng.
++func TestQueueMarkDropClosesRecordedPrompt(t *testing.T) {
++	t.Parallel()
++	for name, drop := range map[string]func(*sessionAgent, string){
++		"drainQueueForStep": func(sa *sessionAgent, sid string) {
++			fold, canceled := sa.drainQueueForStep(sid, config.SelectedModel{})
++			require.Empty(t, fold)
++			require.Len(t, canceled, 1)
++			sa.publishCanceledQueueDrops(canceled)
++		},
++		"nextQueued": func(sa *sessionAgent, sid string) {
++			_, _, ok := sa.nextQueued(sid)
++			require.False(t, ok)
++		},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			sa, env := newCancelTestAgent(t)
++			sess, err := env.sessions.Create(t.Context(), "session")
++			require.NoError(t, err)
++
++			accept := sa.BeginAccepted(sess.ID)
++			call := SessionAgentCall{SessionID: sess.ID, Prompt: "queued"}
++			require.NoError(t, accept.Record(t.Context(), call))
++			call.recorded, call.Accepted = accept.recorded, accept
++			sa.enqueueCall(call)
++			accept.Close()
++			sa.cancelMark.Set(sess.ID, accept.seq)
++
++			drop(sa, sess.ID)
++
++			require.Zero(t, sa.QueuedPrompts(sess.ID))
++			msgs, err := env.messages.List(t.Context(), sess.ID)
++			require.NoError(t, err)
++			require.Len(t, msgs, 2)
++			require.Equal(t, message.User, msgs[0].Role)
++			require.Equal(t, "queued", msgs[0].Content().Text)
++			require.Equal(t, message.Assistant, msgs[1].Role)
++			require.Equal(t, message.FinishReasonCanceled, msgs[1].FinishReason())
++		})
++	}
++}
++
++// ackRecorder là LLM giả ghi chữ các tin user của từng request rồi trả "done".
++type ackRecorder struct {
++	mu    sync.Mutex
++	users [][]string
++}
++
++func (m *ackRecorder) Provider() string { return "fake" }
++func (m *ackRecorder) Model() string    { return "fake-model" }
++func (m *ackRecorder) Generate(context.Context, fantasy.Call) (*fantasy.Response, error) {
++	return &fantasy.Response{Content: fantasy.ResponseContent{fantasy.TextContent{Text: "title"}}, FinishReason: fantasy.FinishReasonStop}, nil
++}
++
++func (m *ackRecorder) GenerateObject(context.Context, fantasy.ObjectCall) (*fantasy.ObjectResponse, error) {
++	return nil, errors.New("not supported")
++}
++
++func (m *ackRecorder) StreamObject(context.Context, fantasy.ObjectCall) (fantasy.ObjectStreamResponse, error) {
++	return nil, errors.New("not supported")
++}
++
++func (m *ackRecorder) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
++	var users []string
++	for _, msg := range call.Prompt {
++		if msg.Role != fantasy.MessageRoleUser {
++			continue
++		}
++		var b strings.Builder
++		for _, part := range msg.Content {
++			if tp, ok := fantasy.AsMessagePart[fantasy.TextPart](part); ok {
++				b.WriteString(tp.Text)
++			}
++		}
++		users = append(users, b.String())
++	}
++	m.mu.Lock()
++	m.users = append(m.users, users)
++	m.mu.Unlock()
++	return (&finishStreamModel{text: "done"}).Stream(ctx, call)
++}
++
++// prompts trả, theo từng request, các chữ user nằm trong want (bỏ lời nhắc
++// hệ thống chèn vào lịch sử).
++func (m *ackRecorder) prompts(want ...string) [][]string {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	out := make([][]string, len(m.users))
++	for i, r := range m.users {
++		out[i] = []string{}
++		for _, x := range r {
++			if slices.Contains(want, x) {
++				out[i] = append(out[i], x)
++			}
++		}
++	}
++	return out
++}
++
++func newAckAgent(t *testing.T, messages message.Service) (*sessionAgent, fakeEnv, *ackRecorder) {
++	t.Helper()
++	env := testEnv(t)
++	if messages == nil {
++		messages = env.messages
++	}
++	model := &ackRecorder{}
++	cfg := catwalk.Model{ContextWindow: 200000, DefaultMaxTokens: 10000}
++	sa := NewSessionAgent(SessionAgentOptions{
++		LargeModel:           Model{Model: model, CatwalkCfg: cfg},
++		SmallModel:           Model{Model: &finishStreamModel{text: "title"}, CatwalkCfg: cfg},
++		DisableAutoSummarize: true,
++		IsYolo:               true,
++		Sessions:             env.sessions,
++		Messages:             messages,
++	}).(*sessionAgent)
++	return sa, env, model
++}
++
++// accept nhận và ghi một prompt như backend.SendMessage làm.
++func accept(t *testing.T, sa *sessionAgent, sid, prompt string) SessionAgentCall {
++	t.Helper()
++	a := sa.BeginAccepted(sid)
++	call := SessionAgentCall{SessionID: sid, Prompt: prompt, Accepted: a}
++	require.NoError(t, a.Record(t.Context(), call))
++	return call
++}
++
++// Prompt B được ghi (đã ack) trước khi lượt của A đọc lịch sử (server mới
++// khởi động, A còn chờ readiness): B không được vào request của A, và A vẫn
++// là prompt đầu nên session được đặt tiêu đề. B chạy sau thấy A rồi B.
++func TestRecordedPromptStaysOutOfEarlierTurn(t *testing.T) {
++	t.Parallel()
++	sa, env, model := newAckAgent(t, nil)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++
++	a := accept(t, sa, sess.ID, "prompt A")
++	b := accept(t, sa, sess.ID, "prompt B")
++	_, err = sa.Run(t.Context(), a)
++	require.NoError(t, err)
++	require.Eventually(t, func() bool {
++		s, err := env.sessions.Get(t.Context(), sess.ID)
++		return err == nil && s.Title != "session"
++	}, 5*time.Second, 10*time.Millisecond, "the first prompt must still get a session title")
++	_, err = sa.Run(t.Context(), b)
++	require.NoError(t, err)
++
++	require.Equal(t, [][]string{{"prompt A"}, {"prompt A", "prompt B"}}, model.prompts("prompt A", "prompt B"))
++	msgs, err := env.messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	var order []string
++	for _, m := range msgs {
++		order = append(order, string(m.Role)+":"+m.Content().Text)
++	}
++	require.Equal(t, []string{"user:prompt A", "assistant:done", "user:prompt B", "assistant:done"}, order)
++}
++
++// Tóm tắt không được chép prompt còn chờ (đã ack, chưa chạy) vào bản tóm
++// tắt; prompt ghi sau tin tóm tắt cũng không vào request của lượt khác.
++func TestSummarizeLeavesOutPendingPrompts(t *testing.T) {
++	t.Parallel()
++	sa, env, model := newAckAgent(t, nil)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, Prompt: "prompt A"})
++	require.NoError(t, err)
++
++	accept(t, sa, sess.ID, "pending B")
++	require.NoError(t, sa.Summarize(t.Context(), sess.ID, nil, nil))
++	accept(t, sa, sess.ID, "pending C")
++	d := accept(t, sa, sess.ID, "prompt D")
++	_, err = sa.Run(t.Context(), d)
++	require.NoError(t, err)
++
++	got := model.prompts("prompt A", "pending B", "pending C", "prompt D")
++	require.Len(t, got, 3)
++	require.Equal(t, []string{"prompt A"}, got[1], "the summary request must not carry a pending prompt")
++	require.Equal(t, []string{"prompt D"}, got[2], "a turn must not carry another pending prompt")
++}
++
++// failingListMessages làm ListFromSummary lỗi: lượt hỏng trước khi có lời trả lời.
++type failingListMessages struct {
++	message.Service
++}
++
++func (m failingListMessages) ListFromSummary(context.Context, string, string) ([]message.Message, error) {
++	return nil, errors.New("disk on fire")
++}
++
++// Lượt có prompt đã ghi hỏng trước khi có lời trả lời: tin giữ chỗ phải đóng
++// bằng lỗi thật, không treo chờ rồi thành "Interrupted".
++func TestRunEarlyErrorClosesRecordedPrompt(t *testing.T) {
++	t.Parallel()
++	env := testEnv(t)
++	sa, _, _ := newAckAgent(t, failingListMessages{env.messages})
++	sa.sessions = env.sessions
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++
++	a := accept(t, sa, sess.ID, "prompt A")
++	_, err = sa.Run(t.Context(), a)
++	require.ErrorContains(t, err, "disk on fire")
++
++	msgs, err := env.messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	require.Len(t, msgs, 2)
++	f := msgs[1].FinishPart()
++	require.NotNil(t, f, "the pending reply must be closed")
++	require.Equal(t, message.FinishReasonError, f.Reason)
++	require.Contains(t, f.Details, "disk on fire")
++}
++
++// lockProbeMessages kiểm, ở mỗi lần ghi Update, khoá dispatch của session
++// có đang bị giữ không (bất biến: không IO DB dưới khoá này).
++type lockProbeMessages struct {
++	message.Service
++	probe func()
++}
++
++func (m lockProbeMessages) Update(ctx context.Context, msg message.Message) error {
++	m.probe()
++	return m.Service.Update(ctx, msg)
++}
++
++// Đóng dấu vết của prompt bị bỏ khỏi hàng đợi là ghi DB: phải làm ngoài khoá
++// dispatch của session, ở cả bốn đường bỏ.
++func TestQueueDropWritesOutsideDispatchLock(t *testing.T) {
++	t.Parallel()
++	for name, drop := range map[string]func(*sessionAgent, string){
++		"Cancel":     func(sa *sessionAgent, sid string) { sa.Cancel(sid) },
++		"ClearQueue": func(sa *sessionAgent, sid string) { sa.ClearQueue(sid) },
++		"CancelRun":  func(sa *sessionAgent, sid string) { sa.CancelRun(sid, "b") },
++		"nextQueued": func(sa *sessionAgent, sid string) {
++			sa.cancelMark.Set(sid, sa.acceptSeqGen)
++			_, _, ok := sa.nextQueued(sid)
++			require.False(t, ok)
++		},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			env := testEnv(t)
++			var sa *sessionAgent
++			var sid string
++			var held, probed atomic.Bool
++			sa, _, _ = newAckAgent(t, lockProbeMessages{Service: env.messages, probe: func() {
++				mu := sa.sessionMu(sid)
++				if mu.TryLock() {
++					mu.Unlock()
++				} else {
++					held.Store(true)
++				}
++				probed.Store(true)
++			}})
++			sa.sessions = env.sessions
++			sess, err := env.sessions.Create(t.Context(), "session")
++			require.NoError(t, err)
++			sid = sess.ID
++
++			b := accept(t, sa, sid, "queued B")
++			b.RunID = "b"
++			b.recorded = b.Accepted.recorded
++			sa.enqueueCall(b)
++			b.Accepted.Close()
++
++			drop(sa, sid)
++
++			require.True(t, probed.Load(), "the dropped prompt was not closed")
++			require.False(t, held.Load(), "DB write under the session dispatch lock")
++		})
++	}
++}
++
++// busyOf đưa một sessionAgent vào SettleBusy như coordinator thật làm.
++type busyOf struct {
++	Coordinator
++	sa *sessionAgent
++}
++
++func (c busyOf) IsSessionBusy(id string) bool     { return c.sa.IsSessionBusy(id) }
++func (c busyOf) HasPendingPrompts(id string) bool { return c.sa.HasPendingPrompts(id) }
++
++// Settle không đóng tin giữ chỗ của prompt còn sống (đã nhận chưa active,
++// hay đang xếp hàng khi không có lượt nào active), nhưng vẫn đóng của prompt
++// mà tiến trình hiện tại không còn giữ (tiến trình trước đã chết).
++func TestSettleBusyKeepsLivePromptsOpen(t *testing.T) {
++	t.Parallel()
++	sa, env, _ := newAckAgent(t, nil)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	pendingFinished := func(busy SessionBusyFunc) bool {
++		t.Helper()
++		msgs, err := ReadSettledMessages(t.Context(), env.messages, busy, sess.ID)
++		require.NoError(t, err)
++		require.Len(t, msgs, 2)
++		return msgs[1].IsFinished()
++	}
++
++	b := accept(t, sa, sess.ID, "queued B")
++	require.False(t, pendingFinished(SettleBusy(busyOf{sa: sa})), "accepted, not yet active")
++	b.recorded = b.Accepted.recorded
++	sa.enqueueCall(b)
++	b.Accepted.Close()
++	require.False(t, sa.IsSessionBusy(sess.ID))
++	require.False(t, pendingFinished(SettleBusy(busyOf{sa: sa})), "queued between turns")
++
++	restarted, _, _ := newAckAgent(t, env.messages)
++	require.True(t, pendingFinished(SettleBusy(busyOf{sa: restarted})), "a prompt no live process holds is closed")
++}
++
++// pendingPair ghi một tin của prompt đã ghi theo đúng dạng lưu trên đĩa (tin
++// user; tin giữ chỗ: provider "agent-cli-pending", model = ID tin user), để
++// dựng thẳng các thứ tự xen kẽ mà ghi đồng thời có thể tạo ra.
++func pendingUser(t *testing.T, ms message.Service, sid, prompt string) message.Message {
++	t.Helper()
++	m, err := ms.Create(t.Context(), sid, message.CreateMessageParams{Role: message.User, Parts: []message.ContentPart{message.TextContent{Text: prompt}}})
++	require.NoError(t, err)
++	return m
++}
++
++func pendingReply(t *testing.T, ms message.Service, sid string, user message.Message) message.Message {
++	t.Helper()
++	m, err := ms.Create(t.Context(), sid, message.CreateMessageParams{Role: message.Assistant, Parts: []message.ContentPart{}, Provider: "agent-cli-pending", Model: user.ID})
++	require.NoError(t, err)
++	return m
++}
++
++// Hai `send` đồng thời trên một kết nối DB có thể ra thứ tự [U_A, U_B, P_A,
++// P_B]: luật lọc không được dựa vào vị trí. Mỗi request chứa mỗi prompt đúng
++// một lần, đúng thứ tự.
++func TestUnsentPromptsInterleavedPairs(t *testing.T) {
++	t.Parallel()
++	sa, env, model := newAckAgent(t, nil)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ua := pendingUser(t, env.messages, sess.ID, "prompt A")
++	ub := pendingUser(t, env.messages, sess.ID, "prompt B")
++	pa := pendingReply(t, env.messages, sess.ID, ua)
++	pb := pendingReply(t, env.messages, sess.ID, ub)
++
++	_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, Prompt: "prompt A", recorded: &recordedPrompt{ua.ID, pa.ID}})
++	require.NoError(t, err)
++	_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, Prompt: "prompt B", recorded: &recordedPrompt{ub.ID, pb.ID}})
++	require.NoError(t, err)
++
++	require.Equal(t, [][]string{{"prompt A"}, {"prompt A", "prompt B"}}, model.prompts("prompt A", "prompt B"))
++	msgs, err := env.messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	var order []string
++	for _, m := range msgs {
++		order = append(order, string(m.Role)+":"+m.Content().Text)
++	}
++	require.Equal(t, []string{"user:prompt A", "assistant:done", "user:prompt B", "assistant:done"}, order)
++}
++
++// Tin của lượt khác (tool result) chen giữa tin user và tin giữ chỗ của B; B
++// bị huỷ khi còn chờ: B không bao giờ vào lịch sử gửi model.
++func TestUnsentPromptWithToolResultBetween(t *testing.T) {
++	t.Parallel()
++	sa, env, model := newAckAgent(t, nil)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ub := pendingUser(t, env.messages, sess.ID, "prompt B")
++	_, err = env.messages.Create(t.Context(), sess.ID, message.CreateMessageParams{Role: message.Tool, Parts: []message.ContentPart{
++		message.ToolResult{ToolCallID: "tc1", Name: "noop", Content: "ok"},
++	}})
++	require.NoError(t, err)
++	pb := pendingReply(t, env.messages, sess.ID, ub)
++	pb.AddFinish(message.FinishReasonCanceled, "User canceled request", "")
++	require.NoError(t, env.messages.Update(t.Context(), pb))
++
++	_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, Prompt: "prompt D"})
++	require.NoError(t, err)
++	require.Equal(t, [][]string{{"prompt D"}}, model.prompts("prompt B", "prompt D"))
++}
+diff --git a/internal/agent/run_complete_test.go b/internal/agent/run_complete_test.go
+index 1c5b4360..58515964 100644
+--- a/internal/agent/run_complete_test.go
++++ b/internal/agent/run_complete_test.go
+@@ -248,7 +248,7 @@ func requireSingleCancelledRunComplete(t *testing.T, ch <-chan pubsub.Event[noti
+ // TestCancel_QueuedRunIDPromptPublishesCancelledRunComplete proves the
+ // terminal-event behavior end-to-end: a RunID-bearing prompt sitting in
+ // the queue that is canceled while queued (via the public Cancel path,
+-// which routes through clearQueueAndNotify -> publishCanceledQueueDrops)
++// which routes through takeQueue -> publishCanceledQueueDrops)
+ // must emit exactly one cancelled RunComplete on the broker for its
+ // RunID. A queued prompt without a RunID is dropped silently. This is the
+ // coverage the earlier drain test lacked: it asserted the returned
+diff --git a/internal/agent/settle_fork.go b/internal/agent/settle_fork.go
+index 619dc0a4..e0746dc2 100644
+--- a/internal/agent/settle_fork.go
++++ b/internal/agent/settle_fork.go
+@@ -41,3 +41,13 @@ func BusyWithAncestors(ctx context.Context, sessions session.Service, busy Sessi
+ 		return true
+ 	}
+ }
++
++// SettleBusy là hàm bận cho settle: ngoài lượt đang chạy, prompt đã nhận hay
++// đang xếp hàng mà chưa chạy cũng còn sống (lúc chờ readiness, khe giữa hai
++// lượt, lúc tự tóm tắt), nên tin giữ chỗ của nó không được đóng là
++// "Interrupted".
++func SettleBusy(c Coordinator) SessionBusyFunc {
++	return func(sessionID string) bool {
++		return c.IsSessionBusy(sessionID) || c.HasPendingPrompts(sessionID)
++	}
++}
+diff --git a/internal/backend/agent.go b/internal/backend/agent.go
+index 1c7fd904..ebeb7345 100644
+--- a/internal/backend/agent.go
++++ b/internal/backend/agent.go
+@@ -16,30 +16,36 @@ import (
+ )
+ 
+ // SendMessage validates and accepts a prompt for the workspace's agent,
+-// then dispatches the run on a goroutine bound to the workspace context
+-// and returns immediately. It does not wait for the LLM turn to
+-// complete: the run's lifetime is owned by the workspace, not by the
+-// caller. Errors from the dispatched run reach observers through the
+-// agent event channels (a notify.TypeAgentError notification), not
+-// through this return value.
++// records it durably (the user message plus a pending reply that the run
++// takes over, see agent.AcceptedRun.Record), then dispatches the run on a
++// goroutine bound to the workspace context and returns. It does not wait
++// for the LLM turn to complete: the run's lifetime is owned by the
++// workspace, not by the caller. Errors from the dispatched run reach
++// observers through the agent event channels (a notify.TypeAgentError
++// notification), not through this return value. A nil return therefore
++// means the prompt is in the database: if it never runs (server stopped or
++// killed, canceled, queue cleared) it reads as canceled or Interrupted
++// rather than vanishing.
+ //
+ // SendMessage returns synchronously when the request cannot be accepted:
+ // ErrWorkspaceNotFound if the workspace is missing, ErrAgentNotInitialized
+ // if its coordinator is nil, the structural validation errors from
+ // agent.ValidateCall (ErrEmptyPrompt, ErrSessionMissing) when the prompt
+-// or session is missing, and ErrWorkspaceClosing if the workspace is
+-// being torn down.
++// or session is missing, ErrWorkspaceClosing if the workspace is being
++// torn down, and the write error when the prompt could not be recorded.
+ func (b *Backend) SendMessage(workspaceID string, msg proto.AgentMessage) error {
+ 	ws, err := b.GetWorkspace(workspaceID)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	if err := agent.ValidateCall(agent.SessionAgentCall{
+-		SessionID:   msg.SessionID,
+-		Prompt:      msg.Prompt,
+-		Attachments: proto.AttachmentsToMessage(msg.Attachments),
+-	}); err != nil {
++	call := agent.SessionAgentCall{
++		SessionID:         msg.SessionID,
++		Prompt:            msg.Prompt,
++		Attachments:       proto.AttachmentsToMessage(msg.Attachments),
++		HiddenUserMessage: msg.HiddenUserMessage,
++	}
++	if err := agent.ValidateCall(call); err != nil {
+ 		return err
+ 	}
+ 
+@@ -62,10 +68,16 @@ func (b *Backend) SendMessage(workspaceID string, msg proto.AgentMessage) error
+ 	ws.inflightRuns.Add(1)
+ 	ws.runMu.Unlock()
+ 
++	accept := coord.BeginAccepted(msg.SessionID)
++	if err := accept.Record(ws.ctx, call); err != nil {
++		accept.Close()
++		ws.inflightRuns.Add(-1)
++		ws.runWG.Done()
++		return err
++	}
+ 	if msg.BindToClient != "" && msg.RunID != "" {
+ 		ws.bindRun(msg.BindToClient, boundRun{sessionID: msg.SessionID, runID: msg.RunID})
+ 	}
+-	accept := coord.BeginAccepted(msg.SessionID)
+ 	go b.runAgent(ws, msg, accept)
+ 	return nil
+ }
+@@ -132,6 +144,9 @@ func (b *Backend) runAgent(ws *Workspace, msg proto.AgentMessage, accept *agent.
+ 	if err == nil || errors.Is(err, context.Canceled) {
+ 		return
+ 	}
++	// Lượt hỏng trước khi sessionAgent.Run tiếp quản prompt: ghi lỗi thật vào
++	// tin giữ chỗ (no-op nếu lượt đã tiếp quản hay đã đóng nó).
++	accept.Fail(err)
+ 
+ 	ws.AgentNotifications().Publish(pubsub.CreatedEvent, notify.Notification{
+ 		SessionID: msg.SessionID,
+diff --git a/internal/backend/agent_runcomplete_test.go b/internal/backend/agent_runcomplete_test.go
+index a41f38d7..b0b62230 100644
+--- a/internal/backend/agent_runcomplete_test.go
++++ b/internal/backend/agent_runcomplete_test.go
+@@ -41,6 +41,7 @@ func (c *errorCoordinator) CancelRun(string, string)                          {}
+ func (c *errorCoordinator) Cancel(string)                                     {}
+ func (c *errorCoordinator) CancelAll()                                        {}
+ func (c *errorCoordinator) IsBusy() bool                                      { return false }
++func (c *errorCoordinator) HasPendingPrompts(string) bool                     { return false }
+ func (c *errorCoordinator) IsSessionBusy(string) bool                         { return false }
+ func (c *errorCoordinator) QueuedPrompts(string) int                          { return 0 }
+ func (c *errorCoordinator) QueuedPromptsList(string) []string                 { return nil }
+diff --git a/internal/backend/agent_test.go b/internal/backend/agent_test.go
+index f01425d0..7ebb73e7 100644
+--- a/internal/backend/agent_test.go
++++ b/internal/backend/agent_test.go
+@@ -56,6 +56,7 @@ func (c *blockingCoordinator) CancelRun(string, string)
+ func (c *blockingCoordinator) Cancel(string)                                     {}
+ func (c *blockingCoordinator) CancelAll()                                        {}
+ func (c *blockingCoordinator) IsBusy() bool                                      { return c.busy }
++func (c *blockingCoordinator) HasPendingPrompts(string) bool                     { return false }
+ func (c *blockingCoordinator) IsSessionBusy(string) bool                         { return false }
+ func (c *blockingCoordinator) QueuedPrompts(string) int                          { return 0 }
+ func (c *blockingCoordinator) QueuedPromptsList(string) []string                 { return nil }
+diff --git a/internal/backend/channels_test.go b/internal/backend/channels_test.go
+index 5c56aee3..7df48f61 100644
+--- a/internal/backend/channels_test.go
++++ b/internal/backend/channels_test.go
+@@ -162,6 +162,7 @@ func (c *recordingCoordinator) CancelRun(string, string)                      {}
+ func (c *recordingCoordinator) Cancel(string)                                 {}
+ func (c *recordingCoordinator) CancelAll()                                    {}
+ func (c *recordingCoordinator) IsBusy() bool                                  { return false }
++func (c *recordingCoordinator) HasPendingPrompts(string) bool                 { return false }
+ func (c *recordingCoordinator) IsSessionBusy(string) bool                     { return false }
+ func (c *recordingCoordinator) QueuedPrompts(string) int                      { return 0 }
+ func (c *recordingCoordinator) QueuedPromptsList(string) []string             { return nil }
+diff --git a/internal/backend/durable_ack_test.go b/internal/backend/durable_ack_test.go
+new file mode 100644
+index 00000000..fd563f25
+--- /dev/null
++++ b/internal/backend/durable_ack_test.go
+@@ -0,0 +1,755 @@
++package backend
++
++// Bất biến P1-a ("ack ⇒ dấu vết bền"): Backend.SendMessage đã trả nil (ack
++// cho `send`/TUI) thì prompt đã có tin user trong DB; prompt đó sau này không
++// chạy được (server tắt hay chết, huỷ, xoá hàng đợi) thì khi đọc lại session
++// dấu vết hiện đúng trạng thái (huỷ hoặc Interrupted), không biến mất im lặng.
++// Đối chứng: luồng thường không ghi trùng tin user. Mọi test đi qua cửa ack
++// thật (Backend.SendMessage) và đọc lại bằng đường đọc thật
++// (agent.ReadSettledMessages, như `session show` của tiến trình mới).
++
++import (
++	"context"
++	"database/sql"
++	"errors"
++	"slices"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"charm.land/catwalk/pkg/catwalk"
++	"charm.land/fantasy"
++	"github.com/charmbracelet/crush/internal/agent"
++	"github.com/charmbracelet/crush/internal/agent/agenttest"
++	"github.com/charmbracelet/crush/internal/db"
++	"github.com/charmbracelet/crush/internal/message"
++	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/charmbracelet/crush/internal/session"
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++)
++
++// ackModel là LLM giả: lần Stream đầu báo entered rồi chờ release (hoặc ctx
++// huỷ); toolFirst thì lần đầu trả tool call "noop" để lượt có bước 2, nơi
++// prompt xếp hàng không RunID được gộp. Các lần sau trả "done". users ghi chữ
++// các tin user của từng request.
++type ackModel struct {
++	entered   chan struct{}
++	release   chan struct{}
++	toolFirst bool
++	n         atomic.Int32
++	mu        sync.Mutex
++	users     [][]string
++}
++
++func newAckModel(toolFirst bool) *ackModel {
++	return &ackModel{entered: make(chan struct{}), release: make(chan struct{}), toolFirst: toolFirst}
++}
++
++func (m *ackModel) Provider() string { return "fake" }
++func (m *ackModel) Model() string    { return "fake-model" }
++
++func (m *ackModel) Generate(context.Context, fantasy.Call) (*fantasy.Response, error) {
++	return &fantasy.Response{Content: fantasy.ResponseContent{fantasy.TextContent{Text: "title"}}, FinishReason: fantasy.FinishReasonStop}, nil
++}
++
++func (m *ackModel) GenerateObject(context.Context, fantasy.ObjectCall) (*fantasy.ObjectResponse, error) {
++	return nil, errors.New("not supported")
++}
++
++func (m *ackModel) StreamObject(context.Context, fantasy.ObjectCall) (fantasy.ObjectStreamResponse, error) {
++	return nil, errors.New("not supported")
++}
++
++func (m *ackModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
++	var users []string
++	for _, msg := range call.Prompt {
++		if msg.Role != fantasy.MessageRoleUser {
++			continue
++		}
++		for _, p := range msg.Content {
++			if tp, ok := fantasy.AsMessagePart[fantasy.TextPart](p); ok {
++				users = append(users, tp.Text)
++			}
++		}
++	}
++	m.mu.Lock()
++	m.users = append(m.users, users)
++	m.mu.Unlock()
++	first := m.n.Add(1) == 1
++	if first {
++		close(m.entered)
++		select {
++		case <-m.release:
++		case <-ctx.Done():
++			return nil, ctx.Err()
++		}
++	}
++	if first && m.toolFirst {
++		return func(yield func(fantasy.StreamPart) bool) {
++			_ = yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputStart, ID: "tc1", ToolCallName: "noop"}) &&
++				yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputEnd, ID: "tc1"}) &&
++				yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolCall, ID: "tc1", ToolCallName: "noop", ToolCallInput: "{}"}) &&
++				yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls})
++		}, nil
++	}
++	return func(yield func(fantasy.StreamPart) bool) {
++		_ = yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextStart, ID: "1"}) &&
++			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextDelta, ID: "1", Delta: "done"}) &&
++			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextEnd, ID: "1"}) &&
++			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop})
++	}, nil
++}
++
++func (m *ackModel) requests() [][]string {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	return slices.Clone(m.users)
++}
++
++// saCoordinator nối Backend với một sessionAgent thật (LLM giả): các phương
++// thức backend gọi tới đi thẳng vào sessionAgent, phần còn lại không dùng.
++type saCoordinator struct {
++	agent.Coordinator
++	sa agent.SessionAgent
++}
++
++func (c *saCoordinator) BeginAccepted(sessionID string) *agent.AcceptedRun {
++	return c.sa.BeginAccepted(sessionID)
++}
++
++func (c *saCoordinator) RunAccepted(ctx context.Context, accept *agent.AcceptedRun, sessionID, prompt string, attachments ...message.Attachment) (*fantasy.AgentResult, error) {
++	return c.sa.Run(ctx, agent.SessionAgentCall{
++		SessionID:       sessionID,
++		RunID:           agent.RunIDFromContext(ctx),
++		Prompt:          prompt,
++		Attachments:     attachments,
++		Accepted:        accept,
++		MaxOutputTokens: 1000,
++	})
++}
++
++func (c *saCoordinator) Cancel(sessionID string)              { c.sa.Cancel(sessionID) }
++func (c *saCoordinator) CancelRun(sessionID, runID string)    { c.sa.CancelRun(sessionID, runID) }
++func (c *saCoordinator) CancelAll()                           { c.sa.CancelAll() }
++func (c *saCoordinator) IsSessionBusy(sessionID string) bool  { return c.sa.IsSessionBusy(sessionID) }
++func (c *saCoordinator) HasPendingPrompts(id string) bool     { return c.sa.HasPendingPrompts(id) }
++func (c *saCoordinator) IsBusy() bool                         { return c.sa.IsBusy() }
++func (c *saCoordinator) QueuedPrompts(sessionID string) int   { return c.sa.QueuedPrompts(sessionID) }
++func (c *saCoordinator) ClearQueue(sessionID string)          { c.sa.ClearQueue(sessionID) }
++func (c *saCoordinator) QueuedPromptsList(id string) []string { return c.sa.QueuedPromptsList(id) }
++
++type ackHarness struct {
++	conn     *sql.DB
++	b        *Backend
++	ws       *Workspace
++	sa       agent.SessionAgent
++	model    *ackModel
++	messages message.Service
++	sid      string
++}
++
++func newAckHarness(t *testing.T, toolFirst bool) *ackHarness {
++	t.Helper()
++	conn, err := db.Connect(t.Context(), t.TempDir())
++	require.NoError(t, err)
++	t.Cleanup(func() { conn.Close() })
++	q := db.New(conn)
++	sessions := session.NewService(q, conn)
++	messages := message.NewService(q)
++
++	model := newAckModel(toolFirst)
++	title := newAckModel(false)
++	close(title.release)
++	cfg := catwalk.Model{ContextWindow: 200000, DefaultMaxTokens: 10000}
++	noop := fantasy.NewAgentTool("noop", "test tool", func(context.Context, struct{}, fantasy.ToolCall) (fantasy.ToolResponse, error) {
++		return fantasy.NewTextResponse("ok"), nil
++	})
++	sa := agent.NewSessionAgent(agent.SessionAgentOptions{
++		LargeModel:           agent.Model{Model: model, CatwalkCfg: cfg},
++		SmallModel:           agent.Model{Model: title, CatwalkCfg: cfg},
++		DisableAutoSummarize: true,
++		IsYolo:               true,
++		Sessions:             sessions,
++		Messages:             messages,
++		Tools:                []fantasy.AgentTool{noop},
++	})
++	sess, err := sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++
++	b, _ := newTestBackend(t)
++	// App thật: lượt lỗi phát thông báo qua broker của nó.
++	ws := insertRunCompleteWorkspace(t, b, context.Background(), &saCoordinator{sa: sa})
++	h := &ackHarness{conn: conn, b: b, ws: ws, sa: sa, model: model, messages: messages, sid: sess.ID}
++	// Chạy trước khi đóng DB (Cleanup chạy ngược thứ tự đăng ký): không để
++	// lượt nào còn ghi vào DB đã đóng.
++	t.Cleanup(func() {
++		sa.CancelAll()
++		ws.cancel()
++		ws.runWG.Wait()
++	})
++	return h
++}
++
++func (h *ackHarness) send(t *testing.T, runID, prompt string) {
++	t.Helper()
++	require.NoError(t, h.b.SendMessage(h.ws.ID, proto.AgentMessage{SessionID: h.sid, RunID: runID, Prompt: prompt}))
++}
++
++// startBusy gửi prompt A và chờ tới khi lượt của A đang ở LLM (session bận).
++func (h *ackHarness) startBusy(t *testing.T, runID string) {
++	t.Helper()
++	h.send(t, runID, "A long turn")
++	select {
++	case <-h.model.entered:
++	case <-time.After(5 * time.Second):
++		t.Fatal("turn A never reached the model")
++	}
++}
++
++// sendQueued gửi prompt B khi session đang bận và chờ B vào hàng đợi.
++func (h *ackHarness) sendQueued(t *testing.T, runID, prompt string) {
++	t.Helper()
++	h.send(t, runID, prompt)
++	require.Eventually(t, func() bool { return h.sa.QueuedPrompts(h.sid) == 1 }, 5*time.Second, 5*time.Millisecond,
++		"prompt B never reached the queue")
++}
++
++func (h *ackHarness) waitRuns(t *testing.T) {
++	t.Helper()
++	done := make(chan struct{})
++	go func() {
++		h.ws.runWG.Wait()
++		close(done)
++	}()
++	select {
++	case <-done:
++	case <-time.After(10 * time.Second):
++		t.Fatal("dispatched runs did not return")
++	}
++}
++
++// reopen đọc session như một tiến trình mới mở lại nó: không còn lượt nào
++// chạy, nên các dấu vết bỏ dở được settle trước khi đọc.
++func reopen(t *testing.T, messages message.Service, sid string) []message.Message {
++	t.Helper()
++	msgs, err := agent.ReadSettledMessages(t.Context(), messages, nil, sid)
++	require.NoError(t, err)
++	return msgs
++}
++
++// promptTrace trả số tin user mang đúng prompt và tin ngay sau tin user đầu
++// tiên đó (nil nếu không có): tin ngay sau là nơi ghi số phận của prompt.
++func promptTrace(msgs []message.Message, prompt string) (users int, next *message.Message) {
++	for i := range msgs {
++		if msgs[i].Role != message.User || msgs[i].Content().Text != prompt {
++			continue
++		}
++		if users == 0 && i+1 < len(msgs) {
++			next = &msgs[i+1]
++		}
++		users++
++	}
++	return users, next
++}
++
++func countRole(msgs []message.Message, role message.MessageRole) int {
++	n := 0
++	for _, m := range msgs {
++		if m.Role == role {
++			n++
++		}
++	}
++	return n
++}
++
++// requireClosedUnrun khẳng định prompt có đúng một tin user và tin ngay sau
++// nó là lời trợ lý đã đóng với trạng thái huỷ hoặc Interrupted.
++func requireClosedUnrun(t *testing.T, msgs []message.Message, prompt string) {
++	t.Helper()
++	users, next := promptTrace(msgs, prompt)
++	require.Equal(t, 1, users, "acked prompt %q must have exactly one user message in the DB", prompt)
++	require.NotNil(t, next, "acked prompt %q has nothing recording that it never ran", prompt)
++	require.Equal(t, message.Assistant, next.Role)
++	require.True(t, next.IsFinished(), "the record after %q must be closed", prompt)
++	f := next.FinishPart()
++	ok := f.Reason == message.FinishReasonCanceled || (f.Reason == message.FinishReasonError && f.Message == "Interrupted")
++	require.True(t, ok, "prompt %q must read as canceled/Interrupted, got %q %q", prompt, f.Reason, f.Message)
++}
++
++// requireCanceledNow khẳng định, trên DB thô (chưa settle, server còn sống),
++// prompt bị bỏ khỏi hàng đợi đã được đóng là huỷ ngay lúc bỏ.
++func requireCanceledNow(t *testing.T, messages message.Service, sid, prompt string) {
++	t.Helper()
++	msgs, err := messages.List(t.Context(), sid)
++	require.NoError(t, err)
++	users, next := promptTrace(msgs, prompt)
++	require.Equal(t, 1, users)
++	require.NotNil(t, next)
++	require.Equal(t, message.FinishReasonCanceled, next.FinishReason(), "a dropped prompt is closed as canceled when it is dropped")
++}
++
++// T11 (đơn vị): SendMessage trả nil khi lượt còn chưa chạy (đang chờ
++// trước RunAccepted) thì tin user đã phải nằm trong DB; tiến trình chết đúng
++// lúc đó rồi mở lại thì prompt hiện là Interrupted.
++func TestSendMessage_AckPersistsUserMessageBeforeRun(t *testing.T) {
++	t.Parallel()
++	b, _ := newTestBackend(t)
++	coord, sessions, messages := newRealCoordinator(t)
++	sess, err := sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ws := insertAgentWorkspace(t, b, coord)
++
++	require.NoError(t, b.SendMessage(ws.ID, proto.AgentMessage{SessionID: sess.ID, RunID: "r1", Prompt: "hi"}))
++	select {
++	case <-coord.entered:
++	case <-time.After(2 * time.Second):
++		t.Fatal("dispatched run never entered RunAccepted")
++	}
++
++	msgs, err := messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	users, _ := promptTrace(msgs, "hi")
++	require.Equal(t, 1, users, "SendMessage acked before the user message was written")
++
++	requireClosedUnrun(t, reopen(t, messages, sess.ID), "hi")
++
++	// Dọn: lượt bị huỷ ngay khi vào, không ghi thêm tin user nào.
++	require.NoError(t, b.CancelSession(ws.ID, sess.ID))
++	close(coord.gate)
++	ws.runWG.Wait()
++	msgs, err = messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	require.Len(t, msgs, 2)
++	requireClosedUnrun(t, msgs, "hi")
++}
++
++// T13 (đơn vị): B xếp hàng sau A rồi server tắt (SIGTERM): mở lại session
++// thấy B, đóng là huỷ/Interrupted; B chưa tới LLM.
++func TestSendMessage_QueuedPromptSurvivesShutdown(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "a")
++	h.sendQueued(t, "b", "B queued prompt")
++
++	// Đúng thứ tự Workspace.Shutdown (phần agent): chặn nhận, huỷ ctx
++	// workspace, CancelAll, chờ các lượt.
++	h.ws.runMu.Lock()
++	h.ws.closing = true
++	h.ws.runMu.Unlock()
++	h.ws.cancel()
++	h.sa.CancelAll()
++	h.waitRuns(t)
++
++	requireClosedUnrun(t, reopen(t, h.messages, h.sid), "B queued prompt")
++	require.Len(t, h.model.requests(), 1, "B must not reach the model")
++}
++
++// Tiến trình chết (SIGKILL) khi B còn trong hàng đợi trong RAM: DB lúc đó
++// phải đủ để tiến trình mới mở lại thấy B là Interrupted, và A (đang ở LLM,
++// tin giữ chỗ của nó đã nhường cho lời trả lời thật) cũng vậy.
++func TestSendMessage_QueuedPromptSurvivesCrash(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "a")
++	h.sendQueued(t, "b", "B queued prompt")
++
++	msgs := reopen(t, h.messages, h.sid)
++	requireClosedUnrun(t, msgs, "B queued prompt")
++	requireClosedUnrun(t, msgs, "A long turn")
++	require.Equal(t, 2, countRole(msgs, message.Assistant), "one record per prompt, no leftover placeholder")
++}
++
++// Esc trên TUI (Cancel, prompt không RunID): B đang chờ bị bỏ thì vẫn hiện,
++// đóng là huỷ.
++func TestSendMessage_QueuedPromptCanceledLeavesTrace(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "")
++	h.sendQueued(t, "", "B queued prompt")
++
++	require.NoError(t, h.b.CancelSession(h.ws.ID, h.sid))
++	h.waitRuns(t)
++
++	requireCanceledNow(t, h.messages, h.sid, "B queued prompt")
++	requireClosedUnrun(t, reopen(t, h.messages, h.sid), "B queued prompt")
++	require.Len(t, h.model.requests(), 1, "B must not reach the model")
++}
++
++// ClearQueue: B bị xoá khỏi hàng đợi thì vẫn hiện, đóng là huỷ; A chạy tiếp
++// bình thường.
++func TestSendMessage_ClearedQueueLeavesTrace(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "")
++	h.sendQueued(t, "", "B queued prompt")
++
++	require.NoError(t, h.b.ClearQueue(h.ws.ID, h.sid))
++	close(h.model.release)
++	h.waitRuns(t)
++
++	requireCanceledNow(t, h.messages, h.sid, "B queued prompt")
++	msgs := reopen(t, h.messages, h.sid)
++	requireClosedUnrun(t, msgs, "B queued prompt")
++	users, next := promptTrace(msgs, "A long turn")
++	require.Equal(t, 1, users)
++	require.NotNil(t, next)
++	require.Equal(t, message.FinishReasonEndTurn, next.FinishReason(), "A must finish normally")
++	require.Len(t, h.model.requests(), 1, "B must not reach the model")
++}
++
++// CancelRun theo RunID của B đang chờ: B vẫn hiện, đóng là huỷ.
++func TestSendMessage_QueuedPromptCancelRunLeavesTrace(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "a")
++	h.sendQueued(t, "b", "B queued prompt")
++
++	require.NoError(t, h.b.CancelRun(h.ws.ID, h.sid, "b"))
++	close(h.model.release)
++	h.waitRuns(t)
++
++	requireCanceledNow(t, h.messages, h.sid, "B queued prompt")
++	requireClosedUnrun(t, reopen(t, h.messages, h.sid), "B queued prompt")
++	require.Len(t, h.model.requests(), 1, "B must not reach the model")
++}
++
++// Đối chứng: một prompt chạy xong để lại đúng một tin user và một lời trả
++// lời đã xong, không còn gì dở.
++func TestSendMessage_SinglePromptNoDuplicate(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	close(h.model.release)
++	h.send(t, "a", "A long turn")
++	h.waitRuns(t)
++
++	msgs := reopen(t, h.messages, h.sid)
++	require.Len(t, msgs, 2)
++	users, next := promptTrace(msgs, "A long turn")
++	require.Equal(t, 1, users)
++	require.NotNil(t, next)
++	require.Equal(t, message.FinishReasonEndTurn, next.FinishReason())
++	require.Equal(t, [][]string{{"A long turn"}}, onlyPrompts(h.model.requests(), "A long turn"))
++}
++
++// Đối chứng (gộp, đường TUI không RunID): B chờ trong lúc A ở bước 1, được
++// gộp vào bước 2 của A. Đúng hai tin user (A, B), B tới LLM đúng một lần, ở
++// bước 2, không còn lời trợ lý dở hay bị huỷ.
++func TestSendMessage_FoldedPromptNoDuplicate(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, true)
++	h.startBusy(t, "")
++	h.sendQueued(t, "", "B queued prompt")
++	close(h.model.release)
++	h.waitRuns(t)
++
++	msgs := reopen(t, h.messages, h.sid)
++	require.Equal(t, 2, countRole(msgs, message.User), "one user message per prompt")
++	users, _ := promptTrace(msgs, "B queued prompt")
++	require.Equal(t, 1, users)
++	for _, m := range msgs {
++		if m.Role == message.Assistant {
++			require.NotEqual(t, message.FinishReasonCanceled, m.FinishReason())
++			require.NotEqual(t, message.FinishReasonError, m.FinishReason())
++		}
++	}
++	reqs := h.model.requests()
++	require.Len(t, reqs, 2)
++	require.NotContains(t, reqs[0], "B queued prompt")
++	require.Equal(t, 1, countText(reqs[1], "B queued prompt"), "B folded into step 2 exactly once")
++	last := msgs[len(msgs)-1]
++	require.Equal(t, message.Assistant, last.Role)
++	require.Equal(t, message.FinishReasonEndTurn, last.FinishReason())
++}
++
++// Đối chứng (lượt riêng, prompt có RunID): B chạy sau khi A xong; DB theo
++// đúng thứ tự A user, A trả lời, B user, B trả lời, không trùng, không dở.
++func TestSendMessage_QueuedRunIDPromptRunsInOrder(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "a")
++	h.sendQueued(t, "b", "B queued prompt")
++	close(h.model.release)
++	h.waitRuns(t)
++
++	msgs := reopen(t, h.messages, h.sid)
++	require.Len(t, msgs, 4)
++	require.Equal(t, message.User, msgs[0].Role)
++	require.Equal(t, "A long turn", msgs[0].Content().Text)
++	require.Equal(t, message.Assistant, msgs[1].Role)
++	require.Equal(t, message.FinishReasonEndTurn, msgs[1].FinishReason())
++	require.Equal(t, message.User, msgs[2].Role)
++	require.Equal(t, "B queued prompt", msgs[2].Content().Text)
++	require.Equal(t, message.Assistant, msgs[3].Role)
++	require.Equal(t, message.FinishReasonEndTurn, msgs[3].FinishReason())
++	reqs := h.model.requests()
++	require.Len(t, reqs, 2)
++	require.Equal(t, 1, countText(reqs[1], "B queued prompt"), "B sent to the model exactly once")
++}
++
++// Đối chứng (lượt riêng sau một lượt nhiều bước): A còn ghi tin sau lúc B
++// được nhận, nên tin user của B phải được ghi lại sau lời trả lời cuối của A
++// (DB đúng thứ tự model thấy), không nằm kẹt giữa lượt A, không trùng.
++func TestSendMessage_QueuedRunIDPromptAfterMultiStepTurn(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, true)
++	h.startBusy(t, "a")
++	h.sendQueued(t, "b", "B queued prompt")
++	close(h.model.release)
++	h.waitRuns(t)
++
++	msgs := reopen(t, h.messages, h.sid)
++	require.Equal(t, 2, countRole(msgs, message.User))
++	users, next := promptTrace(msgs, "B queued prompt")
++	require.Equal(t, 1, users)
++	require.NotNil(t, next)
++	require.Equal(t, message.FinishReasonEndTurn, next.FinishReason())
++	bAt := slices.IndexFunc(msgs, func(m message.Message) bool { return m.Content().Text == "B queued prompt" })
++	require.Equal(t, len(msgs)-2, bAt, "B and its reply must come after every message of turn A")
++	reqs := h.model.requests()
++	require.Len(t, reqs, 3)
++	require.Zero(t, countText(reqs[1], "B queued prompt"), "B must not be folded into A")
++	require.Equal(t, 1, countText(reqs[2], "B queued prompt"))
++}
++
++func countText(texts []string, s string) int {
++	n := 0
++	for _, x := range texts {
++		if x == s {
++			n++
++		}
++	}
++	return n
++}
++
++// onlyPrompts lọc mỗi request còn các chữ bằng một trong prompts (bỏ lời
++// nhắc hệ thống chèn vào lịch sử).
++func onlyPrompts(reqs [][]string, prompts ...string) [][]string {
++	out := make([][]string, len(reqs))
++	for i, r := range reqs {
++		out[i] = []string{}
++		for _, x := range r {
++			if slices.Contains(prompts, x) {
++				out[i] = append(out[i], x)
++			}
++		}
++	}
++	return out
++}
++
++// sendMore gửi thêm một prompt khi session đang bận và chờ hàng đợi đủ n.
++func (h *ackHarness) sendMore(t *testing.T, runID, prompt string, n int) {
++	t.Helper()
++	h.send(t, runID, prompt)
++	require.Eventually(t, func() bool { return h.sa.QueuedPrompts(h.sid) == n }, 5*time.Second, 5*time.Millisecond,
++		"prompt %q never reached the queue", prompt)
++}
++
++// Hai prompt chờ (TUI, không RunID) sau lượt A đang ở bước cuối: prompt đã
++// ghi mà chưa tới lượt không được lọt vào request của lượt khác. Mỗi request
++// chứa mỗi prompt đúng một lần, đúng thứ tự gửi.
++func TestSendMessage_PendingPromptsFoldInOrder(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "")
++	h.sendMore(t, "", "B queued prompt", 1)
++	h.sendMore(t, "", "C queued prompt", 2)
++	close(h.model.release)
++	h.waitRuns(t)
++
++	require.Equal(t, [][]string{{"A long turn"}, {"A long turn", "B queued prompt", "C queued prompt"}},
++		onlyPrompts(h.model.requests(), "A long turn", "B queued prompt", "C queued prompt"))
++}
++
++// Như trên với prompt có RunID (`send`, `run -s`): mỗi prompt là một lượt
++// riêng và lượt của B không thấy C.
++func TestSendMessage_PendingRunIDPromptsInOrder(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "a")
++	h.sendMore(t, "b", "B queued prompt", 1)
++	h.sendMore(t, "c", "C queued prompt", 2)
++	close(h.model.release)
++	h.waitRuns(t)
++
++	require.Equal(t, [][]string{
++		{"A long turn"},
++		{"A long turn", "B queued prompt"},
++		{"A long turn", "B queued prompt", "C queued prompt"},
++	}, onlyPrompts(h.model.requests(), "A long turn", "B queued prompt", "C queued prompt"))
++}
++
++// Prompt bị bỏ khi còn xếp hàng (Esc, xoá hàng đợi) chưa từng tới model: nó
++// vẫn hiện là huỷ nhưng không vào lịch sử gửi model của lượt sau (như V2,
++// khi nó biến mất).
++func TestSendMessage_DroppedQueuedPromptNotInHistory(t *testing.T) {
++	t.Parallel()
++	for name, drop := range map[string]func(h *ackHarness){
++		"cancel": func(h *ackHarness) { require.NoError(t, h.b.CancelSession(h.ws.ID, h.sid)) },
++		"clear_queue": func(h *ackHarness) {
++			require.NoError(t, h.b.ClearQueue(h.ws.ID, h.sid))
++			close(h.model.release)
++		},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			h := newAckHarness(t, false)
++			h.startBusy(t, "")
++			h.sendQueued(t, "", "B queued prompt")
++			drop(h)
++			h.waitRuns(t)
++			h.send(t, "", "D next prompt")
++			h.waitRuns(t)
++
++			reqs := onlyPrompts(h.model.requests(), "A long turn", "B queued prompt", "D next prompt")
++			require.Equal(t, []string{"A long turn", "D next prompt"}, reqs[len(reqs)-1])
++			requireClosedUnrun(t, reopen(t, h.messages, h.sid), "B queued prompt")
++		})
++	}
++}
++
++// Prompt đã nhận mà lượt chưa active (đứng trước RunAccepted, như lúc chờ
++// readiness): người đọc session qua server (settle) không được đóng tin giữ
++// chỗ còn sống là "Interrupted".
++func TestSendMessage_SettleLeavesAcceptedPromptOpen(t *testing.T) {
++	t.Parallel()
++	b, _ := newTestBackend(t)
++	coord, sessions, messages := newRealCoordinator(t)
++	sess, err := sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ws := insertAgentWorkspace(t, b, coord)
++	ws.App.Sessions, ws.App.Messages = sessions, messages
++
++	require.NoError(t, b.SendMessage(ws.ID, proto.AgentMessage{SessionID: sess.ID, RunID: "r1", Prompt: "hi"}))
++	select {
++	case <-coord.entered:
++	case <-time.After(2 * time.Second):
++		t.Fatal("dispatched run never entered RunAccepted")
++	}
++	_, err = b.ListSessionMessages(t.Context(), ws.ID, sess.ID)
++	require.NoError(t, err)
++
++	msgs, err := messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	require.Len(t, msgs, 2)
++	require.False(t, msgs[1].IsFinished(), "a reader settled the reply of a prompt that is still accepted")
++
++	require.NoError(t, b.CancelSession(ws.ID, sess.ID))
++	close(coord.gate)
++	ws.runWG.Wait()
++}
++
++// Lượt hỏng trước khi tới sessionAgent.Run (provider tắt hay thiếu key:
++// lỗi của coordinator): tin giữ chỗ đóng bằng lỗi thật thay vì quay mãi rồi
++// thành "Interrupted".
++func TestSendMessage_PreRunErrorClosesPromptWithError(t *testing.T) {
++	t.Parallel()
++	conn, err := db.Connect(t.Context(), t.TempDir())
++	require.NoError(t, err)
++	t.Cleanup(func() { conn.Close() })
++	q := db.New(conn)
++	sessions := session.NewService(q, conn)
++	messages := message.NewService(q)
++	coord, cfg, err := agenttest.NewCoordinatorWithConfig(t.Context(), t.TempDir(), sessions, messages)
++	require.NoError(t, err)
++	for id, p := range cfg.Config().Providers.Seq2() {
++		p.Disable = true
++		cfg.Config().Providers.Set(id, p)
++	}
++	sess, err := sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	b, _ := newTestBackend(t)
++	ws := insertRunCompleteWorkspace(t, b, context.Background(), coord)
++
++	require.NoError(t, b.SendMessage(ws.ID, proto.AgentMessage{SessionID: sess.ID, RunID: "r1", Prompt: "hi"}))
++	ws.runWG.Wait()
++
++	msgs, err := messages.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	require.Len(t, msgs, 2)
++	f := msgs[1].FinishPart()
++	require.NotNil(t, f, "the pending reply of a run that failed before starting must be closed")
++	require.Equal(t, message.FinishReasonError, f.Reason)
++	require.Contains(t, f.Details, "unavailable")
++}
++
++// failMessageDeletes làm mọi lệnh xoá tin hỏng (trigger SQLite), như khi tiến
++// trình chết giữa hai lần ghi: các bước "ghi mới + xoá cũ" phải trọn vẹn hoặc
++// không gì.
++func failMessageDeletes(t *testing.T, conn *sql.DB) {
++	t.Helper()
++	_, err := conn.ExecContext(t.Context(), `CREATE TRIGGER fail_message_delete BEFORE DELETE ON messages
++		BEGIN SELECT RAISE(ABORT, 'injected delete failure'); END`)
++	require.NoError(t, err)
++}
++
++// Tạo lời trả lời thật và xoá tin giữ chỗ là một lần ghi: xoá hỏng thì không
++// được để lại hai bản trả lời cho một prompt.
++func TestSendMessage_ReplyReplacesPlaceholderAtomically(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	failMessageDeletes(t, h.conn)
++	close(h.model.release)
++	h.send(t, "a", "A long turn")
++	h.waitRuns(t)
++
++	msgs := reopen(t, h.messages, h.sid)
++	require.Equal(t, 1, countRole(msgs, message.User))
++	require.Equal(t, 1, countRole(msgs, message.Assistant), "one record per prompt")
++}
++
++// Dời cặp tin (ghi mới + xoá cũ) là một lần ghi: xoá hỏng thì không được để
++// lại hai bản prompt; prompt mang lỗi thật.
++func TestSendMessage_MoveRecordedPromptAtomically(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, true)
++	h.startBusy(t, "a")
++	h.sendQueued(t, "b", "B queued prompt")
++	failMessageDeletes(t, h.conn)
++	close(h.model.release)
++	h.waitRuns(t)
++
++	msgs := reopen(t, h.messages, h.sid)
++	users, next := promptTrace(msgs, "B queued prompt")
++	require.Equal(t, 1, users, "the prompt must not be duplicated")
++	require.NotNil(t, next)
++	require.Equal(t, message.FinishReasonError, next.FinishReason(), "the failed move is reported on the prompt")
++	require.Equal(t, "Prompt not run", next.FinishPart().Message, "with the real error, not a later Interrupted")
++}
++
++// Hai `send` thật cùng lúc khi session bận: mỗi request chứa mỗi prompt nhiều
++// nhất một lần, mỗi prompt tới model đúng một lần, không prompt nào trùng.
++func TestSendMessage_ConcurrentSendsStayDistinct(t *testing.T) {
++	t.Parallel()
++	h := newAckHarness(t, false)
++	h.startBusy(t, "a")
++	start := make(chan struct{})
++	var wg sync.WaitGroup
++	for _, p := range []string{"B queued prompt", "C queued prompt"} {
++		wg.Go(func() {
++			<-start
++			assert.NoError(t, h.b.SendMessage(h.ws.ID, proto.AgentMessage{SessionID: h.sid, RunID: p, Prompt: p}))
++		})
++	}
++	close(start)
++	wg.Wait()
++	require.Eventually(t, func() bool { return h.sa.QueuedPrompts(h.sid) == 2 }, 5*time.Second, 5*time.Millisecond)
++	close(h.model.release)
++	h.waitRuns(t)
++
++	prompts := []string{"A long turn", "B queued prompt", "C queued prompt"}
++	reqs := onlyPrompts(h.model.requests(), prompts...)
++	require.Len(t, reqs, 3)
++	for i, r := range reqs {
++		for _, p := range prompts {
++			require.LessOrEqual(t, countText(r, p), 1, "request %d carries %q twice: %v", i, p, r)
++		}
++	}
++	require.Equal(t, []string{"A long turn"}, reqs[0])
++	require.Len(t, reqs[1], 2, "the second turn sees A and its own prompt only")
++	require.Len(t, reqs[2], 3)
++	msgs := reopen(t, h.messages, h.sid)
++	require.Equal(t, 3, countRole(msgs, message.User))
++	require.Equal(t, 3, countRole(msgs, message.Assistant))
++}
+diff --git a/internal/backend/session.go b/internal/backend/session.go
+index 4dbb37c5..73127b25 100644
+--- a/internal/backend/session.go
++++ b/internal/backend/session.go
+@@ -101,7 +101,7 @@ func (b *Backend) ListSessionMessages(ctx context.Context, workspaceID, sessionI
+ 	// so skipping the settle showed interrupted calls as still running.
+ 	var busy agent.SessionBusyFunc
+ 	if coord := ws.AgentCoordinator; coord != nil {
+-		busy = agent.BusyWithAncestors(ctx, ws.Sessions, coord.IsSessionBusy)
++		busy = agent.BusyWithAncestors(ctx, ws.Sessions, agent.SettleBusy(coord))
+ 	}
+ 	return agent.ReadSettledMessages(ctx, ws.Messages, busy, sessionID)
+ }
+diff --git a/internal/cmd/run.go b/internal/cmd/run.go
+index 90102bea..f7a6d27d 100644
+--- a/internal/cmd/run.go
++++ b/internal/cmd/run.go
+@@ -195,12 +195,7 @@ agent-cli run --json "Summarize this repo"
+ 					}
+ 					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
+ 					if msgs, err := c.ListMessages(ctx, ws.ID, id); err == nil {
+-						for i := len(msgs) - 1; i >= 0; i-- {
+-							if m := msgs[i]; m.Role == proto.Assistant && !m.IsSummaryMessage && m.Model != "" {
+-								u.provider, u.model = m.Provider, m.Model
+-								break
+-							}
+-						}
++						u.provider, u.model = lastReplyModel(protoReplies(msgs))
+ 					}
+ 					return u, nil
+ 				},
+@@ -243,12 +238,7 @@ agent-cli run --json "Summarize this repo"
+ 				}
+ 				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
+ 				if msgs, err := appWs.App().Messages.List(ctx, id); err == nil {
+-					for i := len(msgs) - 1; i >= 0; i-- {
+-						if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" {
+-							u.provider, u.model = m.Provider, m.Model
+-							break
+-						}
+-					}
++					u.provider, u.model = lastReplyModel(msgs)
+ 				}
+ 				return u, nil
+ 			},
+@@ -291,6 +281,27 @@ type runJSONResult struct {
+ 	Model    string `json:"model,omitempty"`
+ }
+ 
++// lastReplyModel trả provider/model của lời trả lời thật cuối cùng trong
++// session: bỏ bản tóm tắt, tin không có model và tin giữ chỗ của prompt chưa
++// chạy (cột model của nó là ID tin user, không phải model).
++func lastReplyModel(msgs []message.Message) (provider, model string) {
++	for i := len(msgs) - 1; i >= 0; i-- {
++		if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" && !message.IsPromptPlaceholder(m) {
++			return m.Provider, m.Model
++		}
++	}
++	return "", ""
++}
++
++// protoReplies chép từ tin của server các trường lastReplyModel cần.
++func protoReplies(msgs []proto.Message) []message.Message {
++	out := make([]message.Message, len(msgs))
++	for i, m := range msgs {
++		out[i] = message.Message{Role: message.MessageRole(m.Role), IsSummaryMessage: m.IsSummaryMessage, Provider: m.Provider, Model: m.Model}
++	}
++	return out
++}
++
+ type sessionUsage struct {
+ 	promptTokens, completionTokens int64
+ 	cost                           float64
+diff --git a/internal/cmd/run_reply_model_test.go b/internal/cmd/run_reply_model_test.go
+new file mode 100644
+index 00000000..d9ba11f9
+--- /dev/null
++++ b/internal/cmd/run_reply_model_test.go
+@@ -0,0 +1,45 @@
++package cmd
++
++import (
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/message"
++	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/stretchr/testify/require"
++)
++
++// Tin giữ chỗ của prompt chưa chạy (provider "agent-cli-pending", model = ID
++// tin user) không phải lời trả lời của model nào: `run --json` không được báo
++// nó là provider/model.
++func TestLastReplyModelSkipsPromptPlaceholders(t *testing.T) {
++	t.Parallel()
++	placeholder := func(userID string) message.Message {
++		return message.Message{Role: message.Assistant, Provider: message.PendingReplyProvider, Model: userID}
++	}
++
++	// Lượt hỏng trước khi chạy (thiếu key, provider tắt): chỉ có tin giữ chỗ
++	// đã đóng lỗi, nên không có provider/model nào để báo.
++	p, m := lastReplyModel([]message.Message{{ID: "u1", Role: message.User}, placeholder("u1")})
++	require.Empty(t, p)
++	require.Empty(t, m)
++
++	// Sau lời trả lời thật đã có prompt khác được ghi: báo nhãn của lời trả lời thật.
++	msgs := []message.Message{
++		{ID: "u1", Role: message.User},
++		{Role: message.Assistant, Provider: "openai", Model: "gpt-5"},
++		{ID: "u2", Role: message.User},
++		placeholder("u2"),
++	}
++	p, m = lastReplyModel(msgs)
++	require.Equal(t, "openai", p)
++	require.Equal(t, "gpt-5", m)
++
++	// Đường server: cùng kết quả qua tin proto.
++	var protoMsgs []proto.Message
++	for _, x := range msgs {
++		protoMsgs = append(protoMsgs, proto.Message{Role: proto.MessageRole(x.Role), Provider: x.Provider, Model: x.Model})
++	}
++	p, m = lastReplyModel(protoReplies(protoMsgs))
++	require.Equal(t, "openai", p)
++	require.Equal(t, "gpt-5", m)
++}
+diff --git a/internal/config/load.go b/internal/config/load.go
+index 4837264b..00889ceb 100644
+--- a/internal/config/load.go
++++ b/internal/config/load.go
+@@ -27,6 +27,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/filepathext"
+ 	"github.com/charmbracelet/crush/internal/fsext"
+ 	"github.com/charmbracelet/crush/internal/home"
++	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/shellconfig"
+ 	powernapConfig "github.com/charmbracelet/x/powernap/pkg/config"
+ 	"github.com/qjebbs/go-jsons"
+@@ -458,6 +459,9 @@ func (c *Config) configureProviders(ctx context.Context, store *ConfigStore, env
+ 		if knownProviderNames[id] {
+ 			continue
+ 		}
++		if id == message.PendingReplyProvider {
++			return fmt.Errorf("provider ID %q is reserved by agent-cli for prompts that have not run; rename the provider", id)
++		}
+ 
+ 		// Make sure the provider ID is set.
+ 		providerConfig.ID = id
+diff --git a/internal/config/reserved_provider_test.go b/internal/config/reserved_provider_test.go
+new file mode 100644
+index 00000000..e0ff3d8c
+--- /dev/null
++++ b/internal/config/reserved_provider_test.go
+@@ -0,0 +1,29 @@
++package config
++
++import (
++	"context"
++	"testing"
++
++	"charm.land/catwalk/pkg/catwalk"
++	"github.com/charmbracelet/crush/internal/csync"
++	"github.com/charmbracelet/crush/internal/env"
++	"github.com/stretchr/testify/require"
++)
++
++// ID "agent-cli-pending" đánh dấu tin giữ chỗ của prompt đã nhận
++// (message.PendingReplyProvider): provider của người dùng không được mang nó,
++// kẻo mọi lời trả lời của provider đó bị coi là prompt chưa chạy.
++func TestConfig_configureProvidersRejectsReservedID(t *testing.T) {
++	cfg := &Config{
++		Providers: csync.NewMapFrom(map[string]ProviderConfig{
++			"agent-cli-pending": {
++				BaseURL: "https://api.custom.com/v1",
++				Models:  []catwalk.Model{{ID: "test-model"}},
++			},
++		}),
++	}
++	cfg.setDefaults("/tmp", "")
++	e := env.NewFromMap(map[string]string{})
++	err := cfg.configureProviders(context.Background(), testStore(cfg), e, NewShellVariableResolver(e), []catwalk.Provider{})
++	require.ErrorContains(t, err, "reserved")
++}
+diff --git a/internal/db/sql/stats.sql b/internal/db/sql/stats.sql
+index 02f2c334..30e0cb90 100644
+--- a/internal/db/sql/stats.sql
++++ b/internal/db/sql/stats.sql
+@@ -17,6 +17,7 @@ SELECT
+     COUNT(*) as message_count
+ FROM messages
+ WHERE role = 'assistant'
++  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
+ GROUP BY model, provider
+ ORDER BY message_count DESC;
+ 
+@@ -69,6 +70,7 @@ SELECT
+     CAST(COALESCE(AVG(finished_at - created_at), 0) AS INTEGER) as avg_response_seconds
+ FROM messages
+ WHERE role = 'assistant'
++  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
+   AND finished_at IS NOT NULL
+   AND finished_at > created_at;
+ 
+diff --git a/internal/db/stats.sql.go b/internal/db/stats.sql.go
+index 119dd410..25c1a55e 100644
+--- a/internal/db/stats.sql.go
++++ b/internal/db/stats.sql.go
+@@ -15,6 +15,7 @@ SELECT
+     CAST(COALESCE(AVG(finished_at - created_at), 0) AS INTEGER) as avg_response_seconds
+ FROM messages
+ WHERE role = 'assistant'
++  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
+   AND finished_at IS NOT NULL
+   AND finished_at > created_at
+ `
+@@ -333,6 +334,7 @@ SELECT
+     COUNT(*) as message_count
+ FROM messages
+ WHERE role = 'assistant'
++  AND COALESCE(provider, '') != 'agent-cli-pending' -- message.PendingReplyProvider: prompt chưa chạy
+ GROUP BY model, provider
+ ORDER BY message_count DESC
+ `
+diff --git a/internal/db/tx.go b/internal/db/tx.go
+new file mode 100644
+index 00000000..bce9e94d
+--- /dev/null
++++ b/internal/db/tx.go
+@@ -0,0 +1,20 @@
++package db
++
++import (
++	"context"
++	"database/sql"
++	"errors"
++)
++
++// BeginTx mở transaction trên kết nối mà q dùng (q = New(conn)), để service
++// chỉ giữ *Queries vẫn ghi được nhiều câu trong một lần, như session.Delete
++// làm với *sql.DB (BeginTx rồi WithTx).
++func (q *Queries) BeginTx(ctx context.Context) (*sql.Tx, error) {
++	b, ok := q.db.(interface {
++		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
++	})
++	if !ok {
++		return nil, errors.New("db: queries are not bound to a database connection")
++	}
++	return b.BeginTx(ctx, nil)
++}
+diff --git a/internal/message/content.go b/internal/message/content.go
+index c022c4bb..c088bd19 100644
+--- a/internal/message/content.go
++++ b/internal/message/content.go
+@@ -675,3 +675,15 @@ func (m *Message) ToAIMessage() []fantasy.Message {
+ 	}
+ 	return messages
+ }
++
++// PendingReplyProvider đánh dấu (cột provider) tin trợ lý giữ chỗ của một
++// prompt đã nhận mà chưa chạy; cột model của nó là ID tin user của prompt đó.
++// Lời trả lời thật luôn mang provider của lượt, và config không cho provider
++// nào dùng ID này.
++const PendingReplyProvider = "agent-cli-pending"
++
++// IsPromptPlaceholder cho biết m là tin giữ chỗ của một prompt chưa chạy, không
++// phải lời trả lời của model nào.
++func IsPromptPlaceholder(m Message) bool {
++	return m.Role == Assistant && m.Provider == PendingReplyProvider
++}
+diff --git a/internal/message/message.go b/internal/message/message.go
+index dafbb018..d8f527da 100644
+--- a/internal/message/message.go
++++ b/internal/message/message.go
+@@ -1,9 +1,11 @@
+ package message
+ 
+ import (
++	"cmp"
+ 	"context"
+ 	"database/sql"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"sync"
+ 	"time"
+@@ -21,6 +23,9 @@ import (
+ const defaultUpdateDebounce = 33 * time.Millisecond
+ 
+ type CreateMessageParams struct {
++	// ID đặt sẵn ID cho tin, để tin khác trong cùng WriteBatch trỏ tới nó.
++	// Rỗng thì sinh mới.
++	ID               string
+ 	Role             MessageRole
+ 	Parts            []ContentPart
+ 	Model            string
+@@ -57,6 +62,10 @@ type Service interface {
+ 	GetLastAssistantMessage(ctx context.Context, sessionID string) (Message, error)
+ 	Delete(ctx context.Context, id string) error
+ 	DeleteSessionMessages(ctx context.Context, sessionID string) error
++	// WriteBatch tạo các tin trong create (theo thứ tự, ít nhất một) rồi xoá
++	// các tin deleteIDs trong một transaction: trọn vẹn hoặc không gì. ID không
++	// còn thì bỏ qua. Sự kiện phát sau khi commit.
++	WriteBatch(ctx context.Context, sessionID string, create []CreateMessageParams, deleteIDs []string) ([]Message, error)
+ 
+ 	// Flush synchronously drains any pending debounced state for the
+ 	// given message ID, performs the SQL write, and publishes the
+@@ -172,23 +181,96 @@ func (s *service) Delete(ctx context.Context, id string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	// Drop any pending coalesced state for this ID. We never want to
+-	// flush back over a deleted row.
++	s.dropPending(id)
++	// Clone the message before publishing to avoid race conditions with
++	// concurrent modifications to the Parts slice.
++	s.Publish(pubsub.DeletedEvent, message.Clone())
++	return nil
++}
++
++// dropPending drops any pending coalesced state for id. We never want to
++// flush back over a deleted row.
++func (s *service) dropPending(id string) {
+ 	s.mu.Lock()
++	defer s.mu.Unlock()
+ 	if p, ok := s.pending[id]; ok {
+ 		if p.timer != nil {
+ 			p.timer.Stop()
+ 		}
+ 		delete(s.pending, id)
+ 	}
+-	s.mu.Unlock()
++}
++
++func (s *service) WriteBatch(ctx context.Context, sessionID string, create []CreateMessageParams, deleteIDs []string) ([]Message, error) {
++	// Câu đầu của transaction phải là câu ghi: transaction mở bằng câu đọc rồi
++	// mới nâng lên ghi có thể gặp SQLITE_BUSY khi tiến trình khác đang ghi.
++	if len(create) == 0 {
++		return nil, errors.New("message: WriteBatch needs at least one message to create")
++	}
++	queries, ok := s.q.(*db.Queries)
++	if !ok {
++		return nil, errors.New("message: batch writes need *db.Queries")
++	}
++	tx, err := queries.BeginTx(ctx)
++	if err != nil {
++		return nil, fmt.Errorf("beginning transaction: %w", err)
++	}
++	defer tx.Rollback() //nolint:errcheck
++	qtx := queries.WithTx(tx)
++
++	created := make([]Message, 0, len(create))
++	for _, params := range create {
++		m, err := s.insert(ctx, qtx, sessionID, params)
++		if err != nil {
++			return nil, err
++		}
++		created = append(created, m)
++	}
++	var deleted []Message
++	for _, id := range deleteIDs {
++		item, err := qtx.GetMessage(ctx, id)
++		if errors.Is(err, sql.ErrNoRows) {
++			continue
++		}
++		if err != nil {
++			return nil, err
++		}
++		m, err := s.fromDBItem(item)
++		if err != nil {
++			return nil, err
++		}
++		if err := qtx.DeleteMessage(ctx, id); err != nil {
++			return nil, err
++		}
++		deleted = append(deleted, m)
++	}
++	if err := tx.Commit(); err != nil {
++		return nil, fmt.Errorf("committing transaction: %w", err)
++	}
++	for _, m := range created {
++		s.Publish(pubsub.CreatedEvent, m.Clone())
++	}
++	for _, m := range deleted {
++		s.dropPending(m.ID)
++		s.Publish(pubsub.DeletedEvent, m.Clone())
++	}
++	return created, nil
++}
++
++func (s *service) Create(ctx context.Context, sessionID string, params CreateMessageParams) (Message, error) {
++	message, err := s.insert(ctx, s.q, sessionID, params)
++	if err != nil {
++		return Message{}, err
++	}
+ 	// Clone the message before publishing to avoid race conditions with
+ 	// concurrent modifications to the Parts slice.
+-	s.Publish(pubsub.DeletedEvent, message.Clone())
+-	return nil
++	s.Publish(pubsub.CreatedEvent, message.Clone())
++	return message, nil
+ }
+ 
+-func (s *service) Create(ctx context.Context, sessionID string, params CreateMessageParams) (Message, error) {
++// insert writes one message through q (the shared connection or a
++// transaction) without publishing.
++func (s *service) insert(ctx context.Context, q db.Querier, sessionID string, params CreateMessageParams) (Message, error) {
+ 	if params.Role != Assistant {
+ 		params.Parts = append(params.Parts, Finish{
+ 			Reason: "stop",
+@@ -202,8 +284,8 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
+ 	if params.IsSummaryMessage {
+ 		isSummary = 1
+ 	}
+-	dbMessage, err := s.q.CreateMessage(ctx, db.CreateMessageParams{
+-		ID:               uuid.New().String(),
++	dbMessage, err := q.CreateMessage(ctx, db.CreateMessageParams{
++		ID:               cmp.Or(params.ID, uuid.New().String()),
+ 		SessionID:        sessionID,
+ 		Role:             string(params.Role),
+ 		Parts:            string(partsJSON),
+@@ -214,14 +296,7 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
+ 	if err != nil {
+ 		return Message{}, err
+ 	}
+-	message, err := s.fromDBItem(dbMessage)
+-	if err != nil {
+-		return Message{}, err
+-	}
+-	// Clone the message before publishing to avoid race conditions with
+-	// concurrent modifications to the Parts slice.
+-	s.Publish(pubsub.CreatedEvent, message.Clone())
+-	return message, nil
++	return s.fromDBItem(dbMessage)
+ }
+ 
+ func (s *service) DeleteSessionMessages(ctx context.Context, sessionID string) error {
+diff --git a/internal/message/placeholder_stats_test.go b/internal/message/placeholder_stats_test.go
+new file mode 100644
+index 00000000..001c7c1b
+--- /dev/null
++++ b/internal/message/placeholder_stats_test.go
+@@ -0,0 +1,75 @@
++package message
++
++import (
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/db"
++	"github.com/charmbracelet/crush/internal/session"
++	"github.com/stretchr/testify/require"
++)
++
++// Tin giữ chỗ của prompt không chạy (provider "agent-cli-pending") không phải
++// lời trả lời của model nào: thống kê theo model và thời gian phản hồi trung
++// bình không được tính nó.
++func TestStatsSkipPromptPlaceholders(t *testing.T) {
++	t.Parallel()
++	conn, err := db.Connect(t.Context(), t.TempDir())
++	require.NoError(t, err)
++	t.Cleanup(func() { _ = conn.Close() })
++	q := db.New(conn)
++	sess, err := session.NewService(q, conn).Create(t.Context(), "test")
++	require.NoError(t, err)
++	svc := NewService(q)
++
++	user, err := svc.Create(t.Context(), sess.ID, CreateMessageParams{Role: User, Parts: []ContentPart{TextContent{Text: "B"}}})
++	require.NoError(t, err)
++	pending, err := svc.Create(t.Context(), sess.ID, CreateMessageParams{Role: Assistant, Provider: "agent-cli-pending", Model: user.ID})
++	require.NoError(t, err)
++	pending.AddFinishAt(FinishReasonCanceled, "User canceled request", "", pending.CreatedAt+1000)
++	require.NoError(t, svc.Update(t.Context(), pending))
++	require.NoError(t, svc.FlushAll(t.Context()))
++
++	rows, err := q.GetUsageByModel(t.Context())
++	require.NoError(t, err)
++	require.Empty(t, rows, "a prompt placeholder is not a model reply")
++	avg, err := q.GetAverageResponseTime(t.Context())
++	require.NoError(t, err)
++	require.Zero(t, avg)
++}
++
++// WriteBatch là một transaction: lần ghi sau hỏng thì lần ghi trước không
++// còn (không bao giờ có tin user mà thiếu tin giữ chỗ, hay hai bản prompt).
++func TestWriteBatchIsAllOrNothing(t *testing.T) {
++	t.Parallel()
++	conn, err := db.Connect(t.Context(), t.TempDir())
++	require.NoError(t, err)
++	t.Cleanup(func() { _ = conn.Close() })
++	q := db.New(conn)
++	sess, err := session.NewService(q, conn).Create(t.Context(), "test")
++	require.NoError(t, err)
++	svc := NewService(q)
++	_, err = conn.ExecContext(t.Context(), `CREATE TRIGGER fail_boom BEFORE INSERT ON messages
++		WHEN NEW.provider = 'boom' BEGIN SELECT RAISE(ABORT, 'injected'); END`)
++	require.NoError(t, err)
++
++	old, err := svc.Create(t.Context(), sess.ID, CreateMessageParams{Role: User, Parts: []ContentPart{TextContent{Text: "old"}}})
++	require.NoError(t, err)
++	_, err = svc.WriteBatch(t.Context(), sess.ID, []CreateMessageParams{
++		{Role: User, Parts: []ContentPart{TextContent{Text: "new"}}},
++		{Role: Assistant, Provider: "boom"},
++	}, []string{old.ID})
++	require.ErrorContains(t, err, "injected")
++
++	msgs, err := svc.List(t.Context(), sess.ID)
++	require.NoError(t, err)
++	require.Len(t, msgs, 1)
++	require.Equal(t, "old", msgs[0].Content().Text, "a failed batch leaves nothing behind and deletes nothing")
++}
++
++// WriteBatch phải mở transaction bằng câu ghi: lô không có gì để tạo bị từ chối.
++func TestWriteBatchNeedsCreate(t *testing.T) {
++	t.Parallel()
++	svc, sessionID := newTestService(t)
++	_, err := svc.WriteBatch(t.Context(), sessionID, nil, []string{"x"})
++	require.ErrorContains(t, err, "at least one")
++}
+diff --git a/internal/server/agent_cancel_test.go b/internal/server/agent_cancel_test.go
+index 13adf544..386ae066 100644
+--- a/internal/server/agent_cancel_test.go
++++ b/internal/server/agent_cancel_test.go
+@@ -71,10 +71,11 @@ func (s *runCoordinator) RunAccepted(ctx context.Context, accept *agent.Accepted
+ func (s *runCoordinator) BeginAccepted(sessionID string) *agent.AcceptedRun {
+ 	return nil
+ }
+-func (s *runCoordinator) CancelRun(string, string) {}
+-func (s *runCoordinator) Cancel(string)            {}
+-func (s *runCoordinator) CancelAll()               {}
+-func (s *runCoordinator) IsBusy() bool             { return s.busy }
++func (s *runCoordinator) CancelRun(string, string)      {}
++func (s *runCoordinator) Cancel(string)                 {}
++func (s *runCoordinator) CancelAll()                    {}
++func (s *runCoordinator) IsBusy() bool                  { return s.busy }
++func (s *runCoordinator) HasPendingPrompts(string) bool { return false }
+ func (s *runCoordinator) IsSessionBusy(string) bool {
+ 	return false
+ }
+diff --git a/internal/server/e2e_agent_test.go b/internal/server/e2e_agent_test.go
+index d371faed..515cbdd2 100644
+--- a/internal/server/e2e_agent_test.go
++++ b/internal/server/e2e_agent_test.go
+@@ -215,6 +215,7 @@ func (c *scriptedCoordinator) CancelAll() {
+ }
+ 
+ func (c *scriptedCoordinator) IsBusy() bool                                  { return false }
++func (c *scriptedCoordinator) HasPendingPrompts(string) bool                 { return false }
+ func (c *scriptedCoordinator) IsSessionBusy(string) bool                     { return false }
+ func (c *scriptedCoordinator) QueuedPrompts(string) int                      { return 0 }
+ func (c *scriptedCoordinator) QueuedPromptsList(string) []string             { return nil }
+diff --git a/internal/server/sessions_isbusy_test.go b/internal/server/sessions_isbusy_test.go
+index eeb0d411..378d3f35 100644
+--- a/internal/server/sessions_isbusy_test.go
++++ b/internal/server/sessions_isbusy_test.go
+@@ -38,10 +38,11 @@ func (s *stubCoordinator) RunAccepted(ctx context.Context, accept *agent.Accepte
+ func (s *stubCoordinator) BeginAccepted(sessionID string) *agent.AcceptedRun {
+ 	return nil
+ }
+-func (s *stubCoordinator) CancelRun(string, string) {}
+-func (s *stubCoordinator) Cancel(string)            {}
+-func (s *stubCoordinator) CancelAll()               {}
+-func (s *stubCoordinator) IsBusy() bool             { return false }
++func (s *stubCoordinator) CancelRun(string, string)      {}
++func (s *stubCoordinator) Cancel(string)                 {}
++func (s *stubCoordinator) CancelAll()                    {}
++func (s *stubCoordinator) IsBusy() bool                  { return false }
++func (s *stubCoordinator) HasPendingPrompts(string) bool { return false }
+ func (s *stubCoordinator) IsSessionBusy(id string) bool {
+ 	return s.busy[id]
+ }
+diff --git a/internal/workspace/app_workspace.go b/internal/workspace/app_workspace.go
+index f26c2956..2c22779c 100644
+--- a/internal/workspace/app_workspace.go
++++ b/internal/workspace/app_workspace.go
+@@ -115,7 +115,7 @@ func (w *AppWorkspace) RoutesChannelEvents() bool { return false }
+ func (w *AppWorkspace) ListMessages(ctx context.Context, sessionID string) ([]message.Message, error) {
+ 	var busy agent.SessionBusyFunc
+ 	if w.app.AgentCoordinator != nil {
+-		busy = agent.BusyWithAncestors(ctx, w.app.Sessions, w.app.AgentCoordinator.IsSessionBusy)
++		busy = agent.BusyWithAncestors(ctx, w.app.Sessions, agent.SettleBusy(w.app.AgentCoordinator))
+ 	}
+ 	return agent.ReadSettledMessages(ctx, w.app.Messages, busy, sessionID)
+ }
+diff --git a/scripts/test-agent-cli-run-json.sh b/scripts/test-agent-cli-run-json.sh
+index fecdde23..fd2da5fb 100755
+--- a/scripts/test-agent-cli-run-json.sh
++++ b/scripts/test-agent-cli-run-json.sh
+@@ -265,7 +265,9 @@ done
+ sleep 3 # để prompt đã gỡ có cơ hội chạy nếu lỡ còn trong hàng đợi
+ send_all="$(replies "$h0" "$send_sid" | tr '\n' ';')"
+ [[ "$h0_state" == canceled\|* ]]; check "clientserver: client run bị SIGKILL giữa run -> server huỷ lượt của nó (quan sát: $h0_state)" $?
+-[[ "$send_all" == "end_turn|ECHO("*"SLOW send;" ]]; check "clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s (quan sát: $send_all)" $?
++# Prompt của run -s đã được server nhận nên có dấu vết: gỡ khỏi hàng đợi thì
++# hiện là lời trả lời bị huỷ ngay sau nó, không biến mất.
++[[ "$send_all" == "end_turn|ECHO("*"SLOW send;canceled|;" ]]; check "clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s, prompt đã gỡ hiện là huỷ (quan sát: $send_all)" $?
+ [[ "$send_all" != *"queued from run"* ]]; check "clientserver: prompt xếp hàng của run -s đã bị gỡ, không chạy (quan sát: $send_all)" $?
+ 
+ # Server idle-timeout 1s phải tự thoát; không để lại tiến trình hay socket.

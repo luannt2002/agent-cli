@@ -1,0 +1,15 @@
+local: X1=pp X2=pp X3=pp models=<absent>
+ok   local: setup, X1 on pp
+FAIL local: run -s X runs the project model qq
+ok   local: run -s X prints one note naming pp/m-pp and qq/m-qq
+ok   local: nothing written to <project>/.crush/crush.json
+ok   local: run -s X -m pp/m-pp runs pp, no note
+server: X1=pp Y1=qq X2=qq Y2=qq N1=qq X3=pp N2=pp
+server: models before=<absent> after run -s=<absent> after run -m={"large": {"model": "m-pp", "provider": "pp"}, "small": {"model": "m-pp", "provider": "pp"}}
+ok   server: setup, X1 on pp, Y1 on qq
+ok   server: run -s X leaves <project>/.crush/crush.json unchanged
+ok   server: X2, Y2 (send), N1 all run qq
+ok   server: run -s X prints one note naming pp/m-pp and qq/m-qq
+ok   server: run -s X -m pp/m-pp runs pp and writes it (explicit choice)
+ok   server: a new session after -m runs pp
+SESSION-MODEL: FAIL (1)

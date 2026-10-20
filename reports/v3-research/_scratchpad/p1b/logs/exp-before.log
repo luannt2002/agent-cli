@@ -1,0 +1,3 @@
+T9: EXPOSED — bash 5 MiB (control): next request +30453 bytes, crush.db* +65536 bytes | MCP 5 MiB: next request +5327624 bytes, crush.db* +5341184 bytes, stored tool_result chars=[5242880] | spill files=1
+T19: EXPOSED — MCP tool_result (name, is_error, content)=[('mcp_v3stub_stub_fail', False, 'V3-MCP-FAIL boom')] | control view tool_result=[('view', True, 'File not found: /home/luannt/.cache/v3ev/p1b-before/T19/proj')]
+EXPOSURE: ran 2 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p1b-before/verdicts.txt

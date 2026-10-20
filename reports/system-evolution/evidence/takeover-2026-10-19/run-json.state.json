@@ -1,0 +1,1 @@
+{"case": "run-json", "exit": 0, "seconds": 75.77, "command": ["bash", "scripts/test-agent-cli-run-json.sh"], "state": "finished"}

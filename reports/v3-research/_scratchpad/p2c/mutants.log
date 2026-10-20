@@ -1,0 +1,79 @@
+== M1 fsext: đi lên theo chữ (bỏ canonicalize)
+--- FAIL: TestLookupBounded (0.00s)
+            	Error:      	Not equal: 
+            	            	expected: []string{"/tmp/TestLookupBoundedwalks_the_physical_path_of_a_symlink_into_the_447609837/001/target.txt"}
+            	            	actual  : []string{"/tmp/TestLookupBoundedwalks_the_physical_path_of_a_symlink_into_the_447609837/002/target.txt"}
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/fsext	0.007s
+FAIL
+--- FAIL: TestStrayDataDirs (0.01s)
+        	Error:      	Not equal: 
+        	            	expected: []string{"/tmp/TestStrayDataDirs267856084/001/a/b/.crush"}
+        	            	actual  : []string{"/tmp/TestStrayDataDirs267856084/002/link/.crush"}
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.025s
+FAIL
+== M2 gitutil: findGitDir theo chữ (bỏ EvalSymlinks)
+--- FAIL: TestCurrentBranch (0.19s)
+            	Error:      	Not equal: 
+            	            	expected: "viasymlink"
+            	            	actual  : ""
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/gitutil	0.192s
+FAIL
+== M3 config: data dir = .crush gần nhất (cơ chế cũ)
+--- FAIL: TestConfig_setDefaults (0.03s)
+            	Error:      	Not equal: 
+            	            	expected: "/tmp/TestConfig_setDefaultsdoes_not_climb_out_of_git_worktree_to_fin1509495743/001/worktree/.crush"
+            	            	actual  : "/tmp/TestConfig_setDefaultsdoes_not_climb_out_of_git_worktree_to_fin1509495743/001/worktree/pkg/.crush"
+--- FAIL: TestStrayDataDirs (0.01s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestStrayDataDirs1648551946/001/.crush"
+        	            	actual  : "/tmp/TestStrayDataDirs1648551946/001/a/b/.crush"
+        	Messages:   	through a symlink into the project too
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.068s
+FAIL
+== M4 config: StrayDataDirs không báo gì
+--- FAIL: TestStrayDataDirs (0.02s)
+        	Error:      	Not equal: 
+        	            	expected: []string{"/tmp/TestStrayDataDirs4070087473/001/a/b/.crush"}
+        	            	actual  : []string(nil)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.033s
+FAIL
+== M5 backend: khoá workspace theo đường (cơ chế cũ)
+--- FAIL: TestPathDedupe_SubdirSharesProjectWorkspace (1.79s)
+        	Error:      	Not equal: 
+        	            	expected: "fc6bc117-9b59-4d7e-a790-d656a8a06491"
+        	            	actual  : "f6f9053d-95f7-43c2-a330-1902461e3e7d"
+        	Messages:   	repo/sub and repo are one workspace
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.038s
+FAIL
+== M6 backend: workspace giữ đường của client mở đầu (Path: args.Path)
+--- FAIL: TestPathDedupe_SubdirSharesProjectWorkspace (1.61s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestPathDedupe_SubdirSharesProjectWorkspace1912702723/005"
+        	            	actual  : "/tmp/TestPathDedupe_SubdirSharesProjectWorkspace1912702723/005/sub"
+        	Messages:   	rooted at the project root whichever opened first
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.653s
+FAIL
+== M7 backend: -D tương đối tính theo gốc dự án (bỏ SmartJoin theo args.Path)
+--- FAIL: TestPathDedupe_SubdirSharesProjectWorkspace (1.76s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestPathDedupe_SubdirSharesProjectWorkspace1398943078/005/sub/x"
+        	            	actual  : "/tmp/TestPathDedupe_SubdirSharesProjectWorkspace1398943078/005/x"
+        	Messages:   	relative -D is taken from where the client is
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.801s
+FAIL
+== M8 Home: bỏ qua data dir của mục registry
+--- FAIL: TestHomeSessionsFromDatabaseReadOnly (0.03s)
+        	Error:      	"[]" should have 50 item(s), but has 0
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.081s
+FAIL
+5086786d03ed05b541725b9da8718c0754decdb8046dd11e4208748f1bd9276c  -
+5086786d03ed05b541725b9da8718c0754decdb8046dd11e4208748f1bd9276c  /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p2c/bak/full.diff

@@ -1,0 +1,2 @@
+M2 !cmd local dùng os.Environ() | ^TestShellCommandIgnoresProjectDotenvTrustedKeys$ | RED | restored sha ok=True | --- FAIL: TestShellCommandIgnoresProjectDotenvTrustedKeys (0.06s) / Error:      	Not equal: / Messages:   	trusted keys from a project .env must not reach a ! command
+M3 !cmd server bỏ ChildEnv | ^TestRunShellCommandIgnoresProjectDotenvTrustedKeys$ | RED | restored sha ok=True | --- FAIL: TestRunShellCommandIgnoresProjectDotenvTrustedKeys (0.05s) / Error:      	Not equal: / Messages:   	trusted keys from a project .env must not reach a ! command

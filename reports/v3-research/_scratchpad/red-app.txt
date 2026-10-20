@@ -1,0 +1,20 @@
+=== PAUSE TestContinuedLocalRunKeepsTheWorkspaceModel
+=== CONT  TestContinuedLocalRunKeepsTheWorkspaceModel
+2026/10/19 19:17:56 INFO Restored model from session provider=pp model=m-pp
+    session_model_test.go:49: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p1c/internal/app/session_model_test.go:49
+        	Error:      	Not equal: 
+        	            	expected: config.SelectedModel{Model:"m-qq", Provider:"qq", ReasoningEffort:"", Think:false, MaxTokens:0, Temperature:(*float64)(nil), TopP:(*float64)(nil), TopK:(*int64)(nil), FrequencyPenalty:(*float64)(nil), PresencePenalty:(*float64)(nil), ProviderOptions:map[string]interface {}(nil)}
+        	            	actual  : config.SelectedModel{Model:"m-pp", Provider:"pp", ReasoningEffort:"", Think:false, MaxTokens:0, Temperature:(*float64)(nil), TopP:(*float64)(nil), TopK:(*int64)(nil), FrequencyPenalty:(*float64)(nil), PresencePenalty:(*float64)(nil), ProviderOptions:map[string]interface {}(nil)}
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,4 +1,4 @@
+        	            	 (config.SelectedModel) {
+        	            	  ReasoningEffort: (string) "",
+        	Test:       	TestContinuedLocalRunKeepsTheWorkspaceModel
+        	Messages:   	this run uses the workspace model
+--- FAIL: TestContinuedLocalRunKeepsTheWorkspaceModel (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/app	0.040s
+FAIL

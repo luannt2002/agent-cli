@@ -1,0 +1,88 @@
+2026/10/19 20:01:12 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:12 INFO Fetching Hyper provider
+2026/10/19 20:01:12 INFO Fetching providers from Catwalk
+2026/10/19 20:01:13 INFO Saving provider data to disk path=/tmp/TestPathDedupe_FullCreate376049417/004/crush/hyper.json
+2026/10/19 20:01:14 INFO Saving provider data to disk path=/tmp/TestPathDedupe_FullCreate376049417/004/crush/providers.json
+2026/10/19 20:01:14 WARN No providers configured
+2026/10/19 20:01:14 WARN No agent configuration found
+2026/10/19 20:01:14 INFO Initializing MCP clients
+2026/10/19 20:01:14 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:14 WARN No providers configured
+2026/10/19 20:01:15 WARN No agent configuration found
+2026/10/19 20:01:15 INFO Initializing MCP clients
+2026/10/19 20:01:15 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:15 WARN No providers configured
+2026/10/19 20:01:15 WARN No agent configuration found
+2026/10/19 20:01:15 INFO Initializing MCP clients
+2026/10/19 20:01:15 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:15 WARN No providers configured
+2026/10/19 20:01:15 WARN No agent configuration found
+2026/10/19 20:01:15 INFO Initializing MCP clients
+2026/10/19 20:01:15 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:15 WARN No providers configured
+2026/10/19 20:01:16 WARN No agent configuration found
+2026/10/19 20:01:16 INFO Initializing MCP clients
+2026/10/19 20:01:16 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:16 WARN No providers configured
+2026/10/19 20:01:16 WARN No agent configuration found
+2026/10/19 20:01:16 INFO Initializing MCP clients
+2026/10/19 20:01:16 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:16 WARN No providers configured
+2026/10/19 20:01:16 WARN No agent configuration found
+2026/10/19 20:01:16 INFO Initializing MCP clients
+2026/10/19 20:01:16 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:16 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:01:16 WARN No providers configured
+2026/10/19 20:01:16 WARN No providers configured
+2026/10/19 20:01:16 WARN No agent configuration found
+2026/10/19 20:01:16 INFO Initializing MCP clients
+2026/10/19 20:01:16 WARN No agent configuration found
+2026/10/19 20:01:16 INFO Initializing MCP clients
+--- FAIL: TestV3Exposure_T1_IdentityResolversAgree (0.37s)
+    --- FAIL: TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub/spelling_invariant (0.00s)
+        identity_v3exposure_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/identity_v3exposure_test.go:164
+            	Error:      	Should be true
+            	Test:       	TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub/spelling_invariant
+            	Messages:   	T1 EXPOSED: same physical dir, different identity: K "T/real/repo/sub" vs "T/real/repo/sub", N "T/real/repo" vs "T/real/repo", data "T/.crush" vs "T/real/repo/.crush"
+    --- FAIL: TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub/data_dir_inside_project (0.00s)
+        identity_v3exposure_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/identity_v3exposure_test.go:164
+            	Error:      	Should be true
+            	Test:       	TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub/data_dir_inside_project
+            	Messages:   	T1 EXPOSED: data dir "T/.crush" is outside the physical project "T/real/repo"
+    --- FAIL: TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub/branch_equals_physical (0.00s)
+        identity_v3exposure_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/identity_v3exposure_test.go:164
+            	Error:      	Should be true
+            	Test:       	TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub/branch_equals_physical
+            	Messages:   	T1 EXPOSED: branch through "T/link-sub" is "", physical branch is "main"
+    --- FAIL: TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub-no-parent-crush/spelling_invariant (0.00s)
+        identity_v3exposure_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/identity_v3exposure_test.go:164
+            	Error:      	Should be true
+            	Test:       	TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub-no-parent-crush/spelling_invariant
+            	Messages:   	T1 EXPOSED: same physical dir, different identity: K "T/real/repo/sub" vs "T/real/repo/sub", N "T/real/repo" vs "T/real/repo", data "T/real/repo/sub/.crush" vs "T/real/repo/.crush"
+    --- FAIL: TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub-no-parent-crush/branch_equals_physical (0.00s)
+        identity_v3exposure_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/identity_v3exposure_test.go:164
+            	Error:      	Should be true
+            	Test:       	TestV3Exposure_T1_IdentityResolversAgree/symlink-into-sub-no-parent-crush/branch_equals_physical
+            	Messages:   	T1 EXPOSED: branch through "U/link-sub" is "", physical branch is "main"
+    identity_v3exposure_test.go:182: T1 bảng chân trị resolver danh tính:
+        | ca | đầu vào | K resolveWorkspaceKey | N projects.NormalizeWorkspace | data dir | nhánh | biên vật lý | L launcher (tham khảo) | kết quả |
+        |---|---|---|---|---|---|---|---|---|
+        | repo-root | T/real/repo | T/real/repo | T/real/repo | T/real/repo/.crush | "main" (vật lý "main") | T/real/repo | T/real/repo | ok |
+        | symlink-to-root | T/link-root | T/real/repo | T/real/repo | T/link-root/.crush | "main" (vật lý "main") | T/real/repo | T/real/repo | ok |
+        | symlink-into-sub | T/link-sub | T/real/repo/sub | T/real/repo | T/.crush | "" (vật lý "main") | T/real/repo | T/real/repo | LỆCH spelling_invariant,data_dir_inside_project,branch_equals_physical |
+        | symlink-into-sub-no-parent-crush | U/link-sub | T/real/repo/sub | T/real/repo | U/link-sub/.crush | "" (vật lý "main") | T/real/repo | T/real/repo | LỆCH spelling_invariant,branch_equals_physical |
+        | monorepo-sub | T/real/repo/sub | T/real/repo/sub | T/real/repo | T/real/repo/.crush | "main" (vật lý "main") | T/real/repo | T/real/repo | ok |
+        | linked-worktree | T/real/wt | T/real/wt | T/real/wt | T/real/wt/.crush | "feature" (vật lý "feature") | T/real/wt | T/real/wt | ok |
+        | trailing-slash | T/real/repo/ | T/real/repo | T/real/repo | T/real/repo/.crush | "main" (vật lý "main") | T/real/repo | T/real/repo | ok |
+        | relative | sub | T/real/repo/sub | T/real/repo | T/real/repo/.crush | "main" (vật lý "main") | T/real/repo | T/real/repo | ok |
+        | outside-git | T/plain | T/plain | T/plain | T/plain/.crush | "" (vật lý "") | T/plain | T/plain | ok |
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	20.888s
+ok  	github.com/charmbracelet/crush/internal/cmd	14.191s
+ok  	github.com/charmbracelet/crush/internal/cmd/clientserverrace	7.841s
+FAIL

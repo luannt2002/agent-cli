@@ -1,0 +1,28 @@
+=== RUN   TestMCPTool_LargeTextIsCappedAndSpilled
+=== PAUSE TestMCPTool_LargeTextIsCappedAndSpilled
+=== RUN   TestMCPTool_SmallTextIsUnchanged
+=== PAUSE TestMCPTool_SmallTextIsUnchanged
+=== RUN   TestMCPTool_IsErrorReachesToolResponse
+=== PAUSE TestMCPTool_IsErrorReachesToolResponse
+=== CONT  TestMCPTool_LargeTextIsCappedAndSpilled
+=== CONT  TestMCPTool_IsErrorReachesToolResponse
+    mcp-tools_test.go:107: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p1b/internal/agent/tools/mcp-tools_test.go:107
+        	Error:      	Should be true
+        	Test:       	TestMCPTool_IsErrorReachesToolResponse
+2026/10/19 19:16:48 INFO Disabled MCP client name=p1b-fail
+--- FAIL: TestMCPTool_IsErrorReachesToolResponse (0.01s)
+=== CONT  TestMCPTool_SmallTextIsUnchanged
+2026/10/19 19:16:48 INFO Disabled MCP client name=p1b-small
+--- PASS: TestMCPTool_SmallTextIsUnchanged (0.01s)
+=== NAME  TestMCPTool_LargeTextIsCappedAndSpilled
+    mcp-tools_test.go:80: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p1b/internal/agent/tools/mcp-tools_test.go:80
+        	Error:      	"5242906" is not less than "31024"
+        	Test:       	TestMCPTool_LargeTextIsCappedAndSpilled
+        	Messages:   	MCP output sent to the model must be capped like bash
+2026/10/19 19:16:48 INFO Disabled MCP client name=p1b-big
+--- FAIL: TestMCPTool_LargeTextIsCappedAndSpilled (0.30s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent/tools	0.320s
+FAIL

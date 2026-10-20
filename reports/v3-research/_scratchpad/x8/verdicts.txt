@@ -1,0 +1,1 @@
+T11: EXPOSED — trials=8 killed at once: rc0+in_db=0, rc0+missing=8, other=0; control (kill after 2 s) in_db=yes (details T11/trials.txt)

@@ -1,0 +1,1 @@
+{"case": "vet", "exit": 1, "seconds": 2.57, "command": ["go", "vet", "-p", "2", "./..."], "state": "finished"}

@@ -1,0 +1,7 @@
+{
+  "csync_maps_identical_to_base": true,
+  "task_on_path": null,
+  "golangci_lint_on_path": null,
+  "go_version": "go version go1.27.0 linux/amd64",
+  "root_head": "4a0b25b698fbc2ad838f62d9990a93e9154cbe46"
+}

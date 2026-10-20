@@ -1,0 +1,9 @@
+exposure1 rc=0
+exposure2 rc=0
+reopen rc=143
+faults rc=0
+qwen-only rc=0
+workspaces rc=0
+run-json rc=0
+loop rc=0
+routine rc=0

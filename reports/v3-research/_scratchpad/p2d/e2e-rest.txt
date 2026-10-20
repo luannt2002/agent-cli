@@ -1,0 +1,21 @@
+=== base-nohook
+rc=0 main_requests=3
+  main#2 tool_steps=0 n_tools=29 mcp_tools=['mcp_p2don_send']
+  main#3 tool_steps=1 n_tools=29 mcp_tools=['mcp_p2don_send']
+  main#4 tool_steps=2 n_tools=29 mcp_tools=['mcp_p2don_send']
+mcp.log: ['disabled-in-db p2doff', 'tools/call p2don send']
+hook.log: []
+=== fix-hook
+rc=0 main_requests=3
+  main#2 tool_steps=0 n_tools=29 mcp_tools=['mcp_p2don_send']
+  main#3 tool_steps=1 n_tools=29 mcp_tools=['mcp_p2don_send']
+  main#4 tool_steps=2 n_tools=29 mcp_tools=['mcp_p2don_send']
+mcp.log: ['disabled-in-db p2doff', 'tools/call p2don send']
+hook.log: ['mcp_p2don_send']
+=== fix-nohook
+rc=0 main_requests=3
+  main#2 tool_steps=0 n_tools=29 mcp_tools=['mcp_p2don_send']
+  main#3 tool_steps=1 n_tools=29 mcp_tools=['mcp_p2don_send']
+  main#4 tool_steps=2 n_tools=29 mcp_tools=['mcp_p2don_send']
+mcp.log: ['disabled-in-db p2doff', 'tools/call p2don send']
+hook.log: []

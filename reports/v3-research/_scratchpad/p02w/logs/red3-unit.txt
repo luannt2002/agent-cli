@@ -1,0 +1,107 @@
+--- FAIL: TestChildEnvsIgnoreProjectDotenv (0.05s)
+    child_env_test.go:61: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/child_env_test.go:61
+        	Test:       	TestChildEnvsIgnoreProjectDotenv
+        	Messages:   	a project .env must not reach a child agent-cli
+--- FAIL: TestConnectToServerSendsNoAgentRuns (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x38 pc=0x27dc72e]
+
+goroutine 8 [running]:
+testing.tRunner.func1.2({0x572ddc8, 0x5e752f0})
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2123 +0x232
+testing.tRunner.func1()
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2126 +0x329
+panic({0x572ddc8?, 0x5e752f0?})
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/charmbracelet/crush/internal/cmd.shouldEnableMetrics(0x0)
+	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/root.go:1201 +0x4e
+github.com/charmbracelet/crush/internal/cmd.connectToServer(0x3d5359051c40)
+	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/root.go:610 +0x5f0
+github.com/charmbracelet/crush/internal/cmd.TestConnectToServerSendsNoAgentRuns(0x3d5358cd0488)
+	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/no_agent_runs_test.go:69 +0x5c5
+testing.tRunner(0x3d5358cd0488, 0x5bfab60)
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2193 +0xea
+created by testing.(*T).Run in goroutine 1
+	/home/luannt/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.linux-amd64/src/testing/testing.go:2258 +0x4d4
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.106s
+2026/10/19 19:26:35 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:35 INFO Fetching Hyper provider
+2026/10/19 19:26:35 INFO Fetching providers from Catwalk
+2026/10/19 19:26:35 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy2156241388/004/crush/hyper.json
+2026/10/19 19:26:37 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy2156241388/004/crush/providers.json
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=b06928e1-3f67-44bc-b5a7-f19572f5b0a8 path=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di1616205682/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di1616205682/006 requested_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di1616205682/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_TrustPolicyMismatch (2.00s)
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/client_sends_a_key_the_server_does_not_know (0.03s)
+        trusted_policy_test.go:107: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:107
+            	Error:      	"trust policy differs from the running agent-cli server: INJECTED_NAME_X; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)" does not contain "1 key(s) this server does not know"
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/client_sends_a_key_the_server_does_not_know
+--- FAIL: TestCreateWorkspace_ClosingServerBeatsPolicyMismatch (0.00s)
+    trusted_policy_test.go:129: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:129
+        	Error:      	Target error should be in err chain:
+        	            	expected: "server is shutting down"
+        	            	in chain: "trust policy differs from the running agent-cli server: AGENT_CLI_ALLOWED_MODELS; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)"
+        	            		"trust policy differs from the running agent-cli server"
+        	Test:       	TestCreateWorkspace_ClosingServerBeatsPolicyMismatch
+2026/10/19 19:26:37 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:26:37 WARN No providers configured
+2026/10/19 19:26:37 WARN No agent configuration found
+2026/10/19 19:26:37 INFO Initializing MCP clients
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.103s
+--- FAIL: TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns (0.00s)
+    trusted_env_test.go:37: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/client/trusted_env_test.go:37
+        	Error:      	Expected nil, but got: []string{"AGENT_CLI_ALLOWED_MODELS=", "AGENT_CLI_DELEGATION=", "AGENT_CLI_UNATTENDED=", "AGENT_CLI_UNATTENDED_COMMIT=", "AGENT_CLI_ENV_FILE=", "AGENT_CLI_LLM_LEDGER=", "HOME=", "AGENT_CLI_CLAUDE_BIN=", "AGENT_CLI_CODEX_BIN=", "AGENT_CLI_CLAUDE_PERMISSION_MODE=", "AGENT_CLI_CODEX_SANDBOX="}
+        	Test:       	TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/client	0.048s
+--- FAIL: TestInputsHermeticInTests (0.00s)
+    policy_test.go:292: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/execpolicy/policy_test.go:292
+        	Error:      	[]string{"TAMPERED=1", "AGENT_CLI_DELEGATION=", "AGENT_CLI_UNATTENDED=", "AGENT_CLI_UNATTENDED_COMMIT=", "AGENT_CLI_ENV_FILE=", "AGENT_CLI_LLM_LEDGER=", "HOME=", "AGENT_CLI_CLAUDE_BIN=", "AGENT_CLI_CODEX_BIN=", "AGENT_CLI_CLAUDE_PERMISSION_MODE=", "AGENT_CLI_CODEX_SANDBOX="} should not contain "TAMPERED=1"
+        	Test:       	TestInputsHermeticInTests
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/execpolicy	0.006s
+FAIL

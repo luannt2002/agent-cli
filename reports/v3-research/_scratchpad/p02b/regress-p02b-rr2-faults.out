@@ -1,0 +1,13 @@
+case                rc glm   error (out.json)                   requests qwen by role
+empty-reply          1 0     agent processing failed: failed to {'title': 1, 'main': 1}
+hang               124 0     context canceled                   {'title': 1, 'main': 1}
+http-400             1 0     agent processing failed: failed to {'title': 1, 'main': 1}
+http-500             1 0     agent processing failed: failed to {'title': 1, 'main': 4}
+malformed-stream     1 0     agent processing failed: failed to {'title': 1, 'main': 1}
+ok                   0 0     text='ECHO: fault probe o          {'title': 1, 'main': 1}
+provider-down        1 0     agent processing failed: failed to {}
+selected-no-key      1 0     failed to reinitialize agent for n {}
+selected-no-key-server    1 0     failed to initialize agent: failed {}
+summary-loop         1 0     agent processing failed: failed to {'title': 1, 'main': 33, 'summary': 10}
+truncated-stream     1 0     agent processing failed: failed to {'title': 1, 'main': 4}
+FAULTS: PASS

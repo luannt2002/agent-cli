@@ -1,0 +1,70 @@
+2026/10/19 18:47:21 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:21 INFO Fetching Hyper provider
+2026/10/19 18:47:21 INFO Fetching providers from Catwalk
+2026/10/19 18:47:21 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy951649847/004/crush/hyper.json
+2026/10/19 18:47:23 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy951649847/004/crush/providers.json
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:23 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:23 WARN No providers configured
+2026/10/19 18:47:23 WARN No agent configuration found
+2026/10/19 18:47:23 INFO Initializing MCP clients
+2026/10/19 18:47:24 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:24 WARN No providers configured
+2026/10/19 18:47:24 WARN No agent configuration found
+2026/10/19 18:47:24 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_TrustPolicyMismatch (2.88s)
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_yolo_differs (0.03s)
+        trusted_policy_test.go:95: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:95
+            	Error:      	Received unexpected error:
+            	            	trust policy differs from the running agent-cli server: --yolo; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_yolo_differs
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_allowlist_differs (0.03s)
+        trusted_policy_test.go:95: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:95
+            	Error:      	Received unexpected error:
+            	            	trust policy differs from the running agent-cli server: AGENT_CLI_ALLOWED_MODELS; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/no-agent_client,_allowlist_differs
+2026/10/19 18:47:24 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:47:24 WARN No providers configured
+2026/10/19 18:47:24 WARN No agent configuration found
+2026/10/19 18:47:24 INFO Initializing MCP clients
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.969s
+--- FAIL: TestRunsNoAgentMarksOnlyCommandsWithoutPrompts (0.00s)
+    no_agent_runs_test.go:21: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/no_agent_runs_test.go:21
+        	Error:      	Not equal: 
+        	            	expected: true
+        	            	actual  : false
+        	Test:       	TestRunsNoAgentMarksOnlyCommandsWithoutPrompts
+        	Messages:   	agent-cli jobs
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.049s
+FAIL

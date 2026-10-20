@@ -1,0 +1,1 @@
+T13: EXPOSED — send B rc=0 | session show: A=True B=False | 'T13-B' bytes anywhere in crush.db*=False | B reached LLM=False

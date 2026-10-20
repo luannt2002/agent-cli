@@ -1,0 +1,11 @@
+=== RUN   TestMCPInstructionsFollowRunTools
+=== RUN   TestTodoReminderOnlyWithTodosTool
+=== RUN   TestTodoReminderOnlyWithTodosTool/without_todos
+=== RUN   TestTodoReminderOnlyWithTodosTool/with_todos
+--- PASS: TestMCPInstructionsFollowRunTools (0.00s)
+--- FAIL: TestTodoReminderOnlyWithTodosTool (0.00s)
+    --- FAIL: TestTodoReminderOnlyWithTodosTool/without_todos (0.03s)
+    --- PASS: TestTodoReminderOnlyWithTodosTool/with_todos (0.04s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.071s
+FAIL

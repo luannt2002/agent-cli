@@ -1,0 +1,195 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index f23ca262..95f07480 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -177,6 +177,10 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   server). Agent chính có MCP vẫn nhận đủ như cũ. Các khối chỉ dẫn nay xếp theo tên server: trước đây thứ tự ngẫu
+   nhiên khi có từ 2 server, nên system prompt đổi giữa các lượt và prompt cache của provider bị trượt. Test:
+   `TestMCPInstructionsFollowRunTools`, `TestRunMCPInstructionsFollowRunTools`, `TestMCPInstructionsOrderIsStable`.
++- **Lời nhắc todo chỉ gửi cho lượt có tool `todos`.** Trước đây mọi agent không phải agent con nhận lời nhắc "dùng
++  tool `todos`", kể cả `agentic_fetch` và plan vốn không có tool đó; request tóm tắt (không có tool nào) cũng nhận. Nay
++  lời nhắc đi theo bộ tool của chính lượt đó. Agent chính (có `todos`) không đổi. Test:
++  `TestTodoReminderOnlyWithTodosTool`.
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 516a794b..97913a16 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -1048,7 +1048,9 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 	// mutex above for both the accepted and in-process paths.
+ 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, call.SessionID)
+ 
+-	history, files := a.preparePrompt(msgs, largeModel.CatwalkCfg.SupportsImages, call.Attachments...)
++	// Todo reminder chỉ cho lượt có tool todos (agentic_fetch, plan không có).
++	todoReminder := slices.ContainsFunc(agentTools, func(t fantasy.AgentTool) bool { return t.Info().Name == tools.TodosToolName })
++	history, files := a.preparePrompt(msgs, largeModel.CatwalkCfg.SupportsImages, todoReminder, call.Attachments...)
+ 
+ 	startTime := time.Now()
+ 	a.eventPromptSent(call.SessionID)
+@@ -1863,7 +1865,8 @@ func (a *sessionAgent) summarize(ctx context.Context, sessionID string, opts fan
+ 		return nil
+ 	}
+ 
+-	aiMsgs, _ := a.preparePrompt(msgs, largeModel.CatwalkCfg.SupportsImages)
++	// Request tóm tắt không có tool nào, nên không nhắc tool todos.
++	aiMsgs, _ := a.preparePrompt(msgs, largeModel.CatwalkCfg.SupportsImages, false)
+ 
+ 	genCtx, cancel := context.WithCancel(withLLMRole(withRequestTimeoutScale(ctx, summaryRequestTimeoutScale), "summary"))
+ 	ac := &activeCancel{cancel: cancel, runID: runID}
+@@ -2072,9 +2075,9 @@ func (a *sessionAgent) createUserMessage(ctx context.Context, call SessionAgentC
+ 	return msg, nil
+ }
+ 
+-func (a *sessionAgent) preparePrompt(msgs []message.Message, supportsImages bool, attachments ...message.Attachment) ([]fantasy.Message, []fantasy.FilePart) {
++func (a *sessionAgent) preparePrompt(msgs []message.Message, supportsImages, todoReminder bool, attachments ...message.Attachment) ([]fantasy.Message, []fantasy.FilePart) {
+ 	var history []fantasy.Message
+-	if !a.isSubAgent {
++	if todoReminder && !a.isSubAgent {
+ 		history = append(history, fantasy.NewUserMessage(
+ 			fmt.Sprintf(
+ 				"<system_reminder>%s</system_reminder>",
+diff --git a/internal/agent/agent_test.go b/internal/agent/agent_test.go
+index 5bf82d40..60885e78 100644
+--- a/internal/agent/agent_test.go
++++ b/internal/agent/agent_test.go
+@@ -691,7 +691,7 @@ func TestPreparePrompt_FiltersImageAttachments(t *testing.T) {
+ 
+ 	// When supportsImages is false, image attachments should be stripped
+ 	// from history AND from the files list.
+-	history, files := agent.preparePrompt(msgs, false, imageAtt)
++	history, files := agent.preparePrompt(msgs, false, true, imageAtt)
+ 	// First message is the system reminder, second is the user message.
+ 	require.Len(t, history, 2)
+ 	require.Len(t, history[1].Content, 1)
+@@ -703,7 +703,7 @@ func TestPreparePrompt_FiltersImageAttachments(t *testing.T) {
+ 
+ 	// When supportsImages is true, image attachments should remain in
+ 	// history and be included in the files list.
+-	history, files = agent.preparePrompt(msgs, true, imageAtt)
++	history, files = agent.preparePrompt(msgs, true, true, imageAtt)
+ 	require.Len(t, history, 2)
+ 	require.Len(t, history[1].Content, 2)
+ 	text, ok = fantasy.AsMessagePart[fantasy.TextPart](history[1].Content[0])
+@@ -800,7 +800,7 @@ func TestPreparePrompt_OrphanedToolUse(t *testing.T) {
+ 	msgs, err := env.messages.List(ctx, sess.ID)
+ 	require.NoError(t, err)
+ 
+-	history, _ := agent.preparePrompt(msgs, true)
++	history, _ := agent.preparePrompt(msgs, true, true)
+ 
+ 	// The history must contain a synthetic tool result for the orphaned call.
+ 	found := false
+@@ -874,7 +874,7 @@ func TestPreparePrompt_OrphanedToolUseMixed(t *testing.T) {
+ 	msgs, err := env.messages.List(ctx, sess.ID)
+ 	require.NoError(t, err)
+ 
+-	history, _ := agent.preparePrompt(msgs, true)
++	history, _ := agent.preparePrompt(msgs, true, true)
+ 
+ 	// Should have a synthetic result only for the orphaned call.
+ 	var syntheticCount int
+@@ -1007,7 +1007,7 @@ func TestPreparePrompt_NonAdjacentToolResults(t *testing.T) {
+ 
+ 	require.Equal(t, message.User, msgs[2].Role, "interleaved user should be between assistant and results in DB order")
+ 
+-	history, _ := agent.preparePrompt(msgs, false)
++	history, _ := agent.preparePrompt(msgs, false, true)
+ 
+ 	requireToolCallAdjacency(t, history)
+ 
+@@ -1057,7 +1057,7 @@ func TestPreparePrompt_ResultBeforeAssistant(t *testing.T) {
+ 	msgs, err := env.messages.List(ctx, sess.ID)
+ 	require.NoError(t, err)
+ 
+-	history, _ := agent.preparePrompt(msgs, false)
++	history, _ := agent.preparePrompt(msgs, false, true)
+ 
+ 	requireToolCallAdjacency(t, history)
+ 
+@@ -1124,7 +1124,7 @@ func TestPreparePrompt_BundledResultsAcrossAssistants(t *testing.T) {
+ 	msgs, err := env.messages.List(ctx, sess.ID)
+ 	require.NoError(t, err)
+ 
+-	history, _ := agent.preparePrompt(msgs, false)
++	history, _ := agent.preparePrompt(msgs, false, true)
+ 
+ 	requireToolCallAdjacency(t, history)
+ 
+@@ -1174,7 +1174,7 @@ func TestPreparePrompt_DropsOrphanedToolResults(t *testing.T) {
+ 	msgs, err := env.messages.List(ctx, sess.ID)
+ 	require.NoError(t, err)
+ 
+-	history, _ := agent.preparePrompt(msgs, false)
++	history, _ := agent.preparePrompt(msgs, false, true)
+ 
+ 	for _, msg := range history {
+ 		require.NotEqual(t, fantasy.MessageRoleTool, msg.Role, "orphaned tool results must be dropped")
+diff --git a/internal/agent/settle_concurrency_test.go b/internal/agent/settle_concurrency_test.go
+index 6b9ad82e..752ec060 100644
+--- a/internal/agent/settle_concurrency_test.go
++++ b/internal/agent/settle_concurrency_test.go
+@@ -90,7 +90,7 @@ func TestModelSeesOneResultAfterConcurrentSettle(t *testing.T) {
+ 	msgs, err := env.messages.List(ctx, sess.ID)
+ 	require.NoError(t, err)
+ 	sa := &sessionAgent{}
+-	prompt, _ := sa.preparePrompt(msgs, false)
++	prompt, _ := sa.preparePrompt(msgs, false, true)
+ 	for i, m := range prompt {
+ 		n := 0
+ 		for _, p := range m.Content {
+diff --git a/internal/agent/tool_prompt_test.go b/internal/agent/tool_prompt_test.go
+index 11f8699d..749c3da3 100644
+--- a/internal/agent/tool_prompt_test.go
++++ b/internal/agent/tool_prompt_test.go
+@@ -171,3 +171,49 @@ func TestRunMCPInstructionsFollowRunTools(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Todo reminder bảo model dùng tool `todos`: chỉ lượt có tool đó mới nhận
++// (agentic_fetch, plan không có `todos`).
++func TestTodoReminderOnlyWithTodosTool(t *testing.T) {
++	t.Parallel()
++	for _, tc := range []struct {
++		name  string
++		tools []fantasy.AgentTool
++		want  bool
++	}{
++		{"without todos", []fantasy.AgentTool{namedTool("view")}, false},
++		{"with todos", []fantasy.AgentTool{namedTool("view"), namedTool(tools.TodosToolName)}, true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			t.Parallel()
++			env := testEnv(t)
++			rec := &promptRecorder{finishStreamModel: finishStreamModel{text: "done"}}
++			cw := catwalk.Model{ContextWindow: 100000, DefaultMaxTokens: 100}
++			sa := NewSessionAgent(SessionAgentOptions{
++				LargeModel: modelWith(rec, "prov", "model", cw),
++				SmallModel: modelWith(&finishStreamModel{text: "title"}, "prov", "small", cw),
++				IsYolo:     true,
++				Sessions:   env.sessions,
++				Messages:   env.messages,
++				Tools:      tc.tools,
++			})
++			sess, err := env.sessions.Create(t.Context(), "session")
++			require.NoError(t, err)
++			_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, Prompt: "hello"})
++			require.NoError(t, err)
++
++			rec.mu.Lock()
++			defer rec.mu.Unlock()
++			require.NotEmpty(t, rec.prompts, "the model was never called")
++			var got bool
++			for _, msg := range rec.prompts[0] {
++				for _, part := range msg.Content {
++					if tp, ok := fantasy.AsMessagePart[fantasy.TextPart](part); ok && strings.Contains(tp.Text, "your todo list is currently empty") {
++						got = true
++					}
++				}
++			}
++			require.Equal(t, tc.want, got, "todo reminder sent")
++		})
++	}
++}

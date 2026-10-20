@@ -1,0 +1,29 @@
+T1M: EXPOSED — harm: second prompt sent 1.6s after the long turn started (long turn lasts 8s) -> RAN CONCURRENTLY; ps rows for S (path,busy)=[('repo', True), ('repo/sub', False)]; workspaces=['repo/sub', 'repo']; control: second prompt sent 8.0s after the long turn started (long turn lasts 8s) -> queued; ps rows for S (path,busy)=[('repo', True)]; workspaces=['repo']; crush.db under repo=['repo/.crush/crush.db']
+T3: EXPOSED — local|EXPOSED|order1 sub-first db=sub/.crush/crush.db root db=.crush/crush.db sub-again db=sub/.crush/crush.db | order2 (control) root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=2 repo2=1 | repo1 root sees 1/3, repo1/sub sees 2/3 server|EXPOSED|order1 sub-first db=sub/.crush/crush.db root db=.crush/crush.db sub-again db=sub/.crush/crush.db | order2 (control) root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=2 repo2=1 | repo1 root sees 1/3, repo1/sub sees 2/3 
+EXPOSURE: ran 2 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p2c-r2-before/verdicts.txt
+T1M: NOT_EXPOSED — harm: second prompt sent 8.0s after the long turn started (long turn lasts 8s) -> queued; ps rows for S (path,busy)=[('repo', True)]; workspaces=['repo']; control: second prompt sent 8.0s after the long turn started (long turn lasts 8s) -> queued; ps rows for S (path,busy)=[('repo', True)]; workspaces=['repo']; crush.db under repo=['repo/.crush/crush.db']
+T3: NOT_EXPOSED — local|NOT_EXPOSED|order1 sub-first db=.crush/crush.db root db=.crush/crush.db sub-again db=.crush/crush.db | order2 (control) root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=1 repo2=1 | repo1 root sees 3/3, repo1/sub sees 3/3 server|NOT_EXPOSED|order1 sub-first db=.crush/crush.db root db=.crush/crush.db sub-again db=.crush/crush.db | order2 (control) root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=1 repo2=1 | repo1 root sees 3/3, repo1/sub sees 3/3 
+EXPOSURE: ran 2 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p2c-r2-final/verdicts.txt
+| ca | chế độ | lượt: session ở DB nào, workspace (cwd của agent), cảnh báo | crush.db trong cây ca |
+|---|---|---|---|
+| gốc | local | root: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| sub | local | sub: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| symlink-vào-sub | local | link: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| sub-trước-gốc | local | sub1: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không ; root: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không ; sub2: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| có-sẵn-2-.crush | local | sub: db=repo/.crush/crush.db, workspace=repo, cảnh báo=có ; root: db=repo/.crush/crush.db, workspace=repo, cảnh báo=có | repo/.crush/crush.db, repo/sub/.crush/crush.db |
+| gốc | server | root: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| sub | server | sub: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| symlink-vào-sub | server | link: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| sub-trước-gốc | server | sub1: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không ; root: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không ; sub2: db=repo/.crush/crush.db, workspace=repo, cảnh báo=không | repo/.crush/crush.db |
+| có-sẵn-2-.crush | server | sub: db=repo/.crush/crush.db, workspace=repo, cảnh báo=có ; root: db=repo/.crush/crush.db, workspace=repo, cảnh báo=có | repo/.crush/crush.db, repo/sub/.crush/crush.db |
+local: sub/AGENTS.md trong prompt=False, AGENTS.md gốc trong prompt=True
+server: sub/AGENTS.md trong prompt=False, AGENTS.md gốc trong prompt=True
+== G-long
+session cc76296e
+== G-second
+warning: this project's agent-cli server uses the data directory /home/luannt/.cache/v3ev/p2c-dmis-r2final/g/repo/sub/x, chosen with --data-dir by an earlier client: sessions go there, not to the project's own. Close every agent-cli of this project to restart it without --data-dir.
+session ca4ac8ee
+== G-third
+warning: --data-dir /home/luannt/.cache/v3ev/p2c-dmis-r2final/g/repo/.crush was ignored: this project's agent-cli server already uses /home/luannt/.cache/v3ev/p2c-dmis-r2final/g/repo/sub/x (chosen by an earlier client). Close every agent-cli of this project to restart it with --data-dir.
+session 66c8c32e
+repo/sub/x/crush.db

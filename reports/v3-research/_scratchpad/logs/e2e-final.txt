@@ -1,0 +1,12 @@
+C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist qwen-only: second client -> ['none'] err='failed to create workspace: failed to create workspace: status code 500: trust policy diff', control alone -> ['none'] err='failed to create workspace: failed to create workspace: status code 500: failed to create ' | holders: ['c1'] ['pp']
+EXPOSURE: ran 1 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p02-5/verdicts.txt
+s1: PASS rc=0 provider=['qwen'] refused=False err=''
+s2: PASS rc=0 provider=['pp'] refused=False err=''
+s3: PASS rc=0 provider=['pp'] refused=False err=''
+s4: PASS rc=1 provider=['none'] refused=True err='failed to create workspace: failed to create workspace: status code 500: trust policy differs from the running agent-cli server: AGENT_CLI_ALLOWED_MODELS; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)'
+s5: PASS rc=1 provider=['none'] refused=True err='failed to create workspace: failed to create workspace: status code 500: trust policy differs from the running agent-cli server: --yolo; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)'
+CONTROLS: PASS
+faults rc=0 FAULTS: PASS
+qwen-only rc=0 QWEN-ONLY: PASS
+workspaces rc=0 WORKSPACES: PASS
+run-json rc=0 PASS

@@ -1,0 +1,58 @@
+2026/10/19 19:51:30 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:30 INFO Fetching Hyper provider
+2026/10/19 19:51:30 INFO Fetching providers from Catwalk
+2026/10/19 19:51:30 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy2533243872/004/crush/hyper.json
+2026/10/19 19:51:31 INFO Saving provider data to disk path=/tmp/TestCreateWorkspace_TrustPolicyMismatchsame_policy2533243872/004/crush/providers.json
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 WARN Workspace flag mismatch on duplicate create; first wins workspace_id=eb656a9a-9311-4744-93cf-98db5ef0b5ab path=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di3880212910/005 existing_yolo=false requested_yolo=true existing_debug=false requested_debug=false existing_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di3880212910/006 requested_data_dir=/tmp/TestCreateWorkspace_TrustPolicyMismatchno-agent_client,_yolo_di3880212910/006 env_keys_differ=[] existing_channels=[] requested_channels=[]
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+--- FAIL: TestCreateWorkspace_TrustPolicyMismatch (1.83s)
+    --- FAIL: TestCreateWorkspace_TrustPolicyMismatch/client_sends_a_key_the_server_does_not_know (0.03s)
+        trusted_policy_test.go:107: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/backend/trusted_policy_test.go:107
+            	Error:      	"trust policy differs from the running agent-cli server: INJECTED_NAME_X; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)" does not contain "1 key(s) this server does not know"
+            	Test:       	TestCreateWorkspace_TrustPolicyMismatch/client_sends_a_key_the_server_does_not_know
+2026/10/19 19:51:31 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 19:51:31 WARN No providers configured
+2026/10/19 19:51:31 WARN No agent configuration found
+2026/10/19 19:51:31 INFO Initializing MCP clients
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	1.911s
+FAIL

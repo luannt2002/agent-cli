@@ -1,0 +1,27 @@
+=== RUN   TestRestartIfStale_RefusesModelCommandOnBusyStaleServer
+=== PAUSE TestRestartIfStale_RefusesModelCommandOnBusyStaleServer
+=== CONT  TestRestartIfStale_RefusesModelCommandOnBusyStaleServer
+=== RUN   TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/busy
+=== PAUSE TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/busy
+=== RUN   TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/legacy_busy
+=== PAUSE TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/legacy_busy
+=== CONT  TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/busy
+=== CONT  TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/legacy_busy
+2026/10/19 19:29:02 WARN Server version differs but it will not stand down; reusing it server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tcy2q4ye0 error="server busy: server shutdown failed: 409 Conflict"
+2026/10/19 19:29:02 WARN Server version differs and has active workspaces; reusing it server_version=not-devel client_version=devel server_build_id=stale-build client_build_id=dm8tcy2q4ye0 workspaces=3
+=== NAME  TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/busy
+    restart_stale_test.go:119: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/restart_stale_test.go:119
+        	Error:      	Expected error with "this project's agent-cli server is another build and is busy" in chain but got nil.
+        	Test:       	TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/busy
+=== NAME  TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/legacy_busy
+    restart_stale_test.go:119: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/restart_stale_test.go:119
+        	Error:      	Expected error with "this project's agent-cli server is another build and is busy" in chain but got nil.
+        	Test:       	TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/legacy_busy
+--- FAIL: TestRestartIfStale_RefusesModelCommandOnBusyStaleServer (0.00s)
+    --- FAIL: TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/busy (0.00s)
+    --- FAIL: TestRestartIfStale_RefusesModelCommandOnBusyStaleServer/legacy_busy (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.048s
+FAIL

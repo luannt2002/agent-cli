@@ -1,0 +1,94 @@
+=== RUN   TestPathDedupe_FullCreate
+2026/10/19 18:20:32 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:32 INFO Fetching Hyper provider
+2026/10/19 18:20:32 INFO Fetching providers from Catwalk
+2026/10/19 18:20:32 INFO Saving provider data to disk path=/tmp/TestPathDedupe_FullCreate3513433232/004/crush/hyper.json
+2026/10/19 18:20:33 INFO Saving provider data to disk path=/tmp/TestPathDedupe_FullCreate3513433232/004/crush/providers.json
+2026/10/19 18:20:33 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+--- PASS: TestPathDedupe_FullCreate (1.71s)
+=== RUN   TestPathDedupe_DifferentPaths_DifferentWorkspaces
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+--- PASS: TestPathDedupe_DifferentPaths_DifferentWorkspaces (0.06s)
+=== RUN   TestPathDedupe_FirstWinsKeepsOriginalEnv
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+--- PASS: TestPathDedupe_FirstWinsKeepsOriginalEnv (0.03s)
+=== RUN   TestPathDedupe_Symlink
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+--- PASS: TestPathDedupe_Symlink (0.03s)
+=== RUN   TestPathDedupe_NonExistentPath
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+--- PASS: TestPathDedupe_NonExistentPath (0.03s)
+=== RUN   TestPathDedupe_ParallelCreates
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No providers configured
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 WARN No agent configuration found
+2026/10/19 18:20:34 INFO Initializing MCP clients
+2026/10/19 18:20:34 INFO Initializing MCP clients
+--- PASS: TestPathDedupe_ParallelCreates (0.04s)
+=== RUN   TestFirstWinsMismatch_LogsOnFlagDifferences
+=== RUN   TestFirstWinsMismatch_LogsOnFlagDifferences/debug
+=== RUN   TestFirstWinsMismatch_LogsOnFlagDifferences/datadir
+=== RUN   TestFirstWinsMismatch_LogsOnFlagDifferences/env
+--- PASS: TestFirstWinsMismatch_LogsOnFlagDifferences (0.09s)
+    --- PASS: TestFirstWinsMismatch_LogsOnFlagDifferences/debug (0.03s)
+    --- PASS: TestFirstWinsMismatch_LogsOnFlagDifferences/datadir (0.03s)
+    --- PASS: TestFirstWinsMismatch_LogsOnFlagDifferences/env (0.03s)
+=== RUN   TestFirstWinsMismatch_NoLogWhenIdentical
+--- PASS: TestFirstWinsMismatch_NoLogWhenIdentical (0.03s)
+=== RUN   TestChannelOptInBoundary_DuplicateCreate
+=== RUN   TestChannelOptInBoundary_DuplicateCreate/second_omits_opt-in
+=== RUN   TestChannelOptInBoundary_DuplicateCreate/second_opts_into_extra_channel
+=== RUN   TestChannelOptInBoundary_DuplicateCreate/different_channels
+=== RUN   TestChannelOptInBoundary_DuplicateCreate/identical_channels_shared
+--- PASS: TestChannelOptInBoundary_DuplicateCreate (0.12s)
+    --- PASS: TestChannelOptInBoundary_DuplicateCreate/second_omits_opt-in (0.03s)
+    --- PASS: TestChannelOptInBoundary_DuplicateCreate/second_opts_into_extra_channel (0.03s)
+    --- PASS: TestChannelOptInBoundary_DuplicateCreate/different_channels (0.03s)
+    --- PASS: TestChannelOptInBoundary_DuplicateCreate/identical_channels_shared (0.03s)
+=== RUN   TestFirstWinsMismatch_NeverLogsEnvValues
+--- PASS: TestFirstWinsMismatch_NeverLogsEnvValues (0.03s)
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/same_policy
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/plain_env_differs
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/allowlist_differs
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/delegation_differs
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/other_trusted_var_differs
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/yolo_differs
+=== RUN   TestCreateWorkspace_TrustPolicyMismatch/older_client_sends_no_policy
+--- PASS: TestCreateWorkspace_TrustPolicyMismatch (0.20s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/same_policy (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/plain_env_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/allowlist_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/delegation_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/other_trusted_var_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/yolo_differs (0.03s)
+    --- PASS: TestCreateWorkspace_TrustPolicyMismatch/older_client_sends_no_policy (0.03s)
+=== RUN   TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace
+--- PASS: TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace (0.03s)
+=== RUN   TestCreateWorkspace_RuntimeYOLOToggleNotRefused
+--- PASS: TestCreateWorkspace_RuntimeYOLOToggleNotRefused (0.03s)
+=== RUN   TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO
+--- PASS: TestCreateWorkspace_ParallelCreatesRefuseOtherYOLO (0.05s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/backend	2.540s

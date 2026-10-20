@@ -1,0 +1,119 @@
+=== RUN   TestCrushInfo_MinimalConfig
+=== PAUSE TestCrushInfo_MinimalConfig
+=== RUN   TestCrushInfo_ConfigFiles
+=== PAUSE TestCrushInfo_ConfigFiles
+=== RUN   TestCrushInfo_Models
+=== PAUSE TestCrushInfo_Models
+=== RUN   TestCrushInfo_Providers
+=== PAUSE TestCrushInfo_Providers
+=== RUN   TestCrushInfo_DisabledProvidersOmitted
+=== PAUSE TestCrushInfo_DisabledProvidersOmitted
+=== RUN   TestCrushInfo_LSPStates
+=== PAUSE TestCrushInfo_LSPStates
+=== RUN   TestCrushInfo_MCPStates
+=== PAUSE TestCrushInfo_MCPStates
+=== RUN   TestCrushInfo_YoloMode
+=== PAUSE TestCrushInfo_YoloMode
+=== RUN   TestCrushInfo_AllowedTools
+=== PAUSE TestCrushInfo_AllowedTools
+=== RUN   TestCrushInfo_DisabledTools
+=== PAUSE TestCrushInfo_DisabledTools
+=== RUN   TestCrushInfo_Options
+=== PAUSE TestCrushInfo_Options
+=== RUN   TestCrushInfo_TUIOptions
+=== PAUSE TestCrushInfo_TUIOptions
+=== RUN   TestCrushInfo_TUIOptionsUnpinnedCompletionsOmitted
+=== PAUSE TestCrushInfo_TUIOptionsUnpinnedCompletionsOmitted
+=== RUN   TestCrushInfo_AutoSummarizeInversion
+=== PAUSE TestCrushInfo_AutoSummarizeInversion
+=== RUN   TestCrushInfo_NoSecrets
+=== PAUSE TestCrushInfo_NoSecrets
+=== RUN   TestCrushInfo_DeterministicOrdering
+=== PAUSE TestCrushInfo_DeterministicOrdering
+=== RUN   TestCrushInfo_EmptySectionsOmitted
+=== PAUSE TestCrushInfo_EmptySectionsOmitted
+=== RUN   TestCrushInfo_ConfigStaleness_Clean
+=== PAUSE TestCrushInfo_ConfigStaleness_Clean
+=== RUN   TestCrushInfo_ConfigStaleness_Dirty
+=== PAUSE TestCrushInfo_ConfigStaleness_Dirty
+=== RUN   TestCrushInfo_ConfigStaleness_MissingPath
+=== PAUSE TestCrushInfo_ConfigStaleness_MissingPath
+=== RUN   TestCrushInfo_Skills_NoSkills
+=== PAUSE TestCrushInfo_Skills_NoSkills
+=== RUN   TestCrushInfo_Skills_MixedLoadedUnloaded
+=== PAUSE TestCrushInfo_Skills_MixedLoadedUnloaded
+=== RUN   TestCrushInfo_Skills_DisabledSkills
+=== PAUSE TestCrushInfo_Skills_DisabledSkills
+=== RUN   TestCrushInfo_Skills_Ordering
+=== PAUSE TestCrushInfo_Skills_Ordering
+=== RUN   TestCrushInfo_Skills_BuiltinOrigin
+=== PAUSE TestCrushInfo_Skills_BuiltinOrigin
+=== RUN   TestCrushInfo_Hooks
+=== PAUSE TestCrushInfo_Hooks
+=== RUN   TestCrushInfo_Hooks_NoHooks
+=== PAUSE TestCrushInfo_Hooks_NoHooks
+=== RUN   TestMCPTool_LargeTextIsCappedAndSpilled
+2026/10/19 19:26:46 INFO Removing MCP server no longer in config name=p1b-big
+--- PASS: TestMCPTool_LargeTextIsCappedAndSpilled (0.90s)
+=== RUN   TestMCPTool_SmallTextIsUnchanged
+2026/10/19 19:26:46 INFO Removing MCP server no longer in config name=p1b-small
+--- PASS: TestMCPTool_SmallTextIsUnchanged (0.00s)
+=== RUN   TestMCPTool_IsErrorReachesToolResponse
+2026/10/19 19:26:46 INFO Removing MCP server no longer in config name=p1b-fail
+--- PASS: TestMCPTool_IsErrorReachesToolResponse (0.00s)
+=== CONT  TestCrushInfo_MinimalConfig
+=== CONT  TestCrushInfo_NoSecrets
+--- PASS: TestCrushInfo_MinimalConfig (0.00s)
+=== CONT  TestCrushInfo_AutoSummarizeInversion
+--- PASS: TestCrushInfo_NoSecrets (0.00s)
+=== CONT  TestCrushInfo_Hooks_NoHooks
+--- PASS: TestCrushInfo_AutoSummarizeInversion (0.00s)
+=== CONT  TestCrushInfo_Hooks
+--- PASS: TestCrushInfo_Hooks_NoHooks (0.00s)
+=== CONT  TestCrushInfo_TUIOptionsUnpinnedCompletionsOmitted
+--- PASS: TestCrushInfo_Hooks (0.00s)
+=== CONT  TestCrushInfo_Options
+--- PASS: TestCrushInfo_TUIOptionsUnpinnedCompletionsOmitted (0.00s)
+=== CONT  TestCrushInfo_TUIOptions
+--- PASS: TestCrushInfo_Options (0.00s)
+=== CONT  TestCrushInfo_Skills_BuiltinOrigin
+--- PASS: TestCrushInfo_Skills_BuiltinOrigin (0.00s)
+=== CONT  TestCrushInfo_Skills_Ordering
+--- PASS: TestCrushInfo_TUIOptions (0.00s)
+=== CONT  TestCrushInfo_Skills_DisabledSkills
+--- PASS: TestCrushInfo_Skills_Ordering (0.00s)
+=== CONT  TestCrushInfo_Skills_MixedLoadedUnloaded
+--- PASS: TestCrushInfo_Skills_DisabledSkills (0.00s)
+=== CONT  TestCrushInfo_Skills_NoSkills
+--- PASS: TestCrushInfo_Skills_MixedLoadedUnloaded (0.00s)
+=== CONT  TestCrushInfo_ConfigStaleness_Dirty
+=== CONT  TestCrushInfo_ConfigStaleness_MissingPath
+--- PASS: TestCrushInfo_Skills_NoSkills (0.00s)
+--- PASS: TestCrushInfo_ConfigStaleness_MissingPath (0.00s)
+=== CONT  TestCrushInfo_ConfigStaleness_Clean
+--- PASS: TestCrushInfo_ConfigStaleness_Clean (0.00s)
+=== CONT  TestCrushInfo_EmptySectionsOmitted
+--- PASS: TestCrushInfo_EmptySectionsOmitted (0.00s)
+=== CONT  TestCrushInfo_DeterministicOrdering
+--- PASS: TestCrushInfo_DeterministicOrdering (0.00s)
+=== CONT  TestCrushInfo_DisabledTools
+--- PASS: TestCrushInfo_DisabledTools (0.00s)
+=== CONT  TestCrushInfo_AllowedTools
+--- PASS: TestCrushInfo_AllowedTools (0.00s)
+=== CONT  TestCrushInfo_YoloMode
+--- PASS: TestCrushInfo_YoloMode (0.00s)
+=== CONT  TestCrushInfo_MCPStates
+--- PASS: TestCrushInfo_MCPStates (0.00s)
+=== CONT  TestCrushInfo_LSPStates
+--- PASS: TestCrushInfo_LSPStates (0.00s)
+=== CONT  TestCrushInfo_DisabledProvidersOmitted
+--- PASS: TestCrushInfo_DisabledProvidersOmitted (0.00s)
+=== CONT  TestCrushInfo_Providers
+--- PASS: TestCrushInfo_Providers (0.00s)
+=== CONT  TestCrushInfo_Models
+--- PASS: TestCrushInfo_Models (0.00s)
+=== CONT  TestCrushInfo_ConfigFiles
+--- PASS: TestCrushInfo_ConfigFiles (0.00s)
+--- PASS: TestCrushInfo_ConfigStaleness_Dirty (0.01s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/agent/tools	0.940s

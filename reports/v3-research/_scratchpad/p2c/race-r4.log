@@ -1,0 +1,3 @@
+ok  	github.com/charmbracelet/crush/internal/cmd	15.212s
+ok  	github.com/charmbracelet/crush/internal/cmd/clientserverrace	9.411s
+ok  	github.com/charmbracelet/crush/internal/loop	1.036s

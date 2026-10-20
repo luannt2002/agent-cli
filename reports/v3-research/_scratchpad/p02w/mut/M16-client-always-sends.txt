@@ -1,0 +1,8 @@
+--- FAIL: TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns (0.00s)
+    trusted_env_test.go:37: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/client/trusted_env_test.go:37
+        	Error:      	Expected nil, but got: []string{"AGENT_CLI_ALLOWED_MODELS=", "AGENT_CLI_DELEGATION=", "AGENT_CLI_UNATTENDED=", "AGENT_CLI_UNATTENDED_COMMIT=", "AGENT_CLI_ENV_FILE=", "AGENT_CLI_LLM_LEDGER=", "HOME=", "AGENT_CLI_CLAUDE_BIN=", "AGENT_CLI_CODEX_BIN=", "AGENT_CLI_CLAUDE_PERMISSION_MODE=", "AGENT_CLI_CODEX_SANDBOX="}
+        	Test:       	TestCreateWorkspaceSendsTrustedEnvOnlyForAgentRuns
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/client	0.042s
+FAIL

@@ -1,0 +1,135 @@
+--- FAIL: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after (0.02s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after (0.01s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt (0.00s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after (0.00s)
+        model_restore_test.go:106: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/ui/model/model_restore_test.go:106
+            	Error:      	"This session last ran on agent-cli-pending/u2; continuing on the project model p/a (alt+p to change provider)" should not contain "agent-cli-pending"
+            	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after
+            	Messages:   	a placeholder is not a model
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/ui/model	0.093s
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Overriding large model provider=pp model=m-pp
+2026/10/19 22:48:52 WARN Failed to get default small model error="failed to decode default small model: EOF"
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:48:52 INFO Running in non-interactive mode
+2026/10/19 22:48:52 INFO Overriding reasoning effort for non-interactive run provider=qq model=m-qq reasoning_effort=high
+2026/10/19 22:48:52 INFO Continuing session for non-interactive run session_id=x
+--- FAIL: TestContinuedRunKeepsTheWorkspaceModel (0.02s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model,_prompt_pending_after (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s,_prompt_pending_after (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-s,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-C,_prompt_canceled_after (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-C,_prompt_canceled_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s,_only_a_pending_prompt (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-s,_only_a_pending_prompt
+            	Messages:   	a placeholder is not a model
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.076s
+--- FAIL: TestSessionModelNote (0.00s)
+    --- FAIL: TestSessionModelNote/same_model,_prompt_pending_after (0.04s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: ""
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/same_model,_prompt_pending_after
+    --- FAIL: TestSessionModelNote/only_a_pending_prompt (0.03s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: ""
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/only_a_pending_prompt
+    --- FAIL: TestSessionModelNote/other_model,_prompt_canceled_after (0.03s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: "last ran on pp/m-pp; continuing on the project model qq/m-qq"
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-last ran on pp/m-pp; continuing on the project model qq/m-qq
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/other_model,_prompt_canceled_after
+    --- FAIL: TestSessionModelNote/other_model,_prompt_pending_after (0.03s)
+        session_model_test.go:73: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/app/session_model_test.go:73
+            	Error:      	Not equal: 
+            	            	expected: "last ran on pp/m-pp; continuing on the project model qq/m-qq"
+            	            	actual  : "last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-last ran on pp/m-pp; continuing on the project model qq/m-qq
+            	            	+last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq
+            	Test:       	TestSessionModelNote/other_model,_prompt_pending_after
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/app	0.124s
+FAIL

@@ -1,0 +1,141 @@
+=== RUN   TestLastReply
+=== PAUSE TestLastReply
+=== RUN   TestGetLastAssistantMessageSkipsPromptPlaceholders
+=== PAUSE TestGetLastAssistantMessageSkipsPromptPlaceholders
+=== CONT  TestLastReply
+=== RUN   TestLastReply/no_messages
+=== PAUSE TestLastReply/no_messages
+=== RUN   TestLastReply/only_a_placeholder
+=== PAUSE TestLastReply/only_a_placeholder
+=== RUN   TestLastReply/placeholder_after_a_reply
+=== PAUSE TestLastReply/placeholder_after_a_reply
+=== RUN   TestLastReply/summary_after_a_reply
+=== PAUSE TestLastReply/summary_after_a_reply
+=== RUN   TestLastReply/no_model_after_a_reply
+=== CONT  TestGetLastAssistantMessageSkipsPromptPlaceholders
+=== PAUSE TestLastReply/no_model_after_a_reply
+=== CONT  TestLastReply/no_messages
+=== CONT  TestLastReply/no_model_after_a_reply
+=== CONT  TestLastReply/summary_after_a_reply
+=== CONT  TestLastReply/placeholder_after_a_reply
+=== CONT  TestLastReply/only_a_placeholder
+--- PASS: TestLastReply (0.00s)
+    --- PASS: TestLastReply/no_messages (0.00s)
+    --- PASS: TestLastReply/no_model_after_a_reply (0.00s)
+    --- PASS: TestLastReply/summary_after_a_reply (0.00s)
+    --- PASS: TestLastReply/placeholder_after_a_reply (0.00s)
+    --- PASS: TestLastReply/only_a_placeholder (0.00s)
+--- PASS: TestGetLastAssistantMessageSkipsPromptPlaceholders (0.03s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/message	0.042s
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/other_model
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/other_model
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/same_model
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/same_model
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/other_provider
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/other_provider
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/other_provider
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/other_model
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/same_model
+--- PASS: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_canceled_after (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_provider (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/only_a_pending_prompt (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model,_prompt_pending_after (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model,_prompt_pending_after (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.00s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/ui/model	0.097s
+=== RUN   TestLastReplyModelSkipsPromptPlaceholders
+=== PAUSE TestLastReplyModelSkipsPromptPlaceholders
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s,_prompt_pending_after
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-C,_prompt_canceled_after
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model,_prompt_pending_after
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s,_only_a_pending_prompt
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-C
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s_--reasoning-effort
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Overriding reasoning effort for non-interactive run provider=qq model=m-qq reasoning_effort=high
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+=== RUN   TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m
+2026/10/19 23:23:05 INFO Running in non-interactive mode
+2026/10/19 23:23:05 INFO Overriding large model provider=pp model=m-pp
+2026/10/19 23:23:05 WARN Failed to get default small model error="failed to decode default small model: EOF"
+2026/10/19 23:23:05 INFO Continuing session for non-interactive run session_id=x
+--- PASS: TestContinuedRunKeepsTheWorkspaceModel (0.02s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s,_prompt_pending_after (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-C,_prompt_canceled_after (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model,_prompt_pending_after (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s,_only_a_pending_prompt (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-C (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_--reasoning-effort (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m (0.00s)
+=== CONT  TestLastReplyModelSkipsPromptPlaceholders
+--- PASS: TestLastReplyModelSkipsPromptPlaceholders (0.00s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/cmd	0.079s
+=== RUN   TestSessionModelNote
+=== PAUSE TestSessionModelNote
+=== CONT  TestSessionModelNote
+=== RUN   TestSessionModelNote/other_model
+=== PAUSE TestSessionModelNote/other_model
+=== RUN   TestSessionModelNote/other_model,_prompt_pending_after
+=== PAUSE TestSessionModelNote/other_model,_prompt_pending_after
+=== RUN   TestSessionModelNote/other_model,_prompt_canceled_after
+=== PAUSE TestSessionModelNote/other_model,_prompt_canceled_after
+=== RUN   TestSessionModelNote/same_model,_prompt_pending_after
+=== PAUSE TestSessionModelNote/same_model,_prompt_pending_after
+=== RUN   TestSessionModelNote/only_a_pending_prompt
+=== PAUSE TestSessionModelNote/only_a_pending_prompt
+=== CONT  TestSessionModelNote/other_model
+=== CONT  TestSessionModelNote/same_model,_prompt_pending_after
+=== CONT  TestSessionModelNote/only_a_pending_prompt
+=== CONT  TestSessionModelNote/other_model,_prompt_canceled_after
+=== CONT  TestSessionModelNote/other_model,_prompt_pending_after
+--- PASS: TestSessionModelNote (0.00s)
+    --- PASS: TestSessionModelNote/other_model (0.03s)
+    --- PASS: TestSessionModelNote/same_model,_prompt_pending_after (0.04s)
+    --- PASS: TestSessionModelNote/only_a_pending_prompt (0.03s)
+    --- PASS: TestSessionModelNote/other_model,_prompt_canceled_after (0.03s)
+    --- PASS: TestSessionModelNote/other_model,_prompt_pending_after (0.03s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/app	0.134s

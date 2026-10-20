@@ -1,0 +1,86 @@
+2026/10/19 20:35:02 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:35:02 INFO Fetching Hyper provider
+2026/10/19 20:35:02 INFO Fetching providers from Catwalk
+2026/10/19 20:35:02 WARN No git repository detected in working directory, will limit file walk operations depth=2 items=100
+2026/10/19 20:35:03 INFO Saving provider data to disk path=/home/luannt/.local/share/crush/hyper.json
+2026/10/19 20:35:04 INFO Saving provider data to disk path=/home/luannt/.local/share/crush/providers.json
+2026/10/19 20:35:04 WARN No providers configured
+2026/10/19 20:35:04 WARN No providers configured
+2026/10/19 20:35:04 INFO Skill discovery complete component=skills builtin_ok=0 builtin_errors=0 user_ok=49 user_errors=0 user_paths=8 deduped_total=49 active=49 disabled=0 prompt_bytes=27765 prompt_tok_est=6942 active_names="[crush-config crush-hooks jq brainstorming dispatching-parallel-agents executing-plans finishing-a-development-branch ponytail ponytail-audit ponytail-debt ponytail-gain ponytail-review receiving-code-review requesting-code-review subagent-driven-development systematic-debugging test-driven-development using-git-worktrees using-superpowers verification-before-completion writing-plans code-en-doc-vi flow-tu-dong glossary-keeper retro superpower algorithmic-art brand-guidelines canvas-design internal-comms mcp-builder slack-gif-creator theme-factory web-artifacts-builder built-in-browser chrome-browser computer-use deep-research docs docx google-workspace import-memory morning pdf pptx skill-creator ui-ux-pro-max xlsx writing-go-postgres-repositories]"
+2026/10/19 20:35:04 INFO Skill discovery complete component=skills builtin_ok=0 builtin_errors=0 user_ok=49 user_errors=0 user_paths=8 deduped_total=49 active=49 disabled=0 prompt_bytes=27765 prompt_tok_est=6942 active_names="[crush-config crush-hooks jq brainstorming dispatching-parallel-agents executing-plans finishing-a-development-branch ponytail ponytail-audit ponytail-debt ponytail-gain ponytail-review receiving-code-review requesting-code-review subagent-driven-development systematic-debugging test-driven-development using-git-worktrees using-superpowers verification-before-completion writing-plans code-en-doc-vi flow-tu-dong glossary-keeper retro superpower algorithmic-art brand-guidelines canvas-design internal-comms mcp-builder slack-gif-creator theme-factory web-artifacts-builder built-in-browser chrome-browser computer-use deep-research docs docx google-workspace import-memory morning pdf pptx skill-creator ui-ux-pro-max xlsx writing-go-postgres-repositories]"
+--- FAIL: TestSendMessage_AckPersistsUserMessageBeforeRun (1.52s)
+    durable_ack_test.go:296: 
+        	Error Trace:	/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:296
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestSendMessage_AckPersistsUserMessageBeforeRun
+        	Messages:   	SendMessage acked before the user message was written
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO Skill turn summary component=skills session_id=be17cbd5-029e-4f66-81cf-d727f08b05d3 prompt_len=2 active_total=49 loaded_total=0 loaded_this_turn=[]
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 ERROR Failed to save derived session title error="sql: database is closed"
+2026/10/19 20:35:04 ERROR Failed to save session title and usage error="sql: database is closed"
+2026/10/19 20:35:04 ERROR Failed to save fallback session title error="sql: database is closed"
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+--- FAIL: TestSendMessage_QueuedPromptCancelRunLeavesTrace (0.03s)
+    durable_ack_test.go:389: 
+        	Error Trace:	/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:266
+        	            				/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:389
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestSendMessage_QueuedPromptCancelRunLeavesTrace
+        	Messages:   	acked prompt "B queued prompt" must have exactly one user message in the DB
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+--- FAIL: TestSendMessage_ClearedQueueLeavesTrace (0.03s)
+    durable_ack_test.go:370: 
+        	Error Trace:	/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:266
+        	            				/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:370
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestSendMessage_ClearedQueueLeavesTrace
+        	Messages:   	acked prompt "B queued prompt" must have exactly one user message in the DB
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO Agent stream returned error error="context canceled" error_type=*errors.errorString is_hyper=false is_cancel=true
+--- FAIL: TestSendMessage_QueuedPromptCanceledLeavesTrace (0.03s)
+    durable_ack_test.go:353: 
+        	Error Trace:	/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:266
+        	            				/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:353
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestSendMessage_QueuedPromptCanceledLeavesTrace
+        	Messages:   	acked prompt "B queued prompt" must have exactly one user message in the DB
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO Agent stream returned error error="context canceled" error_type=*errors.errorString is_hyper=false is_cancel=true
+2026/10/19 20:35:04 INFO ModelProvider called provider="" model=""
+2026/10/19 20:35:04 INFO Agent stream returned error error="context canceled" error_type=*errors.errorString is_hyper=false is_cancel=true
+--- FAIL: TestSendMessage_QueuedPromptSurvivesCrash (0.24s)
+    durable_ack_test.go:339: 
+        	Error Trace:	/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:266
+        	            				/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:339
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestSendMessage_QueuedPromptSurvivesCrash
+        	Messages:   	acked prompt "B queued prompt" must have exactly one user message in the DB
+2026/10/19 20:35:04 INFO Client that started the run is gone, cancelling it session_id=s1 run_id=r1
+2026/10/19 20:35:04 INFO Last workspace removed, shutting down server...
+--- FAIL: TestSendMessage_QueuedPromptSurvivesShutdown (0.23s)
+    durable_ack_test.go:327: 
+        	Error Trace:	/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:266
+        	            				/tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/p1a/red/tree/internal/backend/durable_ack_test.go:327
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestSendMessage_QueuedPromptSurvivesShutdown
+        	Messages:   	acked prompt "B queued prompt" must have exactly one user message in the DB
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	2.025s
+FAIL
+rc=1

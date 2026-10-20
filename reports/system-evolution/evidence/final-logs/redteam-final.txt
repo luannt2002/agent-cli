@@ -1,0 +1,81 @@
+KET-LUAN: KHONG-DAT
+
+Reason for KHONG-DAT: one HIGH finding (F1) and three MEDIUM findings (F2–F4). The candidate contains real fixes (small model kept on the main provider, cap on repeated summaries, empty reply / loop detection now count as errors, ledger, routine ABANDONED status). But the hard rule in section 32, cross-provider fallback must fail closed by default, is still broken, and the evidence set was produced before the final code.
+
+I wrote no scratch files because this session was read-only, so the redteam/ folder was not created. Commands I ran: tests on all 14 changed packages at the final candidate (diff sha256 1d963689…, the same as evidence/wt-final.patch.sha256), `go test -count=1` through go-b.sh, all `ok`. I also read the code, the diffs and the evidence directories.
+
+## Findings
+
+**F1 · HIGH · FIX + REGRESSION TEST: the provider is still swapped silently at startup and on reload**
+- **Where:** `internal/config/load.go:858-861` and `:903-906` (`large = defaultLarge` from another provider), `:159-177` (now only `slog.Warn`), and the reload path in `internal/config/store.go:1496`.
+- **Claim in docs:** README.md:79-82 and docs/agent-cli-local-setup.md:856-862 call this a "known limitation". They say it is reduced by setting `AGENT_CLI_ALLOWED_MODELS`. DECISIONS says it cannot fail closed, otherwise `agent-cli login` would not work.
+- **Wrong assumption:** login only needs the config to load. It never needs an LLM call on a substitute provider. Load can keep succeeding while `buildAgentModels` (`coordinator.go:1043`) refuses when the provider it resolved differs from the one configured.
+- **Failure scenario:**
+  - The selected catalog model loses its key (for example `$(pass show …)` fails under cron) or its model ID disappears.
+  - The process then runs on the first catalog provider that still has credentials, and the only signal is a log line.
+  - With the allowlist from docs:533 (`zai:glm-5.3 … main:qwen3.8 …`), the allowlist does not block it whenever the fallback provider's default model is on the list. So the documented mitigation overclaims.
+  - A routine is the worst case: `routineReport` (`internal/cmd/routine.go:497-525`) has no provider/model field, the ledger is opt-in, and `scheduleEnv` does not pass it on. A scheduled run leaves no evidence of which provider it used.
+- **Evidence:** `TestStartupFallbackIsNotPersisted` (`internal/config/model_pin_test.go`) asserts `NotEqual("openai", …Provider)`, meaning the in-memory switch to anthropic is the expected behaviour. The test passes on the candidate.
+- **Fix:** if `LargeFallback`/`SmallFallback` would cross providers, fail at the first LLM call with "selected model X unavailable". Allow same-provider fallback only.
+- **Regression test needed:** openai configured without a key, anthropic with a key → `run` exits non-zero and the fake server sees 0 anthropic requests.
+
+**F2 · MEDIUM · FIX (evidence process): the evidence was produced before the final code**
+- `evidence/suite-compare-1.txt` and `test-names-cand.txt` are from 19:57. Code deltas `wt-delta-3` (20:12) and `wt-delta-4` (20:49), and the final candidate (21:06), changed `agent.go`, `errors.go`, `routine.go`, `shell/*` and `tools/bash.go` after that.
+- Command: diff the `+func Test` names in the current diff against test-names-cand. 15 of the 80 new tests are missing, for example `TestStartupFallbackIsNotPersisted`, `TestSilentContinuationAfterSummaryIsNotAnError`, `TestThinkingCutWhileSummarizingIsAnError`, `TestUnattendedGitEnvDoesNotReachShebangScripts`.
+- `faults-wtb` (19:29-19:31), `qwen-only-try2` and `ws-try4` (20:25) are all older than delta-4.
+- At review time `evo/final-verify.txt` had only the build plus 3 E2E runs. `faults-final.txt` was 0 bytes and there was no qwen-only-final or suite-final.
+- My test runs of the 14 changed packages only partly close this gap. A `./...` run plus faults and qwen-only on the final binary are still missing.
+
+**F3 · MEDIUM · REGRESSION TEST: the Qwen-only regression (section 35) is not in the repo**
+- `scripts/eval/{qwen-only.sh,faults.sh,fakellm.py}` are outside git. DECISIONS itself says "chưa vào git", and wt-b/scripts has no `eval/`.
+- The existing qwen-only run does show 12/12 requests going to qwen (main 7, title 2, subagent 1, agentic_fetch 1, summary 1, counted from `qwen-only-try2/log/requests.jsonl`). But it does not cover startup fallback (F1), routine, or recovery.
+- Nothing in the repo can reproduce the "GLM = 0" claim.
+
+**F4 · MEDIUM · FIX: GREEN with no evidence of work still exits 0 (false DONE)**
+- `internal/loop/loop.go:203-214`: when `BaselinePass && Unchanged`, the result is still `StopGreen`, so `loop` and `routine` both exit 0.
+- Evidence: `qwen-only-try2/loop.err` shows "baseline: verify PASS … stop: GREEN (verify already passed before any change)" and `loop.rc`=0.
+- Editing tests or the verify script only prints a stderr warning (`routine.go:697-699`). `loop` has no such check at all.
+- Fix: use a separate reason/exit code (for example GREEN_UNVERIFIED) unless the user opts in.
+
+**LOW findings**
+- **L1 · docs contradict code · FIX docs + REGRESSION TEST.** README's "Xong" section says "context window quá nhỏ ngay sau khi tự tóm tắt" makes `run` exit 1. But `agent.go:1325-1331` returns success when the step after the summary has no tool call. The overflow check also counts prompt + completion, so one large `write` right after a summary aborts with "context window too small". With roughly 20k fixed tokens (P-05) and a 32k window, about 4k output tokens is enough to trigger it.
+- **L2 · FIX (existed before).** `run` text glues the summary to the answer. `qwen-only-try2/out.json` text is `"## Current State\nSUMMARY-OF-SESSIONDONE-AFTER-SUMMARY"`.
+- **L3 · KNOWN.** `run --json` takes the provider label from the stored message, not from a real request. In `faults-wtb/provider-down/out.json` it reports `"provider":"qwen"` even though 0 requests arrived.
+- **L4 · KNOWN, duplicate authority.** An explicit `--small-model` on another provider is silently replaced by the main model (`coordinator.go:1031-1041`), with one log line per process. Section 30 treats an explicit override as legitimate.
+- **L5 · LOW.** Disabling `fetch` (the name in `config.go` `allToolNames`) does not disable `web_fetch` inside `agentic_fetch`. Only `web_fetch`/`web_search` do, and those names are not in `allToolNames`.
+- **L6 · FIX.** `scheduleEnv` (`routine.go:319-334`) copies the shell's `AGENT_CLI_ALLOWED_MODELS` into the crontab/unit. Exported values win over the env file (`execpolicy/policy.go:194-203`), so tightening the allowlist in `~/.config/agent-cli/env` later is ignored by scheduled runs. Two owners of one decision.
+- **L7 · KNOWN shortcut.** `routineLockHeld` (`routine.go:470-478`): `routine list/show` probing the lock can make a scheduled run exit 75, and that run is lost.
+- **L8 · unknown unknown, existed before.** `RefetchOpenAIChatGPTModels`/`RefetchGrokModels` run on every model rebuild (`coordinator.go` around 1525). If the user ever logged in to OpenAI or xAI, a Qwen-only session still contacts them (token refresh, catalog fetch). These are not LLM calls, but they break the privacy and offline expectation.
+- **L9 · KNOWN skill conflict.** Synced Claude-app skills (computer-use, chrome-browser, morning…) go into the system prompt but point to tools agent-cli does not have.
+
+## Checked, nothing found
+- Routing of title, subagent, summary and agentic_fetch through `buildAgentModels` and `sameProviderSmall`. The allowlist is checked after the replacement.
+- Ledger: role, provider and model per call, no prompt content, file mode 0600. Every test name cited in the docs exists.
+- Permission code:
+  - The ordering between `requestSem` and pending requests.
+  - `autoApproveRun` resolving the root session, and denying when the root cannot be found.
+  - The unattended block on writes outside the working dir.
+- Settling interrupted replies: there is no cross-process race, because the DB has an exclusive flock.
+- Routine:
+  - `writeReport` is atomic.
+  - The RUNNING report is written first, and `fail()` overwrites it with ERROR.
+  - The definition sha is pinned.
+  - Verify runs with `set -o pipefail`.
+- Summary handling:
+  - The 10-summary cap.
+  - A summary cut by `FinishReasonLength` is rejected.
+  - A failed summary does not stop the turn.
+- Unattended git env/`-C` guard.
+- Hidden skill directories are skipped.
+- Panic logs go to the log dir.
+- Env values are no longer logged.
+- Memory: there is no separate store, which matches the README's trust order.
+
+I did not check: `./...`, `-race`, a fault/qwen-only run on the final binary, or a live probe of F1. F1 rests on the code and the existing unit test, not on a fake-LLM run.
+
+### Critical Files for Implementation
+- /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/evo/wt-b/internal/config/load.go
+- /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/evo/wt-b/internal/agent/coordinator.go
+- /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/evo/wt-b/internal/loop/loop.go
+- /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/evo/wt-b/internal/cmd/routine.go
+- /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/evo/wt-b/internal/agent/agent.go

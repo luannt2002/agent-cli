@@ -1,0 +1,1 @@
+{"case": "qwen-only", "exit": 0, "seconds": 2.9, "command": ["bash", "scripts/eval/qwen-only.sh", "/home/luannt/.cache/agent-cli-takeover-20261019/qwen-only-data", "/home/luannt/.cache/agent-cli-takeover-20261019/agent-cli"], "state": "finished"}

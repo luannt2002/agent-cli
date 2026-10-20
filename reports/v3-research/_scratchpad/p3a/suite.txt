@@ -1,0 +1,10 @@
+ok  	github.com/charmbracelet/crush/internal/agent	14.168s
+?   	github.com/charmbracelet/crush/internal/agent/agenttest	[no test files]
+ok  	github.com/charmbracelet/crush/internal/agent/hyper	0.007s
+?   	github.com/charmbracelet/crush/internal/agent/notify	[no test files]
+ok  	github.com/charmbracelet/crush/internal/agent/prompt	0.083s
+ok  	github.com/charmbracelet/crush/internal/agent/tools	12.919s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/mcp	5.198s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/provider	0.109s
+ok  	github.com/charmbracelet/crush/internal/message	0.561s
+rc=0

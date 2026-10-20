@@ -1,0 +1,9 @@
+--- FAIL: TestInputsUseSnapshotAndEnvFile (0.00s)
+    policy_test.go:264: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/execpolicy/policy_test.go:264
+        	Error:      	[]string{"AGENT_CLI_ALLOWED_MODELS=pp:m-pp", "AGENT_CLI_DELEGATION=off", "AGENT_CLI_UNATTENDED=", "AGENT_CLI_UNATTENDED_COMMIT=", "AGENT_CLI_ENV_FILE=", "AGENT_CLI_LLM_LEDGER=", "HOME=/home/luannt", "AGENT_CLI_CLAUDE_BIN=", "AGENT_CLI_CODEX_BIN=", "AGENT_CLI_CLAUDE_PERMISSION_MODE=", "AGENT_CLI_CODEX_SANDBOX="} does not contain "AGENT_CLI_ALLOWED_MODELS=zai:glm-5.3"
+        	Test:       	TestInputsUseSnapshotAndEnvFile
+        	Messages:   	from the env file, not the repo's .env
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/execpolicy	0.005s
+FAIL

@@ -1,0 +1,7 @@
+--- FAIL: TestRunStream_KeepsTheLedgerErrorOfItsOwnRun (0.00s)
+        	Error:      	Not equal: 
+--- FAIL: TestRunJSONReportsLedgerError (0.00s)
+        	Error:      	Not equal: 
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.052s
+FAIL

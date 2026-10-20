@@ -1,0 +1,6 @@
+--- PASS: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_provider (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+ok  	github.com/charmbracelet/crush/internal/ui/model	0.067s

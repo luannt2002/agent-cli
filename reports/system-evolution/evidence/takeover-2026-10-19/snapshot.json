@@ -1,0 +1,13 @@
+{
+  "base": "4a0b25b698fbc2ad838f62d9990a93e9154cbe46",
+  "r8_tree": "a31d61ebf679cc2fd48fccaa251765a0906cee09",
+  "candidate_tree": "be56dccb6b8bd11e1206a03797f87947380cc4a0",
+  "delta_files": [
+    "README.md",
+    "docs/agent-cli-local-setup.md",
+    "scripts/eval/workspaces.sh"
+  ],
+  "sha256": "f4201cfdb138e90147bf1d4d10580594c67e2567051b06dd9e5c1f1fe42c9377",
+  "stat": "88 files changed, 5939 insertions(+), 307 deletions(-)",
+  "apply_check": "pass"
+}

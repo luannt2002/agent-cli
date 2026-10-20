@@ -1,0 +1,9 @@
+T2: EXPOSED — client two (-c .. from w/s/repo/internal, server cwd w/s/A): session stored in w/.crush/crush.db (want w/s/repo/.crush/crush.db); server workspaces path|data_dir: ..|../../.crush
+T3: EXPOSED — order1: sub-first db=sub/.crush/crush.db root db=.crush/crush.db sub-again db=sub/.crush/crush.db | order2: root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=2 repo2=1 | session list repo1 root sees 1/3, repo1/sub sees 2/3
+T5: EXPOSED — main requests=2 with <mcp-instructions>=True | subagent requests=1 with <mcp-instructions>=1, subagent tools=['glob', 'grep', 'ls', 'lsp_call_hierarchy', 'lsp_definition', 'lsp_symbols', 'sourcegraph', 'view'], subagent mcp tools=[] (rc=0)
+T6: EXPOSED — agentic_fetch: system mentions absent=[] | todo-reminder-without-todos=True;plan: system mentions absent=['question'] | todo-reminder-without-todos=True;subagent: system mentions absent=[] | todo-reminder-without-todos=False; set-plan HTTP 200
+T11: EXPOSED — trials=8 killed at once: rc0+in_db=1, rc0+missing=7, other=0; control (kill after 2 s) in_db=yes (details T11/trials.txt)
+T13: EXPOSED — send B rc=0 | session show: A=True B=False | 'T13-B' bytes anywhere in crush.db*=False | B reached LLM=False
+T17: EXPOSED — X1->['pp'] Y1->['qq'] X2->['pp'] Y2->['pp'] N1->['pp'] | <data>/crush.json before run -s X: <absent> | after: models={"large": {"model": "m-pp", "provider": "pp"}}
+T21: EXPOSED — measurement, not a gate — server: files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0) (run rc=0) | server -d: files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0) (run rc=0) | local -d: files_holding_canary=4 (crush.db*=1 shell-output=1 logs=1 journal=1 other=0) (run rc=0) (per-file lists: T21*/summary.txt)
+EXPOSURE: ran 8 case(s); verdicts in /home/luannt/.cache/v3ev/r2/verdicts.txt

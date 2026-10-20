@@ -1,0 +1,2 @@
+order1: sub-first db=.crush/crush.db root db=.crush/crush.db sub-again db=.crush/crush.db | order2: root db=.crush/crush.db sub db=.crush/crush.db | crush.db count repo1=1 repo2=1 | session list repo1 root sees 3/3, repo1/sub sees 3/3
+NOT_EXPOSED

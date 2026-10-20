@@ -1,0 +1,190 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..a5b691d4 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -170,6 +170,20 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
++- **`-c`/`--cwd` tương đối không còn đặt workspace và DB sai chỗ.** `agent-cli -c .. run …` gọi từ `repo/internal`
++  gửi nguyên chuỗi `..` cho server. Server tính chuỗi đó theo thư mục CỦA NÓ, tức thư mục của client đã dựng nó. Kết
++  quả: workspace thành thư mục cha của một dự án khác, `crush.db` rơi ra ngoài cả hai repo, kể cả khi đi qua launcher.
++  Ở chế độ local, `-c foo` ghi DB vào `foo/foo/foo/.crush`: chuỗi `foo` bị ghép lại sau khi đã chdir vào `foo`, rồi
++  data dir còn bị ghép gốc thêm một lần. `projects.json` lưu đường tương đối. `loop -c ..` đọc cờ hai lần nên đưa
++  agent (tự duyệt mọi tool) lên thư mục cha của repo trong khi verify chạy ở chỗ khác; ở chế độ local có lúc ra
++  `GREEN` cho một thư mục không phải repo. Nay `-c` được đổi thành đường tuyệt đối theo thư mục hiện tại của lệnh
++  trước khi dùng, một lần cho cả lệnh. Data dir chỉ ghép gốc một lần và luôn tuyệt đối. Server nhận đường tương đối
++  từ client khác thì workspace và data dir vẫn tính theo thư mục của server, chỉ không còn bị ghép gốc hai lần.
++  `-D/--data-dir` tương đối vẫn tính theo thư mục workspace (sau `-c`), nay cho cùng kết quả ở local và qua server.
++  `-c` tuyệt đối và lệnh không có `-c` không đổi.
++  **Lưu ý nâng cấp:** session đã tạo bằng `-c` tương đối nằm ở chỗ sai cũ (vd `r/foo/foo/foo/.crush`; `r/foo/foo/x`
++  khi có `-D x`; `<thư mục cha>/.crush` khi qua server) vẫn còn trên đĩa nhưng bản này không mở chúng nữa và không
++  cảnh báo. Cần thì mở lại bằng `-D <đường cũ>`.
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 7b9d5ab8..bc53df98 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -202,7 +202,7 @@ ghi đè bản có sẵn) và in hướng dẫn. Cũng vậy khi thiếu `jq` ho
+ 
+ ```bash
+ agent-cli                      # Home: chọn workspace rồi session (xem mục Home)
+-agent-cli -c /path/to/project  # vào thẳng workspace, bỏ qua Home
++agent-cli -c /path/to/project  # vào thẳng workspace, bỏ qua Home (-c tương đối tính theo thư mục hiện tại)
+ agent-cli run "Đọc repo và tóm tắt kiến trúc, chưa sửa code."   # CẢNH BÁO: run TỰ DUYỆT mọi quyền (xem dưới)
+ agent-cli --continue
+ agent-cli login openai
+diff --git a/internal/cmd/cwd_test.go b/internal/cmd/cwd_test.go
+new file mode 100644
+index 00000000..5ad345ae
+--- /dev/null
++++ b/internal/cmd/cwd_test.go
+@@ -0,0 +1,64 @@
++package cmd
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/spf13/cobra"
++	"github.com/stretchr/testify/require"
++)
++
++// TestResolveCwdMakesRelativeFlagAbsolute: `-c ..` phải thành đường tuyệt đối
++// theo cwd của chính lệnh. Chuỗi tương đối gửi cho server bị ghép theo cwd
++// CỦA SERVER, và config ghép thêm lần nữa sau chdir.
++func TestResolveCwdMakesRelativeFlagAbsolute(t *testing.T) {
++	root, err := filepath.EvalSymlinks(t.TempDir())
++	require.NoError(t, err)
++	repo := filepath.Join(root, "repo")
++	sub := filepath.Join(repo, "internal")
++	require.NoError(t, os.MkdirAll(sub, 0o755))
++
++	for name, flag := range map[string]string{"relative": "..", "absolute": repo} {
++		t.Run(name, func(t *testing.T) {
++			t.Chdir(sub)
++			cmd := &cobra.Command{}
++			cmd.Flags().StringP("cwd", "c", "", "")
++			require.NoError(t, cmd.Flags().Set("cwd", flag))
++
++			got, err := ResolveCwd(cmd)
++			require.NoError(t, err)
++			require.Equal(t, repo, got)
++
++			wd, err := os.Getwd()
++			require.NoError(t, err)
++			require.Equal(t, repo, wd, "ResolveCwd must still chdir")
++
++			// `loop` gọi lần nữa qua setupLocalWorkspace/connectToServer, lúc
++			// này cwd đã là repo: không được đi tiếp lên thư mục cha.
++			got, err = ResolveCwd(cmd)
++			require.NoError(t, err)
++			require.Equal(t, repo, got, "a second call must not resolve the flag again")
++		})
++	}
++}
++
++// TestResolveCwdFollowsLogicalPwd ghim cách hiểu `..` theo $PWD (như `cd ..`
++// của shell và của launcher), không theo cha vật lý của symlink.
++func TestResolveCwdFollowsLogicalPwd(t *testing.T) {
++	root, err := filepath.EvalSymlinks(t.TempDir())
++	require.NoError(t, err)
++	sub := filepath.Join(root, "real", "repo", "internal")
++	require.NoError(t, os.MkdirAll(sub, 0o755))
++	link := filepath.Join(root, "link")
++	require.NoError(t, os.Symlink(sub, link))
++	t.Chdir(link) // Đặt luôn PWD=link.
++
++	cmd := &cobra.Command{}
++	cmd.Flags().StringP("cwd", "c", "", "")
++	require.NoError(t, cmd.Flags().Set("cwd", ".."))
++
++	got, err := ResolveCwd(cmd)
++	require.NoError(t, err)
++	require.Equal(t, root, got)
++}
+diff --git a/internal/cmd/root.go b/internal/cmd/root.go
+index 4d739fb5..d2eaa822 100644
+--- a/internal/cmd/root.go
++++ b/internal/cmd/root.go
+@@ -1238,11 +1238,20 @@ func resolveWorkspaceSessionID(ctx context.Context, ws workspace.Workspace, id s
+ func ResolveCwd(cmd *cobra.Command) (string, error) {
+ 	cwd, _ := cmd.Flags().GetString("cwd")
+ 	if cwd != "" {
+-		err := os.Chdir(cwd)
++		// Tuyệt đối theo cwd của lệnh, trước khi chdir: server ghép đường
++		// tương đối theo cwd CỦA NÓ, nên workspace và DB rơi sai chỗ.
++		abs, err := filepath.Abs(cwd)
++		if err != nil {
++			return "", fmt.Errorf("failed to resolve directory: %v", err)
++		}
++		err = os.Chdir(abs)
+ 		if err != nil {
+ 			return "", fmt.Errorf("failed to change directory: %v", err)
+ 		}
+-		return cwd, nil
++		// Ghi lại cờ: lệnh gọi hàm này hai lần (vd. `loop`) thì lần sau không
++		// ghép `..` thêm từ thư mục vừa chdir vào.
++		_ = cmd.Flags().Set("cwd", abs)
++		return abs, nil
+ 	}
+ 	cwd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/internal/config/load.go b/internal/config/load.go
+index 4837264b..8bb9e042 100644
+--- a/internal/config/load.go
++++ b/internal/config/load.go
+@@ -618,10 +618,15 @@ func (c *Config) setDefaults(workingDir, dataDir string) {
+ 		if path, ok := fsext.LookupClosestBounded(workingDir, projectBoundary(workingDir), defaultDataDirectory); ok {
+ 			c.Options.DataDirectory = path
+ 		} else {
+-			c.Options.DataDirectory = filepath.Join(workingDir, defaultDataDirectory)
++			c.Options.DataDirectory = defaultDataDirectory
+ 		}
+ 	}
++	// Ghép gốc đúng một lần ở đây. Tuyệt đối để lần nạp lại (đưa giá trị này
++	// vào làm dataDir) không ghép thêm khi workingDir là đường tương đối.
+ 	c.Options.DataDirectory = filepath.Clean(filepathext.SmartJoin(workingDir, c.Options.DataDirectory))
++	if abs, err := filepath.Abs(c.Options.DataDirectory); err == nil {
++		c.Options.DataDirectory = abs
++	}
+ 	if c.Providers == nil {
+ 		c.Providers = csync.NewMap[string, ProviderConfig]()
+ 	}
+diff --git a/internal/config/load_test.go b/internal/config/load_test.go
+index 53dfa54b..7f9b3c0e 100644
+--- a/internal/config/load_test.go
++++ b/internal/config/load_test.go
+@@ -353,6 +353,29 @@ func TestConfig_setDefaults(t *testing.T) {
+ 		require.Equal(t, absDir, cfg.Options.DataDirectory)
+ 	})
+ 
++	t.Run("relative working directory gets the data directory once", func(t *testing.T) {
++		// `logs -c foo` nạp config với gốc tương đối, không chdir. Data dir
++		// từng bị ghép gốc hai lần (foo/foo/.crush), và thêm lần nữa khi
++		// nạp lại vì workspace có .crush/crush.json.
++		root, err := filepath.EvalSymlinks(t.TempDir())
++		require.NoError(t, err)
++		require.NoError(t, os.Mkdir(filepath.Join(root, "foo"), 0o755))
++		t.Chdir(root)
++		want := filepath.Join(root, "foo", defaultDataDirectory)
++
++		cfg := &Config{}
++		cfg.setDefaults("foo", "")
++		got, err := filepath.Abs(cfg.Options.DataDirectory)
++		require.NoError(t, err)
++		require.Equal(t, want, got)
++
++		// Như nhánh nạp lại workspace config trong Load.
++		cfg.setDefaults("foo", cfg.Options.DataDirectory)
++		got, err = filepath.Abs(cfg.Options.DataDirectory)
++		require.NoError(t, err)
++		require.Equal(t, want, got)
++	})
++
+ 	t.Run("workspace merge re-entry keeps an absolute data directory", func(t *testing.T) {
+ 		// Simulate the load and reload paths: defaults are applied
+ 		// twice with the data directory potentially carried through

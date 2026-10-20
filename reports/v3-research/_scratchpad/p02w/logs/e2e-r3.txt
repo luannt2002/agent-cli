@@ -1,0 +1,27 @@
+== home before (V2)
+HOME (homeChildCmd): child env has trusted keys from .env: ['AGENT_CLI_DELEGATION', 'AGENT_CLI_ENV_FILE', 'AGENT_CLI_CLAUDE_BIN', 'AGENT_CLI_CODEX_SANDBOX'] | run: claude_code in tools=True
+HOME2 (execHome via Alt+W): child env has trusted keys from .env: ['AGENT_CLI_DELEGATION', 'AGENT_CLI_ENV_FILE', 'AGENT_CLI_CLAUDE_BIN', 'AGENT_CLI_CODEX_SANDBOX'] | run: claude_code in tools=True
+CTL (direct run in repo): claude_code in tools=False
+EXPOSED
+== C5 r3
+C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist
+== T6 r3
+T6: EXPOSED — FINDINGS: agentic_fetch gets the todo reminder without `todos`; non-interactive plan names `question` (rare combination); main names `find_references` (no such tool); green row: subage
+ws-create (API, for plan): ok
+== controls r3
+s1: PASS rc=0 provider=['qwen'] refused=False err=''
+s2: PASS rc=0 provider=['pp'] refused=False err=''
+s3: PASS rc=0 provider=['pp'] refused=False err=''
+s4: PASS rc=1 provider=['none'] refused=True err='failed to create workspace: status code 500: trust policy differs from the running agent-c
+s5: PASS rc=1 provider=['none'] refused=True err='failed to create workspace: status code 500: trust policy differs from the running agent-c
+s7: PASS rc=1 provider=['none'] refused=True err='failed to create workspace: status code 500: trust policy differs from the running agent-c
+s5-send: PASS rc=1 refused=True out='ate workspace: status code 500: trust policy differs from the running agent-cli server: --yolo; a      
+s5-loop: PASS rc=1 refused=True out='ate workspace: status code 500: trust policy differs from the running agent-cli server: --yolo; a      
+s5-jobs: PASS rc=0 refused=False out='No jobs in this project yet.'
+s5-logout: PASS rc=0 refused=False out='Successfully logged out of ChatGPT.'
+s7-jobs: PASS rc=0 refused=False out='No jobs in this project yet.'
+CONTROLS: PASS
+faults rc=0 FAULTS: PASS
+qwen-only rc=0 QWEN-ONLY: PASS
+workspaces rc=0 WORKSPACES: PASS
+run-json rc=0 PASS

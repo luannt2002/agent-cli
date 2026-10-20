@@ -1,0 +1,44 @@
+===== teeth-r0
+internal/app/session_model_test.go:48:87: app.sessionModelNote undefined (type *App has no field or method sessionModelNote)
+internal/app/session_model_test.go:50:19: undefined: SessionModelNote
+internal/app/session_model_test.go:51:19: undefined: SessionModelNote
+--- FAIL: TestContinuedRunKeepsTheWorkspaceModel (0.01s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s (0.00s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-C (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model (0.00s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s_--effort (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m (0.00s)
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.066s
+FAIL	github.com/charmbracelet/crush/internal/app [build failed]
+--- FAIL: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+FAIL	github.com/charmbracelet/crush/internal/ui/model	0.073s
+===== teeth-m3
+--- FAIL: TestContinuedRunKeepsTheWorkspaceModel (0.01s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s (0.00s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-C (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model (0.00s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s_--effort (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m (0.00s)
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.075s
+--- PASS: TestContinuedLocalRunKeepsTheWorkspaceModel (0.00s)
+ok  	github.com/charmbracelet/crush/internal/app	0.042s
+--- PASS: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+ok  	github.com/charmbracelet/crush/internal/ui/model	0.073s
+===== teeth-m4
+--- PASS: TestContinuedRunKeepsTheWorkspaceModel (0.03s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s (0.02s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-C (0.01s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_--effort (0.00s)
+    --- PASS: TestContinuedRunKeepsTheWorkspaceModel/run_-s_-m (0.00s)
+ok  	github.com/charmbracelet/crush/internal/cmd	0.152s
+--- PASS: TestContinuedLocalRunKeepsTheWorkspaceModel (0.00s)
+ok  	github.com/charmbracelet/crush/internal/app	0.057s
+--- FAIL: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+FAIL	github.com/charmbracelet/crush/internal/ui/model	0.073s

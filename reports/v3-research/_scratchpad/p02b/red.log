@@ -1,0 +1,88 @@
+=== RUN   TestChildEnvsIgnoreProjectDotenv
+    child_env_test.go:83: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02b/internal/cmd/child_env_test.go:83
+        	Error:      	Should be empty, but was [AGENT_CLI_LAUNCHER=/bin/evil-launcher AGENT_CLI_LAUNCHER=/bin/evil-launcher]
+        	Test:       	TestChildEnvsIgnoreProjectDotenv
+        	Messages:   	a project .env must not set the launcher of the next Home
+--- FAIL: TestChildEnvsIgnoreProjectDotenv (0.05s)
+=== RUN   TestConnectToServerSendsNoAgentRuns
+--- PASS: TestConnectToServerSendsNoAgentRuns (0.00s)
+=== RUN   TestEnsureServer_RefusesModelCommandOnBusyStaleServer
+=== RUN   TestEnsureServer_RefusesModelCommandOnBusyStaleServer/legacy_busy
+=== RUN   TestEnsureServer_RefusesModelCommandOnBusyStaleServer/busy
+--- PASS: TestEnsureServer_RefusesModelCommandOnBusyStaleServer (0.01s)
+    --- PASS: TestEnsureServer_RefusesModelCommandOnBusyStaleServer/legacy_busy (0.00s)
+    --- PASS: TestEnsureServer_RefusesModelCommandOnBusyStaleServer/busy (0.00s)
+FAIL
+=== RUN   TestShellCommandIgnoresProjectDotenvTrustedKeys
+    shell_command_env_test.go:65: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02b/internal/workspace/shell_command_env_test.go:65
+        	Error:      	Not equal: 
+        	            	expected: []string{"PLAIN_CANARY"}
+        	            	actual  : []string{"AGENT_CLI_ALLOWED_MODELS", "AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_SANDBOX", "AGENT_CLI_DELEGATION", "AGENT_CLI_ENV_FILE", "PLAIN_CANARY"}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,2 +1,7 @@
+        	            	-([]string) (len=1) {
+        	            	+([]string) (len=6) {
+        	            	+ (string) (len=24) "AGENT_CLI_ALLOWED_MODELS",
+        	            	+ (string) (len=20) "AGENT_CLI_CLAUDE_BIN",
+        	            	+ (string) (len=23) "AGENT_CLI_CODEX_SANDBOX",
+        	            	+ (string) (len=20) "AGENT_CLI_DELEGATION",
+        	            	+ (string) (len=18) "AGENT_CLI_ENV_FILE",
+        	            	  (string) (len=12) "PLAIN_CANARY"
+        	Test:       	TestShellCommandIgnoresProjectDotenvTrustedKeys
+        	Messages:   	trusted keys from a project .env must not reach a ! command
+--- FAIL: TestShellCommandIgnoresProjectDotenvTrustedKeys (0.07s)
+FAIL
+=== RUN   TestRunShellCommandIgnoresProjectDotenvTrustedKeys
+    shell_command_env_test.go:72: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02b/internal/backend/shell_command_env_test.go:72
+        	Error:      	Not equal: 
+        	            	expected: []string{"PLAIN_CANARY"}
+        	            	actual  : []string{"AGENT_CLI_ALLOWED_MODELS", "AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_SANDBOX", "AGENT_CLI_DELEGATION", "AGENT_CLI_ENV_FILE", "PLAIN_CANARY"}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,2 +1,7 @@
+        	            	-([]string) (len=1) {
+        	            	+([]string) (len=6) {
+        	            	+ (string) (len=24) "AGENT_CLI_ALLOWED_MODELS",
+        	            	+ (string) (len=20) "AGENT_CLI_CLAUDE_BIN",
+        	            	+ (string) (len=23) "AGENT_CLI_CODEX_SANDBOX",
+        	            	+ (string) (len=20) "AGENT_CLI_DELEGATION",
+        	            	+ (string) (len=18) "AGENT_CLI_ENV_FILE",
+        	            	  (string) (len=12) "PLAIN_CANARY"
+        	Test:       	TestRunShellCommandIgnoresProjectDotenvTrustedKeys
+        	Messages:   	trusted keys from a project .env must not reach a ! command
+--- FAIL: TestRunShellCommandIgnoresProjectDotenvTrustedKeys (0.05s)
+FAIL
+=== RUN   TestRunCommandIgnoresProjectDotenv
+    child_env_dotenv_test.go:73: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02b/internal/agent/tools/provider/child_env_dotenv_test.go:73
+        	Error:      	Not equal: 
+        	            	expected: []string{"OPENAI_API_KEY:original"}
+        	            	actual  : []string{"CODEX_HOME:dotenv", "OPENAI_BASE_URL:dotenv", "OPENAI_API_KEY:configenv", "CLAUDE_CONFIG_DIR:dotenv", "ANTHROPIC_BASE_URL:dotenv", "ANTHROPIC_API_KEY:dotenv"}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,3 +1,8 @@
+        	            	-([]string) (len=1) {
+        	            	- (string) (len=23) "OPENAI_API_KEY:original"
+        	            	+([]string) (len=6) {
+        	            	+ (string) (len=17) "CODEX_HOME:dotenv",
+        	            	+ (string) (len=22) "OPENAI_BASE_URL:dotenv",
+        	            	+ (string) (len=24) "OPENAI_API_KEY:configenv",
+        	            	+ (string) (len=24) "CLAUDE_CONFIG_DIR:dotenv",
+        	            	+ (string) (len=25) "ANTHROPIC_BASE_URL:dotenv",
+        	            	+ (string) (len=24) "ANTHROPIC_API_KEY:dotenv"
+        	            	 }
+        	Test:       	TestRunCommandIgnoresProjectDotenv
+        	Messages:   	only the user's own exported value reaches the CLI; nothing from the project .env or config env
+--- FAIL: TestRunCommandIgnoresProjectDotenv (0.02s)
+FAIL
+== files written under isolated HOME:

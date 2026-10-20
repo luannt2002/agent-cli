@@ -1,0 +1,810 @@
+diff --git a/internal/backend/backend.go b/internal/backend/backend.go
+index 3583de17..070d45da 100644
+--- a/internal/backend/backend.go
++++ b/internal/backend/backend.go
+@@ -24,6 +24,8 @@ import (
+ 	"github.com/charmbracelet/crush/internal/csync"
+ 	"github.com/charmbracelet/crush/internal/db"
+ 	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/charmbracelet/crush/internal/filepathext"
++	"github.com/charmbracelet/crush/internal/projects"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/charmbracelet/crush/internal/skills"
+ 	"github.com/charmbracelet/crush/internal/ui/util"
+@@ -122,7 +124,7 @@ type ShutdownFunc func()
+ // down beneath it.
+ type Backend struct {
+ 	workspaces *csync.Map[string, *Workspace]
+-	// pathIndex maps a resolved absolute workspace path to its
++	// pathIndex maps a project root (see [resolveWorkspaceKey]) to its
+ 	// workspace ID. Reads and writes are serialised via mu so
+ 	// concurrent CreateWorkspace calls at the same path deduplicate
+ 	// deterministically.
+@@ -249,9 +251,8 @@ type Workspace struct {
+ 	Env    []string
+ 	Skills *skills.Manager
+ 
+-	// resolvedPath is the path used as the dedup key in
+-	// Backend.pathIndex. It is filepath.EvalSymlinks(filepath.Abs(Path))
+-	// with fallback to the cleaned absolute path.
++	// resolvedPath is the dedup key in Backend.pathIndex: the project
++	// root from [resolveWorkspaceKey], which is also Path.
+ 	resolvedPath string
+ 
+ 	// ctx is the workspace-scoped run context. It is derived from
+@@ -441,8 +442,9 @@ func (b *Backend) ListWorkspaces() []proto.Workspace {
+ }
+ 
+ // CreateWorkspace initializes a new workspace from the given
+-// parameters, or returns an existing workspace if one already exists at
+-// the same resolved path (first-wins semantics).
++// parameters, or returns an existing workspace if one already exists for
++// the same project root (first-wins semantics). The workspace is rooted
++// at the project root, so a client in repo/sub shares repo's workspace.
+ //
+ // args.ClientID must be a valid UUID identifying the calling client;
+ // the resulting workspace registers a creation hold on behalf of that
+@@ -529,7 +531,12 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
+ 	}()
+ 
+ 	id := uuid.New().String()
+-	cfg, err := config.Init(args.Path, args.DataDir, args.Debug)
++	// -D tương đối vẫn tính theo thư mục client mở, như chế độ local.
++	dataDir := args.DataDir
++	if dataDir != "" {
++		dataDir = filepathext.SmartJoin(args.Path, dataDir)
++	}
++	cfg, err := config.Init(key, dataDir, args.Debug)
+ 	if err != nil {
+ 		return nil, proto.Workspace{}, fmt.Errorf("failed to initialize config: %w", err)
+ 	}
+@@ -567,7 +574,7 @@ func (b *Backend) CreateWorkspace(args proto.Workspace) (*Workspace, proto.Works
+ 	ws := &Workspace{
+ 		App:          appWorkspace,
+ 		ID:           id,
+-		Path:         args.Path,
++		Path:         key,
+ 		Cfg:          cfg,
+ 		Env:          args.Env,
+ 		Skills:       skillsMgr,
+@@ -1346,17 +1353,19 @@ func (b *Backend) ShutdownIfIdle() bool {
+ 	return true
+ }
+ 
+-// resolveWorkspaceKey returns a stable canonical form of path suitable
+-// for use as a dedup key. It applies filepath.Abs, then attempts
+-// filepath.EvalSymlinks; because EvalSymlinks errors on non-existent
+-// paths, it falls back to the cleaned absolute path in that case.
++// resolveWorkspaceKey returns the project root of path, the dedup key and
++// root of its workspace: the physical git toplevel, as the launcher and
++// Home use (projects.NormalizeWorkspace), and where the data directory
++// lives. Two workspaces on one crush.db would run one session twice at
++// once. A path that cannot be resolved (it does not exist) keys as its
++// cleaned absolute path.
+ func resolveWorkspaceKey(path string) (string, error) {
+ 	abs, err := filepath.Abs(path)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+-		return resolved, nil
++	if root, err := projects.NormalizeWorkspace(abs); err == nil {
++		return root, nil
+ 	}
+ 	return abs, nil
+ }
+diff --git a/internal/backend/backend_test.go b/internal/backend/backend_test.go
+index af2ea809..7d150222 100644
+--- a/internal/backend/backend_test.go
++++ b/internal/backend/backend_test.go
+@@ -6,6 +6,7 @@ import (
+ 	"errors"
+ 	"log/slog"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -512,6 +513,44 @@ func TestPathDedupe_Symlink(t *testing.T) {
+ 	require.Equal(t, wsA.ID, wsB.ID)
+ }
+ 
++// TestPathDedupe_SubdirSharesProjectWorkspace: repo/sub mở trước rồi repo
++// vẫn là MỘT workspace ở gốc repo trên MỘT crush.db (T1M, T3). Hai workspace
++// trên một DB thì trạng thái bận của chúng không thấy nhau và một session
++// chạy hai lượt cùng lúc. -D tương đối vẫn tính theo thư mục client mở.
++func TestPathDedupe_SubdirSharesProjectWorkspace(t *testing.T) {
++	t.Setenv("HOME", t.TempDir())
++	t.Setenv("XDG_CACHE_HOME", t.TempDir())
++	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
++	t.Setenv("XDG_DATA_HOME", t.TempDir())
++
++	repo, err := filepath.EvalSymlinks(t.TempDir())
++	require.NoError(t, err)
++	sub := filepath.Join(repo, "sub")
++	require.NoError(t, os.Mkdir(sub, 0o755))
++	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
++	require.NoError(t, err, string(out))
++
++	b := New(context.Background(), nil, func() {})
++	b.SetCreateGrace(2 * time.Second)
++	t.Cleanup(func() { drainBackend(t, b) })
++
++	wsSub, _, err := b.CreateWorkspace(protoWS(sub, "", uuid.New().String()))
++	require.NoError(t, err)
++	wsRoot, protoRoot, err := b.CreateWorkspace(protoWS(repo, "", uuid.New().String()))
++	require.NoError(t, err)
++	require.Equal(t, wsSub.ID, wsRoot.ID, "repo/sub and repo are one workspace")
++	require.Equal(t, repo, protoRoot.Path, "rooted at the project root whichever opened first")
++	require.Equal(t, filepath.Join(repo, ".crush"), protoRoot.DataDir)
++	require.NoDirExists(t, filepath.Join(sub, ".crush"))
++
++	other := New(context.Background(), nil, func() {})
++	other.SetCreateGrace(2 * time.Second)
++	t.Cleanup(func() { drainBackend(t, other) })
++	_, protoD, err := other.CreateWorkspace(protoWS(sub, "x", uuid.New().String()))
++	require.NoError(t, err)
++	require.Equal(t, filepath.Join(sub, "x"), protoD.DataDir, "relative -D is taken from where the client is")
++}
++
+ // TestPathDedupe_NonExistentPath ensures CreateWorkspace tolerates a
+ // path that does not yet exist (EvalSymlinks falls back to Abs).
+ func TestPathDedupe_NonExistentPath(t *testing.T) {
+diff --git a/internal/cmd/home.go b/internal/cmd/home.go
+index ea1f043d..951343e6 100644
+--- a/internal/cmd/home.go
++++ b/internal/cmd/home.go
+@@ -1,6 +1,7 @@
+ package cmd
+ 
+ import (
++	"cmp"
+ 	"context"
+ 	"crypto/sha1"
+ 	"encoding/hex"
+@@ -211,18 +212,8 @@ func (homeSource) Workspaces(ctx context.Context) ([]home.Workspace, error) {
+ 	return out, nil
+ }
+ 
+-// toHomeWorkspace keeps every data dir of p, each with the directory it was
+-// opened from, so sessions in any of them can be listed and opened.
+ func toHomeWorkspace(p projects.Project) home.Workspace {
+-	w := home.Workspace{Path: p.Path, LastAccessed: p.LastAccessed, Pinned: p.Pinned}
+-	for _, d := range p.DataDirs() {
+-		cwd := p.Path // Entries from before locations were opened at the root.
+-		if i := slices.IndexFunc(p.Locations, func(l projects.Location) bool { return l.DataDir == d }); i >= 0 {
+-			cwd = p.Locations[i].Cwd
+-		}
+-		w.Locations = append(w.Locations, home.Location{Cwd: cwd, DataDir: d})
+-	}
+-	return w
++	return home.Workspace{Path: p.Path, DataDir: p.DataDir, LastAccessed: p.LastAccessed, Pinned: p.Pinned}
+ }
+ 
+ func (homeSource) Probe(ctx context.Context, paths []string) map[string]home.Live {
+@@ -259,7 +250,7 @@ func (homeSource) Add(_ context.Context, dir string) (home.Workspace, error) {
+ 	if err := projects.Register(root, dataDir); err != nil {
+ 		return home.Workspace{}, err
+ 	}
+-	return home.Workspace{Path: root, Locations: []home.Location{{Cwd: root, DataDir: dataDir}}, LastAccessed: time.Now()}, nil
++	return home.Workspace{Path: root, DataDir: dataDir, LastAccessed: time.Now()}, nil
+ }
+ 
+ func (homeSource) Pin(path string, pinned bool) error { return projects.Pin(path, pinned) }
+@@ -378,9 +369,8 @@ func liveSessions(ctx context.Context, src psSource) ([]home.Session, []proto.Wo
+ }
+ 
+ // listHomeSessions lists ws's sessions, newest first and at most
+-// SessionLimit, from every location: through the live server for the data
+-// dirs it holds open, else straight from the database. It never starts a
+-// server for that.
++// SessionLimit: through the live server when it holds ws's data dir open,
++// else straight from the database. It never starts a server for that.
+ func listHomeSessions(ctx context.Context, hosts []string, ws home.Workspace) ([]home.Session, error) {
+ 	var out []home.Session
+ 	served := map[string]bool{} // Data dirs read through a live server.
+@@ -403,23 +393,10 @@ func listHomeSessions(ctx context.Context, hosts []string, ws home.Workspace) ([
+ 			served[w.DataDir] = true
+ 		}
+ 	}
+-	locs := ws.Locations
+-	if len(locs) == 0 {
+-		locs = []home.Location{{Cwd: ws.Path, DataDir: filepath.Join(ws.Path, ".crush")}}
+-	}
+-	var errs []error
+-	for _, l := range locs {
+-		if served[l.DataDir] {
+-			continue
+-		}
+-		list, err := dbSessions(ctx, filepath.Join(l.DataDir, "crush.db"), home.SessionLimit)
+-		if err != nil {
+-			errs = append(errs, err) // The other locations still list.
+-			continue
+-		}
+-		for i := range list {
+-			list[i].Dir = l.Cwd
+-		}
++	var dbErr error
++	if dataDir := cmp.Or(ws.DataDir, filepath.Join(ws.Path, ".crush")); !served[dataDir] {
++		var list []home.Session
++		list, dbErr = dbSessions(ctx, filepath.Join(dataDir, "crush.db"), home.SessionLimit)
+ 		out = append(out, list...)
+ 	}
+ 	// A session found twice (a copied database) is listed once: its newest
+@@ -431,7 +408,7 @@ func listHomeSessions(ctx context.Context, hosts []string, ws home.Workspace) ([
+ 		seen[s.ID] = true
+ 		return dup
+ 	})
+-	return out[:min(len(out), home.SessionLimit)], errors.Join(errs...)
++	return out[:min(len(out), home.SessionLimit)], dbErr
+ }
+ 
+ // dbSessions reads the newest top-level sessions straight from a workspace
+diff --git a/internal/cmd/home_test.go b/internal/cmd/home_test.go
+index 7cd79eff..770762dc 100644
+--- a/internal/cmd/home_test.go
++++ b/internal/cmd/home_test.go
+@@ -4,7 +4,6 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
+-	"fmt"
+ 	"net"
+ 	"net/http"
+ 	"net/http/httptest"
+@@ -278,7 +277,7 @@ func TestHomeSessionsFromLiveServer(t *testing.T) {
+ 
+ 	dir := shortTempDir(t)
+ 	never := filepath.Join(t.TempDir(), "never-opened")
+-	ws := home.Workspace{Path: "/w/live", Locations: []home.Location{{Cwd: "/w/live", DataDir: never}}}
++	ws := home.Workspace{Path: "/w/live", DataDir: never}
+ 	fakeServer(t, sockFor(dir, ws.Path), proto.Workspace{Path: ws.Path, DataDir: never}, []proto.Session{
+ 		{ID: "s1", Title: "Fix", IsBusy: true, UpdatedAt: 300},
+ 		{ID: "s2", Title: "Plan", IsBusy: true, UpdatedAt: 200},
+@@ -333,7 +332,7 @@ func TestHomeSessionsFromDatabaseReadOnly(t *testing.T) {
+ 	require.NoError(t, err)
+ 
+ 	// No socket for this workspace: the database is read instead.
+-	list, err := listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/offline", Locations: []home.Location{{Cwd: "/w/offline", DataDir: dataDir}}})
++	list, err := listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/offline", DataDir: dataDir})
+ 	require.NoError(t, err)
+ 	require.Len(t, list, home.SessionLimit)
+ 	require.Equal(t, "s"+string(rune('A'+59)), list[0].ID, "newest first")
+@@ -350,7 +349,7 @@ func TestHomeSessionsFromDatabaseReadOnly(t *testing.T) {
+ 
+ 	// A workspace that never ran has no database: nothing is created.
+ 	empty := t.TempDir()
+-	list, err = listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/new", Locations: []home.Location{{Cwd: "/w/new", DataDir: empty}}})
++	list, err = listHomeSessions(t.Context(), nil, home.Workspace{Path: "/w/new", DataDir: empty})
+ 	require.NoError(t, err)
+ 	require.Empty(t, list)
+ 	require.NoFileExists(t, filepath.Join(empty, "crush.db"))
+@@ -400,69 +399,6 @@ func TestClientServerSetupRegistersWorkspace(t *testing.T) {
+ 	require.Equal(t, dataDir, list[0].DataDir)
+ }
+ 
+-func TestHomeWorkspaceLocations(t *testing.T) {
+-	t.Parallel()
+-
+-	p := projects.Project{Path: "/r", DataDir: "/r/sub/.crush", Locations: []projects.Location{
+-		{Cwd: "/r/sub", DataDir: "/r/sub/.crush"},
+-		{Cwd: "/r", DataDir: "/r/.crush"},
+-	}}
+-	require.Equal(t, []home.Location{{Cwd: "/r/sub", DataDir: "/r/sub/.crush"}, {Cwd: "/r", DataDir: "/r/.crush"}},
+-		toHomeWorkspace(p).Locations)
+-
+-	old := projects.Project{Path: "/r", DataDir: "/r/.crush"} // Written before locations existed.
+-	require.Equal(t, []home.Location{{Cwd: "/r", DataDir: "/r/.crush"}}, toHomeWorkspace(old).Locations)
+-}
+-
+-// Launching from repo/sub and from repo leaves sessions in two databases of
+-// one workspace: Home lists both, newest first, 50 at most, each tagged with
+-// where to open it; a database a live server holds is read through it.
+-func TestHomeSessionsFromEveryDataDir(t *testing.T) {
+-	t.Parallel()
+-
+-	root := t.TempDir()
+-	sub := filepath.Join(root, "sub")
+-	rootData, subData := filepath.Join(root, ".crush"), filepath.Join(sub, ".crush")
+-	var rootRows, subRows []dbRow
+-	for i := range 30 {
+-		rootRows = append(rootRows, dbRow{id: fmt.Sprintf("r%02d", i), updated: int64(100 + 2*i)})
+-		subRows = append(subRows, dbRow{id: fmt.Sprintf("s%02d", i), updated: int64(101 + 2*i)})
+-	}
+-	subRows = append(subRows, dbRow{id: "r29", updated: 500}) // A copy, newer: listed once.
+-	makeSessionDB(t, rootData, rootRows...)
+-	makeSessionDB(t, subData, subRows...)
+-	ws := home.Workspace{Path: root, Locations: []home.Location{{Cwd: sub, DataDir: subData}, {Cwd: root, DataDir: rootData}}}
+-
+-	list, err := listHomeSessions(t.Context(), nil, ws)
+-	require.NoError(t, err)
+-	require.Len(t, list, home.SessionLimit, "the limit is over all locations")
+-	byID := map[string]home.Session{}
+-	for _, s := range list {
+-		require.NotContains(t, byID, s.ID, "listed once")
+-		byID[s.ID] = s
+-	}
+-	require.Equal(t, home.Session{ID: "r29", Title: "title r29", UpdatedAt: time.Unix(500, 0), Dir: sub}, list[0], "the newest copy")
+-	require.Equal(t, sub, byID["s29"].Dir)
+-	require.Equal(t, root, byID["r28"].Dir, "each session opens where its database is")
+-	for i := 1; i < len(list); i++ {
+-		require.False(t, list[i].UpdatedAt.After(list[i-1].UpdatedAt), "newest first")
+-	}
+-
+-	// The root location is open on a live server: its sessions come from
+-	// there with real statuses; the sub database is still read.
+-	dir := shortTempDir(t)
+-	fakeServer(t, sockFor(dir, root), proto.Workspace{Path: root, DataDir: rootData}, []proto.Session{
+-		{ID: "r29", Title: "live", IsBusy: true, UpdatedAt: 1000},
+-	}, nil)
+-	list, err = listHomeSessions(t.Context(), []string{"unix://" + sockFor(dir, root)}, ws)
+-	require.NoError(t, err)
+-	require.Equal(t, home.Session{ID: "r29", Title: "live", UpdatedAt: time.Unix(1000, 0), Status: home.StatusRunning, Dir: root}, list[0])
+-	require.Equal(t, "s29", list[1].ID, "the sub database is still read; its copy of r29 is dropped")
+-	require.Equal(t, home.StatusUnknown, list[1].Status)
+-	require.False(t, slices.ContainsFunc(list, func(s home.Session) bool { return s.ID == "r28" }),
+-		"the root database is not read while its server is live")
+-}
+-
+ // Add only registers a directory that exists, as its workspace root, and
+ // keeps an existing entry (and its data dir) as is. Not parallel: it sets
+ // the registry location.
+@@ -490,7 +426,7 @@ func TestHomeSourceAdd(t *testing.T) {
+ 	require.NoError(t, projects.Register(root, filepath.Join(sub, ".crush")))
+ 	ws, err = homeSource{}.Add(t.Context(), root)
+ 	require.NoError(t, err)
+-	require.Equal(t, filepath.Join(sub, ".crush"), ws.Locations[0].DataDir, "an existing entry keeps its data dir")
++	require.Equal(t, filepath.Join(sub, ".crush"), ws.DataDir, "an existing entry keeps its data dir")
+ 	list, err = projects.List()
+ 	require.NoError(t, err)
+ 	require.Len(t, list, 1)
+diff --git a/internal/cmd/root.go b/internal/cmd/root.go
+index 287975e1..e78c0d56 100644
+--- a/internal/cmd/root.go
++++ b/internal/cmd/root.go
+@@ -275,6 +275,17 @@ func yoloMismatchWarning(requested, actual bool) string {
+ 	return ""
+ }
+ 
++// warnStrayDataDirs báo các .crush cũ ở thư mục con mà bản trước mở khi chạy
++// từ đó: nay mọi nơi trong dự án dùng dataDir ở gốc, không tự gộp, không xoá.
++func warnStrayDataDirs(cwd, dataDir string) {
++	for _, d := range config.StrayDataDirs(cwd, dataDir) {
++		msg := fmt.Sprintf("warning: %s is not used: agent-cli now keeps one data directory per project, %s. Nothing was merged or deleted. To open the sessions stored there: CRUSH_CLIENT_SERVER=0 agent-cli -c %s -D %s (merging them into the project is up to you).",
++			d, dataDir, filepath.Dir(d), d)
++		fmt.Fprintln(os.Stderr, msg)
++		slog.Warn(msg)
++	}
++}
++
+ // helpColorScheme tô help và lỗi của CLI bằng bảng màu Everforest Dark v2 (theme
+ // mặc định), thay bảng Charmtone của fang. Theme chỉ có bản tối.
+ func helpColorScheme(lipgloss.LightDarkFunc) fang.ColorScheme {
+@@ -433,6 +444,7 @@ func setupLocalWorkspace(cmd *cobra.Command) (workspace.Workspace, func(), error
+ 	cfg := store.Config()
+ 	store.Overrides().SkipPermissionRequests = yolo
+ 	store.Overrides().EnabledChannels = channels
++	warnStrayDataDirs(cwd, cfg.Options.DataDirectory)
+ 
+ 	if err := os.MkdirAll(cfg.Options.DataDirectory, 0o700); err != nil {
+ 		return nil, nil, fmt.Errorf("failed to create data directory: %q %w", cfg.Options.DataDirectory, err)
+@@ -617,6 +629,7 @@ func connectToServer(cmd *cobra.Command) (*client.Client, *proto.Workspace, func
+ 		fmt.Fprintln(os.Stderr, msg)
+ 		slog.Warn(msg)
+ 	}
++	warnStrayDataDirs(cwd, ws.DataDir)
+ 
+ 	if shouldEnableMetrics(ws.Config) {
+ 		event.Init()
+diff --git a/internal/config/load.go b/internal/config/load.go
+index 33b9250c..f5f41678 100644
+--- a/internal/config/load.go
++++ b/internal/config/load.go
+@@ -619,11 +619,10 @@ func (c *Config) setDefaults(workingDir, dataDir string) {
+ 	if dataDir != "" {
+ 		c.Options.DataDirectory = dataDir
+ 	} else if c.Options.DataDirectory == "" {
+-		if path, ok := fsext.LookupClosestBounded(workingDir, projectBoundary(workingDir), defaultDataDirectory); ok {
+-			c.Options.DataDirectory = path
+-		} else {
+-			c.Options.DataDirectory = defaultDataDirectory
+-		}
++		// Một dự án một data dir, ở gốc dự án: mở từ thư mục con, qua symlink
++		// hay theo thứ tự nào cũng ra cùng một crush.db. .crush cũ ở thư mục
++		// con không được mở nữa (StrayDataDirs báo cho người dùng).
++		c.Options.DataDirectory = filepath.Join(projectBoundary(workingDir), defaultDataDirectory)
+ 	}
+ 	// Ghép gốc đúng một lần ở đây. Tuyệt đối để lần nạp lại (đưa giá trị này
+ 	// vào làm dataDir) không ghép thêm khi workingDir là đường tương đối.
+@@ -1424,7 +1423,8 @@ func computeWorktreeRoot(dir string) string {
+ // search rooted at dir should stop. It is the git working tree root when
+ // one can be detected, otherwise dir itself. Returning dir as a
+ // fallback keeps Crush from silently adopting state files placed above
+-// the current project.
++// the current project. It is also the root of the project's data
++// directory. Like git's toplevel, the fallback is the physical path.
+ func projectBoundary(dir string) string {
+ 	if root := worktreeRoot(dir); root != "" {
+ 		return root
+@@ -1433,9 +1433,27 @@ func projectBoundary(dir string) string {
+ 	if err != nil {
+ 		return dir
+ 	}
++	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
++		return resolved
++	}
+ 	return abs
+ }
+ 
++// StrayDataDirs lists the .crush directories between workingDir and its
++// project root (the root excluded) other than dataDir. Older versions used
++// the closest one when opened from a subdirectory; they are no longer
++// opened, and never merged.
++func StrayDataDirs(workingDir, dataDir string) []string {
++	root := projectBoundary(workingDir)
++	found, err := fsext.LookupBounded(workingDir, root, defaultDataDirectory)
++	if err != nil {
++		return nil
++	}
++	return slices.DeleteFunc(found, func(p string) bool {
++		return filepath.Dir(p) == root || p == dataDir
++	})
++}
++
+ // GlobalSkillsDirs returns the default directories for Agent Skills.
+ // Skills in these directories are auto-discovered and their files can be read
+ // without permission prompts.
+diff --git a/internal/config/load_test.go b/internal/config/load_test.go
+index 7f9b3c0e..3ff08dfa 100644
+--- a/internal/config/load_test.go
++++ b/internal/config/load_test.go
+@@ -453,12 +453,43 @@ func TestConfig_setDefaults(t *testing.T) {
+ 		require.NoError(t, err)
+ 		require.NotEqual(t, strayEval, gotEval, "must not adopt parent .crush")
+ 
+-		subEval, err := filepath.EvalSymlinks(sub)
++		// Mở từ thư mục con cũng ra .crush ở gốc dự án, không phải pkg/.crush:
++		// không thì mở pkg trước rồi mới mở gốc sẽ ra hai crush.db (T3).
++		worktreeEval, err := filepath.EvalSymlinks(worktree)
+ 		require.NoError(t, err)
+-		require.Equal(t, filepath.Join(subEval, defaultDataDirectory), gotEval)
++		require.Equal(t, filepath.Join(worktreeEval, defaultDataDirectory), gotEval)
+ 	})
+ }
+ 
++// .crush cũ ở thư mục con (bản trước dùng khi mở từ đó) được báo và không
++// được mở; .crush ở gốc và data dir đang dùng thì không báo.
++func TestStrayDataDirs(t *testing.T) {
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("git not available")
++	}
++	repo, err := filepath.EvalSymlinks(t.TempDir())
++	require.NoError(t, err)
++	sub := filepath.Join(repo, "a", "b")
++	stray := filepath.Join(sub, defaultDataDirectory)
++	rootData := filepath.Join(repo, defaultDataDirectory)
++	require.NoError(t, os.MkdirAll(stray, 0o755))
++	require.NoError(t, os.Mkdir(rootData, 0o755))
++	gitInit := exec.CommandContext(t.Context(), "git", "init", "-q")
++	gitInit.Dir = repo
++	require.NoError(t, gitInit.Run())
++	link := filepath.Join(t.TempDir(), "link")
++	require.NoError(t, os.Symlink(sub, link))
++
++	cfg := &Config{}
++	cfg.setDefaults(link, "")
++	require.Equal(t, rootData, cfg.Options.DataDirectory, "through a symlink into the project too")
++
++	require.Equal(t, []string{stray}, StrayDataDirs(sub, rootData))
++	require.Equal(t, []string{stray}, StrayDataDirs(link, rootData))
++	require.Empty(t, StrayDataDirs(repo, rootData), "nothing to report from the root")
++	require.Empty(t, StrayDataDirs(sub, stray), "-D on the old one: it is in use")
++}
++
+ func TestConfig_configureProviders(t *testing.T) {
+ 	knownProviders := []catwalk.Provider{
+ 		{
+diff --git a/internal/fsext/lookup.go b/internal/fsext/lookup.go
+index 696219ac..220870aa 100644
+--- a/internal/fsext/lookup.go
++++ b/internal/fsext/lookup.go
+@@ -202,11 +202,15 @@ func traverseUp(dir string, walkFn func(dir string, owner int) error) error {
+ // that callers passing logically equivalent paths (a symlinked /var vs
+ // the underlying /private/var, for example) still terminate at the
+ // expected directory.
++//
++// Đi lên theo đường VẬT LÝ của dir: đi theo chữ thì symlink trỏ vào thư mục
++// con của dự án sẽ đi lên ngoài dự án và không bao giờ gặp stopDir.
+ func traverseUpBounded(dir, stopDir string, walkFn func(dir string, owner int) error) error {
+ 	cwd, err := filepath.Abs(dir)
+ 	if err != nil {
+ 		return fmt.Errorf("cannot convert CWD to absolute path: %w", err)
+ 	}
++	cwd = canonicalize(cwd)
+ 
+ 	stop := cwd
+ 	if stopDir != "" {
+diff --git a/internal/fsext/lookup_test.go b/internal/fsext/lookup_test.go
+index f4e445c1..8bd663b0 100644
+--- a/internal/fsext/lookup_test.go
++++ b/internal/fsext/lookup_test.go
+@@ -457,6 +457,26 @@ func TestLookupBounded(t *testing.T) {
+ 		require.Empty(t, found)
+ 	})
+ 
++	// Symlink ở thư mục khác trỏ vào thư mục con: đi lên theo đường vật lý
++	// nên gặp biên, không đi lên theo chữ ra thư mục chứa symlink.
++	t.Run("walks the physical path of a symlink into the project", func(t *testing.T) {
++		boundary, err := filepath.EvalSymlinks(t.TempDir())
++		require.NoError(t, err)
++		subDir := filepath.Join(boundary, "subdir")
++		require.NoError(t, os.Mkdir(subDir, 0o755))
++		atBoundary := filepath.Join(boundary, "target.txt")
++		require.NoError(t, os.WriteFile(atBoundary, []byte("a"), 0o644))
++
++		outside := t.TempDir()
++		require.NoError(t, os.WriteFile(filepath.Join(outside, "target.txt"), []byte("nope"), 0o644))
++		link := filepath.Join(outside, "link")
++		require.NoError(t, os.Symlink(subDir, link))
++
++		found, err := LookupBounded(link, boundary, "target.txt")
++		require.NoError(t, err)
++		require.Equal(t, []string{atBoundary}, found)
++	})
++
+ 	t.Run("empty boundary searches only starting directory", func(t *testing.T) {
+ 		parent := t.TempDir()
+ 
+diff --git a/internal/gitutil/branch.go b/internal/gitutil/branch.go
+index 4411f3f5..a5394871 100644
+--- a/internal/gitutil/branch.go
++++ b/internal/gitutil/branch.go
+@@ -51,6 +51,11 @@ func findGitDir(dir string) string {
+ 	if err != nil {
+ 		return ""
+ 	}
++	// Đi lên theo đường vật lý, như git: symlink trỏ vào thư mục con của repo
++	// thì cha theo chữ nằm ngoài repo.
++	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
++		dir = resolved
++	}
+ 
+ 	for {
+ 		gitPath := filepath.Join(dir, ".git")
+diff --git a/internal/gitutil/branch_test.go b/internal/gitutil/branch_test.go
+index f90d5aac..4ca66392 100644
+--- a/internal/gitutil/branch_test.go
++++ b/internal/gitutil/branch_test.go
+@@ -55,6 +55,19 @@ func TestCurrentBranch(t *testing.T) {
+ 		require.Equal(t, "main", branch)
+ 	})
+ 
++	// Symlink trỏ vào thư mục con của repo: cha theo chữ của nó nằm ngoài repo.
++	t.Run("reads the branch through a symlink into a subdirectory", func(t *testing.T) {
++		repo := t.TempDir()
++		runGit(t, repo, "init")
++		runGit(t, repo, "symbolic-ref", "HEAD", "refs/heads/viasymlink")
++		sub := filepath.Join(repo, "sub")
++		require.NoError(t, os.Mkdir(sub, 0o755))
++		link := filepath.Join(t.TempDir(), "link")
++		require.NoError(t, os.Symlink(sub, link))
++
++		require.Equal(t, "viasymlink", CurrentBranch(link))
++	})
++
+ 	t.Run("returns branch name for feature branch", func(t *testing.T) {
+ 		testDir := t.TempDir()
+ 		runGit(t, testDir, "init")
+diff --git a/internal/projects/projects.go b/internal/projects/projects.go
+index df0d23f6..48cada22 100644
+--- a/internal/projects/projects.go
++++ b/internal/projects/projects.go
+@@ -33,39 +33,6 @@ type Project struct {
+ 	// nó quyết định mục có thuộc máy này hay không khi cả hai phía có.
+ 	MachineID string `json:"machine_id,omitempty"`
+ 	Pinned    bool   `json:"pinned,omitempty"`
+-	// Locations lists every {cwd, data_dir} pair this workspace was launched
+-	// with (newest first, at most maxLocations), because a subdirectory shares
+-	// its repository's entry but may keep its own data directory. DataDir is
+-	// always the most recent one. Files from before this field have none; use
+-	// DataDirs rather than reading the field directly.
+-	Locations []Location `json:"locations,omitempty"`
+-}
+-
+-// Location is one {cwd, data_dir} pair a workspace was launched with.
+-type Location struct {
+-	Cwd          string    `json:"cwd"`
+-	DataDir      string    `json:"data_dir"`
+-	LastAccessed time.Time `json:"last_accessed"`
+-}
+-
+-// maxLocations caps Project.Locations; the oldest are dropped first.
+-const maxLocations = 8
+-
+-// DataDirs returns every distinct data directory of the workspace, most
+-// recently used first. Callers that look for sessions (Home, stats --all)
+-// must scan all of them.
+-func (p Project) DataDirs() []string {
+-	var dirs []string
+-	add := func(d string) {
+-		if d != "" && !slices.Contains(dirs, d) {
+-			dirs = append(dirs, d)
+-		}
+-	}
+-	add(p.DataDir)
+-	for _, l := range p.Locations {
+-		add(l.DataDir)
+-	}
+-	return dirs
+ }
+ 
+ // ProjectList holds the list of tracked projects. The full history is kept;
+@@ -285,45 +252,29 @@ func Save(list *ProjectList) error {
+ 
+ // Register adds or updates a workspace in the list. workingDir is normalized
+ // (see NormalizeWorkspace), so a subdirectory refreshes its repository's entry
+-// instead of creating a new one.
++// instead of creating a new one. dataDir is the one that run resolved: the
++// project root's .crush unless -D or the config moved it.
+ func Register(workingDir, dataDir string) error {
+ 	path := canonical(workingDir)
+-	cwd, err := filepath.Abs(workingDir)
+-	if err != nil {
+-		cwd = filepath.Clean(workingDir)
+-	}
+ 	host, mid := currentHost(), currentMachineID()
+ 	return update(func(list *ProjectList) error {
+ 		// The list is kept most-recent-first by moving each registration to
+ 		// the front, not by sorting on timestamps, which tie on coarse clocks.
+ 		var pinned bool
+-		var locs []Location
+ 		list.Projects = slices.DeleteFunc(list.Projects, func(p Project) bool {
+ 			if p.Path != path || !p.OnThisMachine() {
+ 				return false
+ 			}
+ 			pinned = p.Pinned
+-			locs = p.Locations
+-			if len(locs) == 0 && p.DataDir != "" { // Old-format entry.
+-				locs = []Location{{Cwd: p.Path, DataDir: p.DataDir, LastAccessed: p.LastAccessed}}
+-			}
+ 			return true
+ 		})
+-		now := time.Now().UTC()
+-		locs = slices.DeleteFunc(slices.Clone(locs), func(l Location) bool { return l.DataDir == dataDir })
+-		locs = slices.Insert(locs, 0, Location{Cwd: cwd, DataDir: dataDir, LastAccessed: now})
+-		slices.SortStableFunc(locs, func(a, b Location) int { return b.LastAccessed.Compare(a.LastAccessed) })
+-		if len(locs) > maxLocations {
+-			locs = locs[:maxLocations]
+-		}
+ 		list.Projects = slices.Insert(list.Projects, 0, Project{
+ 			Path:         path,
+ 			DataDir:      dataDir,
+-			LastAccessed: now,
++			LastAccessed: time.Now().UTC(),
+ 			Host:         host,
+ 			MachineID:    mid,
+ 			Pinned:       pinned,
+-			Locations:    locs,
+ 		})
+ 		return nil
+ 	})
+diff --git a/internal/projects/workspace_test.go b/internal/projects/workspace_test.go
+index c9220d40..98610e0f 100644
+--- a/internal/projects/workspace_test.go
++++ b/internal/projects/workspace_test.go
+@@ -187,61 +187,30 @@ func TestConcurrentWriters(t *testing.T) {
+ 	require.Empty(t, entries, "no temp files left behind")
+ }
+ 
+-func TestSubdirThenRootKeepsBothDataDirs(t *testing.T) {
++// Một dự án một data dir: lần mở sau ghi đè data dir của mục, không giữ
++// danh sách data dir theo từng thư mục con. Tệp của bản trước (có
++// "locations") vẫn đọc được; lần ghi sau bỏ trường đó.
++func TestRegisterKeepsOneDataDirPerWorkspace(t *testing.T) {
+ 	tmp := setupRegistry(t)
+ 	repo := filepath.Join(tmp, "repo")
+ 	initRepo(t, repo)
+ 	sub := filepath.Join(repo, "sub")
+ 	require.NoError(t, os.MkdirAll(sub, 0o755))
+-	subData := filepath.Join(sub, ".crush")
+-	repoData := filepath.Join(repo, ".crush")
++	require.NoError(t, os.MkdirAll(filepath.Dir(projectsFilePath()), 0o700))
++	old := `{"projects":[{"path":"` + realDir(t, repo) + `","data_dir":"` + filepath.Join(sub, ".crush") + `","last_accessed":"2026-01-02T03:04:05Z",` +
++		`"locations":[{"cwd":"` + sub + `","data_dir":"` + filepath.Join(sub, ".crush") + `","last_accessed":"2026-01-02T03:04:05Z"}]}]}`
++	require.NoError(t, os.WriteFile(projectsFilePath(), []byte(old), 0o600))
+ 
+-	require.NoError(t, Register(sub, subData))
+-	require.NoError(t, Register(repo, repoData))
++	repoData := filepath.Join(realDir(t, repo), ".crush")
++	require.NoError(t, Register(sub, repoData))
+ 
+ 	got, err := List()
+ 	require.NoError(t, err)
+ 	require.Len(t, got, 1)
+-	require.Equal(t, repoData, got[0].DataDir, "DataDir is the most recent")
+-	require.Equal(t, []string{repoData, subData}, got[0].DataDirs())
+-	require.Len(t, got[0].Locations, 2)
+-	require.Equal(t, realDir(t, sub), got[0].Locations[1].Cwd)
+-
+-	// Same data dir again: deduped, moved to the front.
+-	require.NoError(t, Register(sub, subData))
+-	got, _ = List()
+-	require.Equal(t, []string{subData, repoData}, got[0].DataDirs())
+-	require.Len(t, got[0].Locations, 2)
+-}
+-
+-func TestLocationsCappedOldestDropped(t *testing.T) {
+-	setupRegistry(t)
+-	for i := range maxLocations + 3 {
+-		require.NoError(t, Register("/proj", fmt.Sprintf("/d%d", i)))
+-	}
+-	got, err := List()
+-	require.NoError(t, err)
+-	require.Len(t, got[0].Locations, maxLocations)
+-	dirs := got[0].DataDirs()
+-	require.Len(t, dirs, maxLocations)
+-	require.Equal(t, fmt.Sprintf("/d%d", maxLocations+2), dirs[0])
+-	require.Equal(t, "/d3", dirs[len(dirs)-1], "d0..d2 are the oldest and dropped")
+-}
+-
+-func TestOldFormatEntryKeepsItsDataDirOnNextRegister(t *testing.T) {
+-	setupRegistry(t)
+-	require.NoError(t, os.MkdirAll(filepath.Dir(projectsFilePath()), 0o700))
+-	old := `{"projects":[{"path":"/old/p","data_dir":"/old/p/.crush","last_accessed":"2026-01-02T03:04:05Z"}]}`
+-	require.NoError(t, os.WriteFile(projectsFilePath(), []byte(old), 0o600))
+-
+-	got, err := List()
++	require.Equal(t, repoData, got[0].DataDir)
++	data, err := os.ReadFile(projectsFilePath())
+ 	require.NoError(t, err)
+-	require.Empty(t, got[0].Locations)
+-	require.Equal(t, []string{"/old/p/.crush"}, got[0].DataDirs())
+-
+-	require.NoError(t, Register("/old/p", "/old/p/sub/.crush"))
+-	got, _ = List()
+-	require.Equal(t, []string{"/old/p/sub/.crush", "/old/p/.crush"}, got[0].DataDirs())
++	require.NotContains(t, string(data), "locations")
+ }
+ 
+ func TestRelativePathStoredAbsoluteEvenWhenMissing(t *testing.T) {
+diff --git a/internal/ui/home/home.go b/internal/ui/home/home.go
+index a3c82b58..61c9cb5f 100644
+--- a/internal/ui/home/home.go
++++ b/internal/ui/home/home.go
+@@ -39,22 +39,15 @@ const (
+ // Workspace is a registered workspace of this host.
+ type Workspace struct {
+ 	Path string
+-	// Locations are where it was opened, newest first: a subdirectory shares
+-	// its repository's workspace but may keep its own data directory, so
+-	// sessions live in every location's DataDir.
+-	Locations    []Location
++	// DataDir holds its sessions: one per workspace, wherever in it the
++	// workspace was opened from.
++	DataDir      string
+ 	LastAccessed time.Time
+ 	Pinned       bool
+ 	Missing      bool   // The directory no longer exists.
+ 	Branch       string // Empty when unknown.
+ }
+ 
+-// Location is a directory a workspace was opened in, and its data directory.
+-type Location struct {
+-	Cwd     string
+-	DataDir string
+-}
+-
+ // ServerState is what probing a workspace's server found.
+ type ServerState int
+ 
+@@ -87,8 +80,8 @@ type Session struct {
+ 	Title     string
+ 	UpdatedAt time.Time
+ 	Status    SessionStatus
+-	// Dir is where the TUI must open to find the session (its location's
+-	// Cwd); empty means the workspace path.
++	// Dir is where the TUI must open to find the session (the path of the
++	// server workspace holding it); empty means the workspace path.
+ 	Dir string
+ }
+ 

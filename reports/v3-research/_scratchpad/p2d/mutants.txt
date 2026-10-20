@@ -1,0 +1,20 @@
+== mutant: bỏ unwrap ở channel (1	1	internal/agent/agent.go)
+--- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool (0.05s)
+    --- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook (0.00s)
+    --- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook (0.00s)
+--- FAIL: TestFilterToolsForChannel_SeesThroughHookedTool (0.00s)
+    --- PASS: TestFilterToolsForChannel_SeesThroughHookedTool/no_hook (0.00s)
+    --- FAIL: TestFilterToolsForChannel_SeesThroughHookedTool/with_hook (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.073s
+FAIL
+== mutant: bỏ unwrap ở disabled (1	1	internal/agent/agent.go)
+--- FAIL: TestFilterDisabledMCPTools_SeesThroughHookedTool (0.05s)
+    --- PASS: TestFilterDisabledMCPTools_SeesThroughHookedTool/no_hook (0.00s)
+    --- FAIL: TestFilterDisabledMCPTools_SeesThroughHookedTool/with_hook (0.00s)
+--- PASS: TestFilterToolsForChannel_SeesThroughHookedTool (0.00s)
+    --- PASS: TestFilterToolsForChannel_SeesThroughHookedTool/no_hook (0.00s)
+    --- PASS: TestFilterToolsForChannel_SeesThroughHookedTool/with_hook (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.079s
+FAIL

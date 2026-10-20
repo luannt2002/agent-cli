@@ -1,0 +1,27 @@
+--- a/agent-cli.crushrc.example	2026-10-19 14:53:42.653318602 +0700
++++ b/agent-cli.crushrc.example	2026-10-19 15:02:23.416164423 +0700
+@@ -105,8 +105,11 @@
+ option attribution-generated-with false
+ 
+ # Provider dựng sẵn để BẬT: tài khoản đăng nhập (agent-cli login openai) và
+-# provider có API key (vd ANTHROPIC_API_KEY) mới dùng được. Request chỉ đi tới
+-# provider của model đang chọn. Muốn chỉ dùng provider tự khai ở trên thì bật
++# provider có API key (vd ANTHROPIC_API_KEY) mới dùng được. Lời gọi LLM do agent-cli
++# phát ra (kể cả tiêu đề, tóm tắt, agent con) chỉ đi tới provider của model chính
++# đang chọn; không phủ claude_code/codex hay lệnh model chạy qua bash (xem README).
++# Đã login ChatGPT/Grok thì có thể có lời gọi ra OpenAI/xAI (làm mới token, lấy
++# danh sách model; không gửi prompt). Muốn chỉ dùng provider tự khai ở trên thì bật
+ # dòng dưới VÀ bỏ các dòng visible-provider openai/anthropic (chúng sẽ không còn
+ # model nào để chọn):
+ # option default-providers false
+@@ -130,5 +133,9 @@
+ # Cho phép ở đây là bỏ luôn lời hỏi đó. glob/grep cũng chỉ hỏi khi tìm NGOÀI dự án.
+ 
+ # claude_code / codex (giao việc cho Claude Code / Codex đã đăng nhập trên máy)
+-# chỉ có khi máy có CLI đó, và mỗi lần giao đều hỏi quyền. Không muốn dùng thì:
++# mặc định TẮT: chỉ có khi AGENT_CLI_DELEGATION=on, allowlist có claude_code:<id> /
++# codex:<id>, và máy có CLI đó. Mỗi lần giao hỏi quyền, trừ khi quyền đang tự duyệt
++# (run/loop, YOLO, Allow for Session, permissions allow; xem README). Chế độ không
++# người trực (routine) không bao giờ có hai tool này.
++# Đã bật mà muốn chặn thì:
+ # permissions deny claude_code codex

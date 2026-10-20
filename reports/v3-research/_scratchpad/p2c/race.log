@@ -1,0 +1,6 @@
+ok  	github.com/charmbracelet/crush/internal/backend	28.793s
+ok  	github.com/charmbracelet/crush/internal/cmd	15.508s
+ok  	github.com/charmbracelet/crush/internal/cmd/clientserverrace	7.274s
+ok  	github.com/charmbracelet/crush/internal/projects	3.385s
+ok  	github.com/charmbracelet/crush/internal/ui/home	1.364s
+ok  	github.com/charmbracelet/crush/internal/config	26.729s

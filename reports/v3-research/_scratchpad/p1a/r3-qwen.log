@@ -1,0 +1,8 @@
+rc=0 text='DONE-AFTER-SUMMARY' error='' loop_rc=1
+loop-path requests: 2
+server  (provider -> role: count): {'qwen': {'title': 2, 'main': 7, 'subagent': 1, 'agentic_fetch': 1, 'summary': 1}}
+ledger  (provider -> role: count): {'qwen': {'title': 2, 'main': 7, 'subagent': 1, 'agentic_fetch': 1, 'summary': 1}}
+roles on qwen: ['agentic_fetch', 'main', 'subagent', 'summary', 'title'] missing: []
+text has no auto-summary (run --json, local mode): True 'DONE-AFTER-SUMMARY'
+loop with an already-green gate stops NO_CHANGE, rc!=0: True (rc=1)
+QWEN-ONLY: PASS

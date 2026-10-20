@@ -1,0 +1,4 @@
+# github.com/charmbracelet/crush/internal/message [github.com/charmbracelet/crush/internal/message.test]
+internal/message/last_reply_test.go:36:15: undefined: LastReply
+FAIL	github.com/charmbracelet/crush/internal/message [build failed]
+FAIL

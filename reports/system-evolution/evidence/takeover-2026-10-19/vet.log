@@ -1,0 +1,1 @@
+internal/csync/maps.go:156:7: JSONSchemaAlias passes lock by value: github.com/charmbracelet/crush/internal/csync.Map[K, V] contains sync.RWMutex

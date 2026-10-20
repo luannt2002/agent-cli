@@ -1,0 +1,4 @@
+M8 ChildEnv bỏ trạng thái không người trực hiện hành | ^TestVerifyCarriesTheCurrentUnattendedState$ | RED | restored sha ok=True | --- FAIL: TestVerifyCarriesTheCurrentUnattendedState (0.22s) / Error:      	Not equal:
+M8u (như M8, test gói execpolicy) | ^TestChildEnvCarriesTheCurrentUnattendedState$ | RED | restored sha ok=True | --- FAIL: TestChildEnvCarriesTheCurrentUnattendedState (0.00s) / Error:      	elements differ
+M9 ChildEnv tin giá trị công tắc trong env (kể cả .env) | ^TestVerifyCarriesTheCurrentUnattendedState$ | RED | restored sha ok=True | --- FAIL: TestVerifyCarriesTheCurrentUnattendedState (0.17s) / Error:      	Not equal:
+M10 commit luôn 1 khi không người trực | ^TestVerifyCarriesTheCurrentUnattendedState$ | RED | restored sha ok=True | --- FAIL: TestVerifyCarriesTheCurrentUnattendedState (0.38s) / Error:      	Not equal:

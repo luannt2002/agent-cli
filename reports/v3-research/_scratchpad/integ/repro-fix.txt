@@ -1,0 +1,15 @@
+ok   local: setup X on pp, Y on qq
+[('user', None, ''), ('assistant', 'pp', 'm-pp'), ('user', None, ''), ('assistant', 'agent-cli-pending', '9e126d25-5b6a-405c-b688-d44c34c1a86b'), ('user', None, ''), ('assistant', 'agent-cli-pending', 'c0eb1b15-63ee-4a1f-838b-f9492a6f4e3c')]
+[('user', None, ''), ('assistant', 'qq', 'm-qq'), ('user', None, ''), ('assistant', 'agent-cli-pending', '57de6599-fc4f-422c-84fb-3d1ff5529bdb'), ('user', None, ''), ('assistant', 'agent-cli-pending', '35c443fe-be8a-4252-860a-c1f879de3a44')]
+local: X2 stderr: session 3570f8bd-268a-4530-a20e-44645f677caa last ran on pp/m-pp; continuing on the project model qq/m-qq (pick another with -m)
+local: Y2 stderr: 
+ok   local: X (pp reply, then placeholders) notes pp/m-pp once, no agent-cli-pending
+ok   local: Y (qq reply, then placeholders) prints no note
+ok   server: setup X on pp, Y on qq
+[('user', None, ''), ('assistant', 'pp', 'm-pp'), ('user', None, ''), ('assistant', 'agent-cli-pending', 'ae8c3af4-1c3a-49d6-883d-ff3b5a57fc29'), ('user', None, ''), ('assistant', 'agent-cli-pending', '5c2dec30-4599-4b47-82f8-c1289eecdea8')]
+[('user', None, ''), ('assistant', 'qq', 'm-qq'), ('user', None, ''), ('assistant', 'agent-cli-pending', '3c4feb23-f341-4842-b4ae-c46f5b8a9400'), ('user', None, ''), ('assistant', 'agent-cli-pending', 'e4a93632-4c58-4122-affb-3e1d6276e7a3')]
+server: X2 stderr: session e05cd58e-2240-4ede-bd48-38da156d7214 last ran on pp/m-pp; continuing on the project model qq/m-qq (pick another with -m)
+server: Y2 stderr: 
+ok   server: X (pp reply, then placeholders) notes pp/m-pp once, no agent-cli-pending
+ok   server: Y (qq reply, then placeholders) prints no note
+REPRO: PASS

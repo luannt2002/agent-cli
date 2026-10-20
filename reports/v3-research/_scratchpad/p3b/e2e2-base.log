@@ -1,0 +1,4 @@
+t1 rc=0 text='DONE-LEDGER' ledger_error=None session=334a1a59-06ea-44e1-accc-2a46d3f595d3
+t2 rc=0 text='DONE-LEDGER' ledger_error=None session=334a1a59-06ea-44e1-accc-2a46d3f595d3
+server logs: 1 requests: 5 warnings with session: 0 without: 0
+E2E-LEDGER-2TURNS: FAIL t1; t2; want 2 session warnings (one per turn), got 0

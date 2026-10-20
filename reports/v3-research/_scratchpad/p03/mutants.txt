@@ -1,0 +1,37 @@
+== fixed: dòng khác so với bản sửa
+  (không khác)
+  rc=0 | PASS
+== r0: dòng khác so với bản sửa
+< # Tìm window theo @agent_dir (đường dẫn vật lý), in window_id. Có $2 (rm): in MỌI window ở $1 hoặc thư mục con của nó.
+> # Tìm window theo @agent_dir (đường dẫn vật lý), in window_id.
+<   tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" -v all="${2:-}" '$2 == d || (all != "" && index($2, d "/") == 1) { print $1; if (all == "") exit }'
+>   tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" '$2 == d { print $1; exit }'
+<           # Session ở thư mục con ($wt/sub) cũng mất lịch sử khi xoá: so "nằm trong", "$abs"/ để /a/wt không khớp /a/wt2.
+<           [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+>           [[ $c != "$abs" ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+<       # Cả window mở ở thư mục con (agent-cli-tmux $wt/sub): bỏ sót thì agent sống tiếp trong thư mục đã xoá.
+<       ids=$(find_window "$abs" all)
+<       if [[ -n $ids ]]; then
+<         pids=$(for id in $ids; do tmux list-panes -t "$id" -F '#{pane_pid}'; done)
+<         for id in $ids; do tmux kill-window -t "$id"; done
+>       id=$(find_window "$abs")
+>       if [[ -n $id ]]; then
+>         pids=$(tmux list-panes -t "$id" -F '#{pane_pid}')
+>         tmux kill-window -t "$id"
+  rc=1 | FAIL: N5 thư mục con '/tmp/tmp.XOEaf10Ke5/proj-agents/busy/sub': rc=0: 
+== m1: dòng khác so với bản sửa
+<           [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+>           [[ $c != "$abs" ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+  rc=1 | FAIL: N5 thư mục con '/tmp/tmp.8np08dCZxQ/proj-agents/busy/sub': rc=0: 
+== m2: dòng khác so với bản sửa
+<       ids=$(find_window "$abs" all)
+>       ids=$(find_window "$abs")
+  rc=1 | FAIL: window thư mục con: rc=0, window sub còn=1: 
+== m3: dòng khác so với bản sửa
+<           [[ $c != "$abs" && $c != "$abs"/* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+>           [[ $c != "$abs" && $c != "$abs"* ]] || die 3 "worktree còn session BUSY/WAITING (agent-cli ps), không xoá: $wt"
+  rc=1 | FAIL: N5 biên pfx/pfx2: rc=3, pfx2 window=1: agent-cli-tmux: worktree còn session BUSY/WAITING (agent-cli ps), không xoá: /tmp/tmp.ZyYBoy72Pv/proj-agents/pfx
+== m4: dòng khác so với bản sửa
+<   tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" -v all="${2:-}" '$2 == d || (all != "" && index($2, d "/") == 1) { print $1; if (all == "") exit }'
+>   tmux list-windows -t "=$session" -F '#{window_id}'$'\t''#{@agent_dir}' | awk -F'\t' -v d="$1" -v all="${2:-}" '$2 == d || (all != "" && index($2, d) == 1) { print $1; if (all == "") exit }'
+  rc=1 | FAIL: N5 biên pfx/pfx2: rc=0, pfx2 window=0: 

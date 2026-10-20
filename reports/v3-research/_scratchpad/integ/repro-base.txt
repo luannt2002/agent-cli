@@ -1,0 +1,15 @@
+ok   local: setup X on pp, Y on qq
+[('user', None, ''), ('assistant', 'pp', 'm-pp'), ('user', None, ''), ('assistant', 'agent-cli-pending', 'c66184d3-dbcd-4a02-9eda-8afb0f4fac18'), ('user', None, ''), ('assistant', 'agent-cli-pending', '5b0c8489-9948-4f83-9163-a664c1be7a41')]
+[('user', None, ''), ('assistant', 'qq', 'm-qq'), ('user', None, ''), ('assistant', 'agent-cli-pending', '38a84984-43c3-422d-9031-b04294538d10'), ('user', None, ''), ('assistant', 'agent-cli-pending', '24655a71-11a9-4173-a814-95b540062872')]
+local: X2 stderr: session 6b1c4cfd-701c-47e8-b446-33382434ce36 last ran on agent-cli-pending/5b0c8489-9948-4f83-9163-a664c1be7a41; continuing on the project model qq/m-qq (pick another with -m)
+local: Y2 stderr: session c31b4545-3c38-4def-acab-2a8e8556d0c2 last ran on agent-cli-pending/24655a71-11a9-4173-a814-95b540062872; continuing on the project model qq/m-qq (pick another with -m)
+FAIL local: X (pp reply, then placeholders) notes pp/m-pp once, no agent-cli-pending
+FAIL local: Y (qq reply, then placeholders) prints no note
+ok   server: setup X on pp, Y on qq
+[('user', None, ''), ('assistant', 'pp', 'm-pp'), ('user', None, ''), ('assistant', 'agent-cli-pending', 'cdc8b3b7-3e38-4825-b578-5b42c005f5d6'), ('user', None, ''), ('assistant', 'agent-cli-pending', 'b6d90bb9-3403-432b-97b2-2c8dca054ddd')]
+[('user', None, ''), ('assistant', 'qq', 'm-qq'), ('user', None, ''), ('assistant', 'agent-cli-pending', '92e3ae5d-7b60-4162-87d0-7f82cdc1c977'), ('user', None, ''), ('assistant', 'agent-cli-pending', '58080c49-58e7-4717-b763-d4c8a3617e7e')]
+server: X2 stderr: session 94cca62f-0aec-4131-8e72-b5b05079130a last ran on agent-cli-pending/b6d90bb9-3403-432b-97b2-2c8dca054ddd; continuing on the project model qq/m-qq (pick another with -m)
+server: Y2 stderr: session 49856f5e-7448-43ad-ad98-1e55d09f907b last ran on agent-cli-pending/58080c49-58e7-4717-b763-d4c8a3617e7e; continuing on the project model qq/m-qq (pick another with -m)
+FAIL server: X (pp reply, then placeholders) notes pp/m-pp once, no agent-cli-pending
+FAIL server: Y (qq reply, then placeholders) prints no note
+REPRO: FAIL (4)

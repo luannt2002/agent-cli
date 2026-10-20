@@ -1,0 +1,30 @@
+{
+  "test_total": 4637,
+  "tests": {
+    "pass": 4628,
+    "skip": 9
+  },
+  "packages": {
+    "skip": 17,
+    "pass": 68
+  },
+  "new_total": 136,
+  "new_status": {
+    "pass": 136
+  },
+  "missing": [],
+  "baseline_status_changes": {
+    "internal/agent/tools TestGlobPrefixBypassAttempts": [
+      "skip",
+      "pass"
+    ],
+    "internal/agent/tools TestGrepHostileArgsWithRealRg": [
+      "skip",
+      "pass"
+    ],
+    "internal/agent/tools TestGrepPatternIsNeverARipgrepFlag": [
+      "skip",
+      "pass"
+    ]
+  }
+}

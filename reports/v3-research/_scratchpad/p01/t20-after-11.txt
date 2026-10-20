@@ -1,0 +1,2 @@
+T20: NOT_EXPOSED — concurrent trials=10, failed=0 | warm server (own stderr), 10 concurrent run per trial: trials=10, failed=0 | control sequential: rc0=10/10 server starts=1 panic=''
+EXPOSURE: ran 1 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p01-after-11/verdicts.txt

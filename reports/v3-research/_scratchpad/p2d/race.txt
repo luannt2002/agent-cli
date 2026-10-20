@@ -1,0 +1,9 @@
+[g.sh] MemAvailable=9158MB
+ok  	github.com/charmbracelet/crush/internal/agent	61.523s
+?   	github.com/charmbracelet/crush/internal/agent/agenttest	[no test files]
+ok  	github.com/charmbracelet/crush/internal/agent/hyper	1.027s
+?   	github.com/charmbracelet/crush/internal/agent/notify	[no test files]
+ok  	github.com/charmbracelet/crush/internal/agent/prompt	1.144s
+ok  	github.com/charmbracelet/crush/internal/agent/tools	14.764s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/mcp	6.720s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/provider	1.133s

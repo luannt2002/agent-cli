@@ -1,0 +1,17 @@
+=== RUN   TestMCPTool_LargeTextIsCappedAndSpilled
+=== PAUSE TestMCPTool_LargeTextIsCappedAndSpilled
+=== RUN   TestMCPTool_SmallTextIsUnchanged
+=== PAUSE TestMCPTool_SmallTextIsUnchanged
+=== RUN   TestMCPTool_IsErrorReachesToolResponse
+=== PAUSE TestMCPTool_IsErrorReachesToolResponse
+=== CONT  TestMCPTool_LargeTextIsCappedAndSpilled
+=== CONT  TestMCPTool_IsErrorReachesToolResponse
+2026/10/19 19:17:16 INFO Disabled MCP client name=p1b-fail
+--- PASS: TestMCPTool_IsErrorReachesToolResponse (0.01s)
+=== CONT  TestMCPTool_SmallTextIsUnchanged
+2026/10/19 19:17:16 INFO Disabled MCP client name=p1b-small
+--- PASS: TestMCPTool_SmallTextIsUnchanged (0.01s)
+2026/10/19 19:17:17 INFO Disabled MCP client name=p1b-big
+--- PASS: TestMCPTool_LargeTextIsCappedAndSpilled (0.92s)
+PASS
+ok  	github.com/charmbracelet/crush/internal/agent/tools	0.929s

@@ -1,0 +1,1 @@
+T21: EXPOSED — measurement, not a gate — default: files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0); GET /v1/workspaces carries env canary=False (run rc=0) | -d: files_holding_canary=3 (crush.db*=1 shell-output=1 logs=0 journal=1 other=0); GET /v1/workspaces carries env canary=False (run rc=0) (per-file list: T21/summary.txt, T21d/summary.txt)

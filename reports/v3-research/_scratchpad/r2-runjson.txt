@@ -1,0 +1,40 @@
+ok   local: song song rc=0
+ok   local: song song 2 session_id khác nhau
+ok   local: A nhận text của A
+ok   local: B nhận text của B
+ok   local: token session mới = 11/7 (quan sát 11/7)
+ok   local: -s tiếp tục đúng session
+ok   local: token kết quả -s = 11/7 (quan sát 11/7)
+ok   local: -C trả session mới nhất
+ok   local: lỗi provider rc=1 + JSON
+ok   local: -s sai rc=1 + JSON
+ok   local: tool cần quyền được tự duyệt và chạy
+ok   local: không prompt rc=2
+ok   local: -s với -C rc=2
+ok   local: SIGTERM -> rc=1 + JSON có error
+ok   local: SIGTERM huỷ luôn run (quan sát: canceled|)
+ok   clientserver: song song rc=0
+ok   clientserver: song song 2 session_id khác nhau
+ok   clientserver: A nhận text của A
+ok   clientserver: B nhận text của B
+ok   clientserver: token session mới = 11/7 (quan sát 11/7)
+ok   clientserver: -s tiếp tục đúng session
+ok   clientserver: token kết quả -s = 11/7 (quan sát 11/7)
+ok   clientserver: -C trả session mới nhất
+ok   clientserver: lỗi provider rc=1 + JSON
+ok   clientserver: -s sai rc=1 + JSON
+ok   clientserver: tool cần quyền được tự duyệt và chạy
+ok   clientserver: không prompt rc=2
+ok   clientserver: -s với -C rc=2
+ok   clientserver: SIGTERM -> rc=1 + JSON có error
+ok   clientserver: SIGTERM huỷ luôn run (quan sát: canceled|)
+ok   clientserver: init giữa run, agent vẫn báo bận (is_busy=True)
+ok   clientserver: run không init lại agent đang sẵn sàng, lượt run không có question (init=200, run: probe|agent,agentic_fetch,bash,crush_info,crush_logs,download,edit,fetch,glob,grep,job_kill,job_output,ls,lsp_call_hierarchy,lsp_definition,lsp_diagnostics,lsp_references,lsp_rename,lsp_replace_symbol,lsp_restart,lsp_symbols,multiedit,sourcegraph,todos,view,write, send: probe-send|agent,agentic_fetch,bash,crush_info,crush_logs,download,edit,fetch,glob,grep,job_kill,job_output,ls,lsp_call_hierarchy,lsp_definition,lsp_diagnostics,lsp_references,lsp_rename,lsp_replace_symbol,lsp_restart,lsp_symbols,multiedit,question,sourcegraph,todos,view,write)
+ok   clientserver: init giữa run không làm mất run, SIGTERM vẫn huỷ (quan sát: canceled|)
+ok   clientserver: Ctrl+C send --wait chỉ thôi chờ (quan sát: rc=1 stopped waiting; the run keeps going on session 8e65c58e-6470-498e-8ea6-434aa4514cba)
+ok   clientserver: Ctrl+C run -s huỷ lượt của nó (quan sát: rc=1 context canceled)
+ok   clientserver: client run bị SIGKILL giữa run -> server huỷ lượt của nó (quan sát: canceled|)
+ok   clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s (quan sát: end_turn|ECHO(2): SLOW send;)
+ok   clientserver: prompt xếp hàng của run -s đã bị gỡ, không chạy (quan sát: end_turn|ECHO(2): SLOW send;)
+ok   không còn server process
+PASS

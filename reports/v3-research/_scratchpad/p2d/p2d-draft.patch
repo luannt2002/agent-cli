@@ -1,0 +1,160 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..8f0e0843 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -170,6 +170,12 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
++- **Có hook `PreToolUse`, hai bộ lọc tool MCP vẫn nhận ra tool MCP.** Hook bọc mọi tool của agent chính trong một
++  lớp, còn hai bộ lọc nhận diện tool MCP theo kiểu nên bỏ sót hết: server đã tắt bằng "Toggle MCPs" vẫn đưa tool cho
++  model và model gọi được (ca: một tiến trình agent-cli khác trên cùng repo tắt server trong khi tiến trình này còn giữ
++  kết nối); lượt từ một channel thấy cả tool gửi tin của channel khác. Đo bằng binary thật, LLM giả, MCP stub và
++  hook: bản trước gửi tool của server đã tắt trong 3/3 request và server nhận `tools/call`; bản này 0/3, 0 lần gọi.
++  Không có hook thì hành vi như cũ.
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 919e8383..824fd8a9 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -254,7 +254,7 @@ func filterToolsForChannel(agentTools []fantasy.AgentTool, channel string, state
+ 	}
+ 	filtered := make([]fantasy.AgentTool, 0, len(agentTools))
+ 	for _, agentTool := range agentTools {
+-		mcpTool, ok := agentTool.(interface{ MCP() string })
++		mcpTool, ok := unwrapTool(agentTool).(interface{ MCP() string })
+ 		if !ok {
+ 			filtered = append(filtered, agentTool)
+ 			continue
+@@ -2177,7 +2177,7 @@ func (a *sessionAgent) filterDisabledMCPTools(ctx context.Context, toolList []fa
+ 	}
+ 	filtered := make([]fantasy.AgentTool, 0, len(toolList))
+ 	for _, t := range toolList {
+-		if mcpTool, ok := t.(*tools.Tool); ok {
++		if mcpTool, ok := unwrapTool(t).(*tools.Tool); ok {
+ 			if _, off := disabled[mcpTool.MCP()]; off {
+ 				continue
+ 			}
+diff --git a/internal/agent/hooked_tool.go b/internal/agent/hooked_tool.go
+index 2c38d669..99e76d86 100644
+--- a/internal/agent/hooked_tool.go
++++ b/internal/agent/hooked_tool.go
+@@ -39,6 +39,19 @@ func wrapToolsWithHooks(tools []fantasy.AgentTool, runner *hooks.Runner, isSubAg
+ 	return out
+ }
+ 
++// unwrapTool trả tool gốc dưới các lớp *hookedTool. Bộ lọc nào nhận diện tool
++// theo kiểu cụ thể (tool MCP, tool channel) phải gọi nó trước khi type-assert:
++// có hook PreToolUse thì mọi tool của agent cấp cao đều bị bọc.
++func unwrapTool(t fantasy.AgentTool) fantasy.AgentTool {
++	for {
++		h, ok := t.(*hookedTool)
++		if !ok {
++			return t
++		}
++		t = h.inner
++	}
++}
++
+ func (h *hookedTool) Info() fantasy.ToolInfo {
+ 	return h.inner.Info()
+ }
+diff --git a/internal/agent/hooked_tool_test.go b/internal/agent/hooked_tool_test.go
+index 5a782320..91b299b6 100644
+--- a/internal/agent/hooked_tool_test.go
++++ b/internal/agent/hooked_tool_test.go
+@@ -2,12 +2,19 @@ package agent
+ 
+ import (
+ 	"context"
++	"net/http"
++	"net/http/httptest"
+ 	"testing"
+ 
+ 	"charm.land/fantasy"
++	"github.com/charmbracelet/crush/internal/agent/tools"
++	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/db"
+ 	"github.com/charmbracelet/crush/internal/hooks"
+ 	"github.com/charmbracelet/crush/internal/permission"
++	"github.com/charmbracelet/crush/internal/session"
++	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+@@ -145,3 +152,72 @@ func TestWrapToolsWithHooks(t *testing.T) {
+ 		require.Equal(t, inputs, wrapToolsWithHooks(inputs, nil, true))
+ 	})
+ }
++
++// Có hook PreToolUse thì mọi tool của agent cấp cao bị bọc trong
++// *hookedTool. Lượt từ channel "signal" vẫn không được thấy tool gửi tin của
++// channel "telegram". Ca "no hook" là đối chứng: hành vi như cũ.
++func TestFilterToolsForChannel_SeesThroughHookedTool(t *testing.T) {
++	t.Parallel()
++
++	states := map[string]mcp.ClientInfo{"signal": {Channel: true}, "telegram": {Channel: true}}
++	raw := []fantasy.AgentTool{
++		&channelTestTool{name: "signal_send", mcpName: "signal"},
++		&channelTestTool{name: "telegram_send", mcpName: "telegram"},
++		&fakeTool{name: "plain"},
++	}
++	cases := map[string][]fantasy.AgentTool{
++		"no hook":   raw,
++		"with hook": wrapToolsWithHooks(raw, newRunner(t, `exit 0`), false),
++	}
++	for name, ts := range cases {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			require.Equal(t, []string{"signal_send", "plain"}, toolNames(filterToolsForChannel(ts, "signal", states)))
++			require.Len(t, filterToolsForChannel(ts, "", states), 3, "a local turn keeps every tool")
++		})
++	}
++}
++
++// Có hook PreToolUse, server đã tắt bằng "Toggle MCPs" vẫn không được đưa
++// tool của nó cho model. Dùng *tools.Tool thật (MCP server HTTP trong tiến
++// trình) vì bộ lọc nhận diện tool MCP theo đúng kiểu đó. Ca "no hook" là đối
++// chứng. Registry MCP là toàn cục nên test này không t.Parallel và gỡ hẳn
++// server khi xong.
++func TestFilterDisabledMCPTools_SeesThroughHookedTool(t *testing.T) {
++	server := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "p2d-off"}, nil)
++	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "send", Description: "test tool"},
++		func(context.Context, *mcpsdk.CallToolRequest, struct{}) (*mcpsdk.CallToolResult, any, error) {
++			return &mcpsdk.CallToolResult{}, nil, nil
++		})
++	srv := httptest.NewServer(mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server { return server }, nil))
++	t.Cleanup(srv.Close)
++	cfg := config.NewTestStore(&config.Config{
++		MCP:     config.MCPs{"p2d-off": {Type: config.MCPHttp, URL: srv.URL}},
++		Options: &config.Options{DataDirectory: t.TempDir()},
++	})
++	t.Cleanup(func() { mcp.Reinitialize(context.Background(), config.NewTestStore(&config.Config{})) })
++	require.NoError(t, mcp.InitializeSingle(t.Context(), "p2d-off", cfg))
++	raw := []fantasy.AgentTool{&fakeTool{name: "plain"}}
++	for _, tl := range tools.GetMCPTools(nil, cfg, t.TempDir()) {
++		raw = append(raw, tl)
++	}
++	require.Equal(t, []string{"plain", "mcp_p2d-off_send"}, toolNames(raw))
++
++	dataDir := t.TempDir()
++	t.Cleanup(func() { require.NoError(t, db.Release(dataDir)) })
++	conn, err := db.Connect(t.Context(), dataDir)
++	require.NoError(t, err)
++	sessions := session.NewService(db.New(conn), conn)
++	require.NoError(t, sessions.SetMCPServerDisabled(t.Context(), "p2d-off", true))
++	a := &sessionAgent{sessions: sessions}
++
++	cases := map[string][]fantasy.AgentTool{
++		"no hook":   raw,
++		"with hook": wrapToolsWithHooks(raw, newRunner(t, `exit 0`), false),
++	}
++	for name, ts := range cases {
++		t.Run(name, func(t *testing.T) {
++			require.Equal(t, []string{"plain"}, toolNames(a.filterDisabledMCPTools(t.Context(), ts)))
++		})
++	}
++}

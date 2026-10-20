@@ -1,0 +1,157 @@
+clean tree: 4a0b25b6, status lines: 0
+== internal/agent  [41 test]
+  BUILD-FAIL: e.coord.agenticFetchInnerTools undefined (type *coordinator has no field or method agenticFetchInnerTools);too many errors;undefined: agenticFetchDisabled;undefined: agenticFetchUsable;
+  -- tệp riêng agentic_fetch_policy_test.go:
+    BUILD-FAIL: undefined: agenticFetchDisabled;undefined: agenticFetchUsable;undefined: filterDisabledTools;
+  -- tệp riêng agentic_fetch_wiring_test.go:
+    BUILD-FAIL: e.coord.agenticFetchInnerTools undefined (type *coordinator has no field or method agenticFetchInnerTools);
+  -- tệp riêng continuation_test.go:
+    --- PASS: TestEmptySummaryKeepsHistory (0.04s)
+    --- PASS: TestRepeatedSummaryDoesNotNestThePrompt (0.02s)
+    --- PASS: TestLengthContinueCapResetsWhenTheRunMakesProgress (0.03s)
+    --- FAIL: TestSummaryContinuationRunsBeforeQueuedUserPrompt (0.02s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/agent	0.133s
+    FAIL
+  -- tệp riêng coordinator_test.go:
+    --- FAIL: TestRunSubAgent (1.85s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/agent	1.867s
+    FAIL
+  -- tệp riêng false_success_test.go:
+    BUILD-FAIL: unknown field summaryFinish in struct literal of type scriptModel;
+  -- tệp riêng llm_ledger_test.go:
+    BUILD-FAIL: undefined: ledgerEntry;undefined: newLedgerModel;
+  -- tệp riêng provider_isolation_test.go:
+    BUILD-FAIL: undefined: noFallbackError;undefined: sameProviderSmall;
+  -- tệp riêng summarize_overflow_test.go:
+    BUILD-FAIL: undefined: maxAutoSummaries;
+  -- tệp riêng title_cost_test.go:
+    --- FAIL: TestNoTitleCallForChildSessions (0.03s)
+    --- FAIL: TestTitleStopsAfterTokenLimit (0.04s)
+    --- PASS: TestTitleRetriesTheLargeModelAfterAnError (0.06s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/agent	0.074s
+    FAIL
+  -- tệp riêng unfinished_reply_test.go:
+    --- FAIL: TestSettleInterruptedCalls_ClosesUnfinishedTextReplies (0.03s)
+    --- PASS: TestSettleInterruptedCalls_LeavesFinishedRepliesAlone (0.02s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/agent	0.065s
+    FAIL
+== internal/agent/tools  [8 test]
+  BUILD-FAIL: undefined: authorizeRenameWrites;undefined: replaceSymbolPermission;
+  -- tệp riêng bash_policy_test.go:
+    --- PASS: TestBashBlocksDestructiveCommandsWhenUnattended (0.01s)
+    --- FAIL: TestBashTellsTheModelWhyAnUnattendedCommandWasBlocked (0.10s)
+    --- FAIL: TestBashBlockReasonsAreBounded (0.10s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/agent/tools	0.232s
+    FAIL
+  -- tệp riêng job_tools_test.go:
+    --- FAIL: TestJobOutput_MetadataCarriesExitCode (0.00s)
+    --- FAIL: TestJobTools_OnlyOwnerSessionCanReadOrKill (0.00s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/agent/tools	0.025s
+    FAIL
+  -- tệp riêng lsp_write_permission_test.go:
+    BUILD-FAIL: undefined: authorizeRenameWrites;undefined: replaceSymbolPermission;
+== internal/app  [3 test]
+  BUILD-FAIL: app.autoApproveRun undefined (type *App has no field or method autoApproveRun);apps[0].releaseLive undefined (type *App has no field or method releaseLive);apps[i].trackLive undefined (type *App has no field or method trackLive);a.releaseLive undefined (type *App has no field or method releaseLive);
+  -- tệp riêng run_permissions_test.go:
+    BUILD-FAIL: app.autoApproveRun undefined (type *App has no field or method autoApproveRun);
+  -- tệp riêng shutdown_test.go:
+    BUILD-FAIL: apps[0].releaseLive undefined (type *App has no field or method releaseLive);apps[i].trackLive undefined (type *App has no field or method trackLive);a.releaseLive undefined (type *App has no field or method releaseLive);a.trackLive undefined (type *App has no field or method trackLive);
+== internal/backend  [1 test]
+  --- FAIL: TestFirstWinsMismatch_NeverLogsEnvValues (1.72s)
+  FAIL
+  FAIL	github.com/charmbracelet/crush/internal/backend	1.775s
+  FAIL
+== internal/cmd  [23 test]
+  BUILD-FAIL: too many errors;undefined: loopExitErr;undefined: loop.StopNoChange;undefined: routineExitErr;
+  -- tệp riêng no_change_test.go:
+    BUILD-FAIL: too many errors;undefined: loopExitErr;undefined: loop.StopNoChange;undefined: routineExitErr;
+  -- tệp riêng routine_status_test.go:
+    BUILD-FAIL: out.Report.ChangedFiles undefined (type routineReport has no field or method ChangedFiles);out.Report.TouchedGate undefined (type routineReport has no field or method TouchedGate);out.Report.TouchedTests undefined (type routineReport has no field or method TouchedTests);too many errors;
+  -- tệp riêng run_json_test.go:
+    BUILD-FAIL: unknown field model in struct literal of type sessionUsage;unknown field provider in struct literal of type sessionUsage;
+  -- tệp riêng run_stream_test.go:
+    --- PASS: TestRunStream_RunCompleteExits (0.00s)
+    --- FAIL: TestRunStream_SkipsTheAutoSummary (0.00s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/cmd	0.048s
+    FAIL
+  -- tệp riêng verify_pipefail_test.go:
+    --- FAIL: TestShellVerify_PipelineFailureIsFail (0.00s)
+    --- FAIL: TestShellVerify_SigpipeFailureExplainsItself (0.00s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/cmd	0.051s
+    FAIL
+== internal/config  [6 test]
+  --- FAIL: TestConfig_configureSelectedModels (0.02s)
+  --- PASS: TestModelSelectionYieldsToDiskWhenUnchosen (1.47s)
+  --- FAIL: TestStartupFallbackIsNotPersisted (1.41s)
+  --- FAIL: TestSelectedModelGoneFallsBackWithinProvider (0.01s)
+  --- FAIL: TestResolveSelectedModels_SameProviderCatalogDefault (0.00s)
+  --- FAIL: TestResolveSelectedModels_NoCrossProviderFallback (0.00s)
+  FAIL
+  FAIL	github.com/charmbracelet/crush/internal/config	2.930s
+  FAIL
+== internal/log  [2 test]
+  BUILD-FAIL: undefined: panicDir;
+  -- tệp riêng panic_file_test.go:
+    BUILD-FAIL: undefined: panicDir;
+== internal/loop  [5 test]
+  BUILD-FAIL: res.BaselinePass undefined (type Result has no field or method BaselinePass);res.Unchanged undefined (type Result has no field or method Unchanged);too many errors;undefined: StopNoChange;
+  -- tệp riêng flags_test.go:
+    BUILD-FAIL: res.BaselinePass undefined (type Result has no field or method BaselinePass);res.Unchanged undefined (type Result has no field or method Unchanged);too many errors;undefined: StopNoChange;
+== internal/permission  [4 test]
+  --- FAIL: TestUnattendedRefusesWritesOutsideTheWorkingDir (0.00s)
+  --- PASS: TestAcceptEditsDoesNotWaitForOtherPrompts (0.00s)
+  --- FAIL: TestAutoApprovedSessionDoesNotWaitForOtherPrompts (2.00s)
+  --- FAIL: TestWaitingRequestIsCancellable (2.05s)
+  FAIL
+  FAIL	github.com/charmbracelet/crush/internal/permission	2.061s
+  FAIL
+== internal/routine  [5 test]
+  BUILD-FAIL: too many arguments in call to d.ScheduleText;too many errors;
+  -- tệp riêng routine_test.go:
+    BUILD-FAIL: too many arguments in call to d.ScheduleText;
+  -- tệp riêng schedule_env_test.go:
+    BUILD-FAIL: too many arguments in call to d.ScheduleText;
+== internal/shell  [8 test]
+  BUILD-FAIL: m.KillOwned undefined (type *BackgroundShellManager has no field or method KillOwned);
+  -- tệp riêng kill_owned_test.go:
+    BUILD-FAIL: m.KillOwned undefined (type *BackgroundShellManager has no field or method KillOwned);
+  -- tệp riêng unattended_abbrev_test.go:
+    --- FAIL: TestUnattendedGitDeniesAbbreviatedLongOptions (0.00s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/shell	0.012s
+    FAIL
+  -- tệp riêng unattended_dirflag_test.go:
+    --- FAIL: TestUnattendedGitDeniesFlagsThatPointAtAnotherRepo (0.00s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/shell	0.012s
+    FAIL
+  -- tệp riêng unattended_gitenv_test.go:
+    --- FAIL: TestUnattendedGitAllowsInheritedEnv (0.03s)
+    --- FAIL: TestUnattendedGitEnvGuardUnit (0.00s)
+    --- PASS: TestUnattendedGitAllowsUnrelatedEnv (0.03s)
+    --- FAIL: TestUnattendedGitDeniesRedirectingEnvEndToEnd (0.00s)
+    --- FAIL: TestUnattendedGitEnvDoesNotReachShebangScripts (0.00s)
+    FAIL
+    FAIL	github.com/charmbracelet/crush/internal/shell	0.218s
+    FAIL
+== internal/skills  [2 test]
+  --- PASS: TestDiscoverKeepsAHiddenBaseWrittenWithATrailingSlash (0.00s)
+  --- FAIL: TestDiscoverSkipsHiddenDirectories (0.00s)
+  FAIL
+  FAIL	github.com/charmbracelet/crush/internal/skills	0.006s
+  FAIL
+== internal/ui/chat  [1 test]
+  --- FAIL: TestJobTools_NonZeroExitIsNotShownAsSuccess (0.00s)
+  FAIL
+  FAIL	github.com/charmbracelet/crush/internal/ui/chat	0.045s
+  FAIL
+clean tree after: status lines 0
+exit=0

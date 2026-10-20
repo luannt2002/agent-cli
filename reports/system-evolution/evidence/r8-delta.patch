@@ -1,0 +1,322 @@
+diff --git a/DECISIONS.md b/DECISIONS.md
+index 0a017b5e..33d0ae95 100644
+--- a/DECISIONS.md
++++ b/DECISIONS.md
+@@ -338,7 +338,7 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
+ ## 2026-10-16 — Model đang chọn không dùng được: dừng, không đổi provider
+ **Trạng thái:** đã làm (chưa phát hành)
+ - **Chốt:** `resolveSelectedModels` (dùng cho cả `Load` lẫn nạp lại) không bao giờ thay lựa chọn bằng model của provider khác. Chỉ mất ID model mà provider vẫn dùng được: model mặc định của CÙNG provider (catalog, không có thì model đầu), log cảnh báo, không ghi xuống đĩa. Provider không dùng được (thiếu key, không còn, bị tắt): giữ nguyên lựa chọn, cờ `LargeUnresolved`/`SmallUnresolved`, `Load` vẫn thành công (để `agent-cli login` chạy), và `buildAgentModels` trả lỗi nêu provider/model kèm cách gỡ dùng được lúc đó. Test: `TestStartupFallbackIsNotPersisted` (đổi kỳ vọng), `TestSelectedModelGoneFallsBackWithinProvider`, `TestResolveSelectedModels_SameProviderCatalogDefault`, `TestResolveSelectedModels_NoCrossProviderFallback`, `TestBuildAgentModelsFailsClosedWhenSelectedProviderHasNoKey`, `TestNoFallbackErrorKeepsSentinel`, `TestBuildAgentModelsRefusesADisabledProvider` (provider dựng sẵn `"disable": true` mà model vẫn biết: trước đây vẫn bị gọi), `TestReloadDoesNotSwitchProviderWhenTheKeyDisappears` (đường nạp lại); E2E `scripts/eval/faults.sh` ca `selected-no-key`.
+-- **Vì:** luật cứng của workflow (§32: fallback chéo provider phải fail closed mặc định) và red team cuối (F1 HIGH): giả định "dừng thì không login được" sai, vì login chỉ cần nạp được cấu hình, không cần lời gọi LLM ở provider thay thế. Đo bằng provider giả, chọn `openai/gpt-4o` không có key: bản trước `run` thoát 0 sau 2 request sang provider `glm` (`"provider":"glm"` trong `--json`); bản này thoát 1, 0 request, ở local, qua server và khi mở TUI.
++- **Vì:** luật cứng của workflow (§32: fallback chéo provider phải fail closed mặc định) và red team cuối (F1 HIGH): không cần mượn provider khác để app khởi động được; chỉ cần app không đòi dựng agent lúc khởi động (bản vòng 6 dựa vào giả định "nạp được cấu hình là login chạy được", hoá ra sai vì `login` dựng cả workspace; xem "Đã thử và bỏ"). Đo bằng provider giả, chọn `openai/gpt-4o` không có key: bản trước `run` thoát 0 sau 2 request sang provider `glm` (`"provider":"glm"` trong `--json`); bản cuối thoát 1, 0 request, lỗi nêu provider/model ở cả local lẫn qua server (`faults.sh` ca `selected-no-key`, `selected-no-key-server`), `login` chạy được, TUI vào màn chọn model.
+ - **Đã thử và bỏ:** (1) gợi ý `-m provider/model` trong thông báo lỗi: đo bằng binary, `run -m qwen/qwen3-coder` vẫn dừng ở cùng lỗi (lỗi chặn trước khi `-m` được áp). (2) Để `app.New` coi lỗi này là chí mạng: TUI không mở, và `agent-cli login` cũng hỏng vì `login` dựng cả workspace (đọc `internal/cmd/login.go`, đo bằng probe `login no-such-platform`). Nay `app.New` khởi động không agent khi lỗi là "model đang chọn không dùng được" (`agent.SelectedModelUnavailable`, chỉ 4 lỗi provider/model không có; allowlist chặn vẫn dừng khởi động), TUI vào màn chọn model (đường onboarding sẵn có dựng agent sau khi chọn), `run`/`loop`/`routine` vẫn dừng ở `InitCoderAgentNonInteractive`. Test: `TestCreateWorkspaceStartsWhenSelectedModelIsUnavailable`, `TestUnavailableSelectedModelOpensOnboarding`, `TestSelectedModelUnavailableCoversOnlyUnusableSelections`; E2E `faults.sh` (probe `login`).
+ - **Lật lại khi:** có đường gọi LLM mới không đi qua `buildAgentModels` (khi đó app không agent có thể không còn là trạng thái an toàn).
+ 
+diff --git a/README.md b/README.md
+index 1c42ef25..4c00405b 100644
+--- a/README.md
++++ b/README.md
+@@ -20,7 +20,8 @@ agent-cli --version                        # bản vừa cài
+ 
+ Cần `git`, Go ≥ 1.27 (theo `go.mod`); `sha1sum`/`shasum` cho launcher; `jq` cho installer và `agent-cli-tmux` (bản
+ mở agent-cli trong tmux); `tmux` cho `agent-cli-tmux`; `python3` và `script` để chạy các script kiểm. Installer in
+-sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pull --ff-only && bash scripts/install-agent-cli.sh`.
++sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pull --ff-only && bash scripts/install-agent-cli.sh`, rồi
++thoát mọi client của các dự án đang mở (xem `agent-cli ps`) để server nền dựng lại bằng bản mới.
+ 
+ **Lần chạy đầu:**
+ 
+@@ -31,7 +32,7 @@ sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pu
+ 3. Thử provider trong một thư mục trống (`run` tự duyệt mọi quyền, xem [Khi nào không có hộp thoại
+    quyền](#khi-nào-không-có-hộp-thoại-quyền)): `cd "$(mktemp -d)" && agent-cli run "Trả lời đúng một chữ: PONG"`. In
+    ra `PONG` là provider chạy được; lỗi thì `run` in lỗi và thoát 1.
+-4. Mở TUI trong dự án của bạn: `cd <dự án> && agent-cli`.
++4. Mở TUI: `cd <dự án> && agent-cli` → màn Home → `→ Open current folder` (hoặc `agent-cli -c .` để vào thẳng dự án).
+ 
+ ## Một ngày làm việc
+ 
+@@ -46,7 +47,8 @@ Tất cả trong agent-cli; provider chỉ là nơi model chạy. Các từ work
+    dự án đều hỏi quyền (mặc định Deny), trừ các trường hợp ở [mục dưới](#khi-nào-không-có-hộp-thoại-quyền). Model chạy
+    ở provider đang chọn và agent-cli không tự chuyển provider; muốn khoá cứng danh sách model (kể cả trước cấu hình
+    của repo lạ) thì đặt allowlist (mục [Provider](#provider-dùng-nhiều-không-gọi-lén)).
+-6. **Xem tiến độ:** khung chat, To-Do (`ctrl+t`), Jobs (`alt+j`). Từ shell khác: `agent-cli ps`, `agent-cli jobs`, `agent-cli logs -f`.
++6. **Xem tiến độ:** khung chat, To-Do (`ctrl+t`), Jobs (`alt+j`). Từ shell khác: `agent-cli ps`; trong thư mục dự án
++   (hoặc kèm `-c <dir>`): `agent-cli jobs`, `agent-cli logs -f`.
+ 7. **Kiểm chứng:** tự chạy lệnh kiểm, hoặc giao bằng `agent-cli loop --verify "<lệnh>" "<việc>"` để "xong" là mã thoát của lệnh đó.
+ 8. **Làm tiếp sau:** đóng TUI không huỷ việc đang chạy: server của dự án giữ nó, tối đa 6 giờ (30 phút nếu nó kẹt chờ
+    bạn duyệt quyền hay trả lời). Mở lại `agent-cli` rồi chọn session, hoặc `agent-cli --continue` (session gần nhất),
+@@ -63,7 +65,8 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
+ ### Khi nào không có hộp thoại quyền
+ 
+ - `run`, `loop`, `routine` tự duyệt mọi yêu cầu của lượt chúng chạy, kể cả agent con và `agentic_fetch` của lượt;
+-  `run -s/-C` cũng vậy với session có sẵn. "Chưa sửa code" trong prompt chỉ là lời dặn model, không phải rào chắn.
++  `run -s/-C` cũng vậy với session có sẵn. "Chưa sửa code" trong prompt chỉ là lời dặn model, không phải rào chắn. Chúng
++  dùng mode hiện tại của dự án: nếu TUI để dự án ở plan mode thì `run`/`loop` chỉ đọc và lập kế hoạch.
+ - YOLO (`--yolo`, `ctrl+y`, hoặc `shift+tab` tới bước "code + YOLO"): duyệt mọi thứ, áp cho cả workspace.
+ - Nút "Allow for Session" trong hộp thoại; `permissions allow <tool>` trong crushrc.
+ - Muốn được hỏi: dùng TUI không bật YOLO, hoặc `agent-cli send -s <id> "..."` (gửi prompt vào session đang mở trong
+@@ -72,9 +75,10 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
+ - Hộp thoại quyền: `ctrl+a` cho phép một lần · `ctrl+s` cho phép cả session · `enter` (mặc định), `d`, `esc` là từ chối.
+   Không phím chữ nào cấp quyền.
+ 
+-**Repo lạ:** mở một repo là chạy `crushrc`/`.crushrc` của nó như Bash; `crush.json`/`.crush.json` của repo nới được
++**Repo lạ:** mở một repo là chạy `crushrc`/`.crushrc` của nó như Bash; `.env` của thư mục mở được nạp vào môi trường
++của agent-cli (trừ allowlist và các biến ranh giới, đã chụp từ trước); `crush.json`/`.crush.json` của repo nới được
+ quyền tool, khai hook và MCP server, đổi model/provider hay `base_url`; context file (`AGENTS.md`, `CLAUDE.md`,
+-`CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills` của repo vào thẳng prompt. Không có bước hỏi tin cậy: đọc
++`CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills`, `.crush/skills`, `.cursor/skills` của repo vào thẳng prompt. Không có bước hỏi tin cậy: đọc
+ các tệp đó trước khi mở repo không phải của bạn, và đừng `run`/`loop` trên repo chưa đọc.
+ 
+ ## Khái niệm
+@@ -103,18 +107,20 @@ các tệp đó trước khi mở repo không phải của bạn, và đừng `r
+ - Provider dựng sẵn trong catalog (`zai`, `openai`, `anthropic`…): đặt `AGENT_CLI_PROVIDER_ID`, chỉ cần model + key.
+ 
+ Provider dựng sẵn thứ hai dùng được khi key riêng của nó được export ở shell trước khi mở agent-cli (vd
+-`ANTHROPIC_API_KEY` trong `~/.bashrc`; tệp env chỉ cấu hình provider chính, biến khác trong đó không tới tiến trình
+-agent-cli), hoặc sau `agent-cli login openai|grok|copilot` (`login` không đối số là Charm Hyper; zai và anthropic chỉ
+-dùng key). `alt+p` chỉ hiện provider khai bằng `option visible-provider` trong crushrc (mẫu: provider chính, `openai`,
+-`anthropic`); provider khác thì thêm dòng đó hoặc chọn bằng `-m`.
++`ANTHROPIC_API_KEY` trong `~/.bashrc`; tên biến của từng provider: bảng trong [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md)).
++Tệp env cấu hình provider chính cùng `AGENT_CLI_ALLOWED_MODELS`/`AGENT_CLI_DELEGATION`; key của provider khác đặt trong
++đó không tới tiến trình agent-cli. Hoặc dùng `agent-cli login openai|grok|copilot` (`login` không đối số là Charm
++Hyper; zai và anthropic chỉ dùng key). `alt+p` chỉ hiện provider khai bằng `option visible-provider` trong crushrc
++(mẫu: provider chính, `openai`, `anthropic`); provider khác thì thêm dòng đó hoặc chọn bằng `-m`.
+ 
+ **Đổi provider.** `alt+p`, hoặc `agent-cli run -s <id> -m <provider>/<model> "..."`. Cả hai đổi model của cả dự án,
+ không chỉ một lượt. Đổi provider không làm mất mạch: cùng session chạy tiếp với lịch sử cũ (đã thử với LLM thật, một
+ lần: bước 1 dùng model local, bước 2 `-m` sang provider khác trên cùng session).
+ 
+-**Model của dự án nằm ở đâu.** Chọn model trong TUI, `run -m`, hay mở lại một session cũ đều ghi model vào
+-`<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong env. Muốn dự án theo env trở lại: xoá `models`
+-(và `recent_models`) trong tệp đó. `agent-cli dirs` liệt kê các tệp cấu hình đang áp.
++**Model của dự án nằm ở đâu.** Chọn model trong TUI, `run -m` (ở chế độ server mặc định; chế độ local chỉ đổi trong lượt
++đó), hay mở lại một session cũ đều ghi model vào `<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong
++env. Muốn dự án theo env trở lại: xoá `models` (và `recent_models`) trong tệp đó. `agent-cli dirs` in các thư mục cấu hình
++và dữ liệu đang dùng.
+ 
+ **Không gọi lén:**
+ 
+@@ -131,10 +137,15 @@ lần: bước 1 dùng model local, bước 2 `-m` sang provider khác trên cù
+   (TUI, `-m`, `crush.json` của repo); ngoài danh sách thì dừng với `MODEL_NOT_ALLOWED`.
+ - Tool `claude_code`/`codex` (giao việc cho Claude Code/Codex) mặc định TẮT. Chỉ có khi `AGENT_CLI_DELEGATION=on`,
+   allowlist có model `claude_code:<id>`/`codex:<id>`, và máy có CLI đó. Mỗi lần giao vẫn hỏi quyền, trừ các trường hợp
+-  ở [mục trên](#khi-nào-không-có-hộp-thoại-quyền). Bash chặn gọi thẳng `claude`, `codex`, `gemini`, `qwen`… theo tên.
++  ở [mục trên](#khi-nào-không-có-hộp-thoại-quyền). Bash chặn gọi thẳng `claude`, `codex`, `gemini`, `qwen`… theo tên
++  (không chặn bản đổi tên hay script; xem giới hạn dưới).
+ 
+ **Giới hạn của lời hứa trên:**
+ 
++- Lời hứa chỉ phủ lời gọi LLM do chính agent-cli phát ra, không phủ việc model làm qua tool. Chặn `claude`/`codex`… chỉ
++  theo tên: bản chép đổi tên, `python -c`, script tự viết hay `curl` tới API của provider khác (bằng CLI đã đăng nhập
++  hoặc key có trên máy) không bị nhận ra. Dưới `run`/`loop`/`routine`/YOLO các lệnh đó chạy không hỏi, và sổ ghi LLM
++  không ghi chúng. Cần chắc chắn thì chạy việc tự duyệt ở nơi không có CLI đã đăng nhập hay key của provider khác.
+ - Không đặt allowlist thì cấu hình (kể cả `crush.json` của repo lạ) chọn được model của provider khác mà không hỏi.
+   TUI hiện model đang chọn; output thường của `run` thì không (xem bằng `run --json` hoặc sổ ghi LLM).
+ - Allowlist chỉ so TÊN: nó không kiểm `base_url` thật, nên ai sửa được cấu hình thì trỏ được cùng tên sang endpoint khác.
+@@ -154,7 +165,7 @@ AGENT_CLI_ALLOWED_MODELS="main:qwen3.8"           # provider tự khai có ID l
+ # không đặt AGENT_CLI_DELEGATION: giao việc sang provider khác vẫn tắt
+ ```
+ 
+-Với cấu hình này, lời gọi LLM ẩn nào tới provider khác là **bug** của agent-cli, không phải tính năng.
++Với cấu hình này, lời gọi LLM nào do agent-cli phát ra tới provider khác là **bug** của agent-cli, không phải tính năng.
+ Kiểm bằng sổ ghi LLM (mục [Quan sát sâu](#quan-sát-sâu)).
+ 
+ ## "Xong" nghĩa là gì
+@@ -171,7 +182,7 @@ MODEL NÓI XONG ≠ AGENT-CLI ĐÃ XONG.
+   routine `maintenance` thoát 0: hôm nay không có việc). Chỉ một trong hai thì vẫn `GREEN`, kèm cảnh báo. Thư mục
+   không phải repo git (hoặc chưa có commit) thì không biết cây có đổi không, nên không ra `NO_CHANGE`.
+ - `GREEN` chỉ chứng minh lệnh verify thoát 0. Agent tự duyệt mọi quyền nên sửa được chính test hay script mà verify
+-  chạy: luôn duyệt diff trước khi commit, nhất là tệp test, `Makefile`, script verify (báo cáo routine có cờ
++  chạy: luôn duyệt diff trước khi commit hay merge (routine tạo với `--commit` tự commit trên nhánh của nó), nhất là tệp test, `Makefile`, script verify (báo cáo routine có cờ
+   `touched_tests`/`touched_gate` khi agent đụng chúng).
+ 
+ | Lệnh | Thoát 0 | Thoát 1 | Khác |
+@@ -200,8 +211,9 @@ agent-cli routine list                                           # lượt cuố
+   nghĩa tạo với `--commit`. Báo cáo ghi ra ngoài worktree; bạn duyệt diff
+   rồi dọn bằng lệnh được in.
+ - `routine list`/`show` cho thấy lượt đang chạy (`RUNNING`), lượt chết giữa chừng (`ABANDONED`), lượt lỗi sớm (`ERROR`).
+-- Lịch chỉ được IN ra (`routine schedule <tên> --print`, chỉ cho mode `maintenance`); bạn tự cài timer/crontab. Lịch
+-  ghim sha256 của định nghĩa: sửa định nghĩa thì in và cài lại. Allowlist đặt trong tệp env: lịch không chép allowlist
++- Lịch chỉ được IN ra (`routine schedule <tên> --print`, chỉ cho mode `maintenance`), sau khi bạn thêm khối `schedule`
++  vào tệp định nghĩa (`routine show <tên>` cho đường dẫn; ví dụ trong guide); bạn tự cài timer/crontab. Lịch ghim sha256
++  của định nghĩa: sửa định nghĩa thì in và cài lại. Allowlist đặt trong tệp env: lịch không chép allowlist
+   từ shell.
+ - Chế độ không người trực không phải sandbox: chỉ chạy routine trên repo và máy bạn tin. Chi tiết và ví dụ:
+   [Loop và Routine](docs/agent-cli-local-setup.md#loop-và-routine).
+@@ -239,7 +251,8 @@ lần: `AGENTS.md` chứa khẳng định cũ sai và một chỉ thị độc,
+ | Model đã chọn cho một dự án | `<dự án>/.crush/crush.json` (thắng env; mục [Provider](#provider-dùng-nhiều-không-gọi-lén)) |
+ | Cấu hình chính, quyền công cụ | `~/.config/agent-cli/crushrc` (mẫu: `agent-cli.crushrc.example`) |
+ | Màu giao diện | `~/.config/agent-cli/themes/*.json`, chọn bằng `options.tui.active_theme` |
+-| Dữ liệu phiên, log | `~/.local/share/agent-cli`, và `.crush/` trong từng dự án (tự có `.gitignore` bỏ qua mọi thứ bên trong) |
++| Dữ liệu phiên | `~/.local/share/agent-cli`, và `.crush/` trong từng dự án (tự có `.gitignore` bỏ qua mọi thứ bên trong) |
++| Log | `agent-cli logs` (đọc đúng tệp log của dự án); `agent-cli dirs` in các thư mục đang dùng |
+ 
+ Tên tệp và biến bên trong (`crush.json`, `CRUSH_*`, `.crush/`) giữ chữ Crush để dễ gộp upstream. Launcher `agent-cli`
+ (wrapper ở `~/.local/bin`) đặt sẵn các biến đó, tắt metrics, tắt cập nhật catalog provider và tắt kiểm tra bản mới của
+diff --git a/internal/agent/provider_isolation_test.go b/internal/agent/provider_isolation_test.go
+index d94d118a..0e2137b9 100644
+--- a/internal/agent/provider_isolation_test.go
++++ b/internal/agent/provider_isolation_test.go
+@@ -84,31 +84,32 @@ func TestBuildAgentModelsFailsClosedWhenSelectedProviderHasNoKey(t *testing.T) {
+ 	require.Contains(t, err.Error(), "agent-cli login")
+ }
+ 
+-// Provider dựng sẵn bị tắt (`"disable": true`) mà model vẫn còn trong catalog: người
+-// dùng tắt để không gửi code tới đó, nên dựng agent phải dừng có lỗi, không gọi nó
+-// (soát vòng 6: bản trước vẫn gửi 8 request tới provider đã tắt).
++// Provider bị tắt (`Disable`) mà model vẫn còn: người dùng tắt để không gửi code tới đó,
++// nên dựng agent phải dừng có lỗi, không gọi nó (soát vòng 6: bản trước vẫn gửi 8 request
++// tới provider dựng sẵn đã tắt). Provider dựng sẵn bị tắt vẫn nằm trong Providers với
++// Disable=true; đặt cờ trực tiếp để test không phụ thuộc catalog nạp theo tiến trình.
+ func TestBuildAgentModelsRefusesADisabledProvider(t *testing.T) {
+ 	env := testEnv(t)
+-	global := t.TempDir()
+-	t.Setenv("CRUSH_GLOBAL_CONFIG", global)
+-	t.Setenv("CRUSH_GLOBAL_DATA", global)
+ 	crushJSON := `{
+-  "options": {"disable_provider_auto_update": true},
++  "options": {"disable_default_providers": true, "disable_provider_auto_update": true},
+   "providers": {
+-    "openai": {"api_key": "sk-test", "disable": true},
+     "qwen": {"id": "qwen", "name": "Qwen", "type": "openai-compat", "base_url": "http://127.0.0.1:9/qwen/v1", "api_key": "x",
+       "models": [{"id": "qwen3-coder", "name": "q", "context_window": 8192, "default_max_tokens": 128}]}},
+-  "models": {"large": {"provider": "openai", "model": "gpt-4o"}}
++  "models": {"large": {"provider": "qwen", "model": "qwen3-coder"}}
+ }`
+ 	require.NoError(t, os.WriteFile(filepath.Join(env.workingDir, "crush.json"), []byte(crushJSON), 0o644))
+ 	cfg, err := config.Init(env.workingDir, "", false)
+ 	require.NoError(t, err)
+ 	cfg.SetupAgents()
++	pc, ok := cfg.Config().Providers.Get("qwen")
++	require.True(t, ok)
++	pc.Disable = true
++	cfg.Config().Providers.Set("qwen", pc)
+ 	coord := &coordinator{cfg: cfg, sessions: env.sessions, messages: env.messages, permissions: env.permissions, history: env.history, filetracker: *env.filetracker}
+ 
+ 	_, _, err = coord.buildAgentModels(t.Context(), false)
+ 	require.ErrorIs(t, err, errLargeModelProviderNotConfigured)
+-	require.Contains(t, err.Error(), `"openai"`)
++	require.Contains(t, err.Error(), `"qwen"`)
+ 	require.True(t, SelectedModelUnavailable(err), "the app still starts so another model can be picked")
+ }
+ 
+diff --git a/internal/client/proto.go b/internal/client/proto.go
+index 04e858b3..cc77b6e1 100644
+--- a/internal/client/proto.go
++++ b/internal/client/proto.go
+@@ -598,8 +598,9 @@ func (c *Client) InitiateAgentProcessing(ctx context.Context, id string, interac
+ 		return fmt.Errorf("failed to initiate session agent processing: %w", err)
+ 	}
+ 	defer rsp.Body.Close()
+-	if rsp.StatusCode != http.StatusOK {
+-		return fmt.Errorf("failed to initiate session agent processing: status code %d", rsp.StatusCode)
++	// Giữ nội dung lỗi của server (vd model đang chọn không dùng được, nêu provider/model).
++	if err := checkStatus(rsp); err != nil {
++		return fmt.Errorf("failed to initiate session agent processing: %w", err)
+ 	}
+ 	return nil
+ }
+diff --git a/internal/client/proto_test.go b/internal/client/proto_test.go
+index 28132935..8778aeb9 100644
+--- a/internal/client/proto_test.go
++++ b/internal/client/proto_test.go
+@@ -144,6 +144,25 @@ func TestSendMessageDecodesErrorBody(t *testing.T) {
+ 	require.Contains(t, err.Error(), "session id is required")
+ }
+ 
++// Dựng agent thất bại phía server (vd model đang chọn không dùng được) thì client phải
++// giữ nội dung lỗi: thiếu nó, `run`/`loop`/`send` qua server chỉ in "status code 500",
++// không nêu provider/model (soát vòng 7).
++func TestInitiateAgentProcessingDecodesErrorBody(t *testing.T) {
++	t.Parallel()
++
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		w.WriteHeader(http.StatusInternalServerError)
++		_ = json.NewEncoder(w).Encode(proto.Error{Message: `provider "openai", model "gpt-4o" is unavailable`})
++	}))
++	defer srv.Close()
++
++	c := captureClient(t, srv)
++	err := c.InitiateAgentProcessing(context.Background(), "ws1", false)
++	require.Error(t, err)
++	require.Contains(t, err.Error(), "status code 500")
++	require.Contains(t, err.Error(), `provider "openai"`)
++}
++
+ func TestSendMessageFallsBackOnMalformedErrorBody(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/scripts/eval/faults.sh b/scripts/eval/faults.sh
+index 12fbe3b7..5808adf8 100644
+--- a/scripts/eval/faults.sh
++++ b/scripts/eval/faults.sh
+@@ -3,7 +3,9 @@
+ # đặt ở provider "glm" — lời gọi ẩn nào lọt sang provider khác đều hiện ở cột glm (đếm phía server).
+ # Ca selected-no-key: model chính chọn ở provider dựng sẵn (openai) không có key, qwen/glm thì có: phải
+ # dừng có lỗi nêu openai, không request nào tới server giả (không đổi provider lặng lẽ), nhưng
+-# `agent-cli login` vẫn chạy được (probe không mạng: nền tảng không tồn tại → "unknown platform").
++# `agent-cli login` vẫn chạy được (probe không mạng: nền tảng không tồn tại → "unknown platform"). Ca
++# selected-no-key-server: như trên nhưng qua server (CRUSH_CLIENT_SERVER=1, socket riêng trong thư mục ca), chế độ
++# mặc định của launcher: lỗi phải tới được client, nêu "openai".
+ # Thoát 1 khi: có request tới glm ở bất kỳ ca nào; ca selected-no-key không fail closed hoặc login không chạy được;
+ # ca ok không thoát 0 hoặc không có request main nào tới qwen (cổng không được xanh khi chẳng có gì chạy).
+ # Dùng: bash scripts/eval/faults.sh <thư-mục-mới> <binary>
+@@ -20,11 +22,12 @@ run_case() {
+   printf '%s' "$rules" > "$P/rules.json"
+   timeout 90 python3 -I "$R/scripts/eval/fakellm.py" "$P/port" "$P/log" "$P/rules.json" >/dev/null 2>&1 &
+   for _ in $(seq 50); do [ -s "$P/port" ] && break; sleep 0.1; done
+-  local port qport cw=100000 large='{"provider":"qwen","model":"qwen3-coder"}' nodef=true
++  local port qport cw=100000 large='{"provider":"qwen","model":"qwen3-coder"}' nodef=true cs=0 host=()
+   port=$(cat "$P/port"); qport=$port
+   [ "$name" = provider-down ] && qport=1 # không ai nghe ở cổng 1: connection refused
+   [ "$name" = summary-loop ] && cw=30000  # đầy lại sau vài bước để tự tóm tắt
+-  [ "$name" = selected-no-key ] && large='{"provider":"openai","model":"gpt-4o"}' nodef=false
++  case "$name" in selected-no-key*) large='{"provider":"openai","model":"gpt-4o"}' nodef=false ;; esac
++  [ "$name" = selected-no-key-server ] && cs=1 host=(--host unix://s.sock)
+   cat > "$P/proj/crush.json" <<JSON
+ {"providers":{
+   "qwen":{"type":"openai-compat","base_url":"http://127.0.0.1:$qport/qwen/v1","api_key":"x","models":[{"id":"qwen3-coder","name":"qwen3-coder","context_window":$cw,"default_max_tokens":1000}]},
+@@ -36,15 +39,15 @@ JSON
+     cd "$P/proj" && git init -q && echo "# demo" > README.md
+     env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
+       CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \
+-      CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=0 \
+-      timeout 40 "$BIN" run --json "fault probe $name" > "$P/out.json" 2> "$P/err.txt"
++      CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=$cs CRUSH_SERVER_IDLE_TIMEOUT=1 \
++      timeout 40 "$BIN" "${host[@]}" run --json "fault probe $name" > "$P/out.json" 2> "$P/err.txt"
+     echo $? > "$P/rc"
+-    if [ "$name" = selected-no-key ]; then
++    case "$name" in selected-no-key*)
+       env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
+         CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \
+-        CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=0 \
+-        timeout 20 "$BIN" login no-such-platform > "$P/login.txt" 2>&1
+-    fi
++        CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=$cs CRUSH_SERVER_IDLE_TIMEOUT=1 \
++        timeout 20 "$BIN" "${host[@]}" login no-such-platform > "$P/login.txt" 2>&1 ;;
++    esac
+   )
+   sleep 1
+ }
+@@ -59,6 +62,7 @@ run_case truncated-stream '[{"match":"fault","steps":[{"raw":"data: {\"id\":\"c1
+ run_case hang '[{"match":"fault","steps":[{"sleep":60}]}]'
+ # Model làm lại việc từ đầu sau mỗi lần tự tóm tắt (lời nhắc làm tiếp vẫn chứa prompt gốc).
+ run_case selected-no-key '[]'
++run_case selected-no-key-server '[]'
+ run_case summary-loop '[{"match":"fault","steps":[{"tool":"bash","args":{"command":"seq 1 6000","description":"a"}},{"tool":"bash","args":{"command":"seq 6001 12000","description":"b"}},{"tool":"bash","args":{"command":"seq 12001 18000","description":"c"}},{"text":"never reached"}]}]'
+ 
+ python3 -I - "$OUT" <<'PY'
+@@ -86,10 +90,12 @@ for name in sorted(os.listdir(out)):
+     print("%-17s %4s %-5d %-34s %s" % (name, rc, glm, err, roles))
+     if glm:
+         bad.append(name + ": request to glm")
+-    if name == "selected-no-key":
++    if name.startswith("selected-no-key"):
+         msg = o.get("error", "") + open(os.path.join(P, "err.txt")).read()
+-        if rc in ("0", "?") or reqs or '"openai"' not in msg:
++        if rc in ("0", "?") or reqs:
+             bad.append(name + ": did not fail closed (rc=%s, requests=%d)" % (rc, len(reqs)))
++        elif '"openai"' not in msg:
++            bad.append(name + ": the error does not name the unavailable provider")
+         login = open(os.path.join(P, "login.txt")).read() if os.path.exists(os.path.join(P, "login.txt")) else ""
+         if "unknown platform" not in login.lower():
+             bad.append(name + ": agent-cli login cannot start (%s)" % login.strip().splitlines()[-1][:80] if login.strip() else name + ": no login output")

@@ -1,0 +1,17 @@
+--- FAIL: TestClientServerWarnsAboutDataDirs (0.02s)
+    datadir_test.go:108: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2c/internal/cmd/datadir_test.go:108
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestClientServerWarnsAboutDataDirs2713214937/001/repo"
+        	            	actual  : "/tmp/TestClientServerWarnsAboutDataDirs2713214937/001/repo/sub"
+        	Messages:   	process cwd is the workspace's working dir
+--- FAIL: TestLocalWorkspaceFromSubdirIsTheProject (0.05s)
+    datadir_test.go:163: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2c/internal/cmd/datadir_test.go:163
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestLocalWorkspaceFromSubdirIsTheProject4043134067/001/repo"
+        	            	actual  : "/tmp/TestLocalWorkspaceFromSubdirIsTheProject4043134067/001/repo/sub"
+        	Messages:   	process cwd is the workspace's working dir
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.123s
+FAIL

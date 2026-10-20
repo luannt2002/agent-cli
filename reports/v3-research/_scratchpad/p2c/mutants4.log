@@ -1,0 +1,32 @@
+== V1 cmd không đặt VerifyDir (prompt không nêu thư mục verify)
+--- FAIL: TestExecuteLoop_VerifyDirIsNamedInThePrompt (0.08s)
+        	Error:      	"do the thing\n\nDefinition of done: running `test -f done.txt` exits with code 0.\nDo not modify the tests, the verify command or any gate to make it pass. If you believe a test is wrong, say so in your final answer instead of editing it." does not contain "Definition of done: running `test -f done.txt` in `sub/` exits with code 0."
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.129s
+FAIL
+== V2 dấu vân tay tính ở thư mục mở (như cũ)
+--- FAIL: TestExecuteLoop_FingerprintCoversTheWholeRepo (0.06s)
+        	Error:      	Should not be: "STALLED"
+        	Messages:   	the agent changed the repo outside sub/
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.108s
+FAIL
+== V3 prompt đổi cả khi VerifyDir rỗng
+--- FAIL: TestPromptsNameTheVerifyDirOnlyWhenItDiffers (0.00s)
+        	Error:      	Not equal: 
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/loop	0.004s
+FAIL
+== V4 lượt sửa không nêu thư mục verify
+--- FAIL: TestPromptsNameTheVerifyDirOnlyWhenItDiffers (0.00s)
+        	Error:      	"g\n\nThe previous attempt did not pass verification.\nVerify command: `go test ./...`\nResult: exit code 1\nOutput (last 60 lines):\nFAIL\n\nFind and fix the cause in the code. Do not modify the tests, the verify command or any gate to make it pass. If you believe a test is wrong, say so in your final answer instead of editing it.\nRepair 1 of 2." does not contain "Verify command: `go test ./...` (run in `sub/`)\nResult: exit code 1"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/loop	0.004s
+FAIL
+--- FAIL: TestExecuteLoop_VerifyDirIsNamedInThePrompt (0.07s)
+        	Error:      	"do the thing\n\nThe previous attempt did not pass verification.\nVerify command: `test -f done.txt`\nResult: exit code 1\nOutput (last 60 lines):\n\n\nFind and fix the cause in the code. Do not modify the tests, the verify command or any gate to make it pass. If you believe a test is wrong, say so in your final answer instead of editing it.\nRepair 1 of 2." does not contain "Verify command: `test -f done.txt` (run in `sub/`)"
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.124s
+FAIL
+before: 1d22627391065319fd35e6fbcbef2e750dfd40c55e99318353cd97e4987981d1  -
+after:  1d22627391065319fd35e6fbcbef2e750dfd40c55e99318353cd97e4987981d1  -

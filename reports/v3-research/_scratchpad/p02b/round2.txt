@@ -1,0 +1,52 @@
+binary: /home/luannt/.cache/v3ev/p02b-bin/agent-cli-r2 (agent-cli version v0.2.1-0.20261019131721-26bed1e9b0ff+dirty)
+HCL: workspace env from Home carries .env names=[] | CLI env canary names=['OPENAI_API_KEY:original']
+HCL: NOT_EXPOSED
+HCS: workspace env from Home carries .env names=[] | CLI env canary names=['OPENAI_API_KEY:original']
+HCS: NOT_EXPOSED
+local: rc=0 cli env canary names=['OPENAI_API_KEY:original']
+server: rc=0 cli env canary names=['OPENAI_API_KEY:original']
+CLI: NOT_EXPOSED
+LN: Home after Alt+W started '<binary> --cwd repo', not repo/evil: NOT_EXPOSED
+SV: server bash tool sees plain .env variable: PASS
+routine (no --commit) rc=0: verify sees on=1 commit=0
+routine (--commit)    rc=0: verify sees on=1 commit=1
+loop (.env sets both=1) rc=1: verify sees on=unset commit=unset
+UNATTENDED-VERIFY: PASS
+faults rc=0 (163s)
+    FAULTS: PASS
+qwen rc=0 (2s)
+    QWEN-ONLY: PASS
+workspaces rc=0 (2s)
+    WORKSPACES: PASS
+runjson rc=0 (57s)
+    PASS
+c5 rc=0 (18s)
+    C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist qwen-only: second client -> ['none'
+home rc=0 (9s)
+    NOT_EXPOSED
+routine rc=0 (19s) PASS
+loop rc=0 (16s) PASS
+suite rc=1
+names: before=4707 after=4716
+== FAIL before: 14
+== FAIL after: 14
+== lost (before only): 0
+== new (after only): 9
+   internal/agent/tools/provider TestRunCommandIgnoresProjectDotenv -->pass
+   internal/backend TestRunShellCommandIgnoresProjectDotenvTrustedKeys -->pass
+   internal/cmd TestEnsureServer_RefusesModelCommandOnBusyStaleServer -->pass
+   internal/cmd TestEnsureServer_RefusesModelCommandOnBusyStaleServer/busy -->pass
+   internal/cmd TestEnsureServer_RefusesModelCommandOnBusyStaleServer/legacy_busy -->pass
+   internal/cmd TestVerifyCarriesTheCurrentUnattendedState -->pass
+   internal/execpolicy TestChildEnvCarriesTheCurrentUnattendedState -->pass
+   internal/execpolicy TestOriginalEnvironDropsLaterChanges -->pass
+   internal/workspace TestShellCommandIgnoresProjectDotenvTrustedKeys -->pass
+== status changed: 0
+race rc=1 DATA_RACE=0 nonV3fails=0
+ok  	github.com/charmbracelet/crush/internal/cmd	15.277s
+ok  	github.com/charmbracelet/crush/internal/cmd/clientserverrace	7.640s
+FAIL	github.com/charmbracelet/crush/internal/backend	22.568s
+ok  	github.com/charmbracelet/crush/internal/workspace	8.966s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/provider	2.197s
+ok  	github.com/charmbracelet/crush/internal/execpolicy	1.026s
+ROUND2 DONE

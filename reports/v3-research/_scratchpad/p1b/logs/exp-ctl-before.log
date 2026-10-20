@@ -1,0 +1,2 @@
+TC: OK — MCP tool_result (name, is_error, content)=[('mcp_v3stub_stub_echo', False, 'echo')] | spill files=0
+EXPOSURE: ran 1 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p1b-ctl-before/verdicts.txt

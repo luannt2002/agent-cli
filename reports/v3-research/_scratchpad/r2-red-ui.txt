@@ -1,0 +1,10 @@
+        	Error:      	"This session last ran on q/x; continuing on the project model p/a (alt+m to change)" does not contain "alt+p"
+        	Error:      	Should be empty, but was [This session last ran on q/x; continuing on the project model p/a (alt+m to change)]
+--- FAIL: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_provider (0.01s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/reload_of_shown_session (0.01s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/ui/model	0.068s
+FAIL

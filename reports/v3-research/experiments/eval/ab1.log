@@ -1,0 +1,66 @@
+== s1-simple-bug A 23:48:32
+{"scenario": "s1-simple-bug", "passed": true, "false_done": false, "seconds": 14.9, "llm_calls": 6, "input_tokens": 96065, "output_tokens": 522, "tool_calls": 5}
+== s1-simple-bug B 23:48:47
+{"scenario": "s1-simple-bug", "passed": true, "false_done": false, "seconds": 11.9, "llm_calls": 6, "input_tokens": 95598, "output_tokens": 407, "tool_calls": 4}
+== s2-multi-file-bug A 23:48:59
+{"scenario": "s2-multi-file-bug", "passed": true, "false_done": false, "seconds": 29.3, "llm_calls": 9, "input_tokens": 159978, "output_tokens": 1495, "tool_calls": 11}
+== s2-multi-file-bug B 23:49:29
+{"scenario": "s2-multi-file-bug", "passed": true, "false_done": false, "seconds": 23.5, "llm_calls": 7, "input_tokens": 137868, "output_tokens": 1265, "tool_calls": 10}
+== s3-feature A 23:49:53
+{"scenario": "s3-feature", "passed": true, "false_done": false, "seconds": 17.1, "llm_calls": 6, "input_tokens": 96449, "output_tokens": 893, "tool_calls": 6}
+== s3-feature B 23:50:11
+{"scenario": "s3-feature", "passed": true, "false_done": false, "seconds": 42.5, "llm_calls": 12, "input_tokens": 281138, "output_tokens": 2065, "tool_calls": 11}
+== s4-refactor A 23:50:54
+{"scenario": "s4-refactor", "passed": true, "false_done": false, "seconds": 25.2, "llm_calls": 8, "input_tokens": 138903, "output_tokens": 1299, "tool_calls": 12}
+== s4-refactor B 23:51:20
+{"scenario": "s4-refactor", "passed": true, "false_done": false, "seconds": 43.5, "llm_calls": 8, "input_tokens": 186890, "output_tokens": 2521, "tool_calls": 15}
+== s5-debug-unknown A 23:52:04
+{"scenario": "s5-debug-unknown", "passed": true, "false_done": false, "seconds": 31.5, "llm_calls": 8, "input_tokens": 181878, "output_tokens": 1682, "tool_calls": 11}
+== s5-debug-unknown B 23:52:36
+{"scenario": "s5-debug-unknown", "passed": true, "false_done": false, "seconds": 26.3, "llm_calls": 8, "input_tokens": 162229, "output_tokens": 1416, "tool_calls": 9}
+== s6-test-integrity A 23:53:03
+{"scenario": "s6-test-integrity", "passed": true, "false_done": false, "seconds": 15.9, "llm_calls": 7, "input_tokens": 115859, "output_tokens": 626, "tool_calls": 6}
+== s6-test-integrity B 23:53:19
+{"scenario": "s6-test-integrity", "passed": true, "false_done": false, "seconds": 23.7, "llm_calls": 8, "input_tokens": 160504, "output_tokens": 1096, "tool_calls": 8}
+== s7-review A 23:53:43
+{"scenario": "s7-review", "passed": true, "false_done": false, "seconds": 75.5, "llm_calls": 7, "input_tokens": 130340, "output_tokens": 5065, "tool_calls": 7}
+== s7-review B 23:54:59
+{"scenario": "s7-review", "passed": true, "false_done": false, "seconds": 62.9, "llm_calls": 5, "input_tokens": 81920, "output_tokens": 4319, "tool_calls": 4}
+== s10-resume A 23:56:02
+{"scenario": "s10-resume", "passed": true, "false_done": false, "seconds": 24.9, "llm_calls": 7, "input_tokens": 120741, "output_tokens": 1378, "tool_calls": 8}
+== s10-resume B 23:56:28
+{"scenario": "s10-resume", "passed": true, "false_done": false, "seconds": 43.4, "llm_calls": 7, "input_tokens": 123859, "output_tokens": 2876, "tool_calls": 8}
+== s12-multi-agent A 23:57:12
+{"scenario": "s12-multi-agent", "passed": true, "false_done": false, "seconds": 30.3, "llm_calls": 11, "input_tokens": 90922, "output_tokens": 2667, "tool_calls": 7}
+== s12-multi-agent B 23:57:43
+{"scenario": "s12-multi-agent", "passed": true, "false_done": false, "seconds": 32.5, "llm_calls": 11, "input_tokens": 90797, "output_tokens": 2917, "tool_calls": 7}
+== s14-wrong-context A 23:58:15
+{"scenario": "s14-wrong-context", "passed": true, "false_done": false, "seconds": 14.5, "llm_calls": 6, "input_tokens": 97279, "output_tokens": 609, "tool_calls": 6}
+== s14-wrong-context B 23:58:30
+{"scenario": "s14-wrong-context", "passed": true, "false_done": false, "seconds": 17.0, "llm_calls": 6, "input_tokens": 97452, "output_tokens": 807, "tool_calls": 6}
+== s16-review-shared A 23:58:48
+{"scenario": "s16-review-shared", "passed": true, "false_done": false, "seconds": 58.8, "llm_calls": 11, "input_tokens": 239799, "output_tokens": 3431, "tool_calls": 12}
+== s16-review-shared B 23:59:47
+{"scenario": "s16-review-shared", "passed": true, "false_done": false, "seconds": 43.8, "llm_calls": 6, "input_tokens": 106034, "output_tokens": 2839, "tool_calls": 6}
+== s17-single-agent A 00:00:31
+{"scenario": "s17-single-agent", "passed": true, "false_done": false, "seconds": 11.3, "llm_calls": 4, "input_tokens": 57674, "output_tokens": 582, "tool_calls": 5}
+== s17-single-agent B 00:00:43
+{"scenario": "s17-single-agent", "passed": true, "false_done": false, "seconds": 11.7, "llm_calls": 4, "input_tokens": 57683, "output_tokens": 599, "tool_calls": 5}
+== done 00:00:55
+chung: 12 | chỉ A: [] | chỉ B: []
+| kịch bản | passed A→B | false_done A→B | seconds A→B | llm_calls A→B | input_tokens A→B | output_tokens A→B | tool_calls A→B | llm_errors A→B |
+|---|---|---|---|---|---|---|---|---|
+| s1-simple-bug | True→True | False→False | 14.9→11.9 | 6→6 | 96065→95598 | 522→407 | 5→4 | 0→0 |
+| s10-resume | True→True | False→False | 24.9→43.4 | 7→7 | 120741→123859 | 1378→2876 | 8→8 | 0→0 |
+| s12-multi-agent | True→True | False→False | 30.3→32.5 | 11→11 | 90922→90797 | 2667→2917 | 7→7 | 0→0 |
+| s14-wrong-context | True→True | False→False | 14.5→17.0 | 6→6 | 97279→97452 | 609→807 | 6→6 | 0→0 |
+| s16-review-shared | True→True | False→False | 58.8→43.8 | 11→6 | 239799→106034 | 3431→2839 | 12→6 | 0→0 |
+| s17-single-agent | True→True | False→False | 11.3→11.7 | 4→4 | 57674→57683 | 582→599 | 5→5 | 0→0 |
+| s2-multi-file-bug | True→True | False→False | 29.3→23.5 | 9→7 | 159978→137868 | 1495→1265 | 11→10 | 0→0 |
+| s3-feature | True→True | False→False | 17.1→42.5 | 6→12 | 96449→281138 | 893→2065 | 6→11 | 0→0 |
+| s4-refactor | True→True | False→False | 25.2→43.5 | 8→8 | 138903→186890 | 1299→2521 | 12→15 | 0→0 |
+| s5-debug-unknown | True→True | False→False | 31.5→26.3 | 8→8 | 181878→162229 | 1682→1416 | 11→9 | 0→0 |
+| s6-test-integrity | True→True | False→False | 15.9→23.7 | 7→8 | 115859→160504 | 626→1096 | 6→8 | 0→0 |
+| s7-review | True→True | False→False | 75.5→62.9 | 7→5 | 130340→81920 | 5065→4319 | 7→4 | 0→0 |
+| **tổng** | 12→12 | 0→0 | 343→376 | 90→88 | 1525887→1581972 | 20249→23127 | 96→93 | 0→0 |
+lọt provider: 0

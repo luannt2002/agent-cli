@@ -1,0 +1,33 @@
+ok  	github.com/charmbracelet/crush/internal/backend	24.894s
+ok  	github.com/charmbracelet/crush/internal/agent	83.180s
+?   	github.com/charmbracelet/crush/internal/agent/agenttest	[no test files]
+ok  	github.com/charmbracelet/crush/internal/agent/hyper	1.046s
+?   	github.com/charmbracelet/crush/internal/agent/notify	[no test files]
+ok  	github.com/charmbracelet/crush/internal/agent/prompt	1.171s
+ok  	github.com/charmbracelet/crush/internal/agent/tools	15.955s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/mcp	6.848s
+ok  	github.com/charmbracelet/crush/internal/agent/tools/provider	1.241s
+ok  	github.com/charmbracelet/crush/internal/cmd	15.446s
+ok  	github.com/charmbracelet/crush/internal/cmd/clientserverrace	13.236s
+ok  	github.com/charmbracelet/crush/internal/ui/anim	1.067s
+ok  	github.com/charmbracelet/crush/internal/ui/attachments	3.025s
+ok  	github.com/charmbracelet/crush/internal/ui/chat	459.483s
+ok  	github.com/charmbracelet/crush/internal/ui/common	1.532s
+ok  	github.com/charmbracelet/crush/internal/ui/completions	1.315s
+ok  	github.com/charmbracelet/crush/internal/ui/dialog	9.427s
+ok  	github.com/charmbracelet/crush/internal/ui/diffview	15.142s
+ok  	github.com/charmbracelet/crush/internal/ui/exitbanner	1.898s
+ok  	github.com/charmbracelet/crush/internal/ui/home	1.607s
+ok  	github.com/charmbracelet/crush/internal/ui/image	1.027s
+ok  	github.com/charmbracelet/crush/internal/ui/list	1.481s
+?   	github.com/charmbracelet/crush/internal/ui/logo	[no test files]
+?   	github.com/charmbracelet/crush/internal/ui/logo/example	[no test files]
+ok  	github.com/charmbracelet/crush/internal/ui/model	47.735s
+ok  	github.com/charmbracelet/crush/internal/ui/notification	1.035s
+ok  	github.com/charmbracelet/crush/internal/ui/styles	2.462s
+?   	github.com/charmbracelet/crush/internal/ui/util	[no test files]
+ok  	github.com/charmbracelet/crush/internal/ui/xchroma	1.362s
+ok  	github.com/charmbracelet/crush/internal/workspace	8.190s
+ok  	github.com/charmbracelet/crush/internal/projects	3.761s
+ok  	github.com/charmbracelet/crush/internal/permission	1.261s
+ok  	github.com/charmbracelet/crush/internal/server	5.310s

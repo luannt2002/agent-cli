@@ -1,0 +1,12 @@
+--- FAIL: TestExecuteLoop_FingerprintCoversTheWholeRepo (0.05s)
+    loop_test.go:269: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2c/internal/cmd/loop_test.go:269
+        	Error:      	Should not be: "STALLED"
+        	Messages:   	the agent changed the repo outside sub/
+--- FAIL: TestExecuteLoop_VerifyDirIsNamedInThePrompt (0.05s)
+    loop_test.go:245: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2c/internal/cmd/loop_test.go:245
+        	Error:      	"do the thing\n\nDefinition of done: running `test -f done.txt` exits with code 0.\nDo not modify the tests, the verify command or any gate to make it pass. If you believe a test is wrong, say so in your final answer instead of editing it." does not contain "Definition of done: running `test -f done.txt` in `sub/` exits with code 0."
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.106s
+FAIL

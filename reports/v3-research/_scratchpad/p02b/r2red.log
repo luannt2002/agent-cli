@@ -1,0 +1,4 @@
+        	Error:      	Should be empty, but was [PLAIN_FROM_DOTENV=kept]
+        	Messages:   	HOMECHILD: no variable of a project .env may reach it
+--- FAIL: TestChildEnvsIgnoreProjectDotenv (0.05s)
+FAIL

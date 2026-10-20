@@ -1,0 +1,925 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 06b7faf9..a27f3449 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -181,6 +181,16 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `$VAR` của `api_key`/`base_url` trong `crush.json`) không được so và vẫn theo client đã dựng server, như trước.
+   Tiến trình con mà Home dựng và lệnh `--verify` của loop không còn nhận biến tin cậy từ `.env` của repo (gõ
+   `agent-cli` trong repo có `.env` đặt `AGENT_CLI_DELEGATION=on` từng bật giao việc cho workspace mở từ Home).
++- **`.env` của repo không còn lái lệnh `!` và CLI con giao việc.** Lệnh `!` gõ trong TUI (local lẫn server) nhận
++  biến tin cậy theo env gốc: `!agent-cli run …` từng nhận `AGENT_CLI_DELEGATION`, allowlist hay tệp env từ `.env`.
++  Claude Code/Codex được giao việc nhận env gốc của agent-cli (trước `.env` và `env` của `crush.json`, kể cả
++  `crush.json` toàn cục), cả khi mở qua Home và ở chế độ server: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`,
++  `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`… đặt trong `.env` từng tới CLI con (đổi endpoint
++  hay khoá của nó); giá trị export ở shell vẫn tới. Workspace mà Home mở và server của dự án nay được dựng với env gốc
++  và tự nạp `.env` như trước (`loop --cwd <dir>` ở chế độ server: chỉ `.env` của `<dir>`). Agent-cli gọi lồng
++  (`!agent-cli run …`) vẫn chụp biến thường của `.env` làm env gốc. Home mở lại bằng Alt+W khi chạy
++  binary không qua launcher cũng không còn lấy `AGENT_CLI_LAUNCHER` từ `.env` (từng để `.env` chọn chương trình mà
++  Home đó chạy).
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/README.md b/README.md
+index 8931d61b..4a3d7104 100644
+--- a/README.md
++++ b/README.md
+@@ -21,7 +21,8 @@ agent-cli --version                        # bản vừa cài
+ Cần `git`, Go ≥ 1.27 (theo `go.mod`); `sha1sum`/`shasum` cho launcher; `jq` cho installer và `agent-cli-tmux` (bản
+ mở agent-cli trong tmux); `tmux` cho `agent-cli-tmux`; `python3` và `script` để chạy các script kiểm. Installer in
+ sẵn lệnh quay về bản cũ (giữ 3 bản sao lưu). Cập nhật: `git pull --ff-only && bash scripts/install-agent-cli.sh`, rồi
+-thoát mọi client của các dự án đang mở (xem `agent-cli ps`) để server nền dựng lại bằng bản mới.
++thoát mọi client của các dự án đang mở (xem `agent-cli ps`) để server nền dựng lại bằng bản mới; trước đó, lệnh chạy
++model mới (TUI, `run`, `send`, `loop`) của dự án có server bản cũ đang bận bị từ chối.
+ 
+ **Lần chạy đầu:**
+ 
+@@ -80,7 +81,11 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"  # lặp t
+   Không phím chữ nào cấp quyền.
+ 
+ **Repo lạ:** mở một repo là chạy `crushrc`/`.crushrc` của nó như Bash; `.env` của thư mục bạn đứng khi chạy agent-cli
+-được nạp vào môi trường của nó (trừ allowlist và các biến ranh giới, đã chụp từ trước); `crush.json`, `.crush.json` và
++được nạp vào môi trường của nó (trừ allowlist và các biến ranh giới, đã chụp từ trước: lệnh `!` bạn gõ và tiến trình
++agent-cli con cũng không nhận chúng từ `.env`; CLI con giao việc Claude Code/Codex chỉ nhận env gốc, không nhận biến nào
++của `.env`, kể cả `ANTHROPIC_BASE_URL`, `OPENAI_API_KEY`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`. Giới hạn: agent-cli gọi lồng
++từ tiến trình đã nạp `.env` (`!agent-cli run …`, `--verify "agent-cli run …"`) chụp biến thường của `.env` đó làm env gốc,
++nên CLI con của nó nhận chúng); `crush.json`, `.crush.json` và
+ `.crush/crush.json` của repo (tệp cuối thắng mọi cấu hình khác, kể cả env) nới được quyền tool, khai hook và MCP server
+ (tức là chạy lệnh; `$(...)` trong `api_key`/`base_url` chạy ngay lúc nạp), đổi model/provider hay `base_url`; context
+ file (`AGENTS.md`, `CLAUDE.md`, `CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills`, `.crush/skills`,
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 9545edf9..8714d883 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -194,8 +194,11 @@ allowlist hiệu lực bằng nhau đều bị từ chối. Lệnh không gửi
+ không bị so chính sách tin cậy và `--yolo` (vẫn bị so `--channels`; `login` khi tự nối lại sau lúc
+ server mất workspace thì bị so như lệnh chạy model). Server khác bản/build mà đang bận (không thay
+ được) thì lệnh chạy model bị từ chối, lệnh không prompt vẫn dùng nó. Từ tiến trình con mà Home
+-dựng (workspace, Home khi quay lại) tới lệnh `--verify` của loop, biến tin cậy đều lấy theo env
+-gốc, `.env` của repo không chen vào được. Để áp giá trị mới: thoát hết client của dự án đó, chờ
++dựng (workspace, Home khi quay lại, kể cả launcher mà Home đó chạy) tới lệnh `--verify` của loop
++và lệnh `!` bạn gõ trong TUI (local lẫn server), biến tin cậy đều lấy theo env gốc, `.env` của
++repo không chen vào được (biến thường của `.env` thì vẫn tới các lệnh đó; verify của `routine run`
++nhận công tắc không người trực của chính lượt chạy). Để áp giá trị mới: thoát hết client của dự
++án đó, chờ
+ server tắt (khoảng 60 giây sau khi client cuối thoát, xem `agent-cli ps`) rồi mở lại; hoặc dừng
+ thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server (tên socket
+ `agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`; việc đang
+@@ -613,6 +616,18 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
+   gắn với một phiên Claude Code khác (`CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`,
+   `CLAUDE_CODE_SESSION_ID`, socket nhắn tin…), nên mở agent-cli từ trong Claude Code thì CLI con
+   vẫn chạy như ở terminal thường; biến cấu hình của bạn (khoá, provider) giữ nguyên.
++- CLI con nhận env GỐC của agent-cli: env lúc tiến trình khởi động, trước khi nạp `.env` của
++  thư mục hiện tại và `env` trong `crush.json`. Biến lái endpoint, khoá hay thư mục cấu hình của
++  CLI con (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
++  `CLAUDE_CONFIG_DIR`, `CODEX_HOME`...) đặt trong `.env` của repo, hay `env` của `crush.json` (kể
++  cả `crush.json` toàn cục của bạn), không tới CLI con; muốn CLI con dùng chúng thì export ở shell
++  (ví dụ `~/.bashrc`). Workspace mà Home mở và server của dự án cũng được dựng với env gốc rồi tự
++  nạp `.env` cho riêng chúng, nên mở qua Home hay chế độ server cũng vậy.
++- Giới hạn: agent-cli gọi lồng từ một tiến trình đã nạp `.env` (lệnh `!agent-cli run …` trong TUI,
++  `agent-cli loop --verify "agent-cli run …"`) chụp env của tiến trình cha, gồm biến thường của
++  `.env`, làm env gốc của nó: CLI con mà agent-cli lồng đó giao việc nhận các biến này.
++- Server dựng sau khi lệnh đã vào `--cwd` (hiện là `agent-cli loop --cwd <dir>` ở chế độ server)
++  nạp `.env` của `<dir>`, không nạp `.env` của thư mục bạn đứng khi gõ lệnh.
+ 
+ Các biến trên phải có trong môi trường của tiến trình agent-cli (export ở shell, ví dụ
+ `~/.bashrc`), KHÔNG đặt trong `~/.config/agent-cli/env`: tệp đó chỉ được crushrc `source`
+diff --git a/internal/agent/tools/provider/child_env_dotenv_test.go b/internal/agent/tools/provider/child_env_dotenv_test.go
+new file mode 100644
+index 00000000..89810279
+--- /dev/null
++++ b/internal/agent/tools/provider/child_env_dotenv_test.go
+@@ -0,0 +1,75 @@
++package provider
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"slices"
++	"strings"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/joho/godotenv"
++	"github.com/stretchr/testify/require"
++)
++
++// steeringEnv là các biến lái endpoint, khoá và thư mục cấu hình của CLI con.
++var steeringEnv = []string{
++	"ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "OPENAI_BASE_URL", "OPENAI_API_KEY", "CLAUDE_CONFIG_DIR", "CODEX_HOME",
++}
++
++// CLI con được giao việc (claude/codex) nhận env GỐC của agent-cli: biến lái endpoint,
++// khoá hay thư mục cấu hình của nó mà `.env` của repo (main nạp sau ảnh chụp) hoặc
++// `env` của cấu hình dự án đặt thì không tới CLI con; giá trị người dùng export thì giữ.
++// CLI giả chỉ in TÊN biến kèm nguồn, không in giá trị. Chạy ở tiến trình con vì ảnh
++// chụp là toàn cục, chỉ chụp một lần.
++func TestRunCommandIgnoresProjectDotenv(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("shell script CLI")
++	}
++	if os.Getenv("PROVIDER_ENV_CHILD") == "1" {
++		execpolicy.Snapshot()
++		require.NoError(t, godotenv.Load())
++		// `env` của crush.json dự án được áp bằng os.Setenv, đè cả biến gốc.
++		require.NoError(t, os.Setenv("OPENAI_API_KEY", "CANARY_CONFIGENV"))
++		out, err := runCommand(context.Background(), ".", "./fake-cli")
++		require.NoError(t, err)
++		fmt.Print(string(out))
++		return
++	}
++	dir := t.TempDir()
++	dotenv := "ANTHROPIC_BASE_URL=http://CANARY_DOTENV\nANTHROPIC_API_KEY=CANARY_DOTENV\nOPENAI_BASE_URL=http://CANARY_DOTENV\n" +
++		"OPENAI_API_KEY=CANARY_DOTENV\nCLAUDE_CONFIG_DIR=/CANARY_DOTENV\nCODEX_HOME=/CANARY_DOTENV\n"
++	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
++	// CLI giả: in "NAME:<biến>:<nguồn>" cho biến mang giá trị canary, không in giá trị.
++	cli := "#!/bin/sh\nenv | while IFS= read -r line; do\n  k=${line%%=*}; v=${line#*=}\n  case \"$v\" in\n" +
++		"    *CANARY_DOTENV*) echo \"NAME:$k:dotenv\";;\n    *CANARY_CONFIGENV*) echo \"NAME:$k:configenv\";;\n" +
++		"    *CANARY_ORIGINAL*) echo \"NAME:$k:original\";;\n  esac\ndone\n"
++	require.NoError(t, os.WriteFile(filepath.Join(dir, "fake-cli"), []byte(cli), 0o700))
++
++	var env []string
++	for _, kv := range os.Environ() {
++		k, _, _ := strings.Cut(kv, "=")
++		if !strings.HasPrefix(k, "AGENT_CLI_") && !slices.Contains(steeringEnv, k) {
++			env = append(env, kv)
++		}
++	}
++	// Giá trị người dùng export ở shell: phải tới CLI con, kể cả khi cấu hình dự án đè nó.
++	env = append(env, "PROVIDER_ENV_CHILD=1", "OPENAI_API_KEY=CANARY_ORIGINAL")
++	c := exec.Command(os.Args[0], "-test.run=^TestRunCommandIgnoresProjectDotenv$")
++	c.Dir, c.Env = dir, env
++	out, err := c.CombinedOutput()
++	require.NoError(t, err, string(out)) // Tiến trình con chỉ in tên biến.
++
++	var got []string
++	for line := range strings.SplitSeq(string(out), "\n") {
++		if name, ok := strings.CutPrefix(line, "NAME:"); ok {
++			got = append(got, name)
++		}
++	}
++	require.Equal(t, []string{"OPENAI_API_KEY:original"}, got,
++		"only the user's own exported value reaches the CLI; nothing from the project .env or config env")
++}
+diff --git a/internal/agent/tools/provider/exec.go b/internal/agent/tools/provider/exec.go
+index aa5710cd..95952c33 100644
+--- a/internal/agent/tools/provider/exec.go
++++ b/internal/agent/tools/provider/exec.go
+@@ -4,12 +4,12 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"fmt"
+-	"os"
+ 	"os/exec"
+ 	"slices"
+ 	"strings"
+ 	"time"
+ 
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/herdr"
+ )
+ 
+@@ -32,7 +32,10 @@ func runCommand(ctx context.Context, dir, name string, args ...string) ([]byte,
+ 	cmd.Dir = dir
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+-	cmd.Env = childEnv(os.Environ())
++	// Env gốc, không phải env sau `.env` của repo hay `env` của cấu hình dự án: các thứ đó
++	// không được lái endpoint, khoá hay thư mục cấu hình của CLI con (ANTHROPIC_BASE_URL,
++	// OPENAI_API_KEY, CLAUDE_CONFIG_DIR, CODEX_HOME...). Biến người dùng export thì giữ.
++	cmd.Env = childEnv(execpolicy.OriginalEnviron())
+ 	// CLI con hay bật tiến trình cháu (dev server, test watcher) giữ pipe
+ 	// stdout: huỷ/hết giờ thì dừng cả nhóm, và sau waitDelay đóng pipe để
+ 	// Run trả về thay vì treo quá hạn.
+diff --git a/internal/backend/agent.go b/internal/backend/agent.go
+index 1c7fd904..732dd7cf 100644
+--- a/internal/backend/agent.go
++++ b/internal/backend/agent.go
+@@ -9,6 +9,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/agent"
+ 	"github.com/charmbracelet/crush/internal/agent/notify"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/proto"
+ 	"github.com/charmbracelet/crush/internal/pubsub"
+@@ -347,10 +348,12 @@ func (b *Backend) RunShellCommand(ctx context.Context, workspaceID string, req p
+ 		}
+ 	}
+ 
++	// ws.Env là env client chụp sau khi nạp `.env` của repo: biến tin cậy theo ảnh chụp
++	// env gốc của server, để `!agent-cli run …` không nhận chúng từ `.env`.
+ 	result, err := shell.RunAndPersist(ctx, shell.RunOptions{
+ 		Command:   req.Command,
+ 		Cwd:       ws.Path,
+-		Env:       append(os.Environ(), ws.Env...),
++		Env:       execpolicy.ChildEnv(append(os.Environ(), ws.Env...)),
+ 		TermWidth: req.TermWidth,
+ 	}, persist)
+ 	if err != nil {
+diff --git a/internal/backend/shell_command_env_test.go b/internal/backend/shell_command_env_test.go
+new file mode 100644
+index 00000000..10c100d4
+--- /dev/null
++++ b/internal/backend/shell_command_env_test.go
+@@ -0,0 +1,73 @@
++package backend
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/google/uuid"
++	"github.com/joho/godotenv"
++	"github.com/stretchr/testify/require"
++)
++
++// Lệnh `!` ở chế độ server chạy với env của server cộng env client gửi lên
++// (ws.Env, client chụp SAU khi nạp `.env` của repo): biến tin cậy của lệnh phải
++// theo ảnh chụp env gốc của server, để `!agent-cli run …` không nhận giao việc hay
++// allowlist từ `.env`. Biến thường vẫn tới lệnh. Chỉ in TÊN biến mang giá trị
++// canary. Chạy ở tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.
++func TestRunShellCommandIgnoresProjectDotenvTrustedKeys(t *testing.T) {
++	if os.Getenv("BACKEND_SHELL_DOTENV") == "1" {
++		execpolicy.Snapshot()
++		require.NoError(t, godotenv.Load())
++		b, _ := newTestBackend(t)
++		wd, err := os.Getwd()
++		require.NoError(t, err)
++		ws := &Workspace{
++			ID:           uuid.New().String(),
++			Path:         wd,
++			resolvedPath: wd,
++			Env:          os.Environ(), // như root.go gửi trong request tạo workspace
++			clients:      make(map[string]*clientState),
++			shutdownFn:   func() {},
++		}
++		ws.ctx, ws.cancel = context.WithCancel(b.ctx)
++		InsertWorkspaceForTest(b, ws)
++		resp, err := b.RunShellCommand(t.Context(), ws.ID, proto.ShellCommandRequest{Command: "env"})
++		require.NoError(t, err)
++		for line := range strings.SplitSeq(resp.Output, "\n") {
++			if k, v, ok := strings.Cut(strings.TrimRight(line, "\r"), "="); ok && strings.Contains(v, "CANARY_DOTENV") {
++				fmt.Println("NAME:" + k)
++			}
++		}
++		return
++	}
++	dir := t.TempDir()
++	dotenv := "AGENT_CLI_DELEGATION=CANARY_DOTENV\nAGENT_CLI_ALLOWED_MODELS=claude_code:CANARY_DOTENV-5\n" +
++		"AGENT_CLI_ENV_FILE=/CANARY_DOTENV/env\nAGENT_CLI_CLAUDE_BIN=/CANARY_DOTENV/claude\n" +
++		"AGENT_CLI_CODEX_SANDBOX=CANARY_DOTENV\nPLAIN_CANARY=CANARY_DOTENV\n"
++	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
++	var env []string
++	for _, kv := range os.Environ() {
++		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "AGENT_CLI_") && k != "PLAIN_CANARY" {
++			env = append(env, kv)
++		}
++	}
++	c := exec.Command(os.Args[0], "-test.run=^TestRunShellCommandIgnoresProjectDotenvTrustedKeys$")
++	c.Dir, c.Env = dir, append(env, "BACKEND_SHELL_DOTENV=1")
++	out, err := c.CombinedOutput()
++	require.NoError(t, err, string(out)) // Tiến trình con chỉ in tên biến.
++
++	var got []string
++	for line := range strings.SplitSeq(string(out), "\n") {
++		if name, ok := strings.CutPrefix(line, "NAME:"); ok {
++			got = append(got, name)
++		}
++	}
++	require.Equal(t, []string{"PLAIN_CANARY"}, got, "trusted keys from a project .env must not reach a ! command")
++}
+diff --git a/internal/cmd/child_env_test.go b/internal/cmd/child_env_test.go
+index c1e0cadd..c6f3a023 100644
+--- a/internal/cmd/child_env_test.go
++++ b/internal/cmd/child_env_test.go
+@@ -6,6 +6,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 
+@@ -15,11 +16,11 @@ import (
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+-// Tiến trình con dựng từ env đã nạp `.env` của repo (workspace của Home, Home
+-// khi quay lại bằng Alt+W, lệnh verify của loop có thể gọi agent-cli) chỉ nhận
+-// biến tin cậy theo ảnh chụp env gốc: `.env` không chen được vào chính sách
+-// của agent-cli con (soát P0-2 vòng 3, #1). Biến thường của `.env` vẫn qua.
+-// `.env` cũng không chọn được launcher mà Home chạy.
++// Tiến trình con dựng từ env đã nạp `.env` của repo không nhận biến tin cậy từ `.env`
++// (soát P0-2 vòng 3, #1). Workspace của Home, Home khi quay lại bằng Alt+W và server
++// của dự án nhận env GỐC: không biến nào của `.env` (kể cả biến thường như khoá API,
++// launcher), vì chúng tự nạp lại `.env` của cùng cwd và env gốc của chúng là thứ CLI
++// con giao việc nhận (soát P0-2b vòng 2, #1). Verify của loop chỉ đặt lại biến tin cậy.
+ // Chạy ở tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.
+ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
+ 	if os.Getenv("CHILD_ENV_DOTENV") == "1" {
+@@ -33,6 +34,7 @@ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
+ 		}
+ 		fmt.Println("HOMECHILD\n" + strings.Join(homeChildCmd("agent-cli", home.Choice{Dir: "."}, false).Env, "\n"))
+ 		fmt.Println("HOMEEXEC\n" + strings.Join(homeEnv(), "\n"))
++		fmt.Println("SERVER\n" + strings.Join(serverEnv(), "\n"))
+ 		fmt.Println("VERIFY\n" + res.Output)
+ 		launcher, err := homeLauncher()
+ 		if err != nil {
+@@ -52,26 +54,75 @@ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
+ 			env = append(env, kv)
+ 		}
+ 	}
+-	c := exec.Command(os.Args[0], "-test.run=^TestChildEnvsIgnoreProjectDotenv$")
+-	c.Dir, c.Env = dir, append(env, "CHILD_ENV_DOTENV=1")
+-	out, err := c.CombinedOutput()
+-	require.NoError(t, err, string(out))
++	run := func(extra ...string) []string {
++		c := exec.Command(os.Args[0], "-test.run=^TestChildEnvsIgnoreProjectDotenv$")
++		c.Dir, c.Env = dir, append(append(slices.Clone(env), "CHILD_ENV_DOTENV=1"), extra...)
++		out, err := c.CombinedOutput()
++		require.NoError(t, err, withoutEnvLines(string(out)))
++		return strings.Split(string(out), "\n")
++	}
+ 
+ 	// So từng dòng, không in cả env khi đỏ (env của máy chạy test có token).
+-	lines := strings.Split(string(out), "\n")
+-	for _, part := range []string{"HOMECHILD", "HOMEEXEC", "VERIFY"} {
+-		require.Contains(t, lines, part)
++	fromDotenv := []string{"AGENT_CLI_DELEGATION=on", "AGENT_CLI_ENV_FILE=./evil.env", "AGENT_CLI_CLAUDE_BIN=./evil",
++		"AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions", "AGENT_CLI_CODEX_SANDBOX=danger-full-access",
++		"PLAIN_FROM_DOTENV=kept", "AGENT_CLI_LAUNCHER=/bin/evil-launcher"}
++	lines := run()
++	for _, part := range []string{"HOMECHILD", "HOMEEXEC", "SERVER"} {
++		var leaked []string
++		for _, kv := range envSection(lines, part) {
++			if slices.Contains(fromDotenv, kv) {
++				leaked = append(leaked, kv)
++			}
++		}
++		require.Empty(t, leaked, "%s: no variable of a project .env may reach it", part)
+ 	}
++	// Không dùng Contains trên cả env: khi đỏ, testify in nguyên slice (env của máy có token).
++	verify := envSection(lines, "VERIFY")
+ 	var leaked []string
+-	for _, kv := range lines {
+-		switch kv {
+-		case "AGENT_CLI_DELEGATION=on", "AGENT_CLI_ENV_FILE=./evil.env", "AGENT_CLI_CLAUDE_BIN=./evil",
+-			"AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions", "AGENT_CLI_CODEX_SANDBOX=danger-full-access":
++	for _, kv := range verify {
++		if slices.Contains(fromDotenv[:5], kv) {
+ 			leaked = append(leaked, kv)
+ 		}
+ 	}
+-	require.Empty(t, leaked, "a project .env must not reach a child agent-cli")
+-	require.Equal(t, 3, strings.Count(string(out), "PLAIN_FROM_DOTENV=kept"), "plain .env variables still reach every child")
++	require.Empty(t, leaked, "VERIFY: trusted keys of a project .env must not reach it")
++	require.True(t, slices.Contains(verify, "PLAIN_FROM_DOTENV=kept"), "VERIFY: plain .env variables still reach it")
+ 	// `.env` cũng không được chọn chương trình Home chạy làm launcher.
+-	require.NotContains(t, lines, "LAUNCHER=/bin/evil-launcher")
++	require.False(t, slices.Contains(lines, "LAUNCHER=/bin/evil-launcher"))
++	// Launcher gốc của người dùng thì giữ, đúng một lần trong env của Home.
++	launcher := filepath.Join(dir, "launcher")
++	require.NoError(t, os.WriteFile(launcher, []byte("#!/bin/sh\n"), 0o700))
++	lines = run(launcherEnv + "=" + launcher)
++	for _, part := range []string{"HOMECHILD", "HOMEEXEC"} {
++		var got []string
++		for _, kv := range envSection(lines, part) {
++			if strings.HasPrefix(kv, launcherEnv+"=") {
++				got = append(got, kv)
++			}
++		}
++		require.Equal(t, []string{launcherEnv + "=" + launcher}, got, part)
++	}
++	require.True(t, slices.Contains(lines, "LAUNCHER="+launcher))
++}
++
++// envSection trả các dòng env in sau tiêu đề name, tới tiêu đề kế tiếp.
++func envSection(lines []string, name string) []string {
++	start := slices.Index(lines, name) + 1
++	end := start
++	for end < len(lines) && !slices.Contains([]string{"HOMECHILD", "HOMEEXEC", "SERVER", "VERIFY"}, lines[end]) &&
++		!strings.HasPrefix(lines[end], "LAUNCHER=") {
++		end++
++	}
++	return lines[start:end]
++}
++
++// withoutEnvLines bỏ các dòng dạng KEY=value khỏi output trước khi in lúc đỏ: env của máy
++// chạy test có token.
++func withoutEnvLines(out string) string {
++	var keep []string
++	for _, line := range strings.Split(out, "\n") {
++		if k, _, ok := strings.Cut(line, "="); !ok || k == "" || strings.ContainsAny(k, " \t") {
++			keep = append(keep, line)
++		}
++	}
++	return strings.Join(keep, "\n")
+ }
+diff --git a/internal/cmd/home.go b/internal/cmd/home.go
+index ea6d9ae2..ea1f043d 100644
+--- a/internal/cmd/home.go
++++ b/internal/cmd/home.go
+@@ -131,8 +131,10 @@ func homeChildCmd(exe string, c home.Choice, debug bool) *exec.Cmd {
+ }
+ 
+ // homeEnv là env cho tiến trình agent-cli mà Home dựng (workspace, Home khi quay
+-// lại): biến tin cậy theo ảnh chụp env gốc, không theo `.env` mà main đã nạp.
+-func homeEnv() []string { return execpolicy.ChildEnv(os.Environ()) }
++// lại): env GỐC, không biến nào của `.env` mà main đã nạp. Con chụp env này làm env
++// gốc của nó (biến tin cậy, launcher, và env mà CLI con giao việc nhận); nó chạy cùng
++// cwd nên tự nạp lại đúng `.env` đó.
++func homeEnv() []string { return execpolicy.OriginalEnviron() }
+ 
+ // runChild runs c and returns its exit status; death by a signal counts as
+ // a failure.
+diff --git a/internal/cmd/no_agent_runs_test.go b/internal/cmd/no_agent_runs_test.go
+index ba8ca003..9a403ae7 100644
+--- a/internal/cmd/no_agent_runs_test.go
++++ b/internal/cmd/no_agent_runs_test.go
+@@ -2,6 +2,7 @@ package cmd
+ 
+ import (
+ 	"encoding/json"
++	"log/slog"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"sync"
+@@ -39,6 +40,7 @@ func TestRunsNoAgentExactCommandSet(t *testing.T) {
+ // connectToServer gửi đúng cờ của lệnh lên dây: lệnh chạy model gửi
+ // no_agent_runs=false (bị so), lệnh không prompt (kể cả lệnh con) gửi true.
+ func TestConnectToServerSendsNoAgentRuns(t *testing.T) {
++	isolateServerCache(t)
+ 	var mu sync.Mutex
+ 	var bodies []proto.Workspace
+ 	dataDir := t.TempDir()
+@@ -81,3 +83,14 @@ func TestConnectToServerSendsNoAgentRuns(t *testing.T) {
+ 		require.Equal(t, !tc.want, last.TrustedEnv != nil, tc.cmd.CommandPath())
+ 	}
+ }
++
++// isolateServerCache trỏ thư mục cache toàn cục (log server-<host> mà ensureServer
++// dựng, khoá spawn) vào thư mục tạm của test thay vì ~/.cache thật, và trả lại
++// logger mặc định khi test xong: crushlog.Setup chỉ chạy một lần mỗi tiến trình, test
++// sau mà còn ghi vào tệp đó sẽ dựng lại thư mục tạm đã xoá. Không parallel: đặt env.
++func isolateServerCache(t *testing.T) {
++	t.Helper()
++	t.Setenv("CRUSH_CACHE_DIR", t.TempDir())
++	prev := slog.Default()
++	t.Cleanup(func() { slog.SetDefault(prev) })
++}
+diff --git a/internal/cmd/restart_stale_test.go b/internal/cmd/restart_stale_test.go
+index a5ee598d..8704349b 100644
+--- a/internal/cmd/restart_stale_test.go
++++ b/internal/cmd/restart_stale_test.go
+@@ -2,14 +2,18 @@ package cmd
+ 
+ import (
+ 	"encoding/json"
++	"net"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"os"
++	"path/filepath"
+ 	"sync"
+ 	"testing"
+ 
+ 	"github.com/charmbracelet/crush/internal/client"
+ 	"github.com/charmbracelet/crush/internal/proto"
++	"github.com/charmbracelet/crush/internal/server"
+ 	"github.com/charmbracelet/crush/internal/version"
+ 	"github.com/spf13/cobra"
+ 	"github.com/stretchr/testify/require"
+@@ -30,6 +34,8 @@ type controlServerOpts struct {
+ 	// used by the legacy fallback to decide whether it is safe to send
+ 	// the unconditional shutdown. Defaults to 0 (idle).
+ 	workspaces int
++	// unix serves on a unix socket, the launcher's per-project host, instead of tcp.
++	unix bool
+ }
+ 
+ // controlLog records the control commands a server received.
+@@ -47,7 +53,7 @@ func (l *controlLog) all() []string {
+ func newControlServer(t *testing.T, opts controlServerOpts) (*url.URL, *controlLog) {
+ 	t.Helper()
+ 	log := &controlLog{}
+-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		switch r.URL.Path {
+ 		case "/v1/version":
+ 			require.NoError(t, json.NewEncoder(w).Encode(opts.vi))
+@@ -72,7 +78,22 @@ func newControlServer(t *testing.T, opts controlServerOpts) (*url.URL, *controlL
+ 			w.WriteHeader(http.StatusOK)
+ 		}
+ 	}))
++	if opts.unix {
++		dir, err := os.MkdirTemp("", "ac") // Ngắn: đường dẫn socket unix giới hạn ~108 byte.
++		require.NoError(t, err)
++		t.Cleanup(func() { _ = os.RemoveAll(dir) })
++		ln, err := net.Listen("unix", filepath.Join(dir, "s.sock"))
++		require.NoError(t, err)
++		_ = srv.Listener.Close()
++		srv.Listener = ln
++	}
++	srv.Start()
+ 	t.Cleanup(srv.Close)
++	if opts.unix {
++		u, err := server.ParseHostURL("unix://" + srv.Listener.Addr().String())
++		require.NoError(t, err)
++		return u, log
++	}
+ 	u, err := url.Parse(srv.URL)
+ 	require.NoError(t, err)
+ 	return &url.URL{Scheme: "tcp", Host: u.Host}, log
+@@ -125,6 +146,27 @@ func TestRestartIfStale_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
+ 	}
+ }
+ 
++// ensureServer trên socket unix (đường của launcher): server khác build đang bận
++// thì lệnh chạy model bị TỪ CHỐI, không rơi xuống nhánh dựng server mới rồi gắn
++// lại vào chính server cũ; lệnh không prompt vẫn dùng nó. Không lệnh tắt vô điều
++// kiện nào được gửi. Không parallel: đặt env.
++func TestEnsureServer_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
++	isolateServerCache(t)
++	for name, opts := range map[string]controlServerOpts{
++		"busy":        {vi: staleVersion(), busy: true, unix: true},
++		"legacy busy": {vi: staleVersion(), legacy: true, workspaces: 3, unix: true},
++	} {
++		t.Run(name, func(t *testing.T) {
++			hostURL, log := newControlServer(t, opts)
++			err := ensureServer(versionCheckCmd(t), hostURL)
++			require.ErrorIs(t, err, errStaleServerBusy)
++			require.NoError(t, ensureServer(noPromptCmd(t), hostURL))
++			require.Equal(t, []string{proto.ServerControlShutdownIfIdle, proto.ServerControlShutdownIfIdle}, log.all())
++			require.FileExists(t, hostURL.Host, "the busy server keeps its socket")
++		})
++	}
++}
++
+ // TestRestartIfStale_HonorsRefusedShutdown is the headline regression.
+ // BuildID derives from the executable's mtime, so any rebuild — including
+ // every `go run` — makes a second session look like an upgrade. Launching
+diff --git a/internal/cmd/root.go b/internal/cmd/root.go
+index 342f6b23..53867bdb 100644
+--- a/internal/cmd/root.go
++++ b/internal/cmd/root.go
+@@ -1055,6 +1055,14 @@ func awaitSocketGone(ctx context.Context, hostURL *url.URL) error {
+ 
+ var safeNameRegexp = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+ 
++// serverEnv là env của server dự án mà client dựng. Server không báo trạng thái về
++// pane herdr của client đã dựng nó: client TUI báo thay qua luồng sự kiện; hai nguồn
++// cùng pane thì tranh nhau. Env GỐC (ảnh chụp đầu main), không theo env đã bị
++// `.env`/cấu hình dự án đổi: biến tin cậy (ranh giới, CLI giao việc) và cả env gốc
++// của server, thứ mà CLI con giao việc nhận. Server chạy ở cwd của client (không
++// đặt c.Dir) và tự nạp `.env` ở đó như mọi tiến trình (main).
++func serverEnv() []string { return herdr.StripEnv(execpolicy.OriginalEnviron()) }
++
+ func startDetachedServer(cmd *cobra.Command, hostURL *url.URL) error {
+ 	exe, err := os.Executable()
+ 	if err != nil {
+@@ -1076,11 +1084,7 @@ func startDetachedServer(cmd *cobra.Command, hostURL *url.URL) error {
+ 	// DETACHED_PROCESS on windows) is what truly detaches the child from
+ 	// this process's lifetime.
+ 	c := exec.CommandContext(context.Background(), exe, cmdArgs...)
+-	// Server không báo trạng thái về pane herdr của client đã dựng nó: client
+-	// TUI báo thay qua luồng sự kiện; hai nguồn cùng pane thì tranh nhau.
+-	// Biến tin cậy (ranh giới, CLI giao việc) theo ảnh chụp đầu main, không theo
+-	// env đã bị `.env`/cấu hình dự án đổi.
+-	c.Env = execpolicy.ChildEnv(herdr.StripEnv(os.Environ()))
++	c.Env = serverEnv()
+ 	stdoutPath := filepath.Join(chDir, "stdout.log")
+ 	stderrPath := filepath.Join(chDir, serverStderrLogName)
+ 	detachProcess(c)
+diff --git a/internal/cmd/unattended_verify_test.go b/internal/cmd/unattended_verify_test.go
+new file mode 100644
+index 00000000..fde9e50f
+--- /dev/null
++++ b/internal/cmd/unattended_verify_test.go
+@@ -0,0 +1,72 @@
++package cmd
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/joho/godotenv"
++	"github.com/stretchr/testify/require"
++)
++
++// Verify của `routine run` là tiến trình con của lượt không người trực: nó phải thấy
++// AGENT_CLI_UNATTENDED=1 (và AGENT_CLI_UNATTENDED_COMMIT theo định nghĩa) như mọi tiến
++// trình con khác. Ngoài routine, `.env` của repo không bật được chế độ đó cho verify.
++// Chạy ở tiến trình con vì ảnh chụp env gốc là toàn cục, chỉ chụp một lần.
++func TestVerifyCarriesTheCurrentUnattendedState(t *testing.T) {
++	if os.Getenv("VERIFY_UNATTENDED_CHILD") == "1" {
++		t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
++		execpolicy.Snapshot()
++		require.NoError(t, godotenv.Load())
++		wd, err := os.Getwd()
++		require.NoError(t, err)
++		state := filepath.Join(wd, "state.txt")
++		probe := `echo "on=${AGENT_CLI_UNATTENDED:-unset} commit=${AGENT_CLI_UNATTENDED_COMMIT:-unset}"`
++		res, err := shellVerify(wd, 0)(context.Background(), probe)
++		require.NoError(t, err)
++		fmt.Print("LOOP " + res.Output)
++		for _, commit := range []bool{false, true} {
++			e := newRoutineEnv(t)
++			e.opts.Def.Commit = commit
++			e.opts.Def.Verify = probe + " > " + state + "; test -f done.txt"
++			_, err := executeRoutine(t.Context(), e.opts, e.deps(func(wt string) error {
++				return os.WriteFile(filepath.Join(wt, "done.txt"), []byte("x"), 0o644)
++			}))
++			require.NoError(t, err)
++			got, err := os.ReadFile(state)
++			require.NoError(t, err)
++			fmt.Printf("ROUTINE commit=%v %s", commit, got)
++		}
++		return
++	}
++	dir := t.TempDir()
++	// `.env` của repo cố bật cả hai công tắc.
++	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte("AGENT_CLI_UNATTENDED=1\nAGENT_CLI_UNATTENDED_COMMIT=1\n"), 0o600))
++	var env []string
++	for _, kv := range os.Environ() {
++		if !strings.HasPrefix(kv, "AGENT_CLI_") {
++			env = append(env, kv)
++		}
++	}
++	c := exec.Command(os.Args[0], "-test.run=^TestVerifyCarriesTheCurrentUnattendedState$")
++	c.Dir, c.Env = dir, append(env, "VERIFY_UNATTENDED_CHILD=1")
++	out, err := c.CombinedOutput()
++	require.NoError(t, err, withoutEnvLines(string(out)))
++
++	var got []string
++	for line := range strings.SplitSeq(string(out), "\n") {
++		if strings.HasPrefix(line, "LOOP ") || strings.HasPrefix(line, "ROUTINE ") {
++			got = append(got, line)
++		}
++	}
++	require.Equal(t, []string{
++		"LOOP on=unset commit=unset",
++		"ROUTINE commit=false on=1 commit=0",
++		"ROUTINE commit=true on=1 commit=1",
++	}, got)
++}
+diff --git a/internal/execpolicy/policy.go b/internal/execpolicy/policy.go
+index 786eae21..79cb984d 100644
+--- a/internal/execpolicy/policy.go
++++ b/internal/execpolicy/policy.go
+@@ -110,7 +110,7 @@ var trustedKeys = []string{
+ var (
+ 	snapshotOnce sync.Once
+ 	snapshot     map[string]string // nil: chưa chụp
+-	// original là toàn bộ env lúc chụp, chỉ để đọc (OriginalEnv); không đổi ChildEnv.
++	// original là toàn bộ env lúc chụp, chỉ để đọc (OriginalEnv, OriginalEnviron); không đổi ChildEnv.
+ 	original map[string]string
+ )
+ 
+@@ -142,6 +142,24 @@ func OriginalEnv(key string) string {
+ 	return os.Getenv(key)
+ }
+ 
++// OriginalEnviron trả env gốc (trước `.env` và `env` của cấu hình dự án) dạng KEY=value,
++// cho các biến còn trong env hiện tại: biến tiến trình đã gỡ (AGENT_CLI_HOME_CHILD) không
++// quay lại, biến `.env` thêm thì không có, biến bị đè thì về giá trị gốc. Chưa chụp thì
++// env hiện tại.
++func OriginalEnviron() []string {
++	if snapshot == nil {
++		return os.Environ()
++	}
++	var out []string
++	for _, kv := range os.Environ() {
++		k, _, _ := strings.Cut(kv, "=")
++		if v, ok := original[k]; ok {
++			out = append(out, k+"="+v)
++		}
++	}
++	return out
++}
++
+ // TrustedEnv trả giá trị tin cậy của biến key: theo ảnh chụp nếu key thuộc
+ // danh sách và đã chụp, không thì env hiện tại (test, tiện ích không qua main).
+ func TrustedEnv(key string) string {
+@@ -151,8 +169,10 @@ func TrustedEnv(key string) string {
+ 	return os.Getenv(key)
+ }
+ 
+-// ChildEnv sửa env cho tiến trình agent-cli con (server của dự án): các biến
+-// tin cậy lấy theo ảnh chụp, không theo env đã bị `.env`/cấu hình dự án đổi.
++// ChildEnv sửa env cho tiến trình con có thể chạy agent-cli (Home, verify của loop,
++// lệnh `!`): các biến tin cậy lấy theo ảnh chụp, không theo env đã bị `.env`/cấu hình
++// dự án đổi. Riêng công tắc không người trực theo trạng thái HIỆN HÀNH khi tiến trình
++// đang trong lượt không người trực (SetUnattended, như exportUnattendedEnv xuất).
+ // Chưa chụp thì trả nguyên env.
+ func ChildEnv(env []string) []string {
+ 	if snapshot == nil {
+@@ -166,7 +186,19 @@ func ChildEnv(env []string) []string {
+ 		}
+ 	}
+ 	for _, k := range trustedKeys {
+-		if v, ok := snapshot[k]; ok {
++		v, ok := snapshot[k]
++		if unattendedOn.Load() {
++			switch k {
++			case UnattendedEnv:
++				v, ok = "1", true
++			case UnattendedCommitEnv:
++				v, ok = "0", true // "0" rõ ràng: giá trị mở commit trong ảnh chụp không lọt sang
++				if unattendedCommit.Load() {
++					v = "1"
++				}
++			}
++		}
++		if ok {
+ 			out = append(out, k+"="+v)
+ 		}
+ 	}
+diff --git a/internal/execpolicy/policy_test.go b/internal/execpolicy/policy_test.go
+index 98050e3b..cbe2276b 100644
+--- a/internal/execpolicy/policy_test.go
++++ b/internal/execpolicy/policy_test.go
+@@ -243,6 +243,27 @@ func TestChildEnvUsesTheSnapshot(t *testing.T) {
+ 	require.Empty(t, TrustedEnv(DelegationEnv), "set after the snapshot: ignored")
+ }
+ 
++// Env gốc cho tiến trình con: biến thêm sau ảnh chụp (`.env`) không có, biến bị đè
++// (`env` của cấu hình dự án) về giá trị gốc, biến tiến trình đã gỡ không quay lại.
++func TestOriginalEnvironDropsLaterChanges(t *testing.T) {
++	// Không parallel: đổi ảnh chụp cấp gói và env tiến trình.
++	prevSnap, prevOrig := snapshot, original
++	t.Cleanup(func() { snapshot, original = prevSnap, prevOrig })
++	snapshot = map[string]string{}
++	original = map[string]string{"P02B_KEPT": "orig", "P02B_OVERRIDDEN": "orig", "P02B_REMOVED": "1"}
++	t.Setenv("P02B_KEPT", "orig")
++	t.Setenv("P02B_OVERRIDDEN", "changed")
++	t.Setenv("P02B_ADDED", "dotenv")
++
++	var got []string
++	for _, kv := range OriginalEnviron() {
++		if strings.HasPrefix(kv, "P02B_") {
++			got = append(got, kv)
++		}
++	}
++	require.ElementsMatch(t, []string{"P02B_KEPT=orig", "P02B_OVERRIDDEN=orig"}, got)
++}
++
+ // Inputs là chính sách tin cậy client gửi server để so: đủ mọi biến tin cậy,
+ // allowlist/giao việc đã gộp tệp env như Current, và `.env` của repo (nạp sau
+ // ảnh chụp) không đổi được nó.
+diff --git a/internal/execpolicy/unattended_test.go b/internal/execpolicy/unattended_test.go
+index a8bd0d43..db0564d6 100644
+--- a/internal/execpolicy/unattended_test.go
++++ b/internal/execpolicy/unattended_test.go
+@@ -37,8 +37,8 @@ func TestUnattendedSwitch(t *testing.T) {
+ 	require.False(t, Unattended(), "mở commit không bật chế độ")
+ }
+ 
+-// Hai biến là biến tin cậy: ChildEnv phải mang chúng sang server con theo ảnh
+-// chụp, không theo env đã bị repo đổi.
++// Hai biến là biến tin cậy: tiến trình con nhận chúng theo ảnh chụp (hoặc theo trạng
++// thái không người trực hiện hành), không theo env đã bị repo đổi.
+ func TestUnattendedKeysAreTrusted(t *testing.T) {
+ 	t.Parallel()
+ 	require.True(t, slices.Contains(trustedKeys, UnattendedEnv))
+@@ -69,3 +69,19 @@ func TestSelfAgentSubcommandsIncludeLoopAndRoutine(t *testing.T) {
+ 		require.Falsef(t, ok, "%q không chạy agent, không được chặn", args)
+ 	}
+ }
++
++// Tiến trình con dựng qua ChildEnv (verify của routine/loop...) mang trạng thái không người
++// trực HIỆN HÀNH của tiến trình (SetUnattended, đúng như exportUnattendedEnv xuất: commit
++// "1" hoặc "0"), không theo env: `.env` của repo đặt giá trị nào cũng không bật được.
++// Không parallel: đổi ảnh chụp và công tắc cấp gói.
++func TestChildEnvCarriesTheCurrentUnattendedState(t *testing.T) {
++	prev := snapshot
++	t.Cleanup(func() { snapshot = prev; SetUnattended(false, false) })
++	snapshot = map[string]string{}
++	dotenv := []string{UnattendedEnv + "=1", UnattendedCommitEnv + "=1"}
++	require.Empty(t, ChildEnv(dotenv), "not unattended: a .env value does not turn it on")
++	SetUnattended(true, false)
++	require.ElementsMatch(t, []string{UnattendedEnv + "=1", UnattendedCommitEnv + "=0"}, ChildEnv(dotenv))
++	SetUnattended(true, true)
++	require.ElementsMatch(t, []string{UnattendedEnv + "=1", UnattendedCommitEnv + "=1"}, ChildEnv(nil))
++}
+diff --git a/internal/workspace/app_workspace.go b/internal/workspace/app_workspace.go
+index f26c2956..87fb3366 100644
+--- a/internal/workspace/app_workspace.go
++++ b/internal/workspace/app_workspace.go
+@@ -5,6 +5,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"log/slog"
++	"os"
+ 	"time"
+ 
+ 	tea "charm.land/bubbletea/v2"
+@@ -13,6 +14,7 @@ import (
+ 	"github.com/charmbracelet/crush/internal/app"
+ 	"github.com/charmbracelet/crush/internal/commands"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/gitutil"
+ 	"github.com/charmbracelet/crush/internal/history"
+ 	"github.com/charmbracelet/crush/internal/lsp"
+@@ -154,9 +156,11 @@ func (w *AppWorkspace) AgentRunShellCommand(ctx context.Context, sessionID, comm
+ 		}
+ 	}
+ 
++	// Lệnh `!` có thể là `agent-cli run …`: biến tin cậy theo env gốc, không theo `.env` của repo.
+ 	opts := shell.RunOptions{
+ 		Command:   command,
+ 		Cwd:       w.store.WorkingDir(),
++		Env:       execpolicy.ChildEnv(os.Environ()),
+ 		TermWidth: termWidth,
+ 	}
+ 
+diff --git a/internal/workspace/shell_command_env_test.go b/internal/workspace/shell_command_env_test.go
+new file mode 100644
+index 00000000..e72c7414
+--- /dev/null
++++ b/internal/workspace/shell_command_env_test.go
+@@ -0,0 +1,66 @@
++package workspace
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/joho/godotenv"
++	"github.com/stretchr/testify/require"
++)
++
++// Lệnh `!` người dùng gõ (chế độ local) có thể là `agent-cli run …`: biến tin cậy
++// của nó phải theo ảnh chụp env gốc, không theo `.env` của repo mà main đã nạp.
++// Biến thường của `.env` vẫn tới lệnh. Chỉ in TÊN biến mang giá trị canary. Chạy ở
++// tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.
++func TestShellCommandIgnoresProjectDotenvTrustedKeys(t *testing.T) {
++	if os.Getenv("SHELL_ENV_DOTENV") == "1" {
++		execpolicy.Snapshot()
++		require.NoError(t, godotenv.Load())
++		wd, err := os.Getwd()
++		require.NoError(t, err)
++		store, err := config.Load(wd, filepath.Join(wd, ".crush"), false)
++		require.NoError(t, err)
++		resp, err := NewAppWorkspace(nil, store).AgentRunShellCommand(t.Context(), "", "env", 0, nil, false)
++		require.NoError(t, err)
++		for line := range strings.SplitSeq(resp.Output, "\n") {
++			if k, v, ok := strings.Cut(strings.TrimRight(line, "\r"), "="); ok && strings.Contains(v, "CANARY_DOTENV") {
++				fmt.Println("NAME:" + k)
++			}
++		}
++		return
++	}
++	dir := t.TempDir()
++	dotenv := "AGENT_CLI_DELEGATION=CANARY_DOTENV\nAGENT_CLI_ALLOWED_MODELS=claude_code:CANARY_DOTENV-5\n" +
++		"AGENT_CLI_ENV_FILE=/CANARY_DOTENV/env\nAGENT_CLI_CLAUDE_BIN=/CANARY_DOTENV/claude\n" +
++		"AGENT_CLI_CODEX_SANDBOX=CANARY_DOTENV\nPLAIN_CANARY=CANARY_DOTENV\n"
++	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
++	home := t.TempDir()
++	var env []string
++	for _, kv := range os.Environ() {
++		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "AGENT_CLI_") && !strings.HasPrefix(k, "CRUSH_") &&
++			!strings.HasPrefix(k, "XDG_") && k != "HOME" && k != "PLAIN_CANARY" {
++			env = append(env, kv)
++		}
++	}
++	env = append(env, "SHELL_ENV_DOTENV=1", "HOME="+home,
++		"XDG_CONFIG_HOME="+filepath.Join(home, ".config"), "XDG_DATA_HOME="+filepath.Join(home, ".local", "share"),
++		"XDG_CACHE_HOME="+filepath.Join(home, ".cache"), "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1", "CRUSH_DISABLE_METRICS=1")
++	c := exec.Command(os.Args[0], "-test.run=^TestShellCommandIgnoresProjectDotenvTrustedKeys$")
++	c.Dir, c.Env = dir, env
++	out, err := c.CombinedOutput()
++	require.NoError(t, err, string(out)) // Tiến trình con chỉ in tên biến.
++
++	var got []string
++	for line := range strings.SplitSeq(string(out), "\n") {
++		if name, ok := strings.CutPrefix(line, "NAME:"); ok {
++			got = append(got, name)
++		}
++	}
++	require.Equal(t, []string{"PLAIN_CANARY"}, got, "trusted keys from a project .env must not reach a ! command")
++}

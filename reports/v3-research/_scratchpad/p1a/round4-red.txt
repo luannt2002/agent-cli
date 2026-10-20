@@ -1,0 +1,9 @@
+Error: no providers configured - please run 'agent-cli' to set up a provider interactively
+Error: session not found: doesnotexist
+Error: if any flags in the group [session continue] are set none of the others can be; [continue session] were all set
+--- FAIL: TestLastReplyModelSkipsPromptPlaceholders (0.00s)
+    run_reply_model_test.go:23: 
+        	Error:      	Should be empty, but was agent-cli-pending
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	2.102s
+FAIL

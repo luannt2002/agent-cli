@@ -1,0 +1,2 @@
+w/.crush/crush.db
+w/s/A/.crush/crush.db

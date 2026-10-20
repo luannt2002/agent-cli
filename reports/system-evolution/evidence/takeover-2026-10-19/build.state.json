@@ -1,0 +1,1 @@
+{"case": "build", "exit": 0, "seconds": 33.23, "command": ["go", "build", "-p", "2", "-o", "/home/luannt/.cache/agent-cli-takeover-20261019/agent-cli", "."], "state": "finished"}

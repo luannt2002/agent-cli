@@ -1,0 +1,6 @@
+case            rc    text   ledger_error                   reqs ledger warn session/none
+local-devfull   0     ok     -                                 3      - 1/1
+local-file      0     ok     -                                 3      3 0/0
+server-devfull  0,0   ok     -,-                               5      - 2/1
+server-file     0,0   ok     -,-                               5      5 0/0
+LEDGER: FAIL local-devfull: ledger_error missing in a turn; server-devfull: ledger_error missing in a turn

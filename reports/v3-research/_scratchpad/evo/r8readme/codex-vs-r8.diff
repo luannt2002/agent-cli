@@ -1,0 +1,139 @@
+--- r8.md	2026-10-19 14:38:33.146890685 +0700
++++ /home/luannt/.codex/worktrees/audit-r8-takeover/agent-cli/README.md	2026-10-19 12:34:17.954213435 +0700
+@@ -45,8 +45,8 @@
+ 4. **Mô tả việc:** gõ yêu cầu, `enter`.
+ 5. **agent-cli chạy theo chính sách:** model gọi tool; sửa tệp, chạy lệnh không nằm trong danh sách an toàn, đọc ngoài
+    dự án đều hỏi quyền (mặc định Deny), trừ các trường hợp ở [mục dưới](#khi-nào-không-có-hộp-thoại-quyền). Model chạy
+-   ở provider đang chọn và agent-cli không tự chuyển provider; muốn khoá cứng danh sách model (kể cả trước cấu hình
+-   của repo lạ) thì đặt allowlist (mục [Provider](#provider-dùng-nhiều-không-gọi-lén)).
++   ở provider đang chọn và agent-cli không tự chuyển provider; muốn khoá danh sách TÊN model (kể cả trước `crush.json`
++   của repo lạ) thì đặt allowlist; nó không khoá `base_url` (mục [Provider](#provider-dùng-nhiều-không-gọi-lén)).
+ 6. **Xem tiến độ:** khung chat, To-Do (`ctrl+t`), Jobs (`alt+j`). Từ shell khác: `agent-cli ps`; trong thư mục dự án
+    (hoặc kèm `-c <dir>`): `agent-cli jobs`, `agent-cli logs -f`.
+ 7. **Kiểm chứng:** tự chạy lệnh kiểm, hoặc giao bằng `agent-cli loop --verify "<lệnh>" "<việc>"` để "xong" là mã thoát của lệnh đó.
+@@ -67,7 +67,8 @@
+ - `run`, `loop`, `routine` tự duyệt mọi yêu cầu của lượt chúng chạy, kể cả agent con và `agentic_fetch` của lượt;
+   `run -s/-C` cũng vậy với session có sẵn. "Chưa sửa code" trong prompt chỉ là lời dặn model, không phải rào chắn. Chúng
+   dùng mode hiện tại của dự án: nếu TUI để dự án ở plan mode thì `run`/`loop` chỉ đọc và lập kế hoạch.
+-- YOLO (`--yolo`, `ctrl+y`, hoặc `shift+tab` tới bước "code + YOLO"): duyệt mọi thứ, áp cho cả workspace.
++- YOLO (`--yolo`, `ctrl+y`, hoặc `shift+tab` tới bước "code + YOLO"): duyệt mọi thứ, áp cho cả workspace (kể cả TUI khác
++  và `send` vào dự án đó).
+ - Nút "Allow for Session" trong hộp thoại; `permissions allow <tool>` trong crushrc.
+ - Muốn được hỏi: dùng TUI không bật YOLO, hoặc `agent-cli send -s <id> "..."` (gửi prompt vào session đang mở trong
+   TUI; không tự duyệt, TUI đó trả lời hộp thoại; không có TUI nào mở session đó thì `send --wait` dừng với lỗi và lượt
+@@ -75,11 +76,13 @@
+ - Hộp thoại quyền: `ctrl+a` cho phép một lần · `ctrl+s` cho phép cả session · `enter` (mặc định), `d`, `esc` là từ chối.
+   Không phím chữ nào cấp quyền.
+ 
+-**Repo lạ:** mở một repo là chạy `crushrc`/`.crushrc` của nó như Bash; `.env` của thư mục mở được nạp vào môi trường
+-của agent-cli (trừ allowlist và các biến ranh giới, đã chụp từ trước); `crush.json`/`.crush.json` của repo nới được
+-quyền tool, khai hook và MCP server, đổi model/provider hay `base_url`; context file (`AGENTS.md`, `CLAUDE.md`,
+-`CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills`, `.crush/skills`, `.cursor/skills` của repo vào thẳng prompt. Không có bước hỏi tin cậy: đọc
+-các tệp đó trước khi mở repo không phải của bạn, và đừng `run`/`loop` trên repo chưa đọc.
++**Repo lạ:** mở một repo là chạy `crushrc`/`.crushrc` của nó như Bash; `.env` của thư mục bạn đứng khi chạy agent-cli
++được nạp vào môi trường của nó (trừ allowlist và các biến ranh giới, đã chụp từ trước); `crush.json`, `.crush.json` và
++`.crush/crush.json` của repo (tệp cuối thắng mọi cấu hình khác, kể cả env) nới được quyền tool, khai hook và MCP server
++(tức là chạy lệnh; `$(...)` trong `api_key`/`base_url` chạy ngay lúc nạp), đổi model/provider hay `base_url`; context
++file (`AGENTS.md`, `CLAUDE.md`, `CRUSH.md`) và skill trong `.agents/skills`, `.claude/skills`, `.crush/skills`,
++`.cursor/skills` của repo vào thẳng prompt. Không có bước hỏi tin cậy: đọc các tệp đó, cả thư mục `.crush/` nếu repo có,
++trước khi mở repo không phải của bạn, và đừng `run`/`loop` trên repo chưa đọc.
+ 
+ ## Khái niệm
+ 
+@@ -149,7 +152,7 @@
+ - Không đặt allowlist thì cấu hình (kể cả `crush.json` của repo lạ) chọn được model của provider khác mà không hỏi.
+   TUI hiện model đang chọn; output thường của `run` thì không (xem bằng `run --json` hoặc sổ ghi LLM).
+ - Allowlist chỉ so TÊN: nó không kiểm `base_url` thật, nên ai sửa được cấu hình thì trỏ được cùng tên sang endpoint khác.
+-- Key của provider khác đã export ở shell làm provider đó chọn được.
++- Key của provider khác đã export ở shell, hay có trong `.env` của thư mục đang đứng, làm provider đó chọn được.
+ - Đã đăng nhập ChatGPT/Grok thì agent-cli có thể gọi ra OpenAI/xAI (làm mới token, lấy danh sách model; không phải lời
+   gọi LLM, không gửi prompt) kể cả khi chỉ dùng model local.
+ 
+@@ -161,12 +164,14 @@
+ AGENT_CLI_BASE_URL="http://127.0.0.1:<port>/v1"   # server local tương thích OpenAI của bạn, không cần key
+ AGENT_CLI_API_KEY=
+ AGENT_CLI_MODEL="qwen3.8"                         # ID model mà server của bạn báo
++AGENT_CLI_CONTEXT_WINDOW=32768                    # context của server; để mặc định 128000 thì tự tóm tắt có thể không kịp chạy
+ AGENT_CLI_ALLOWED_MODELS="main:qwen3.8"           # provider tự khai có ID là main
+ # không đặt AGENT_CLI_DELEGATION: giao việc sang provider khác vẫn tắt
+ ```
+ 
+-Với cấu hình này, lời gọi LLM nào do agent-cli phát ra tới provider khác là **bug** của agent-cli, không phải tính năng.
+-Kiểm bằng sổ ghi LLM (mục [Quan sát sâu](#quan-sát-sâu)).
++Với cấu hình này, lời gọi LLM do agent-cli phát ra tới một provider ID khác `main` là **bug** của agent-cli, không phải
++tính năng; kiểm bằng sổ ghi LLM (mục [Quan sát sâu](#quan-sát-sâu)). Sổ ghi ghi ID provider và tên model, không ghi URL:
++nó không phát hiện được `base_url` của `main` bị một cấu hình khác (vd của repo lạ) trỏ đi nơi khác.
+ 
+ ## "Xong" nghĩa là gì
+ 
+@@ -182,13 +187,13 @@
+   routine `maintenance` thoát 0: hôm nay không có việc). Chỉ một trong hai thì vẫn `GREEN`, kèm cảnh báo. Thư mục
+   không phải repo git (hoặc chưa có commit) thì không biết cây có đổi không, nên không ra `NO_CHANGE`.
+ - `GREEN` chỉ chứng minh lệnh verify thoát 0. Agent tự duyệt mọi quyền nên sửa được chính test hay script mà verify
+-  chạy: luôn duyệt diff trước khi commit hay merge (routine tạo với `--commit` tự commit trên nhánh của nó), nhất là tệp test, `Makefile`, script verify (báo cáo routine có cờ
++  chạy: luôn duyệt diff trước khi commit hay merge (routine tạo với `--commit` được phép commit trên nhánh của nó), nhất là tệp test, `Makefile`, script verify (báo cáo routine có cờ
+   `touched_tests`/`touched_gate` khi agent đụng chúng).
+ 
+ | Lệnh | Thoát 0 | Thoát 1 | Khác |
+ |---|---|---|---|
+ | `run`, `send --wait` | lượt chạy hết, không lỗi runtime (không có nghĩa là đúng) | lỗi | 2: sai cú pháp |
+-| `send` (không `--wait`) | server đã nhận prompt (lượt chưa chạy) | lỗi | 2: sai cú pháp |
++| `send` (không `--wait`) | server đã nhận prompt (lượt có thể chưa chạy xong) | lỗi | 2: sai cú pháp |
+ | `loop` | `GREEN` | mọi lý do dừng khác | 2: sai cú pháp |
+ | `routine run` | `GREEN`; `NO_CHANGE` của `maintenance` | lý do khác; `NO_CHANGE` của `goal` | 2: sai cú pháp, hoặc định nghĩa đã đổi so với lịch; 75: lượt khác đang giữ khoá |
+ 
+@@ -196,15 +201,17 @@
+ 
+ ```bash
+ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"
+-agent-cli routine new tidy --mode maintenance --repo ~/code/proj \
+-  --goal "Xoá các test không thể fail" --verify "go test ./..."   # thêm --commit nếu cho commit
+-agent-cli routine run tidy                                       # chạy tay một lần
++agent-cli routine new vet --mode maintenance --repo ~/code/proj \
++  --goal "Sửa mọi cảnh báo của go vet" --verify "go vet ./..."   # thêm --commit nếu cho phép commit
++agent-cli routine run vet                                        # chạy tay một lần
+ agent-cli routine list                                           # lượt cuối của từng routine
+ ```
+ 
+ - `loop`: chạy agent, chạy lệnh verify, sửa tiếp tới khi verify thoát 0 hoặc gặp điều kiện dừng (mặc định 2 lượt sửa).
+   Mỗi lượt một session mới. Verify chạy với `pipefail` (`… | head` làm lệnh trước nhận SIGPIPE, thoát 141, tính là FAIL).
+-  Không commit, không push.
++  Bản thân `loop` không commit hay push, nhưng agent trong loop được tự duyệt mọi lệnh và loop không có lớp chặn của
++  routine: model vẫn chạy được `git commit`/`git push` nếu nó quyết định vậy. Cần chặn thì chạy ở nơi không có quyền
++  push, hoặc dùng routine.
+ - `routine run`: mỗi lần chạy nằm trong git worktree riêng (nhánh `routine/*`), giữ khoá, với chế độ không người trực
+   bật: lệnh shell bị chặn theo mẫu (push, merge, `reset --hard`, `rm` ra ngoài worktree…; danh sách chặn, không chặn
+   được mọi cách), tool ghi tệp không ghi được ra ngoài thư mục làm việc. Không push, không merge; chỉ commit khi định
+@@ -212,7 +219,8 @@
+   rồi dọn bằng lệnh được in.
+ - `routine list`/`show` cho thấy lượt đang chạy (`RUNNING`), lượt chết giữa chừng (`ABANDONED`), lượt lỗi sớm (`ERROR`).
+ - Lịch chỉ được IN ra (`routine schedule <tên> --print`, chỉ cho mode `maintenance`), sau khi bạn thêm khối `schedule`
+-  vào tệp định nghĩa (`routine show <tên>` cho đường dẫn; ví dụ trong guide); bạn tự cài timer/crontab. Lịch ghim sha256
++  vào tệp định nghĩa (`~/.config/agent-cli/routines/<tên>.json`, đường dẫn in ra lúc `routine new`; ví dụ trong guide); bạn
++  tự cài timer/crontab. Lịch ghim sha256
+   của định nghĩa: sửa định nghĩa thì in và cài lại. Allowlist đặt trong tệp env: lịch không chép allowlist
+   từ shell.
+ - Chế độ không người trực không phải sandbox: chỉ chạy routine trên repo và máy bạn tin. Chi tiết và ví dụ:
+@@ -261,9 +269,10 @@
+ 
+ ## Phím tắt
+ 
+-Phím hiện dưới chân màn hình; `ctrl+g` xem thêm; `agent-cli keys` in bảng phím.
++Phím hiện dưới chân màn hình; `ctrl+g` xem thêm; `agent-cli keys` in bảng phím của màn chat (không gồm Home và hộp thoại).
+ 
+-**Home:** gõ để tìm · `↑↓` chọn · `enter` mở · `ctrl+p` ghim/bỏ ghim · `ctrl+x` bỏ dự án đã mất khỏi danh sách · `esc` thoát.
++**Home:** gõ để tìm · `↑↓` chọn · `enter` mở · `ctrl+p` ghim/bỏ ghim · `ctrl+x` bỏ dự án đã mất khỏi danh sách · `esc` xoá ô
++tìm, `esc` lần nữa thoát.
+ 
+ | Phím (màn chat) | Việc |
+ |---|---|
+@@ -288,7 +297,8 @@
+ - `agent-cli session list|show|last --json`: session dạng máy đọc.
+ - `agent-cli run --json`: `session_id`, `text` (qua server: câu trả lời cuối; chế độ local `CRUSH_CLIENT_SERVER=0`: mọi
+   chữ assistant của lượt nối lại, kể cả câu dẫn trước tool call; bản tự tóm tắt không có ở cả hai), `error`, `provider`/`model` (ghi trên tin trả
+-  lời cuối đã lưu: model agent-cli đã định gọi, có cả khi request lỗi; bằng chứng đã gọi tới là sổ ghi LLM),
++  lời cuối đã lưu: model agent-cli đã định gọi, có cả khi request lỗi; bằng chứng provider ID nào đã được gọi là sổ ghi
++  LLM),
+   `prompt_tokens` và `completion_tokens` (của bước cuối, không phải tổng), `cost` (cộng dồn của session).
+ - Sổ ghi LLM (opt-in): `AGENT_CLI_LLM_LEDGER=<tệp>` ghi mỗi lời gọi LLM một dòng JSON: vai trò, provider, model, kích
+   thước, token. Không chép nội dung prompt. Biến này KHÔNG đọc từ `~/.config/agent-cli/env` và lịch routine không mang

@@ -1,0 +1,45 @@
+=== RUN   TestLastReply
+=== PAUSE TestLastReply
+=== RUN   TestGetLastAssistantMessageSkipsPromptPlaceholders
+=== PAUSE TestGetLastAssistantMessageSkipsPromptPlaceholders
+=== CONT  TestLastReply
+=== CONT  TestGetLastAssistantMessageSkipsPromptPlaceholders
+=== RUN   TestLastReply/no_messages
+=== PAUSE TestLastReply/no_messages
+=== RUN   TestLastReply/only_a_placeholder
+=== PAUSE TestLastReply/only_a_placeholder
+=== RUN   TestLastReply/placeholder_after_a_reply
+=== PAUSE TestLastReply/placeholder_after_a_reply
+=== RUN   TestLastReply/summary_after_a_reply
+=== PAUSE TestLastReply/summary_after_a_reply
+=== RUN   TestLastReply/no_model_after_a_reply
+=== PAUSE TestLastReply/no_model_after_a_reply
+=== CONT  TestLastReply/no_messages
+=== CONT  TestLastReply/no_model_after_a_reply
+=== CONT  TestLastReply/summary_after_a_reply
+=== CONT  TestLastReply/placeholder_after_a_reply
+=== CONT  TestLastReply/only_a_placeholder
+--- PASS: TestLastReply (0.00s)
+    --- PASS: TestLastReply/no_messages (0.00s)
+    --- PASS: TestLastReply/no_model_after_a_reply (0.00s)
+    --- PASS: TestLastReply/summary_after_a_reply (0.00s)
+    --- PASS: TestLastReply/placeholder_after_a_reply (0.00s)
+    --- PASS: TestLastReply/only_a_placeholder (0.00s)
+=== NAME  TestGetLastAssistantMessageSkipsPromptPlaceholders
+    last_reply_test.go:69: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/message/last_reply_test.go:69
+        	Error:      	Not equal: 
+        	            	expected: "pp"
+        	            	actual  : "agent-cli-pending"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-pp
+        	            	+agent-cli-pending
+        	Test:       	TestGetLastAssistantMessageSkipsPromptPlaceholders
+--- FAIL: TestGetLastAssistantMessageSkipsPromptPlaceholders (0.03s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/message	0.040s
+FAIL

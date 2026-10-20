@@ -1,0 +1,11 @@
+--- FAIL: TestRunsNoAgentMarksOnlyCommandsWithoutPrompts (0.00s)
+    no_agent_runs_test.go:28: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/no_agent_runs_test.go:28
+        	Error:      	Not equal: 
+        	            	expected: true
+        	            	actual  : false
+        	Test:       	TestRunsNoAgentMarksOnlyCommandsWithoutPrompts
+        	Messages:   	agent-cli jobs
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.049s
+FAIL

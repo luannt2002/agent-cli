@@ -1,0 +1,45 @@
+== U1a local: không chuyển tiến trình sang working dir
+--- FAIL: TestLocalWorkspaceFromSubdirIsTheProject (0.07s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestLocalWorkspaceFromSubdirIsTheProject3088431772/001/repo"
+        	            	actual  : "/tmp/TestLocalWorkspaceFromSubdirIsTheProject3088431772/001/repo/sub"
+        	Messages:   	process cwd is the workspace's working dir
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.114s
+FAIL
+== U1b server: không chuyển tiến trình sang ws.Path
+--- FAIL: TestClientServerWarnsAboutDataDirs (0.03s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestClientServerWarnsAboutDataDirs636349483/001/repo"
+        	            	actual  : "/tmp/TestClientServerWarnsAboutDataDirs636349483/001/repo/sub"
+        	Messages:   	process cwd is the workspace's working dir
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.077s
+FAIL
+== U4a nhớ cả lần git quá hạn
+--- FAIL: TestProjectRootGitTimeout (0.22s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestProjectRootGitTimeout3687649975/001"
+        	            	actual  : "/tmp/TestProjectRootGitTimeout3687649975/001/a/b"
+        	Messages:   	the timeout was not remembered: git is asked again
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.228s
+FAIL
+== U4b backend tính lại gốc thay vì dùng khoá
+--- FAIL: TestCreateWorkspace_GitTimeoutKeepsKeyAndConfigTogether (6.66s)
+        	Error:      	Not equal: 
+        	            	expected: "/tmp/TestCreateWorkspace_GitTimeoutKeepsKeyAndConfigTogether41497558/005/sub"
+        	            	actual  : "/tmp/TestCreateWorkspace_GitTimeoutKeepsKeyAndConfigTogether41497558/005"
+        	Messages:   	the workspace key and the config root are one value
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	6.711s
+FAIL
+== U5 recreateArgs luôn gửi DataDir
+--- FAIL: TestRecreateArgsSendsDataDirOnlyFromFlag (0.00s)
+        	Error:      	Should be empty, but was /r/.crush
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/workspace	0.044s
+FAIL
+== khôi phục
+before: 83a1aaacc0ee2cc54ad0b736ed5b0de5678519517191330f54bc9413dc014e4b  -
+after:  83a1aaacc0ee2cc54ad0b736ed5b0de5678519517191330f54bc9413dc014e4b  -

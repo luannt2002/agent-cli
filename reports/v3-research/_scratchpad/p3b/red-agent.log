@@ -1,0 +1,18 @@
+--- FAIL: TestV3Exposure_T15_LedgerFailureIsVisible (0.44s)
+    agent_v3exposure_test.go:219: T15 control-writable turn 1: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:219: T15 control-writable turn 2: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:219: T15 unwritable-dir turn 1: run_err=<nil> runcomplete_err="" ledger_warn_logs=1 visible=true
+    agent_v3exposure_test.go:219: T15 unwritable-dir turn 2: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:193: T15 write-fails-dev-full: precondition write error = write /dev/full: no space left on device
+    agent_v3exposure_test.go:219: T15 write-fails-dev-full turn 1: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:219: T15 write-fails-dev-full turn 2: run_err=<nil> runcomplete_err="" ledger_warn_logs=0 visible=false
+    agent_v3exposure_test.go:231: 
+        	Error:      	Should be empty, but was [write-fails-dev-full-1 write-fails-dev-full-2]
+        	Messages:   	T15 EXPOSED: ledger write failed and the turn shows no signal and does not fail closed
+--- FAIL: TestLedgerWriteFailureIsReportedOncePerTurn (0.28s)
+        llm_ledger_test.go:190: 
+            	Error:      	Not equal: 
+            	Messages:   	turn 1: one warning per affected turn, not one per call
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.755s
+FAIL

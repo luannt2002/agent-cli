@@ -1,0 +1,6 @@
+# github.com/charmbracelet/crush/internal/agent
+# [github.com/charmbracelet/crush/internal/agent]
+vet: internal/agent/llm_ledger_test.go:186:26: rc.LedgerError undefined (type notify.RunComplete has no field or method LedgerError)
+# github.com/charmbracelet/crush/internal/cmd
+# [github.com/charmbracelet/crush/internal/cmd]
+vet: internal/cmd/run_json_test.go:231:28: unknown field ledgerError in struct literal of type sessionUsage

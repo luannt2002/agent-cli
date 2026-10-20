@@ -1,0 +1,8 @@
+--- PASS: TestRunQueuedBehindOtherTurnLeavesItsPromptsAlone (0.01s)
+        	Error:      	Not equal: 
+        	            	expected: "write /dev/full: no space left on device"
+        	            	actual  : ""
+--- FAIL: TestSendWaitReportsLedgerError (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.059s
+FAIL

@@ -1,0 +1,15 @@
+--- FAIL: TestUnsentPromptsInterleavedPairs (0.03s)
+--- FAIL: TestUnsentPromptWithToolResultBetween (0.04s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.075s
+--- FAIL: TestSendMessage_ReplyReplacesPlaceholderAtomically (0.03s)
+--- FAIL: TestSendMessage_MoveRecordedPromptAtomically (0.06s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/backend	0.109s
+--- FAIL: TestStatsSkipPromptPlaceholders (0.03s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/message	0.041s
+--- FAIL: TestConfig_configureProvidersRejectsReservedID (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/config	0.032s
+FAIL

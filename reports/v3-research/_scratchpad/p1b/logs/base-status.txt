@@ -1,0 +1,6 @@
+?? internal/agent/agent_v3exposure_test.go
+?? internal/agent/tools/outside_v3exposure_test.go
+?? internal/backend/identity_v3exposure_test.go
+?? internal/permission/inside_v3exposure_test.go
+?? internal/shell/leaves_v3exposure_test.go
+?? scripts/eval/exposure.sh

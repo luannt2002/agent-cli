@@ -1,0 +1,19 @@
+=== RUN   TestMCPInstructionsFollowRunTools
+=== RUN   TestMCPInstructionsOrderIsStable
+=== RUN   TestRunMCPInstructionsFollowRunTools
+=== RUN   TestRunMCPInstructionsFollowRunTools/no_MCP_tool
+=== RUN   TestRunMCPInstructionsFollowRunTools/tool_of_the_server
+--- PASS: TestRunMCPInstructionsFollowRunTools (0.05s)
+    --- PASS: TestRunMCPInstructionsFollowRunTools/no_MCP_tool (0.03s)
+    --- PASS: TestRunMCPInstructionsFollowRunTools/tool_of_the_server (0.02s)
+--- PASS: TestMCPInstructionsFollowRunTools (0.00s)
+    tool_prompt_test.go:96: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p2a/internal/agent/tool_prompt_test.go:96
+        	Error:      	Not equal: 
+        	            	expected: "\n\n<mcp-instructions>\nALPHA-INSTR\n\nBETA-INSTR\n\nGAMMA-INSTR\n\n\n</mcp-instructions>"
+        	            	actual  : "\n\n<mcp-instructions>\nBETA-INSTR\n\nALPHA-INSTR\n\nGAMMA-INSTR\n\n\n</mcp-instructions>"
+        	Messages:   	call 0
+--- FAIL: TestMCPInstructionsOrderIsStable (0.00s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/agent	0.080s
+FAIL

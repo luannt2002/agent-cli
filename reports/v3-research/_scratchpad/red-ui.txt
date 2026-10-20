@@ -1,0 +1,21 @@
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/other_model
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/other_model
+=== RUN   TestOpeningSessionKeepsTheWorkspaceModel/same_model
+=== PAUSE TestOpeningSessionKeepsTheWorkspaceModel/same_model
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/other_model
+=== CONT  TestOpeningSessionKeepsTheWorkspaceModel/same_model
+=== NAME  TestOpeningSessionKeepsTheWorkspaceModel/other_model
+    model_restore_test.go:148: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p1c/internal/ui/model/model_restore_test.go:148
+        	Error:      	Should be empty, but was [workspace]
+        	Test:       	TestOpeningSessionKeepsTheWorkspaceModel/other_model
+        	Messages:   	opening a session must not write the project model
+--- FAIL: TestOpeningSessionKeepsTheWorkspaceModel (0.00s)
+    --- FAIL: TestOpeningSessionKeepsTheWorkspaceModel/other_model (0.01s)
+    --- PASS: TestOpeningSessionKeepsTheWorkspaceModel/same_model (0.01s)
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/ui/model	0.058s
+FAIL

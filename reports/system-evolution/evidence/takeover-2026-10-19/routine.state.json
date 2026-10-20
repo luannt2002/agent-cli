@@ -1,0 +1,1 @@
+{"case": "routine", "exit": 0, "seconds": 30.56, "command": ["bash", "scripts/test-agent-cli-routine.sh"], "state": "finished"}

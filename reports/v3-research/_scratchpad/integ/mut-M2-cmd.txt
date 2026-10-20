@@ -1,0 +1,54 @@
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Overriding reasoning effort for non-interactive run provider=qq model=m-qq reasoning_effort=high
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Overriding large model provider=pp model=m-pp
+2026/10/19 22:50:31 WARN Failed to get default small model error="failed to decode default small model: EOF"
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+2026/10/19 22:50:31 INFO Running in non-interactive mode
+2026/10/19 22:50:31 INFO Continuing session for non-interactive run session_id=x
+--- FAIL: TestContinuedRunKeepsTheWorkspaceModel (0.02s)
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s,_prompt_pending_after (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-s,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-C,_prompt_canceled_after (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-C,_prompt_canceled_after
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s,_only_a_pending_prompt (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-s,_only_a_pending_prompt
+            	Messages:   	a placeholder is not a model
+    --- FAIL: TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model,_prompt_pending_after (0.00s)
+        run_session_model_test.go:164: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_session_model_test.go:164
+            	Error:      	"session x last ran on agent-cli-pending/u2; continuing on the project model qq/m-qq (pick another with -m)\n" should not contain "agent-cli-pending"
+            	Test:       	TestContinuedRunKeepsTheWorkspaceModel/run_-s_same_model,_prompt_pending_after
+            	Messages:   	a placeholder is not a model
+--- FAIL: TestLastReplyModelSkipsPromptPlaceholders (0.00s)
+    run_reply_model_test.go:23: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/cmd/run_reply_model_test.go:23
+        	Error:      	Should be empty, but was agent-cli-pending
+        	Test:       	TestLastReplyModelSkipsPromptPlaceholders
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.069s
+FAIL

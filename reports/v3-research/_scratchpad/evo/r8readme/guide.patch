@@ -1,0 +1,326 @@
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 6dd560bc..6fbbace4 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -128,9 +128,9 @@ AGENT_CLI_API_KEY="$(pass show <entry> | head -n1)"
+ 
+ `head -n1` vì `pass show` in cả các dòng ghi chú sau dòng mật khẩu; thiếu nó thì key gồm nhiều dòng.
+ 
+-Tránh để key dạng văn bản thường trong tệp env: tool `view` (cấu hình mẫu cho chạy tự động,
+-không hỏi) có thể đọc tệp ngoài thư mục dự án, kể cả `~/.config/agent-cli/env`, nên model có thể đọc key đó. Mode
+-600 chỉ chặn người dùng khác, không chặn agent chạy dưới tài khoản của bạn.
++Tránh để key dạng văn bản thường trong tệp env. Trong TUI, `view` hỏi quyền khi đọc tệp ngoài thư mục dự án
++(kể cả `~/.config/agent-cli/env`), nhưng `run`, `loop`, `routine`, `--yolo` và "Allow for Session" cho qua lời hỏi
++đó, nên model vẫn có thể đọc key. Mode 600 chỉ chặn người dùng khác, không chặn agent chạy dưới tài khoản của bạn.
+ 
+ Kiểm cấu hình đã nạp mà không gọi model: `agent-cli models` liệt kê `main/<model-id>`.
+ 
+@@ -206,6 +206,10 @@ agent-cli -c /path/to/project  # vào thẳng workspace, bỏ qua Home
+ agent-cli run "Đọc repo và tóm tắt kiến trúc, chưa sửa code."   # CẢNH BÁO: run TỰ DUYỆT mọi quyền (xem dưới)
+ agent-cli --continue
+ agent-cli login openai
++agent-cli run -m main/<model-id> --reasoning-effort high -q "..."   # chọn model, effort; -q ẩn spinner, -v in log
++git diff | agent-cli run "Review thay đổi này"                     # nội dung stdin đứng trước prompt
++agent-cli session list --json    # cùng nhóm: show <id>, last, rename <id> <tên>, delete <id>
++agent-cli logs -f                # bám log; -t N chỉ N dòng cuối
+ ```
+ 
+ Trong TUI và `send`: sửa file, chạy shell (trừ lệnh chỉ đọc an toàn), đọc ngoài thư mục
+@@ -216,7 +220,11 @@ trong prompt (dòng "chưa sửa code" ở ví dụ trên chỉ là lời dặn
+ thì dùng TUI hoặc `send` (`send` KHÔNG tự duyệt). `run` không có tool `question` (không ai trả lời
+ được nên model làm tiếp thay vì dừng hỏi) và chờ MCP khởi động xong trước khi chạy. Nó dùng chế độ
+ agent hiện hành của dự án: TUI đang bật plan mode thì `run` cũng chỉ đọc và lập kế hoạch. Mọi lệnh
+-gọi sai cú pháp (cờ lạ, thiếu/thừa tham số, lệnh con sai tên) trả mã 2; chạy lỗi trả mã 1.
++gọi sai cú pháp (cờ lạ, thiếu/thừa tham số, lệnh con sai tên) trả mã 2; chạy lỗi trả mã 1. Prompt kết thúc mà model
++chưa ra chữ hay tool call nào, xét cả các lượt tự làm tiếp của prompt đó (`empty reply`; bộ lọc nội dung của provider
++chặn thì báo riêng `content filter stopped the reply…`), hay lượt dừng vì lặp cùng một tool call, cũng là chạy lỗi.
++Bị cắt vì hết ngân sách output thì vẫn tự làm tiếp trước; hết 3 lần mà chưa ra gì mới là lỗi. Mã 0 chỉ nghĩa là lượt
++chạy hết không lỗi, không phải việc đã đúng: "xong có bằng chứng" là `loop --verify` (mục "Loop và Routine").
+ Cấu hình project có thể ghi đè cấu hình global.
+ Metrics và tự cập nhật catalog provider bị tắt (launcher đặt `CRUSH_DISABLE_METRICS`,
+ `CRUSH_DISABLE_PROVIDER_AUTO_UPDATE`; crushrc mẫu tắt thêm hai option tương ứng). Kiểm tra bản mới của
+@@ -290,22 +298,32 @@ khi bạn không tự truyền `--host`/`-H`. Thư mục gốc là `git rev-pars
+ của `-c/--cwd` (hoặc thư mục hiện tại); ngoài repo git thì lấy đường dẫn thật
+ (`pwd -P`). Kết quả: mọi process cùng một dự án dùng chung một server nên trạng thái
+ session (bận, chờ duyệt) đúng ở mọi nơi; dự án khác thì server khác, log và DB tách riêng.
+-Server tự tắt sau một khoảng ngắn không còn client (theo plan khoảng 60 giây; chưa đo). Socket nằm ở
++Server tự tắt 60 giây sau khi workspace cuối được nhả (`CRUSH_SERVER_IDLE_TIMEOUT`, giây; `0` = tắt ngay); mở
++workspace mới trong khoảng đó thì huỷ lệnh tắt. Socket nằm ở
+ `AGENT_CLI_RUNTIME_DIR` nếu bạn đặt, mặc định `/run/user/$UID`; thư mục đó chưa có thì tới `$XDG_RUNTIME_DIR`, rồi
+ cuối cùng tới `$HOME/.cache/agent-cli` (launcher tạo và siết mode 700). Cố ý KHÔNG bao giờ dùng `/tmp` vì ai
+ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạn tự chọn phải đã tồn tại, thuộc bạn và mode 700
+ (launcher không siết quyền hộ).
+ 
+ - Log server: `~/.cache/agent-cli/server-<host>/crush.log` (`<host>` là địa chỉ socket
+-  đã thay ký tự lạ bằng `_`). Mỗi dự án một thư mục, không trộn log.
++  đã thay ký tự lạ bằng `_`). Mỗi dự án một thư mục, không trộn log. Khi tiến trình panic, tệp
++  `crush-panic-<tên>-<thời điểm>.log` (quyền 600) nằm cùng thư mục với log, không còn rơi vào thư mục đang làm việc.
+ - Trả lời bị cắt vì hết ngân sách output (`max_tokens`) thì lượt tự làm tiếp (tin "Your previous reply was
+   cut off..."), tối đa 3 lần liên tiếp không tiến triển cho mỗi prompt của bạn (lượt nào đã chạy xong
+   ít nhất một tool call thì đếm lại từ đầu). Lượt làm tiếp chạy trước prompt bạn gõ thêm sau đó. Ngân sách mặc định của provider `main` là
+   min(32000, `AGENT_CLI_CONTEXT_WINDOW`/4); đặt `AGENT_CLI_MAX_TOKENS` để đổi.
+-- Tự tóm tắt (khi context còn khoảng 20%) có hạn chờ gấp 3 `request-timeout` (mặc định 6 phút). Tóm
++- Tự tóm tắt khi phần context còn trống ≤ 20% context window (window ≤ 200k token) hoặc ≤ 20.000 token (window
++  lớn hơn); model không khai `context_window` thì không bao giờ tự tóm tắt. Bước tóm tắt có hạn chờ gấp 3
++  `request-timeout` (mặc định 6 phút). Tóm
+   tắt vẫn hỏng thì việc không dừng: lịch sử giữ nguyên, lượt làm tiếp chạy ngay (tin "Continue the task
+   where you stopped..."), tự tóm tắt tạm tắt cho session tới prompt sau của bạn. Context đầy thật thì
+   provider báo lỗi và lượt dừng với lỗi đó; khi đó tóm tắt tay (`Ctrl+P` → Summarize) hoặc mở session mới.
++  Bản tóm tắt bị cắt vì hết ngân sách output cũng tính là hỏng (không thay lịch sử). Tóm tắt xong mà riêng
++  phần đầu vào của bước đầu ở lượt làm tiếp đã vượt ngưỡng, và việc còn dở (bước đó còn gọi tool), thì lượt dừng
++  với lỗi `context window too small…` thay vì tóm tắt lại mãi (phần cố định của prompt quá lớn so với window).
++  Bước đó là câu trả lời cuối thì lượt xong bình thường; chỉ phần output (vd ghi một tệp lớn) đẩy tổng qua ngưỡng
++  thì tóm tắt tiếp như thường. Một prompt tự tóm tắt tối đa 10 lần khi việc
++  còn dở; quá thì lượt dừng với lỗi `auto-summarized 10 times…`, gửi prompt mới để làm tiếp.
+ - Server bị dừng (`kill <pid>`, SIGTERM, SIGHUP) thì dừng từng workspace trước: run đang
+   chạy bị huỷ và được ghi lại, không bỏ dở giữa chừng. Server chết đột ngột (SIGKILL, mất
+   điện) thì tool call đang chạy dở được ghi "Interrupted" khi session được mở lại (TUI,
+@@ -453,7 +471,8 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"
+ - Không `--wait`: về ngay khi server nhận prompt; stdout là `session_id` (hoặc `{"session_id":"..."}`).
+ - `--wait`: đợi đúng run của lần gửi này (khớp session và run ID, run khác trên cùng session bị
+   bỏ qua), rồi in text cuối. `--json` in cùng dạng với `run --json`: `session_id`, `text`,
+-  `error`, `prompt_tokens`, `completion_tokens`, `cost` (token/cost là tổng của session).
++  `error`, `prompt_tokens`, `completion_tokens`, `cost`. Token là usage của bước cuối, không phải tổng; `cost` là
++  tổng cộng dồn của session. `send` không điền `provider`/`model`.
+   `--timeout` (mặc định 0 = không giới hạn) hoặc Ctrl-C ngắt việc đợi; `send` không gửi lệnh huỷ run, và run
+   sống tiếp khi client cuối thoát (đã kiểm: `scripts/test-agent-cli-run-json.sh`, client bị SIGKILL giữa run mà run
+   vẫn xong; trần thời gian xem "Đã biết" ở mục Home: 30 phút khi kẹt chờ duyệt/trả lời, 6 giờ khi vẫn chạy).
+@@ -520,8 +539,10 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
+ - Danh sách có provider chính (`zai`, `main`...) thì model chính và model nhỏ chỉ được là các cặp
+   đó: Alt+M chỉ hiện chúng, cấu hình trỏ tới model khác thì dừng lúc khởi động với
+   `MODEL_NOT_ALLOWED` kèm danh sách được phép. Model mới provider vừa thêm bị chặn cho tới khi bạn
+-  thêm vào (allowlist, không có denylist). Sub-agent, đặt tiêu đề và tóm tắt dùng cùng model nên
+-  cùng ranh giới. Không đặt danh sách thì model chính không giới hạn như trước.
++  thêm vào (allowlist, không có denylist). Model nhỏ (đặt tiêu đề, `agentic_fetch`) cũng phải nằm trong
++  danh sách; agent con và tóm tắt dùng model chính. Model nhỏ ở provider khác được thay bằng model chính trước
++  khi kiểm (mục "Cô lập provider, sổ ghi LLM, bằng chứng của loop/routine"). Không đặt danh sách thì model chính
++  không giới hạn như trước.
+ - Tool `claude_code` / `codex` chỉ có khi `AGENT_CLI_DELEGATION=on` VÀ backend có ít nhất một
+   model `claude_code:<id>` / `codex:<id>` trong danh sách. Model phải là ID cụ thể: alias như
+   `opus`, `latest`, `fable` bị từ chối vì CLI tự đổi chúng sang model mới nhất. Tool luôn truyền
+@@ -531,7 +552,7 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
+ - Tool bash chặn gọi thẳng CLI agent khác (`claude`, `claude-code`, `codex`, `gemini`, `qwen`,
+   `opencode`, `aider`, `cursor-agent`, `amp`, `kiro`, kể cả đuôi `.exe`/`.js`): qua đường dẫn (script
+   có shebang cũng vậy), `env`/`env -S`/`nohup`/`timeout`/`sudo`/`doas`/`xargs`, `find -exec`,
+-  `npx`/`bunx`/`npm exec`/`pnpm dlx`, `bash -c "..."`; cùng agent-cli lồng (`agent-cli run|send|server`,
++  `npx`/`bunx`/`npm exec`/`pnpm dlx`, `bash -c "..."`; cùng agent-cli lồng (`agent-cli run|send|server|loop|routine`,
+   `jobs`/`ps`/`logs` thì được). Báo `command is not allowed`. `goose` (migration DB) không bị chặn.
+   Đây là lớp thứ hai, theo tên: bản chép mang tên khác, `python -c` hay script tự viết rồi chạy không bị
+   nhận ra, nhưng vẫn phải qua hộp thoại xin quyền của bash.
+@@ -643,10 +664,14 @@ agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"
+ agent-cli loop --verify "npm test" --max-duration 2h --json "Làm cho endpoint mới qua test"
+ ```
+ 
+-Mỗi lượt là một session mới (prompt gồm đề bài + đuôi output verify vừa đo). Dừng khi `GREEN`, hết 2 lượt sửa
++Mỗi lượt là một session mới (prompt gồm đề bài + đuôi output verify vừa đo). Dừng khi `GREEN`, verify xanh từ trước
++mọi thay đổi và cây không đổi (`NO_CHANGE`, thoát 1: không có gì chứng minh việc đã làm), hết 2 lượt sửa
+ (`MAX_REPAIRS`), cùng lỗi và cây không đổi (`STALLED`), quá `--max-duration` (`TIMEOUT`), lượt agent lỗi
+ (`RUN_ERROR`), Ctrl+C (`CANCELLED`) hoặc verify không chạy được (`UNMEASURED`). Journal JSONL nằm ở
+ `<data>/loops/` (đường dẫn in ra đầu lượt). Không commit, không push. Quyền: như `run` (tự duyệt tool).
++Cờ khác: `--max-repairs` (mặc định 2), `--run-timeout` (45m mỗi lượt agent), `--verify-timeout` (30m), `--name` (tên
++journal), `-m`, `--reasoning-effort`. `--json` in `reason`, `detail`, `attempts`, `session_ids`, `verify_status`,
++`verify_exit_code`, `journal`.
+ 
+ **`agent-cli routine` (chạy lặp lại, kể cả theo lịch):**
+ 
+@@ -660,19 +685,134 @@ agent-cli routine show tidy         # định nghĩa, sha256, nơi lưu khoá v
+ 
+ Mỗi lượt chạy làm việc trong worktree riêng (nhánh `routine/tidy-<thời điểm>`, nằm ngoài repo), giữ khoá (lượt thứ
+ hai thoát 75), chạy với chế độ không người trực (không push/merge/reset --hard/xoá đệ quy ngoài workspace) và ghi
+-báo cáo ra ngoài worktree. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, rồi dọn bằng lệnh được in.
++báo cáo ra ngoài worktree. Mã thoát: 0 khi `GREEN`, và khi `NO_CHANGE` ở routine `maintenance` (hôm nay không có việc);
++`NO_CHANGE` ở routine `goal` và mọi lý do khác thoát 1. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, rồi dọn bằng lệnh được in.
+ 
+ Lên lịch: thêm `"schedule": {"on_calendar": "Mon..Fri 09:00", "timezone": "Asia/Ho_Chi_Minh"}` (hoặc `"cron"`) vào
+ tệp định nghĩa của routine `maintenance`, rồi `agent-cli routine schedule tidy --print`. Lệnh chỉ IN unit systemd
+ `--user` và/hoặc dòng crontab; bạn tự cài. Lịch ghim sha256 của định nghĩa: sửa tệp xong phải in và cài lại. Muốn
+ timer chạy khi đã đăng xuất cần `loginctl enable-linger $USER` (chưa kiểm trên máy này). Việc có đích (`goal`) không
+-lên lịch được.
++lên lịch được. Lịch in ra mang theo biến của launcher (mục kế).
+ 
+ Giới hạn cần biết: lớp chặn không người trực KHÔNG phải ranh giới an ninh. `git` chỉ cho một danh sách trắng
+ (đọc, add/rm/mv, nhánh mới...; push/merge/reset --hard/alias/`-c` bị chặn), `rm` phải ở trong workspace, tool giao
+-việc bị tắt, `working_dir` ngoài workspace bị từ chối. Nhưng agent viết mã rồi chạy `go test`/`make`/verify, và mã đó
+-có thể làm bất cứ gì; chưa phủ `python`/`node`, `find -delete`, ghi tệp qua redirect, `cd / && rm -rf x`. Worktree
+-dùng chung refs, config và hooks với repo gốc. Chỉ cho routine chạy trên repo và máy bạn tin.
++việc bị tắt, `working_dir` ngoài workspace bị từ chối, tool ghi tệp không ghi ra ngoài thư mục làm việc. Nhưng agent
++viết mã rồi chạy `go test`/`make`/verify, và mã đó có thể làm bất cứ gì; chưa phủ `python`/`node`, `find -delete`, ghi
++tệp qua redirect, `cd / && rm -rf x` (đủ ở mục kế). Worktree dùng chung refs, config và hooks với repo gốc. Chỉ cho
++routine chạy trên repo và máy bạn tin.
++
++## Cô lập provider, sổ ghi LLM, bằng chứng của loop/routine
++
++Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
++
++**Lời gọi ẩn ở lại provider của model chính.**
++
++- Lượt chính, agent con, tóm tắt, đặt tiêu đề và `agentic_fetch` đều gọi provider của model chính. Model nhỏ ở
++  provider khác (cấu hình, `run --small-model`) bị thay bằng model chính; log ghi một lần (mỗi cặp provider, mỗi
++  tiến trình) `Small model is on another provider; using the main model for titles and agentic_fetch`. Cùng provider thì giữ model nhỏ.
++- Đặt tiêu đề: session con (agent con, `agentic_fetch`) không gọi LLM đặt tiêu đề; bị cắt vì hết token thì không thử
++  lại mà giữ tiêu đề suy ra từ prompt; chỉ thử thêm model chính khi nó khác model nhỏ.
++- `agentic_fetch`: `disabled_tools` áp cả cho tool con của nó; tắt cả `web_fetch` lẫn `web_search` thì model không có
++  `agentic_fetch`; tắt `web_fetch` thì chế độ URL bị từ chối (chế độ tìm kiếm vẫn được). Tắt `fetch` (tên tool trong
++  cấu hình) cũng tính là tắt `web_fetch`. Session con của nó không còn
++  tự duyệt: đọc ngoài thư mục tạm thì TUI hỏi. `run` (local cũng như qua server) duyệt mọi yêu cầu của session con
++  thuộc chính lượt đó; không tra được session gốc thì không duyệt.
++- Còn hở: allowlist chỉ so nhãn; `--small-model` ở provider khác cũng bị thay (mục "Giới hạn đã biết").
++
++**Model đang chọn không dùng được: dừng, không đổi provider.**
++
++- Lúc khởi động hoặc nạp lại cấu hình, provider của model đang chọn không dùng được (provider dựng sẵn thiếu API key,
++  provider không còn trong cấu hình hay bị tắt): lựa chọn giữ nguyên, và bước dựng agent dừng với lỗi
++  `… provider "<id>", model "<id>" is unavailable and agent-cli does not switch to another provider; …` ở `run`,
++  `loop`, `routine` (lỗi chặn trước khi `-m` được áp, nên `-m` không vượt qua được).
++- App vẫn khởi động, chỉ chưa có agent (như lúc chưa cấu hình provider nào): `agent-cli login <nền tảng>`, `session`,
++  `jobs`… chạy được; TUI mở thẳng màn chọn model, chọn model dùng được thì agent mới được dựng. Lúc TUI đang chạy (nạp
++  lại cấu hình) thì chọn model khác bằng `alt+m`.
++- Cách gỡ khác: đặt key (export ở shell cho provider dựng sẵn không phải provider chính), hoặc xoá `models` trong
++  `<dự án>/.crush/crush.json`.
++- Chỉ mất ID model (provider vẫn dùng được): dùng model mặc định của CÙNG provider (theo catalog, không có thì model
++  đầu), log ghi `Selected large model is unavailable; using a fallback for this process only (not saved)`, không ghi
++  xuống đĩa.
++- Kiểm: `scripts/eval/faults.sh <thư-mục-mới> <binary>`, ca `selected-no-key` (cổng thoát 1 khi có request nào lọt,
++  khi `run` không dừng, hoặc khi `agent-cli login` không khởi động được).
++
++**Sổ ghi LLM (`AGENT_CLI_LLM_LEDGER`, opt-in).**
++
++- `AGENT_CLI_LLM_LEDGER=<tệp>`: mỗi lời gọi LLM, kể cả mỗi lần thử lại, nối một dòng JSON vào tệp (tạo mode 600):
++  `time`, `duration_ms`, `role` (`main`, `title`, `summary`, `subagent`, `agentic_fetch`), `session_id`, `provider`,
++  `model` (đúng model đã gọi), `stream`, `messages`, `system_bytes`, `system_sha` (12 ký tự hex), `tools`,
++  `tool_names`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `finish`, `error` (chỉ loại lỗi và mã HTTP).
++- Không chép nội dung prompt, câu trả lời hay văn bản lỗi.
++- Biến tin cậy: đọc từ env gốc chụp đầu tiến trình, nên `.env` của repo không bật hay chuyển được sổ; cũng không đọc từ
++  `~/.config/agent-cli/env`. Export ở shell (hoặc đặt trước lệnh) trước khi server của dự án khởi động; server đang
++  chạy thì dừng hẳn rồi mở lại.
++- Đếm theo provider và vai trò: `jq -r '.provider + " " + .role' <tệp> | sort | uniq -c`.
++
++**`run --json`.**
++
++- Thêm `provider`, `model`: của tin trả lời cuối đã lưu (bỏ qua tin tóm tắt), không phải model "đang chọn". Chưa có
++  câu trả lời nào thì không có hai trường này.
++- `prompt_tokens`, `completion_tokens` là usage của bước cuối (session mới có thể gồm cả lời gọi đặt tiêu đề), không
++  phải tổng. `cost` là tổng cộng dồn của session (với `-s`/`-C` gồm cả lượt trước). Token thật của cả lượt: sổ ghi LLM.
++- `text`: qua server (mặc định của launcher) là câu trả lời cuối. Chế độ local (`CRUSH_CLIENT_SERVER=0`) là mọi chữ
++  assistant của lượt nối lại (vd câu dẫn trước tool call rồi câu trả lời). Bản tự tóm tắt giữa lượt không được in ở
++  cả hai chế độ.
++- `provider`/`model` là nhãn ghi trên tin trả lời: có cả khi request lỗi trước khi tới provider (vd provider chết: 0
++  request vẫn có `"provider"`). Bằng chứng đã gọi tới provider nào là sổ ghi LLM.
++
++**Loop: verify và cảnh báo khi GREEN.**
++
++- Lệnh verify chạy với `set -o pipefail`: `go test ./... | tee log` thất bại khi `go test` thất bại.
++- Hệ quả: đuôi đọc rồi thoát sớm (`| head`, `| grep -q X`) làm lệnh trước nhận SIGPIPE, verify FAIL với mã 141, output
++  có dòng gợi ý `exit 141 = SIGPIPE…`. Bỏ đuôi đó (vd ghi output ra tệp rồi `grep -q` trên tệp).
++- Verify đã xanh ở baseline (trước mọi thay đổi) VÀ cây làm việc y như lúc baseline: dừng `NO_CHANGE` (`loop` thoát 1),
++  `detail` ghi `verify already passed before any change and the working tree did not change: nothing proves the
++  agent's work`. Chỉ một trong hai thì vẫn `GREEN`, dòng dừng và `detail` của `--json` ghi cảnh báo tương ứng. Cây
++  làm việc tính theo HEAD, diff và tệp chưa theo dõi (không tính tệp bị gitignore); thư mục không phải repo git thì
++  không biết cây có đổi không, nên không bao giờ ra `NO_CHANGE`.
++
++**Routine: báo cáo từng lượt.**
++
++- Báo cáo `RUNNING` được ghi ngay khi có thư mục lượt, trước khi tạo worktree, rồi thay bằng kết quả cuối (ghi qua tệp
++  tạm rồi đổi tên).
++- `routine list`/`show`: lượt mới nhất luôn thắng, không lùi về một lượt GREEN cũ. Lượt chết giữa chừng (kill, OOM, máy
++  khởi động lại): `ABANDONED`, worktree và nhánh được giữ. Lượt mới nhất chưa có báo cáo mà khoá đang giữ: `RUNNING`.
++  Lỗi trước khi agent chạy (vd không tạo được worktree): `ERROR` kèm nguyên nhân. `show` có thêm `runs` (mọi lượt, mới
++  nhất trước).
++- Báo cáo có thêm `changed_files` (tệp khác base, gồm tệp chưa theo dõi), `touched_tests` (có tệp test theo quy ước
++  Go/JS/TS/Python), `touched_gate` (có script mà lệnh verify gọi, hoặc `Makefile` khi verify bắt đầu bằng `make`),
++  `baseline_pass`, `unchanged_tree`. GREEN mà có `touched_tests`/`touched_gate` thì stderr in cảnh báo: duyệt các tệp
++  đó trước khi tin kết quả.
++
++**Lịch routine mang biến của launcher.**
++
++- `routine schedule <tên> --print` ghi thêm biến (`Environment=` trong unit systemd, gán biến trên dòng crontab):
++  `CRUSH_GLOBAL_CONFIG`, `CRUSH_GLOBAL_DATA`, `CRUSH_CACHE_DIR`, `CRUSH_DISABLE_METRICS`,
++  `CRUSH_DISABLE_PROVIDER_AUTO_UPDATE`, `CRUSH_DISABLE_UPDATE_CHECK`, `AGENT_CLI_ENV_FILE`; biến nào rỗng thì bỏ. Trước đây lịch thiếu chúng nên mỗi lần chạy theo lịch tìm định nghĩa ở `~/.config/crush` và thoát 2.
++- Giá trị lấy từ env gốc của lệnh (trước khi `.env` của thư mục hiện tại được nạp): chạy lệnh qua launcher `agent-cli`.
++  Giá trị có ký tự ngoài `A-Za-z0-9/._:+,-` thì lệnh từ chối, mã 2.
++- `AGENT_CLI_ALLOWED_MODELS` KHÔNG được chép vào lịch: lượt theo lịch đọc allowlist từ tệp env (`AGENT_CLI_ENV_FILE`
++  hoặc `~/.config/agent-cli/env`), nên siết allowlist trong tệp env có hiệu lực ngay cho lịch đã cài (biến export ở
++  lịch sẽ thắng tệp env và che việc siết đó). Allowlist chỉ đặt ở shell thì `schedule --print` in cảnh báo ra stderr:
++  chuyển nó vào tệp env.
++
++**Chế độ không người trực: phần thêm.**
++
++- Tool ghi tệp (`write`, `edit`, `multiedit`, `download`, `lsp_replace_symbol`, `lsp_rename`) bị từ chối cứng khi đích
++  nằm ngoài thư mục làm việc, trước cả YOLO và `allowed_tools`. Ví dụ: không ghi được `~/.config/agent-cli/crushrc`,
++  thứ chạy như Bash ở lần mở sau. Bash (chuyển hướng `>`, `cp`, `tee`) KHÔNG qua kiểm tra này.
++- `git -C <dir>`, `--git-dir`, `--work-tree` trỏ ra ngoài workspace (đường dẫn tuyệt đối, `~`, `$VAR`, `..`) bị chặn.
++- Option dài viết tắt được so như git: `--har` là `--hard`, `--delet` là `--delete`.
++- Luật theo chữ: lệnh nào có chữ nhắc tới biến trỏ git sang repo khác hoặc nạp cấu hình (`GIT_DIR`, `GIT_WORK_TREE`,
++  `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`, `GIT_NAMESPACE`, `GIT_EXEC_PATH`, `GIT_CONFIG_*`) đều bị
++  chặn, bất kể lệnh gì và giá trị gì, kể cả trong `sh -c`, `env -S`, `eval`. Biến kế thừa nguyên giá trị từ env của
++  chính agent-cli (vd chạy trong git hook) được bỏ qua. Cố ý nghiêng về chặn: biến shell thường trùng tên, hay chỉ
++  nhắc tên trong một chuỗi, cũng bị chặn (`env GIT_DIR=/o ls` bị chặn; `MY_GIT_DIR=x git status` vẫn qua).
++- Lệnh bị chặn (lớp này hoặc lớp bảo vệ tiến trình agent-cli): output gửi model có thêm dòng `Blocked: <lý do>`
++  (tối đa 5 lý do, mỗi lý do 300 ký tự, phần còn lại ghi "and N more blocked commands").
++- Vẫn KHÔNG phủ: ghi tệp qua bash, thư mục symlink (`ln -s /khác r; git -C r …`), `cd` ra ngoài trước lệnh, tên biến
++  ghép lúc chạy (`"GIT_""DIR"`), script đọc từ tệp hoặc stdin, `python`/`node`, `find -delete`. Đây là danh sách đen,
++  không phải sandbox.
+ 
+ ## Tổ hợp phím
+ 
+@@ -713,8 +853,8 @@ theo `CRUSH_GLOBAL_CONFIG` nếu có). Dạng `{"<action>": ["phím", ...]}`; m
+ 
+ ## Theme (màu giao diện)
+ 
+-Theme mặc định là **`luannt-theme-everforest-dark`** (đổi tên cá nhân ngày 16/10 từ `everforest-dark-v2`; tên cũ vẫn là alias): nền tối dịu cho phiên làm việc dài, chữ thường `#D4D7DD`,
+-đường dẫn/metadata `#A1A6B0`, gợi ý và phím tắt `#7B818C`. Chỉ có MỘT màu nhấn (xanh `#7FA6E8`), dành cho thứ
++Theme mặc định là **`luannt-theme-everforest-dark`** (đổi tên cá nhân ngày 16/10 từ `everforest-dark-v2`; tên cũ vẫn là alias): nền tối dịu cho phiên làm việc dài, chữ thường `#E6E9E7`,
++đường dẫn/metadata `#B2B8B6`, gợi ý và phím tắt `#99A09E`. Chỉ có MỘT màu nhấn (xanh ngọc `#93CFD1`), dành cho thứ
+ đang chọn/tương tác; xanh lá chỉ cho thành công và dòng thêm, đỏ chỉ cho lỗi và dòng xoá, vàng chỉ cho cảnh báo;
+ sidebar và logo trầm. Không cần cấu hình gì: TUI, Home, hộp thoại, banner khi thoát, màn `login`/`logout` và
+ help của CLI đều dùng bảng màu này (mọi provider, kể cả hyper).
+@@ -737,6 +877,49 @@ markdown theo theme đầu tiên của tiến trình cho tới khi mở lại (
+ theo vai trò; `Ctrl+D` (revert) trả về bản dựng sẵn. Bảng màu nằm ở `internal/ui/styles/everforest_dark_v2.go`
+ (theme mặc định chọn ở `DefaultThemeName`, `internal/ui/styles/themes.go`); kiểm bằng `go test ./internal/ui/styles/`.
+ 
++## Giới hạn đã biết
++
++Mã PRB-xx là số trong sổ vấn đề của đợt soát 16/10 (`reports/system-evolution/05_CURRENT_PROBLEMS.md`, chưa vào git).
++Giới hạn riêng của từng mục (detach grace, accept edits, theme…) nằm ngay trong mục đó.
++
++- **Model đang chọn không dùng được thì `run`/`loop`/`routine` dừng, kể cả có `-m`.** Đây là cái giá của việc không đổi
++  provider (mục "Model đang chọn không dùng được"): chọn model khác trong TUI, sửa key/login, hoặc sửa cấu hình.
++- **Model nhỏ ở provider khác luôn bị thay, kể cả khi chỉ định rõ.** `run --small-model <provider khác>/<model>` cũng bị
++  thay bằng model chính (log ghi một lần mỗi tiến trình); không có cách cho phép model nhỏ chéo provider.
++- **Model là của cả dự án (PRB-05).** Chọn model trong TUI, mở lại session cũ, hay `run -m` qua server đều ghi model vào
++  cấu hình của dự án: mọi session sau của dự án đổi theo. TUI hiện model đang chọn, không phải model đã trả lời; model
++  thật xem ở `run --json` hoặc sổ ghi LLM.
++- **Allowlist chỉ so nhãn (PRB-30).** `provider:model` không ràng buộc `base_url`/`extra_body` (mục "Ranh giới provider/model"):
++  ai sửa được cấu hình, kể cả `crush.json` của một repo lạ, thì trỏ được cùng tên sang endpoint khác.
++- **Nhãn provider của `run --json` không phải bằng chứng.** `provider`/`model` lấy từ tin đã lưu, có cả khi request
++  chưa tới provider. Báo cáo routine không ghi provider/model; cần bằng chứng thì bật sổ ghi LLM (lịch không tự mang
++  `AGENT_CLI_LLM_LEDGER`: thêm vào unit/crontab nếu cần).
++- **`routine list`/`show` có thể làm mất một lượt theo lịch.** Khi lượt mới nhất chưa có báo cáo hoặc báo cáo còn
++  `RUNNING`, hai lệnh này thử khoá của routine rồi nhả ngay (cửa sổ rất ngắn, chưa đo); lượt theo lịch bắt đầu đúng lúc đó thấy khoá
++  đang giữ, thoát 75 và không chạy lại.
++- **Đăng nhập ChatGPT/Grok có kết nối ra ngoài kể cả khi dùng provider khác.** Đã `agent-cli login openai`/`xai` mà
++  chưa có danh sách model của gói (lấy lúc login bị lỗi, hoặc đăng nhập từ bản cũ), thì mỗi lần dựng lại model
++  agent-cli thử lấy lại danh sách đó (có thể làm mới token), kể cả trong phiên chỉ dùng Qwen local. Không phải lời gọi
++  LLM và không gửi prompt; lấy được một lần thì thôi.
++- **Skill viết cho công cụ khác vẫn được liệt kê.** Skill trong các gốc skill (vd skill đồng bộ từ ứng dụng Claude dùng
++  computer-use hay trình duyệt) vào system prompt dù agent-cli không có tool mà nó cần. Tắt bằng `option disable-skill
++  <tên>`.
++- **Mở repo lạ.** `crushrc`/`.crushrc` của repo chạy như Bash, `crush.json` của repo có thể nới quyền tool; không có
++  bước hỏi tin cậy. Đọc cấu hình của repo trước khi mở.
++- **MCP chết sau App cuối (PRB-84, chế độ server).** App cuối của server đóng thì MCP client bị đóng và không mở lại được
++  trong cùng tiến trình; client quay lại trong 60 giây chờ tắt nhận MCP chết. Dừng hẳn server của dự án (mục "Sửa env
++  khi agent-cli đang chạy") để có tiến trình mới. Có từ trước; bản sửa job nền theo workspace làm hẹp lại.
++- **Job của App mới có thể bị giết (PRB-85).** Dừng job theo gốc workspace: trong lúc App cũ của một dự án đang dừng, App
++  mới cùng gốc (mở lại ngay dự án vừa đóng) có thể mất job nền của nó. Cửa sổ hẹp; sửa đúng cần chủ job theo App.
++- **Context file (PRB-19, PRB-20).** Chỉ đọc ở thư mục làm việc, không ở gốc git; tên chữ thường (`agents.md`,
++  `crush.md`) không được nạp trên Linux; plan mode và agent con không nhận context của dự án.
++- **`run` không có trần thời gian cho cả lượt.** Mỗi request LLM chỉ có `request-timeout` (mặc định 2 phút không có
++  dữ liệu); script cần trần thì tự bọc `timeout`. `loop`/`routine` có `--run-timeout`.
++- **Server bị SIGKILL (PRB-16).** Tiến trình job còn lại không được theo dõi nữa, prompt đang xếp hàng mất không dấu
++  vết, TUI không tự dựng lại server.
++- **Routine chạy mã cấu hình của repo (PRB-68).** `crushrc`, `$(...)` và hook của repo chạy ngoài lớp chặn không người
++  trực: chỉ chạy routine trên repo bạn tin. Worktree và nhánh của các lượt tích luỹ cho tới khi bạn dọn.
++
+ ## Cập nhật và kiểm chứng
+ 
+ ```bash

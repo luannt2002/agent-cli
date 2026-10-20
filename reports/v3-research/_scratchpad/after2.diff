@@ -1,0 +1,735 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..f1089774 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -170,6 +170,13 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
++- **Mở hay tiếp session cũ không còn tự đổi model.** Trước: `run -s/-C` qua server và TUI mở session ghi model lượt
++  cuối của session vào `<dự án>/.crush/crush.json`, nên session khác và session mới lặng lẽ đổi provider; `run -s/-C`
++  ở chế độ local chạy model của session (đổi trong RAM). Nay mọi đường chạy model đang chọn của dự án và không ghi gì;
++  session từng chạy model khác thì báo một dòng nêu cả hai model (stderr của `run`; thanh trạng thái TUI, kèm
++  `alt+p` khi khác provider, `alt+m` khi cùng provider). Model của session không còn trong catalog nay cũng được báo
++  (trước chỉ ghi log Debug). Model chỉ đổi khi bạn chọn: `-m`, `--small-model`, `alt+p`/`alt+m`,
++  `agent-cli-tmux new --model`; thinking và effort (`alt+e`, `--reasoning-effort`) đổi tham số của model đang chọn.
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/DECISIONS.md b/DECISIONS.md
+index 33d0ae95..742aac7f 100644
+--- a/DECISIONS.md
++++ b/DECISIONS.md
+@@ -355,3 +355,10 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
+ - **Vì:** red team cuối (L6): biến export thắng tệp env (`execpolicy`), nên giá trị chép vào lịch lúc in sẽ che mọi lần siết allowlist sau đó trong tệp env. Hai chủ cho một quyết định.
+ - **Đã thử và bỏ:** chép allowlist vào lịch, đổi khoảng trắng thành dấu phẩy (bản trước trong đợt này).
+ - **Lật lại khi:** có người dùng không có tệp env mà vẫn cần allowlist cho lượt theo lịch.
++
++## 2026-10-19 — Model thuộc workspace và chỉ đổi khi người dùng chọn; mở/tiếp session cũ không tự ghi model
++**Trạng thái:** đã làm (chưa phát hành)
++- **Chốt:** `run -s`/`run -C` (local lẫn qua server) và TUI mở session cũ không còn khôi phục model của session đó: lượt chạy model hiện tại của workspace, không ghi gì vào `.crush/crush.json`; khác model lần cuối của session thì báo một dòng nêu cả hai model (stderr ở CLI, thanh trạng thái ở TUI). Lựa chọn tường minh vẫn ghi như trước: `-m`, `--small-model`, `--reasoning-effort`, alt+p/alt+m, thinking/effort trong TUI, `agent-cli-tmux new --model`. Thay phần "khôi phục model chạy nền trong `tea.Cmd`" của mục 2026-10-15 ở trên.
++- **Vì:** đo được (phơi nhiễm T17, V3): `run -s X` qua server ghi model của X thành cấu hình dự án, mọi session sau (kể cả session đang dùng model khác) đi theo mà không ai chọn. Người dùng chốt 19/10: model thuộc workspace nhưng chỉ đổi khi người dùng chọn.
++- **Đã thử và bỏ:** (a) model riêng từng session (mục 2026-10-15, phương án c) — đúng nhất nhưng đổi API model của UI, backend, CLI và proto; (b) giữ khôi phục trong RAM cho chế độ local — làm cùng lệnh `run -s` ra provider khác nhau tuỳ local hay server.
++- **Lật lại khi:** cần model khác nhau theo session một cách bền (không chỉ "lượt giữ model lúc gửi") thì làm phương án (a).
+diff --git a/README.md b/README.md
+index 08de100f..d416babf 100644
+--- a/README.md
++++ b/README.md
+@@ -120,10 +120,11 @@ Hyper; zai và anthropic chỉ dùng key). `alt+p` chỉ hiện provider khai b
+ không chỉ một lượt. Đổi provider không làm mất mạch: cùng session chạy tiếp với lịch sử cũ (đã thử với LLM thật, một
+ lần: bước 1 dùng model local, bước 2 `-m` sang provider khác trên cùng session).
+ 
+-**Model của dự án nằm ở đâu.** Chọn model trong TUI, `run -m` (ở chế độ server mặc định; chế độ local chỉ đổi trong lượt
+-đó), hay mở lại một session cũ đều ghi model vào `<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong
+-env. Muốn dự án theo env trở lại: xoá `models` (và `recent_models`) trong tệp đó. `agent-cli dirs` in các thư mục cấu hình
+-và dữ liệu đang dùng.
++**Model của dự án nằm ở đâu.** Chọn model trong TUI hay `run -m` (ở chế độ server mặc định; chế độ local chỉ đổi trong
++lượt đó) ghi model vào `<dự án>/.crush/crush.json`; từ đó tệp này thắng `AGENT_CLI_MODEL` trong env. Mở lại hay tiếp một
++session cũ (TUI, `run -s/-C`) không ghi gì: lượt mới chạy model đang chọn của dự án, kể cả khi session đó từng chạy model
++khác; khi đó TUI báo ở thanh trạng thái, `run` in một dòng ra stderr nêu cả hai model. Muốn dự án theo env trở lại: xoá
++`models` (và `recent_models`) trong tệp đó. `agent-cli dirs` in các thư mục cấu hình và dữ liệu đang dùng.
+ 
+ **Không gọi lén:**
+ 
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 7b9d5ab8..17557fd7 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -238,8 +238,10 @@ không `permissions deny` (crushrc mẫu chặn `sourcegraph`, `fetch`, `agentic
+ 
+ Model chọn trong TUI (kể cả bật/tắt thinking, mức reasoning) giờ thuộc về dự án:
+ được ghi vào `<project>/.crush/crush.json`, nên đổi model ở worktree này không
+-đổi model ở worktree khác. Mở lại một session cũ cũng ghi model của session đó
+-vào file dự án (chạy nền, không làm TUI đứng). Model, effort đổi được bất cứ lúc nào, kể cả khi
++đổi model ở worktree khác. Mở lại hay tiếp một session cũ (TUI, `run -s/-C`) không ghi
++gì: tin nhắn sau chạy model đang chọn của dự án; session từng chạy model khác thì TUI báo ở
++thanh trạng thái, `run` in ra stderr `session <id> last ran on <cũ>; continuing on the project
++model <đang chọn> (pick another with -m)`. Model, effort đổi được bất cứ lúc nào, kể cả khi
+ có run ở session này hay session khác: mỗi lượt chạy giữ model và bộ tool lúc nó bắt đầu, prompt
+ xếp hàng giữ model lúc gửi, nên thiết lập mới chỉ áp cho tin nhắn gửi sau, không đổi provider
+ giữa chừng lượt đang chạy (agent con của lượt cũng vậy). Thứ tự gộp config, từ thấp đến cao: `~/.config/agent-cli/crush.json`
+@@ -888,9 +890,9 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n
+   provider (mục "Model đang chọn không dùng được"): chọn model khác trong TUI, sửa key/login, hoặc sửa cấu hình.
+ - **Model nhỏ ở provider khác luôn bị thay, kể cả khi chỉ định rõ.** `run --small-model <provider khác>/<model>` cũng bị
+   thay bằng model chính (log ghi một lần mỗi tiến trình); không có cách cho phép model nhỏ chéo provider.
+-- **Model là của cả dự án (PRB-05).** Chọn model trong TUI, mở lại session cũ, hay `run -m` qua server đều ghi model vào
+-  cấu hình của dự án: mọi session sau của dự án đổi theo. TUI hiện model đang chọn, không phải model đã trả lời; model
+-  thật xem ở `run --json` hoặc sổ ghi LLM.
++- **Model là của cả dự án (PRB-05).** Chọn model trong TUI hay `run -m` qua server đều ghi model vào cấu hình của dự án:
++  mọi session sau của dự án đổi theo, kể cả session cũ mở lại (chạy tiếp bằng model đang chọn, không bằng model nó
++  từng dùng). TUI hiện model đang chọn, không phải model đã trả lời; model thật xem ở `run --json` hoặc sổ ghi LLM.
+ - **Allowlist chỉ so nhãn (PRB-30).** `provider:model` không ràng buộc `base_url`/`extra_body` (mục "Ranh giới provider/model"):
+   ai sửa được cấu hình, kể cả `crush.json` của một repo lạ, thì trỏ được cùng tên sang endpoint khác.
+ - **Nhãn provider của `run --json` không phải bằng chứng.** `provider`/`model` lấy từ tin đã lưu, có cả khi request
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 25a0df41..7420ba0b 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -312,12 +312,9 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
+ 		}
+ 	}
+ 
+-	// The reasoning effort applies to the model that will actually run.
+-	// On a continued session without an explicit model override, the
+-	// model is resolved later from the session's last assistant message,
+-	// so the override is applied after that restore instead.
+-	deferredEffort := (continueSessionID != "" || useLast) && largeModel == "" && smallModel == ""
+-	if reasoningEffort != "" && !deferredEffort {
++	// Effort áp cho model lượt này chạy: model của -m hoặc của workspace
++	// (tiếp session cũ không đổi model).
++	if reasoningEffort != "" {
+ 		if err := app.overrideReasoningEffort(ctx, reasoningEffort); err != nil {
+ 			return err
+ 		}
+@@ -384,24 +381,17 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
+ 	}
+ 	if continueSessionID != "" || useLast {
+ 		slog.Info("Continuing session for non-interactive run", "session_id", sess.ID)
+-		// If no explicit model override was requested, restore the
+-		// model/provider from the last assistant message in the
+-		// session, provided it is still available.
++		// Model thuộc workspace, chỉ đổi khi người dùng chọn (-m, TUI): lượt
++		// này chạy model của workspace, kể cả khi session từng chạy model khác.
+ 		if largeModel == "" && smallModel == "" {
+-			if err := app.restoreModelFromSession(ctx, sess.ID); err != nil {
+-				slog.Warn("Failed to restore model from session", "error", err)
++			if note := app.sessionModelNote(ctx, sess.ID); note != "" {
++				fmt.Fprintf(os.Stderr, "session %s %s (pick another with -m)\n", sess.ID, note)
+ 			}
+ 		}
+ 	} else {
+ 		slog.Info("Created session for non-interactive run", "session_id", sess.ID)
+ 	}
+ 
+-	if reasoningEffort != "" && deferredEffort {
+-		if err := app.overrideReasoningEffort(ctx, reasoningEffort); err != nil {
+-			return err
+-		}
+-	}
+-
+ 	// Automatically approve all permission requests for this non-interactive
+ 	// session and its sub-agent sessions.
+ 	permCtx, cancelPerm := context.WithCancel(ctx)
+@@ -532,52 +522,30 @@ func (app *App) UpdateAgentModel(ctx context.Context) error {
+ 	return app.AgentCoordinator.UpdateModels(ctx)
+ }
+ 
+-// restoreModelFromSession reads the last assistant message in the
+-// session and, if it used a different provider/model than the current
+-// config, overrides the preferred model in-memory (non-persistent)
+-// provided the provider/model is still available. This ensures that
+-// continuing a session uses the same model that produced the last
+-// response.
+-func (app *App) restoreModelFromSession(ctx context.Context, sessionID string) error {
++// sessionModelNote đọc tin assistant cuối của session và trả SessionModelNote
++// so với model lớn của workspace (model lượt này chạy).
++func (app *App) sessionModelNote(ctx context.Context, sessionID string) string {
+ 	lastMsg, err := app.Messages.GetLastAssistantMessage(ctx, sessionID)
+ 	if err != nil {
+-		if errors.Is(err, sql.ErrNoRows) {
+-			return nil
++		if !errors.Is(err, sql.ErrNoRows) {
++			slog.Warn("Failed to read the session's last model", "error", err)
+ 		}
+-		return fmt.Errorf("failed to get last assistant message: %w", err)
+-	}
+-	if lastMsg.Provider == "" || lastMsg.Model == "" {
+-		return nil
+-	}
+-
+-	cfg := app.config.Config()
+-	currentLarge := cfg.Models[config.SelectedModelTypeLarge]
+-	if currentLarge.Provider == lastMsg.Provider && currentLarge.Model == lastMsg.Model {
+-		return nil
+-	}
+-
+-	if !cfg.IsModelAvailable(lastMsg.Provider, lastMsg.Model) {
+-		slog.Debug("Skipping model restoration: provider/model not available",
+-			"provider", lastMsg.Provider,
+-			"model", lastMsg.Model)
+-		return nil
++		return ""
+ 	}
++	last := config.SelectedModel{Provider: lastMsg.Provider, Model: lastMsg.Model}
++	return SessionModelNote(last, app.config.Config().Models[config.SelectedModelTypeLarge])
++}
+ 
+-	app.config.OverridePreferredModel(config.SelectedModelTypeLarge, config.SelectedModel{
+-		Provider: lastMsg.Provider,
+-		Model:    lastMsg.Model,
+-	})
+-	if _, ok := cfg.Models[config.SelectedModelTypeSmall]; !ok {
+-		smallModel := app.GetDefaultSmallModel(lastMsg.Provider)
+-		app.config.OverridePreferredModel(config.SelectedModelTypeSmall, smallModel)
++// SessionModelNote nói session từng chạy model last, khác model current của
++// workspace mà lượt tới dùng; rỗng khi trùng hoặc thiếu thông tin. Mở hay tiếp
++// session không đổi model: model thuộc workspace, chỉ đổi khi người dùng chọn.
++func SessionModelNote(last, current config.SelectedModel) string {
++	if last.Provider == "" || last.Model == "" || current.Provider == "" ||
++		(last.Provider == current.Provider && last.Model == current.Model) {
++		return ""
+ 	}
+-	if err := app.AgentCoordinator.UpdateModels(ctx); err != nil {
+-		return fmt.Errorf("failed to update agent models: %w", err)
+-	}
+-	slog.Info("Restored model from session",
+-		"provider", lastMsg.Provider,
+-		"model", lastMsg.Model)
+-	return nil
++	return fmt.Sprintf("last ran on %s/%s; continuing on the project model %s/%s",
++		last.Provider, last.Model, current.Provider, current.Model)
+ }
+ 
+ // overrideModelsForNonInteractive parses the model strings and temporarily
+@@ -634,8 +602,7 @@ func (app *App) overrideModelsForNonInteractive(ctx context.Context, largeModel,
+ 
+ // overrideReasoningEffort validates the requested reasoning effort against
+ // the large model in effect for this run (which may have been overridden by
+-// --model or restored from a continued session) and applies it as an
+-// in-memory override.
++// --model) and applies it as an in-memory override.
+ func (app *App) overrideReasoningEffort(ctx context.Context, reasoningEffort string) error {
+ 	cfg := app.config.Config()
+ 	selected, ok := cfg.Models[config.SelectedModelTypeLarge]
+diff --git a/internal/cmd/run.go b/internal/cmd/run.go
+index 90102bea..e0fdb7f8 100644
+--- a/internal/cmd/run.go
++++ b/internal/cmd/run.go
+@@ -15,6 +15,7 @@ import (
+ 	"time"
+ 
+ 	"charm.land/log/v2"
++	"github.com/charmbracelet/crush/internal/app"
+ 	"github.com/charmbracelet/crush/internal/client"
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/event"
+@@ -391,12 +392,9 @@ func runNonInteractive(
+ 		}
+ 	}
+ 
+-	// The reasoning effort applies to the model that will actually run.
+-	// On a continued session without an explicit model override, the
+-	// model is resolved later from the session's last assistant message,
+-	// so the override is applied after that restore instead.
+-	deferredEffort := (continueSessionID != "" || useLast) && largeModel == "" && smallModel == ""
+-	if reasoningEffort != "" && !deferredEffort {
++	// Effort áp cho model lượt này chạy: model của -m hoặc của workspace
++	// (tiếp session cũ không đổi model).
++	if reasoningEffort != "" {
+ 		if err := overrideReasoningEffort(ctx, c, ws.ID, reasoningEffort); err != nil {
+ 			return err
+ 		}
+@@ -453,24 +451,16 @@ func runNonInteractive(
+ 	}
+ 	if continueSessionID != "" || useLast {
+ 		slog.Info("Continuing session for non-interactive run", "session_id", sess.ID)
+-		// If no explicit model override was requested, restore the
+-		// model/provider from the last assistant message in the
+-		// session, provided it is still available.
++		// Model thuộc workspace, chỉ đổi khi người dùng chọn (-m, TUI): tiếp
++		// session cũ không ghi model của nó vào cấu hình dự án (mọi session
++		// khác sẽ đổi theo); lượt này chạy model của workspace.
+ 		if largeModel == "" && smallModel == "" {
+-			if err := restoreModelFromSession(ctx, c, ws, sess.ID); err != nil {
+-				slog.Warn("Failed to restore model from session", "error", err)
+-			}
++			noteSessionModel(ctx, c, ws, sess.ID)
+ 		}
+ 	} else {
+ 		slog.Info("Created session for non-interactive run", "session_id", sess.ID)
+ 	}
+ 
+-	if reasoningEffort != "" && deferredEffort {
+-		if err := overrideReasoningEffort(ctx, c, ws.ID, reasoningEffort); err != nil {
+-			return err
+-		}
+-	}
+-
+ 	events, err := c.SubscribeEvents(ctx, ws.ID)
+ 	if err != nil {
+ 		return fmt.Errorf("failed to subscribe to events: %w", err)
+@@ -968,67 +958,29 @@ func overrideModels(
+ 	return c.UpdateAgent(ctx, ws.ID)
+ }
+ 
+-// restoreModelFromSession reads the last assistant message in the
+-// session and, if it used a different provider/model than the current
+-// config, updates the preferred model on the server provided the
+-// provider/model is still available. This ensures that continuing a
+-// session uses the same model that produced the last response.
+-func restoreModelFromSession(ctx context.Context, c *client.Client, ws *proto.Workspace, sessionID string) error {
++// noteSessionModel in một dòng ra stderr khi tin assistant cuối của session
++// chạy model khác model lớn của workspace (model lượt này chạy).
++func noteSessionModel(ctx context.Context, c *client.Client, ws *proto.Workspace, sessionID string) {
+ 	msgs, err := c.ListMessages(ctx, ws.ID, sessionID)
+ 	if err != nil {
+-		return fmt.Errorf("failed to list messages: %w", err)
++		slog.Warn("Failed to read the session's last model", "error", err)
++		return
+ 	}
+-
+-	var lastAssistant *proto.Message
+ 	for i := len(msgs) - 1; i >= 0; i-- {
+-		if msgs[i].Role == proto.Assistant && !msgs[i].IsSummaryMessage {
+-			lastAssistant = &msgs[i]
+-			break
++		if msgs[i].Role != proto.Assistant || msgs[i].IsSummaryMessage {
++			continue
+ 		}
+-	}
+-	if lastAssistant == nil || lastAssistant.Provider == "" || lastAssistant.Model == "" {
+-		return nil
+-	}
+-
+-	cfg := ws.Config
+-	currentLarge := cfg.Models[config.SelectedModelTypeLarge]
+-	if currentLarge.Provider == lastAssistant.Provider && currentLarge.Model == lastAssistant.Model {
+-		return nil
+-	}
+-
+-	if !cfg.IsModelAvailable(lastAssistant.Provider, lastAssistant.Model) {
+-		slog.Debug("Skipping model restoration: provider/model not available",
+-			"provider", lastAssistant.Provider,
+-			"model", lastAssistant.Model)
+-		return nil
+-	}
+-
+-	selectedModel := config.SelectedModel{
+-		Provider: lastAssistant.Provider,
+-		Model:    lastAssistant.Model,
+-	}
+-	if err := c.UpdatePreferredModel(ctx, ws.ID, config.ScopeWorkspace, config.SelectedModelTypeLarge, selectedModel); err != nil {
+-		return fmt.Errorf("failed to set large model: %w", err)
+-	}
+-
+-	if _, ok := cfg.Models[config.SelectedModelTypeSmall]; !ok {
+-		sm, err := c.GetDefaultSmallModel(ctx, ws.ID, lastAssistant.Provider)
+-		if err != nil {
+-			slog.Warn("Failed to get default small model", "error", err)
+-		} else if sm != nil {
+-			if err := c.UpdatePreferredModel(ctx, ws.ID, config.ScopeWorkspace, config.SelectedModelTypeSmall, *sm); err != nil {
+-				slog.Warn("Failed to set small model during session restore", "error", err)
+-			}
++		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}
++		if note := app.SessionModelNote(last, ws.Config.Models[config.SelectedModelTypeLarge]); note != "" {
++			fmt.Fprintf(runStderr, "session %s %s (pick another with -m)\n", sessionID, note)
+ 		}
++		return
+ 	}
+-
+-	return c.UpdateAgent(ctx, ws.ID)
+ }
+ 
+ // overrideReasoningEffort validates the requested reasoning effort against
+ // the large model in effect for this run (which may have been overridden by
+-// --model or restored from a continued session) and applies it on the
+-// server.
++// --model) and applies it on the server.
+ func overrideReasoningEffort(ctx context.Context, c *client.Client, wsID, reasoningEffort string) error {
+ 	cfg, err := c.GetConfig(ctx, wsID)
+ 	if err != nil {
+diff --git a/internal/ui/model/model_restore.go b/internal/ui/model/model_restore.go
+index 0b65c7e7..dabd34a3 100644
+--- a/internal/ui/model/model_restore.go
++++ b/internal/ui/model/model_restore.go
+@@ -1,92 +1,39 @@
+ package model
+ 
+ import (
+-	"context"
+-	"log/slog"
+-
+ 	tea "charm.land/bubbletea/v2"
++	"github.com/charmbracelet/crush/internal/app"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/ui/util"
+ )
+ 
+-// modelRestore là một lần khôi phục model của session vừa mở.
+-type modelRestore struct {
+-	sel       config.SelectedModel
+-	needSmall bool
+-}
+-
+-// modelRestoredMsg báo một lần khôi phục đã ghi xong cấu hình (err rỗng)
+-// hoặc lỗi.
+-type modelRestoredMsg struct {
+-	req modelRestore
+-	err error
+-}
+-
+-// modelRestorer cho các lần khôi phục model chạy lần lượt, lần sau thắng.
+-// Việc ghi cấu hình (qua HTTP ở chế độ client/server, không có hạn giờ) nằm
+-// trong tea.Cmd chứ không trong Update, nên server chậm không làm TUI đứng.
+-// Cmd chạy song song, nên hai lần đổi session nhanh mà cho chạy cùng lúc thì
+-// lần ghi cũ có thể tới sau và đè model của session mới mở.
+-type modelRestorer struct {
+-	running *modelRestore // Lần đang ghi.
+-	queued  *modelRestore // Lần mới nhất chờ tới lượt.
+-}
+-
+-// target trả model mới nhất đã yêu cầu mà chưa ghi xong, hoặc nil.
+-func (r *modelRestorer) target() *config.SelectedModel {
+-	switch {
+-	case r.queued != nil:
+-		return &r.queued.sel
+-	case r.running != nil:
+-		return &r.running.sel
+-	}
+-	return nil
+-}
+-
+-// requestModelRestore xếp một lần khôi phục: chạy ngay nếu rảnh, không thì
+-// thay lần đang chờ (chỉ lần mới nhất có nghĩa).
+-func (m *UI) requestModelRestore(req modelRestore) tea.Cmd {
+-	if m.restorer.running != nil {
+-		m.restorer.queued = &req
++// sessionModelNote báo trên thanh trạng thái khi tin assistant cuối của session
++// vừa mở chạy model khác model lớn của workspace. Mở session không ghi gì: model
++// thuộc workspace và chỉ đổi khi người dùng chọn (alt+m, alt+p).
++func (m *UI) sessionModelNote(msgs []message.Message) tea.Cmd {
++	cfg := m.com.Config()
++	if cfg == nil {
+ 		return nil
+ 	}
+-	m.restorer.running = &req
+-	ws := m.com.Workspace
+-	return func() tea.Msg {
+-		err := ws.UpdatePreferredModel(config.ScopeWorkspace, config.SelectedModelTypeLarge, req.sel)
+-		if err == nil && req.needSmall {
+-			small := ws.GetDefaultSmallModel(req.sel.Provider)
+-			if serr := ws.UpdatePreferredModel(config.ScopeWorkspace, config.SelectedModelTypeSmall, small); serr != nil {
+-				slog.Error("Failed to set small model during session restore", "error", serr)
+-			}
++	for i := len(msgs) - 1; i >= 0; i-- {
++		if msgs[i].Role != message.Assistant || msgs[i].IsSummaryMessage {
++			continue
+ 		}
+-		return modelRestoredMsg{req: req, err: err}
+-	}
+-}
+-
+-// handleModelRestored chạy trên luồng Update khi một lần ghi xong: có lần mới
+-// hơn đang chờ thì chạy nó (bỏ phần áp dụng của lần cũ), không thì đổi theme
+-// và dựng lại model của agent.
+-func (m *UI) handleModelRestored(msg modelRestoredMsg) tea.Cmd {
+-	m.restorer.running = nil
+-	if next := m.restorer.queued; next != nil {
+-		m.restorer.queued = nil
+-		return m.requestModelRestore(*next)
+-	}
+-	if msg.err != nil {
+-		slog.Error("Failed to restore model from session", "error", msg.err)
+-		return util.ReportWarn("Could not switch to this session's model: " + msg.err.Error())
+-	}
+-	m.applyThemeForProvider(msg.req.sel.Provider)
+-	ws := m.com.Workspace
+-	sel := msg.req.sel
+-	return m.updateAgentModelCmd(func() tea.Msg {
+-		if err := ws.UpdateAgentModel(context.TODO()); err != nil {
+-			return util.NewErrorMsg(err)
++		last := config.SelectedModel{Provider: msgs[i].Provider, Model: msgs[i].Model}
++		current := cfg.Models[config.SelectedModelTypeLarge]
++		note := app.SessionModelNote(last, current)
++		if note == "" {
++			return nil
+ 		}
+-		slog.Info("Restored model from session", "provider", sel.Provider, "model", sel.Model)
+-		return nil
+-	})
++		// alt+m chỉ liệt kê model của provider đang dùng (keys.go).
++		hint := " (alt+m to change model)"
++		if last.Provider != current.Provider {
++			hint = " (alt+p to change provider)"
++		}
++		return util.ReportInfo("This session " + note + hint)
++	}
++	return nil
+ }
+ 
+ // appliesNextNote là phần nói thêm khi đổi model/effort lúc có run: lượt đang
+diff --git a/internal/ui/model/model_restore_test.go b/internal/ui/model/model_restore_test.go
+index 74703e89..3c058a33 100644
+--- a/internal/ui/model/model_restore_test.go
++++ b/internal/ui/model/model_restore_test.go
+@@ -1,13 +1,17 @@
+ package model
+ 
+ import (
++	"strings"
+ 	"sync"
+ 	"testing"
+ 
+ 	"charm.land/catwalk/pkg/catwalk"
+ 	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/csync"
+ 	"github.com/charmbracelet/crush/internal/message"
++	"github.com/charmbracelet/crush/internal/session"
+ 	"github.com/charmbracelet/crush/internal/ui/dialog"
++	"github.com/charmbracelet/crush/internal/ui/util"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+@@ -49,62 +53,58 @@ func lastAssistantFor(model string) []message.Message {
+ 
+ func modelWithID(id string) catwalk.Model { return catwalk.Model{ID: id} }
+ 
+-// availableModels khai các model để IsModelAvailable nhận chúng.
+-func availableModels(t *testing.T, cw *countingWorkspace, ids ...string) {
+-	t.Helper()
+-	pc, ok := cw.cfg.Providers.Get("p")
+-	require.True(t, ok)
+-	pc.Models = nil
+-	for _, id := range ids {
+-		pc.Models = append(pc.Models, modelWithID(id))
++// Mở một session cũ (alt+s, alt+. / alt+,, --session, --continue) không ghi
++// model của session đó vào cấu hình dự án: model thuộc workspace và chỉ đổi khi
++// người dùng chọn. Model khác thì thanh trạng thái nói rõ cả hai model, kèm
++// phím đổi đúng: alt+m chỉ liệt kê model của provider đang dùng, nên khác
++// provider thì gợi ý alt+p. Nạp lại session đang xem (sau reconnect) không báo
++// lại, để không đè "Reconnected…".
++func TestOpeningSessionKeepsTheWorkspaceModel(t *testing.T) {
++	t.Parallel()
++
++	for name, tc := range map[string]struct {
++		session  string
++		last     message.Message
++		wantHint string // Rỗng: không có thông báo.
++	}{
++		"other provider":          {session: "s2", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}, wantHint: "alt+p"},
++		"other model":             {session: "s2", last: lastAssistantFor("b")[0], wantHint: "alt+m"},
++		"same model":              {session: "s2", last: lastAssistantFor("a")[0]},
++		"reload of shown session": {session: "s1", last: message.Message{Role: message.Assistant, Provider: "q", Model: "x"}},
++	} {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			m, ws := newJumpUI()
++			ws.cfg = &config.Config{
++				Providers: csync.NewMap[string, config.ProviderConfig](),
++				Models: map[config.SelectedModelType]config.SelectedModel{
++					config.SelectedModelTypeLarge: {Provider: "p", Model: "a"},
++					config.SelectedModelTypeSmall: {Provider: "p", Model: "small"},
++				},
++			}
++			ws.cfg.Providers.Set("p", config.ProviderConfig{ID: "p", Models: []catwalk.Model{modelWithID("a"), modelWithID("b")}})
++			m.userThemeSelected = true
++
++			_, next := m.Update(loadSessionMsg{session: &session.Session{ID: tc.session}, messages: []message.Message{tc.last}})
++			var notes []string
++			for _, msg := range leafMsgs(next) {
++				if info, ok := msg.(util.InfoMsg); ok && strings.Contains(info.Msg, "last ran on") {
++					notes = append(notes, info.Msg)
++				}
++			}
++
++			require.Empty(t, ws.prefModelScopes, "opening a session must not write the project model")
++			require.Equal(t, tc.session, m.currentSessionID())
++			if tc.wantHint == "" {
++				require.Empty(t, notes)
++				return
++			}
++			require.Len(t, notes, 1)
++			require.Contains(t, notes[0], tc.last.Provider+"/"+tc.last.Model, "the note names the session's last model")
++			require.Contains(t, notes[0], "p/a", "the note names the model the next message uses")
++			require.Contains(t, notes[0], tc.wantHint)
++		})
+ 	}
+-	cw.cfg.Providers.Set("p", pc)
+-}
+-
+-// Mở session khác lúc có run vẫn khôi phục model của session đó: lượt đang
+-// chạy đã ghim model riêng nên không bị đổi provider giữa chừng.
+-func TestRestoreModelFromSessionWhileBusyStillRestores(t *testing.T) {
+-	m, ws := restoreUI(t)
+-	availableModels(t, ws.countingWorkspace, "a", "b")
+-	m.agentBusyCache.set(true)
+-
+-	cmd := m.restoreModelFromSession(lastAssistantFor("b"))
+-	require.NotNil(t, cmd)
+-	msg, ok := cmd().(modelRestoredMsg)
+-	require.True(t, ok)
+-	require.NoError(t, msg.err)
+-	require.Equal(t, []string{"p/b"}, ws.log())
+-}
+-
+-// Ghi cấu hình chạy nền, lần lượt; trong hàng chờ chỉ lần mới nhất được chạy.
+-func TestRestoreModelLatestRequestWins(t *testing.T) {
+-	m, ws := restoreUI(t)
+-	first := m.requestModelRestore(modelRestore{sel: config.SelectedModel{Provider: "p", Model: "x"}})
+-	require.NotNil(t, first)
+-	require.Nil(t, m.requestModelRestore(modelRestore{sel: config.SelectedModel{Provider: "p", Model: "y"}}), "queued while x is written")
+-	require.Nil(t, m.requestModelRestore(modelRestore{sel: config.SelectedModel{Provider: "p", Model: "z"}}), "replaces y")
+-
+-	next := m.handleModelRestored(first().(modelRestoredMsg))
+-	require.NotNil(t, next)
+-	m.handleModelRestored(next().(modelRestoredMsg))
+-	require.Equal(t, []string{"p/x", "p/z"}, ws.log(), "y was superseded before it ran")
+-	require.Nil(t, m.restorer.target())
+-}
+-
+-// A→B→A nhanh: lần về A không được bị bỏ vì cấu hình (chưa ghi xong B) vẫn
+-// đang là A; kết thúc phải ở model của A.
+-func TestRestoreModelQuickBackAndForthEndsOnLastSession(t *testing.T) {
+-	m, ws := restoreUI(t)
+-	availableModels(t, ws.countingWorkspace, "a", "b")
+-
+-	toB := m.restoreModelFromSession(lastAssistantFor("b"))
+-	require.NotNil(t, toB)
+-	require.Nil(t, m.restoreModelFromSession(lastAssistantFor("a")), "queued behind the write of b")
+-
+-	toA := m.handleModelRestored(toB().(modelRestoredMsg))
+-	require.NotNil(t, toA, "the queued restore of a must run")
+-	m.handleModelRestored(toA().(modelRestoredMsg))
+-	require.Equal(t, []string{"p/b", "p/a"}, ws.log())
+ }
+ 
+ // Đổi model khi có run (ở bất kỳ session nào) không còn bị chặn; thông báo
+diff --git a/internal/ui/model/model_selection_scope_test.go b/internal/ui/model/model_selection_scope_test.go
+index 0998d868..ceed834b 100644
+--- a/internal/ui/model/model_selection_scope_test.go
++++ b/internal/ui/model/model_selection_scope_test.go
+@@ -12,7 +12,6 @@ import (
+ 
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/csync"
+-	"github.com/charmbracelet/crush/internal/message"
+ 	"github.com/charmbracelet/crush/internal/ui/dialog"
+ 	"github.com/stretchr/testify/require"
+ )
+@@ -44,14 +43,6 @@ func TestModelSelectionWritesWorkspaceScope(t *testing.T) {
+ 		ModelType: config.SelectedModelTypeLarge,
+ 	})
+ 	require.Equal(t, []config.Scope{config.ScopeWorkspace, config.ScopeWorkspace}, ws.prefModelScopes)
+-
+-	ws.prefModelScopes = nil
+-	cmd := m.restoreModelFromSession([]message.Message{{
+-		Role: message.Assistant, Provider: "p", Model: "other",
+-	}})
+-	require.NotNil(t, cmd)
+-	cmd() // Khôi phục ghi cấu hình trong Cmd, không trong Update.
+-	require.Equal(t, []config.Scope{config.ScopeWorkspace, config.ScopeWorkspace}, ws.prefModelScopes)
+ }
+ 
+ func (w *countingWorkspace) UpdateAgentModel(context.Context) error { return nil }
+diff --git a/internal/ui/model/ui.go b/internal/ui/model/ui.go
+index 2ef59081..71a2b6d0 100644
+--- a/internal/ui/model/ui.go
++++ b/internal/ui/model/ui.go
+@@ -469,10 +469,7 @@ type UI struct {
+ 	// agentBusyCache / yoloCache memoize the workspace busy and permission
+ 	// probes (synchronous HTTP round-trips in client/server mode). Reads
+ 	// never probe; refreshes happen off-thread (see workspace_cache.go).
+-	agentBusyCache ttlCache
+-	// restorer cho các lần khôi phục model của session vừa mở chạy nền,
+-	// lần lượt, lần sau thắng (xem model_restore.go).
+-	restorer          modelRestorer
++	agentBusyCache    ttlCache
+ 	yoloCache         ttlCache
+ 	busyFetchInFlight bool
+ 	// agentReady / agentModel memoize the coordinator readiness and
+@@ -1052,10 +1049,6 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+ 		// Báo lỗi cho người dùng, và báo lại session đang thật sự hiện để
+ 		// workspace không giữ một ý niệm nào khác về nó.
+ 		cmds = append(cmds, util.ReportError(msg.err), m.reportCurrentSession(m.currentSessionID()))
+-	case modelRestoredMsg:
+-		if cmd := m.handleModelRestored(msg); cmd != nil {
+-			cmds = append(cmds, cmd)
+-		}
+ 	case loadSessionMsg:
+ 		if m.forceCompactMode {
+ 			m.isCompact = true
+@@ -1113,8 +1106,12 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+ 		if cmd := m.setSessionMessages(msgs); cmd != nil {
+ 			cmds = append(cmds, cmd)
+ 		}
+-		if cmd := m.restoreModelFromSession(msgs); cmd != nil {
+-			cmds = append(cmds, cmd)
++		// Chỉ báo khi người dùng mở session khác (hay lúc khởi động), không
++		// khi nạp lại session đang xem sau reconnect: không đè "Reconnected…".
++		if switched {
++			if cmd := m.sessionModelNote(msgs); cmd != nil {
++				cmds = append(cmds, cmd)
++			}
+ 		}
+ 		if cmd := m.autoExpandPillsIfReasonable(); cmd != nil {
+ 			cmds = append(cmds, cmd)
+@@ -3011,58 +3008,6 @@ func (m *UI) gitBranchTicker() tea.Cmd {
+ 	})
+ }
+ 
+-// restoreModelFromSession checks the last assistant message in the
+-// loaded session and, if it used a different provider/model than the
+-// current config, restores that model/provider provided it is still
+-// available. Returns a tea.Cmd that rebuilds the agent models if a
+-// switch was made, or nil if no switch was needed.
+-func (m *UI) restoreModelFromSession(msgs []message.Message) tea.Cmd {
+-	// Đổi model chung khi session khác đang chạy là an toàn: mỗi lượt giữ
+-	// model lúc nó bắt đầu (agent: pinnedModel), nên session vừa mở được dùng
+-	// lại model của nó ngay cả khi session nền đang chạy.
+-	var lastAssistant *message.Message
+-	for i := len(msgs) - 1; i >= 0; i-- {
+-		if msgs[i].Role == message.Assistant && !msgs[i].IsSummaryMessage {
+-			lastAssistant = &msgs[i]
+-			break
+-		}
+-	}
+-	if lastAssistant == nil || lastAssistant.Provider == "" || lastAssistant.Model == "" {
+-		return nil
+-	}
+-
+-	cfg := m.com.Config()
+-	if cfg == nil {
+-		return nil
+-	}
+-
+-	// So với đích mới nhất đã yêu cầu nếu còn lần khôi phục chưa ghi xong:
+-	// cấu hình lúc đó chưa phản ánh nó (A→B→A nhanh không được dừng ở B).
+-	currentLarge := cfg.Models[config.SelectedModelTypeLarge]
+-	if t := m.restorer.target(); t != nil {
+-		currentLarge = *t
+-	}
+-	if currentLarge.Provider == lastAssistant.Provider && currentLarge.Model == lastAssistant.Model {
+-		return nil
+-	}
+-
+-	if !cfg.IsModelAvailable(lastAssistant.Provider, lastAssistant.Model) {
+-		slog.Debug("Skipping model restoration: provider/model not available",
+-			"provider", lastAssistant.Provider,
+-			"model", lastAssistant.Model)
+-		return nil
+-	}
+-
+-	_, hasSmall := cfg.Models[config.SelectedModelTypeSmall]
+-	return m.requestModelRestore(modelRestore{
+-		sel: config.SelectedModel{
+-			Provider: lastAssistant.Provider,
+-			Model:    lastAssistant.Model,
+-		},
+-		needSmall: !hasSmall,
+-	})
+-}
+-
+ // handleSelectModel performs the model selection after any provider
+ // pre-checks (such as a silent Hyper OAuth refresh) have completed.
+ func (m *UI) handleSelectModel(msg dialog.ActionSelectModel) tea.Cmd {

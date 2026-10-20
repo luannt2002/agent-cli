@@ -1,0 +1,25 @@
+ok  	github.com/charmbracelet/crush/internal/cmd	11.559s
+ok  	github.com/charmbracelet/crush/internal/cmd/clientserverrace	7.484s
+ok  	github.com/charmbracelet/crush/internal/ui/anim	1.063s
+ok  	github.com/charmbracelet/crush/internal/ui/attachments	2.337s
+ok  	github.com/charmbracelet/crush/internal/ui/chat	367.671s
+ok  	github.com/charmbracelet/crush/internal/ui/common	1.298s
+ok  	github.com/charmbracelet/crush/internal/ui/completions	1.230s
+ok  	github.com/charmbracelet/crush/internal/ui/dialog	5.908s
+ok  	github.com/charmbracelet/crush/internal/ui/diffview	6.855s
+ok  	github.com/charmbracelet/crush/internal/ui/exitbanner	1.299s
+ok  	github.com/charmbracelet/crush/internal/ui/home	1.377s
+ok  	github.com/charmbracelet/crush/internal/ui/image	1.020s
+ok  	github.com/charmbracelet/crush/internal/ui/list	1.313s
+?   	github.com/charmbracelet/crush/internal/ui/logo	[no test files]
+?   	github.com/charmbracelet/crush/internal/ui/logo/example	[no test files]
+ok  	github.com/charmbracelet/crush/internal/ui/model	31.011s
+ok  	github.com/charmbracelet/crush/internal/ui/notification	1.022s
+ok  	github.com/charmbracelet/crush/internal/ui/styles	1.878s
+?   	github.com/charmbracelet/crush/internal/ui/util	[no test files]
+ok  	github.com/charmbracelet/crush/internal/ui/xchroma	1.306s
+ok  	github.com/charmbracelet/crush/internal/app	1.699s
+
+real	7m10,761s
+user	14m45,167s
+sys	0m54,591s

@@ -1,0 +1,24 @@
+diff --git a/internal/cmd/root.go b/internal/cmd/root.go
+index 4d739fb5..d3d991b6 100644
+--- a/internal/cmd/root.go
++++ b/internal/cmd/root.go
+@@ -1238,11 +1238,17 @@ func resolveWorkspaceSessionID(ctx context.Context, ws workspace.Workspace, id s
+ func ResolveCwd(cmd *cobra.Command) (string, error) {
+ 	cwd, _ := cmd.Flags().GetString("cwd")
+ 	if cwd != "" {
+-		err := os.Chdir(cwd)
++		// Tuyệt đối theo cwd của lệnh, trước khi chdir: server ghép đường
++		// tương đối theo cwd CỦA NÓ, nên workspace và DB rơi sai chỗ.
++		abs, err := filepath.Abs(cwd)
++		if err != nil {
++			return "", fmt.Errorf("failed to resolve directory: %v", err)
++		}
++		err = os.Chdir(abs)
+ 		if err != nil {
+ 			return "", fmt.Errorf("failed to change directory: %v", err)
+ 		}
+-		return cwd, nil
++		return abs, nil
+ 	}
+ 	cwd, err := os.Getwd()
+ 	if err != nil {

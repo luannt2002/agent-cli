@@ -1,0 +1,4 @@
+HOME (homeChildCmd): child env has trusted keys from .env: none | run: claude_code in tools=False
+HOME2 (execHome via Alt+W): child env has trusted keys from .env: none | run: claude_code in tools=False
+CTL (direct run in repo): claude_code in tools=False
+NOT_EXPOSED

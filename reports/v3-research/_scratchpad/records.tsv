@@ -1,0 +1,352 @@
+num	kind	created	state_scan	labels	class	v2test	gp_name_in_tests	cited_in_test_files	outcome_r4	families_kw	title_full	introduced_by
+1282	issue	2026-10-10	OPEN	-	B	GP1/absolute-node-path-cursor-windows	FOUND	e2e/cases/GP1-absolute-node-path.e2e.mjs	wont-fix	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows: Cursor MCP spawn fails when plugin uses bare npx (PATH not inherited)	-
+1280	issue	2026-10-08	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	FALSE_SUCCESS,INSTALL_UPGRADE	Silent background install failure leaves turndown missing for ctx_fetch_and_index when ~/.npm is not writable	-
+1274	issue	2026-10-08	OPEN	-	A	REMOVED:D9	-	e2e/cases/GP6-journal-resume.e2e.mjs	covered-by-test	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE	[Bug]: [OpenCode adapter] resume snapshot from one session is injected into another running session's system prompt	-
+1269	issue	2026-10-06	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	curl detector aborts entire compound command even for documented -o <file> escape-hatch form	4bc292fc
+1268	issue	2026-10-06	OPEN	enhancement	Q	N/A:deferred-post-v2.0	-	-	wont-fix	HOST_ADAPTER_MISMATCH	[Feature]: Add native ZCode adapter — its hook schema is Claude Code-compatible (verified working via codex adapter)	-
+1267	issue	2026-10-05	OPEN	-	A	REMOVED:D11	-	-	covered-by-test	ROUTING_FAILURE,PROMPT_INTERFERENCE,CONTEXT_OVERHEAD	guidanceOnce("read") ?? {...} re-injects the Read tip on every Read of a file over 50 KB	-
+1263	issue	2026-10-04	OPEN	-	A(partlyB)	GP2/pi-hint-not-user-role	FOUND	e2e/cases/GP2-prompt-surface.e2e.mjs;e2e/cases/GP6-journal-resume.e2e.mjs;tests/v2/adapters/pi.test.mjs	wont-fix	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi adapter: context-mode's injected reminder/memory content is tagged role:"user", indistinguishable from real user input	-
+1262	issue	2026-10-04	OPEN	-	B	GP9/no-periodic-ps-spawn	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	-	ZOMBIE_OPERATION	perf(lifecycle): the parent-liveness check spawns `ps` every 30 s per MCP server (about 58 ms of CPU each time)	-
+1261	issue	2026-10-04	OPEN	-	B	GP3/hook-perf-posttool-async	FOUND	e2e/cases/GP3-hook-perf.e2e.mjs	-	ROUTING_FAILURE,INSTALL_UPGRADE	PreToolUse and PostToolUse hooks cost about 55-70 ms of CPU per Bash call, and the PreToolUse hook prints nothing for almost every call	-
+1259	issue	2026-10-04	OPEN	-	A	REMOVED:D9	-	e2e/cases/GP6-journal-resume.e2e.mjs	covered-by-test	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	[Bug] intent classifier + Pi adapter replay stale session_mode as live directive (same class as #856, not covered by its fix)	-
+1258	issue	2026-10-04	OPEN	enhancement	Q	N/A:open-question	-	-	wont-fix	HOST_ADAPTER_MISMATCH	[Feature]: Please release a version compatible with DeepSeekHarness as soon as possible.	-
+1255	issue	2026-10-03	OPEN	-	A	REMOVED:D3	-	-	covered-by-test	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE	[Bug]: "opencode" missing from the MCP clientInfo map and probed 14th of 15 — platform detection silently resolves to antigravity-cli/~/.gemini, writing stats into the wrong store	-
+1254	issue	2026-10-03	OPEN	-	A	REMOVED:D3	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	[Bug]: ctx_stats reports OpenCode as "Skipped / no real chat activity" — multi-adapter importer only knows the v1 file layout, not the v2 SQLite DB	-
+1251	issue	2026-10-03	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows: hooks/ensure-deps.mjs retries `npm install better-sqlite3` once per hook with no backoff and no `windowsHide` — console-window storm + hook exit -1073741510 (the #861 fix never reached the hook path)	-
+1248	issue	2026-10-02	OPEN	-	B	GP8/stats-heartbeat-no-timer-db-open	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/store/cleanup.test.mjs	closed-by-design	ZOMBIE_OPERATION	[Bug]: stats heartbeat re-opens every session DB each minute (getLifetimeStats) — constant disk writes that grow with session count	-
+1242	issue	2026-10-02	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	-	[Bug]: ctx-debug.sh fails under POSIX sh (process substitution) - add a bash re-exec guard or rewrite	-
+1226	issue	2026-09-30	OPEN	-	B	GP3/hook-timeout-present	FOUND	e2e/cases/GP3-hooks.e2e.mjs;tests/v2/ops/doctor-config.test.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	hooks.json ships without default timeouts - ctx upgrade silently reverts manual timeout patch	-
+1225	issue	2026-09-30	OPEN	-	B	GP11/npm-audit-zero-high-critical	FOUND	e2e/cases/GP11-release-audit.e2e.mjs	covered-by-test	SECURITY_BOUNDARY_CONFUSION,INSTALL_UPGRADE	Update vulnerable ip-address dependency chain	-
+1222	issue	2026-09-29	OPEN	-	B	GP11/hook-matcher-valid-regex	FOUND	tests/v2/ops/doctor-config.test.mjs	closed-by-design	ROUTING_FAILURE	Claude Code: bare `mcp__` hook matchers match nothing since CC v2.1.195 (exact-match semantics)	-
+1221	issue	2026-09-29	OPEN	-	A	REMOVED:ADR-0008	-	tests/v2/policy/parse.test.mjs	wont-fix	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	[Bug]: OMP adapter hard-blocks curl/wget/fetch( inside quotes, grep patterns and heredocs (Pi fix from #625 never ported)	-
+1219	issue	2026-09-28	OPEN	enhancement	B	GP1/install-docs-per-host	FOUND	e2e/cases/GP1-install-docs.e2e.mjs	wont-fix	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Cannot find a documented way to install context-mode in Codex Desktop	-
+1217	issue	2026-09-28	OPEN	-	B	GP4/windows-path-inherit	FOUND	e2e/cases/GP4-execute.e2e.mjs	-	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION,INSTALL_UPGRADE	Windows: shell-language ctx_execute/ctx_batch_execute scripts run with stripped PATH (/usr/bin:/bin only), breaking gh/other Windows-installed CLIs and git credential-helper	-
+1215	issue	2026-09-28	OPEN	-	A	REMOVED:D2	-	-	covered-by-test	INSTALL_UPGRADE	[Bug]: A project-scope Claude plugin install enables context-mode globally (start.mjs writes enabledPlugins and a SessionStart hook to user settings)	-
+1214	issue	2026-09-27	OPEN	-	A	REMOVED:D8	-	-	closed-by-design	-	[Bug]: the MCP server takes every project's pending events.md into its own store, so resume snapshots are lost or land in the wrong project	-
+1213	issue	2026-09-27	OPEN	-	B	GP8/sibling-db-readonly	FOUND	e2e/cases/GP8-concurrency.e2e.mjs;tests/v2/tools/stats.test.mjs	-	ZOMBIE_OPERATION	Stats path opens every session DB (not read-only), causing sustained fsevents/AV load on macOS	-
+1212	issue	2026-09-27	OPEN	-	B	GP3/powershell-routed-like-bash	FOUND	-	covered-by-test	ROUTING_FAILURE	PreToolUse routing doesn't recognize the PowerShell tool, and the Bash nudge only fires once per session	-
+1210	issue	2026-09-27	OPEN	-	B	GP7/codex-session-project-dir	FOUND	-	closed-by-design	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	Codex on Windows: project dir falls back to the plugin cache 5 minutes after the newest Codex session starts (rollout mtime never updates)	-
+1208	issue	2026-09-26	OPEN	-	B	GP4/windows-pyenv-shim	FOUND	e2e/cases/GP4-execute.e2e.mjs	-	HOST_ADAPTER_MISMATCH	ctx_execute fails to spawn python/node on Windows when only shell-script shims are on PATH (misleading 'not found in $PATH' error)	-
+1206	issue	2026-09-26	OPEN	-	B	GP11/agy-hooks-schema-valid	FOUND	e2e/cases/GP11-pi-agy.e2e.mjs	wont-fix	HOST_ADAPTER_MISMATCH	[Bug]: Antigravity CLI (agy) rejects the plugin hooks.json — Stop is declared grouped, agy expects a flat handler list	-
+1205	issue	2026-09-26	OPEN	-	A	REMOVED:D2	-	-	covered-by-test	STARTUP_RACE,ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	[Bug]: Pi bridge on Bun spins on unfinalized statements — ~150k/day "invalid database connection pointer" per pid, and intermittent "Failed to load extension: disk I/O error"	-
+1204	issue	2026-09-25	OPEN	-	Q	N/A:open-question	-	-	-	-	Index-time preview after the pointer line, and a ctx_page tool to walk an indexed source	-
+1201	issue	2026-09-24	OPEN	-	B	GP1/adapter-bundle-static-imports	FOUND	e2e/cases/GP1-install.e2e.mjs	wont-fix	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	[Bug]: OpenClaw 2026.9.x — adapter fails to load from the plugin capture (computed import paths), unhandled rejection crashes the gateway	-
+1200	issue	2026-09-24	OPEN	-	B	GP5/search-param-schema-match	FOUND	-	covered-by-test	-	[Bug]: ctx_search rejects singular 'query' param despite schema declaring it valid	-
+1199	issue	2026-09-24	OPEN	-	B	GP1/opencode-v2-plugin-api	FOUND	e2e/cases/GP1-install.e2e.mjs;tests/v2/plugins/opencode.test.mjs	-	HOST_ADAPTER_MISMATCH	OpenCode 2.x plugin fails to load (needs a V2 adapter: { id, effect|setup })	-
+1198	issue	2026-09-24	OPEN	-	A	REMOVED:D8	-	-	-	PROJECT_IDENTITY_FAILURE	MCP server credits ctx_* events to the most recently started session, not the caller	-
+1196	issue	2026-09-23	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	ensure-deps: fast path re-copies and re-codesigns better_sqlite3.node on every hook call (macOS disk churn)	-
+1193	issue	2026-09-22	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	[Bug]: Bun seed writes an ABI-mismatched better_sqlite3 cache entry; fast path then trusts it (1.0.169, Linux)	-
+1192	issue	2026-09-22	OPEN	enhancement	C	N/A:deferred-post-v2.0	-	-	wont-fix	HOST_ADAPTER_MISMATCH	[Feature]: integrate with pi-blackhole	-
+1191	issue	2026-09-22	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	healScript version filter `/^\d+\.\d+/` is unanchored — `<version>.bak-*` is accepted as a version dir, and a missing installPath is masked by a dangling symlink	-
+1188	issue	2026-09-21	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	ensure-deps.mjs: skipProbe path dlopens better-sqlite3 in-process, then rebuilds that same .node in place — SIGSEGV on Node >=22.5 (Linux)	-
+1187	issue	2026-09-21	OPEN	enhancement	D	N/A:duplicate-of-#1199	-	-	-	HOST_ADAPTER_MISMATCH	[Feature]: Opencode V2 support	-
+1186	issue	2026-09-21	OPEN	-	B	GP10/windows-stats-no-execsync-probes	FOUND	e2e/cases/GP10-stats.e2e.mjs	wont-fix	STARTUP_RACE,HOST_ADAPTER_MISMATCH	Windows: ctx_stats takes ~4 s per call (uncached multi-adapter SQLite scan) and ~1.6 s of blocking execSync probes at startup	-
+1185	issue	2026-09-20	OPEN	-	C	GP7/worktree-label-session-first	FOUND	e2e/cases/GP7-scope.e2e.mjs;tests/v2/tools/search.test.mjs	-	SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	Feature request: Multi-agent context isolation support	-
+1184	issue	2026-09-19	OPEN	enhancement	Q	REMOVED:D15	-	-	covered-by-test	HOST_ADAPTER_MISMATCH	[Feature]: Fetch URL content with firecrawl	-
+1069	issue	2026-08-21	OPEN	-	B	GP3/pi-read-hint-parity	FOUND	e2e/cases/GP3-hooks.e2e.mjs;tests/v2/adapters/pi.test.mjs	covered-by-test	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Pi adapter does not enforce mandatory context-mode routing for read-only tools	-
+1075	issue	2026-08-24	OPEN	-	B	GP3/v17-read-glob-deny-anchors	FOUND	-	-	ROUTING_FAILURE,SECURITY_BOUNDARY_CONFUSION	[Bug]: permission patterns anchored with // or ~/ never match — ctx_execute_file blocks allowed paths and the deny gate fails open	-
+1077	issue	2026-08-24	OPEN	bug	B	GP5/batch-execute-dedup-section	FOUND	-	-	HOST_ADAPTER_MISMATCH	[Bug]: Your tool itself offsets token saved by it because of things like this.	-
+1078	issue	2026-08-24	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	[Bug]: cache-heal gates on "context-mode@context-mode" but the registry key is "context-mode@claude-context-mode" — the self-heal never runs	-
+1079	issue	2026-08-24	OPEN	-	Q	N/A:open-question	-	-	closed-by-design	ZOMBIE_OPERATION,DELETION_DATA_LOSS	cleanupStaleSources(14) expires sources by age alone, even when the file is unchanged — intended?	-
+1081	issue	2026-08-24	OPEN	-	B	GP2/tool-schema-timeout-unit	FOUND	-	covered-by-test	-	Execution timeout units are absent from the public tool schema	-
+1083	issue	2026-08-25	OPEN	-	C(later)	N/A:deferred-post-v2.0	-	-	wont-fix	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	[Feature]: Codex root-context hygiene for recursive home searches and routing escapes	-
+1085	issue	2026-08-25	OPEN	-	B	GP2/opencode-single-system-message	FOUND	e2e/cases/GP2-prompt-surface.e2e.mjs;tests/v2/adapters/opencode.test.mjs;tests/v2/plugins/opencode.test.mjs	closed-by-design	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	[OpenCode adapter] `experimental.chat.system.transform` injects extra system-role messages - strict Qwen single-system templates fail with HTTP 500 "System message must be at the beginning." (requesting provider/model-scoped exclusion)	-
+1088	issue	2026-08-26	OPEN	enhancement	C(later)	N/A:deferred-post-v2.0	-	-	wont-fix	-	[Feature]: show tool input in `pi` with `Tool output: expanded`	-
+1090	issue	2026-08-27	OPEN	-	B	GP1/plugin-json-unpinned-node	FOUND	e2e/cases/GP1-release-tree.e2e.mjs	-	INSTALL_UPGRADE	plugin.json mcpServers.command pinned to process.execPath has no liveness guard — and the MCP server cannot self-heal it	-
+1094	issue	2026-08-27	OPEN	-	B	GP4/pi-collapsed-view-plain-text-first-line	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH	[Bug]: Pi adapter: ctx_execute renders blank in collapsed TUI — shows only code fence opening	-
+1096	issue	2026-08-27	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	start.mjs healScript: version-directory filter still uses `statSync` (follows symlinks) — the one instance #644 missed; caused an ELOOP that broke every new session	606383e2
+1098	issue	2026-08-28	OPEN	-	B	GP1/pi-bridge-retry-next-turn	FOUND	e2e/cases/GP1-install.e2e.mjs;tests/v2/plugins/pi.test.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	[Bug]: Pi bridge failures after initialize are sticky for the extension lifetime	-
+1099	issue	2026-08-28	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	OMP: denial redirects to ctx_execute when no context-mode device is registered	-
+1100	issue	2026-08-29	OPEN	-	B	GP9/stdin-eof-exit	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	-	ZOMBIE_OPERATION	Session close (SIGTERM/SIGHUP/Ctrl+D) does not terminate the MCP server — orphan bun process leaks CPU and grows SQLite DB	-
+1101	issue	2026-08-29	OPEN	-	D	N/A:duplicate-of-#1100	-	-	closed-by-design	-	Session close (SIGTERM/SIGHUP/Ctrl+D) does not terminate the MCP server — orphan bun process leaks CPU and grows SQLite DB	-
+1105	issue	2026-08-31	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	better-sqlite3 ABI rebuild loop: ensure-deps.mjs resolves node/npm via ambient PATH instead of process.execPath	b3a26354
+1106	issue	2026-08-31	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE	PreToolUse curl/wget regex still matches unquoted argument words, not the command (residual of #63)	-
+1107	issue	2026-08-31	OPEN	-	B	GP3/hint-once-per-session	FOUND	-	closed-by-design	ROUTING_FAILURE,ZOMBIE_OPERATION	guidanceOnce throttle keyed on process.ppid never throttles under Claude Code (tip re-injected on every call)	-
+1112	issue	2026-09-01	OPEN	-	B	GP2/stable-prefix-across-requests	FOUND	-	covered-by-test	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Pi adapter: ephemeral context injection invalidates Anthropic prompt cache once per turn	4ced18cb
+1117	issue	2026-09-02	OPEN	-	B	GP4/env-via-spawn-env	FOUND	-	covered-by-test	-	NODE_OPTIONS command prefix breaks bash compound commands (for, while, if)	-
+1119	issue	2026-09-03	OPEN	-	B	GP5/negative-limit-rejected	FOUND	-	closed-by-design	-	[Bug]: ctx_search accepts a negative limit and returns an arbitrary result count	-
+1125	issue	2026-09-06	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE,DELETION_DATA_LOSS	curl/wget rule ignores pipe targets: `curl … | head -c 200` is redirected, and the rest of a multi-line block is dropped with it	-
+1130	issue	2026-09-08	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	INSTALL_UPGRADE	configs/claude-code/CLAUDE.md says curl/wget/WebFetch are blocked, but v1.0.169 only denies on security policy	-
+1131	issue	2026-09-08	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE	Session Continuity in configs/claude-code/CLAUDE.md contradicts the routing block injected by hooks/routing-block.mjs	-
+1134	issue	2026-09-08	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	[Bug]: Codex auto-review rejects curl/wget echo redirect as untrusted instruction drift	-
+1135	issue	2026-09-08	OPEN	bug	B	GP4/fetch-error-one-line-cause	FOUND	tests/v2/tools/index.test.mjs	-	-	[Bug]: ctx_fetch_and_index returns raw Node crash stack as the error text	-
+1136	issue	2026-09-08	OPEN	bug	B	GP5/rowless-tables-survive	FOUND	tests/v2/index/chunk.test.mjs	covered-by-test	-	[Bug]: ctx_fetch_and_index crashes on pages containing an empty <table> (turndown-plugin-gfm isHeadingRow)	5b9c00c9
+1139	issue	2026-09-09	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Windows: `npm install better-sqlite3` inside plugin dir crashes npm (Arborist "edgesOut" null) — documented repair path blocked, isolated-dir install workaround	-
+1140	issue	2026-09-09	OPEN	-	A	REMOVED:D6	-	-	closed-by-design	DELETION_DATA_LOSS	cleanupOldSessions(7) evicts active sessions — started_at is never refreshed by ensureSession/resume	4164d3de
+1141	issue	2026-09-09	OPEN	-	B	GP11/redact-secrets-in-doctor-output	FOUND	tests/v2/ops/report.test.mjs	covered-by-test	CONTEXT_OVERHEAD,SECURITY_BOUNDARY_CONFUSION	[Bug]: ctx-debug.sh dumps plaintext secrets from settings.json — bug_report.yml requires pasting this into public issues	-
+1142	issue	2026-09-09	OPEN	-	B	GP3/no-updated-input-rewrite	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	[Bug]: Claude Code cwd rewrite on ctx_execute defeats the permissions allowlist — every shell call prompts	ff5b0cff
+1150	issue	2026-09-13	OPEN	-	B	GP5/call-row-language-code-line	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH	Pi adapter: renderCall drops tool args — every ctx_* call row renders as a bare tool name	-
+1151	issue	2026-09-13	OPEN	-	B	GP10/binary-bytes-excluded-from-savings	MISSING	tests/v2/tools/stats.test.mjs	closed-by-design	CONTEXT_OVERHEAD	[Bug]: Binary file and HTTP reads are reported as saved model tokens	-
+1152	issue	2026-09-13	OPEN	-	B	GP11/codex-hooks-default-true	MISSING	e2e/cases/GP11-doctor-upgrade.e2e.mjs;tests/v2/ops/doctor-config.test.mjs;tests/v2/tools/doctor.test.mjs	-	HOST_ADAPTER_MISMATCH	[Bug]: Doctor reports hooks disabled when Codex enables them by default	-
+1156	issue	2026-09-13	OPEN	-	A	REMOVED:D8	-	-	closed-by-design	DELETION_DATA_LOSS	[Bug]: evictLowestPriority deletes the most critical events first (ORDER BY priority ASC on a 1=critical scale)	-
+1159	issue	2026-09-14	OPEN	enhancement	B	GP4/cold-start-no-path-probes	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	STARTUP_RACE,HOST_ADAPTER_MISMATCH	[Feature]: Defer runtime discovery until needed: Windows where probes consume 30s before MCP initialize	-
+1162	issue	2026-09-15	OPEN	-	Q	N/A:open-question	-	-	closed-by-design	INSTALL_UPGRADE	fetch-index/turndown missing on systemd-daemon (Linux) installs — boot-time node_modules installer only lives in start.mjs, not start-http.mjs	-
+1163	issue	2026-09-15	OPEN	-	B	GP5/snippet-code-point-safe	FOUND	tests/v2/store/fts.test.mjs	-	-	extractSnippet + 6 echo paths slice UTF-16 code units without surrogate-pair awareness → lone surrogates → deterministic HTTP 500 on UTF-8 re-encoding gateways	-
+1168	issue	2026-09-16	OPEN	-	B	GP11/pi-discovery-dirs-doctor	FOUND	e2e/cases/GP11-pi-agy.e2e.mjs;tests/v2/ops/doctor-config.test.mjs	-	HOST_ADAPTER_MISMATCH	[Bug]: Pi adapter hardcodes legacy Pi paths — `~/.pi/settings.json` and `~/.pi/extensions/context-mode/` do not exist	-
+1173	issue	2026-09-17	OPEN	bug	A	REMOVED:D9	-	-	covered-by-test	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	[Bug]:  v1.0.169 can enter an infinite compaction loop and exhaust Claude Code token quota	-
+1174	issue	2026-09-17	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	FALSE_SUCCESS,INSTALL_UPGRADE	start.mjs background install of turndown/better-sqlite3 dies on the #1139 Arborist "edgesOut" crash on macOS — silent, fixed by --legacy-peer-deps	-
+1175	issue	2026-09-18	OPEN	bug	B	GP4/cancel-kills-child-tree-1s	FOUND	-	covered-by-test	ZOMBIE_OPERATION	[Bug]: ctx_execute cannot be cancelled with Esc mid-run; no intermediate progress visible	-
+1179	issue	2026-09-18	OPEN	-	B	GP3/injected-message-required-fields	MISSING	tests/v2/adapters/pi.test.mjs	covered-by-test	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	[Bug]: Pi context hook pushes a message without timestamp, Radius provider rejects with 400	-
+1068	issue	2026-08-21	OPEN	-	B	GP4/no-preload-marker-leak-grandchild	FOUND	e2e/cases/GP4-execute.e2e.mjs	-	-	The cm-fs preload writes its marker to child stderr, and grandchildren inherit it into test assertions	-
+1067	issue	2026-08-19	OPEN	-	B	GP6/code-echo-default	FOUND	-	-	HOST_ADAPTER_MISMATCH	pi adapter: collapsed tool status line shows the code-echo fence line (```javascript) instead of actual output	-
+1065	issue	2026-08-19	OPEN	-	C(rejectforOSS)	N/A:rejected	-	-	-	HOST_ADAPTER_MISMATCH	Insights: D1 too-many-SQL-variables on team/org + owner cannot be assigned to a team	-
+1063	issue	2026-08-18	OPEN	enhancement	D	N/A:not-a-bug	-	-	-	-	[Feature]: 请问这个项目不迭代了吗？是出什么事情了吗	-
+1058	issue	2026-08-17	OPEN	-	A+B	GP1/clean-uninstall-no-residue	FOUND	e2e/cases/GP1-uninstall.e2e.mjs	-	INSTALL_UPGRADE	Uninstall leaves SessionStart hook, cache dir, and running MCP process behind	-
+1055	issue	2026-08-15	OPEN	-	A	REMOVED:ADR-0008	-	-	-	ROUTING_FAILURE,STARTUP_RACE	isMCPReady() counts sibling sessions' servers: WebFetch/curl denied in concurrent sessions whose own MCP server never started	-
+1053	issue	2026-08-14	OPEN	-	A	REMOVED:ADR-0008	-	-	-	ROUTING_FAILURE,STARTUP_RACE,FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	[Bug]: isMCPReady() gate swallows all redirects in plugin-only embedded mode (OpenCode)	-
+1052	issue	2026-08-14	OPEN	-	B	GP3/tool-name-map-opencode-webfetch	FOUND	e2e/cases/GP3-hooks.e2e.mjs;tests/v2/adapters/opencode.test.mjs	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	[Bug]: OpenCode webfetch alias missing - TOOL_ALIASES maps "fetch" but opencode tool is "webfetch"	-
+1050	issue	2026-08-13	OPEN	-	C(later)	N/A:deferred-post-v2.0	-	-	-	HOST_ADAPTER_MISMATCH	Feature: zero-gap single-row collapsed rendering for Pi tools	-
+1049	issue	2026-08-12	OPEN	-	A	REMOVED:D2	-	-	-	INSTALL_UPGRADE	SessionStart cache-heal re-injects a duplicate hook with an absolute path when an existing hook is registered via a wrapper script	-
+1048	issue	2026-08-12	OPEN	-	Q	N/A:open-question	-	-	-	-	Claude Code plan mode blocks ctx_batch_execute: no read-only gather path since the #851 annotations	-
+1047	issue	2026-08-12	OPEN	-	Q	GP6/code-echo-default	FOUND	-	-	-	[Feature]: Make execution echoes configurable and support compact invocation summaries	-
+1046	issue	2026-08-12	OPEN	-	C(reject)	N/A:rejected	-	-	-	-	Possible complementary direction: LongHorizon-Harness for sustained agent tasks	-
+1045	issue	2026-08-11	OPEN	-	C(reject)	N/A:rejected	-	-	-	CONTEXT_OVERHEAD,HOST_ADAPTER_MISMATCH	Feature Suggestion: Optional token metering & paid API key support via `neuforge-pay`	-
+1039	issue	2026-08-07	OPEN	bug	B	GP5/http-proxy-honored	FOUND	tests/v2/tools/index.test.mjs	-	-	[Bug]: ctx_fetch_and_index silently ignores HTTP_PROXY/HTTPS_PROXY — fetch subprocess strips all proxy env vars	-
+1037	issue	2026-08-06	OPEN	-	A	LIVE:T-SUB	-	-	-	CAPABILITY_MISMATCH,ROUTING_FAILURE	PreToolUse routing denies WebFetch/curl for subagents that cannot reach the MCP server	-
+1036	issue	2026-08-06	OPEN	-	B	GP10/usage-events-idempotent-per-turn	FOUND	e2e/cases/GP10-stats.e2e.mjs	-	HOST_ADAPTER_MISMATCH	opencode adapter appends cumulative turn cost once per step, over-counting multi-step turns	-
+1032	issue	2026-08-04	OPEN	-	B	GP7/workspace-folder-remote-wsl	FOUND	e2e/cases/GP7-scope.e2e.mjs;tests/v2/store/resolve.test.mjs	-	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	VS Code Remote-WSL project root incorrectly anchored to VS Code install directory	-
+1031	issue	2026-08-03	OPEN	-	Q/B	GP2/tool-description-token-budget	FOUND	-	-	ROUTING_FAILURE,CONTEXT_OVERHEAD	[Feature]: ctx_* tool descriptions are ~80% steering prose — ~6.2K tokens of tool definitions per call on Pi	-
+1028	issue	2026-08-02	OPEN	-	A	REMOVED:D9	-	e2e/cases/GP6-journal-resume.e2e.mjs	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	PreCompact resume snapshot uses bare `ctx_search`, not the platform tool name	-
+1026	issue	2026-08-01	OPEN	-	B	GP3/hint-once-per-session	FOUND	-	-	ROUTING_FAILURE	Bash routing nudge is hardcoded once-per-session; external-MCP nudge next to it is periodic + configurable	-
+1025	issue	2026-08-01	OPEN	-	B	GP10/reduction-pct-denominator	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/tools/stats.test.mjs	-	CONTEXT_OVERHEAD,HOST_ADAPTER_MISMATCH	[Bug]: Returned content bytes double-counted in reduction_pct denominator	-
+1024	issue	2026-08-01	OPEN	-	A	REMOVED:D6	-	-	closed-by-design	ZOMBIE_OPERATION,DELETION_DATA_LOSS	[Bug]: Stale content DB cleanup deletes live-but-idle sessions (WAL mtime only, no liveness check)	-
+1023	issue	2026-08-01	OPEN	-	B	GP10/stats-wording-bytes-not-time	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/tools/stats.test.mjs	closed-by-design	CONTEXT_OVERHEAD	[Bug]: Analytics "ran Nx longer before /compact" metric is a byte ratio presented as time	-
+1022	issue	2026-08-01	OPEN	-	A	REMOVED:D9	-	e2e/cases/GP6-journal-resume.e2e.mjs	covered-by-test	PROMPT_INTERFERENCE,CONTEXT_OVERHEAD	[Bug]: Resume snapshot ignores byte budget — advertises <2KB, injects ~196KB	-
+1021	issue	2026-08-01	OPEN	-	A	REMOVED:D16	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	README table is wrong about Pi's hook support - it's actually Full, not High	-
+1018	issue	2026-07-30	OPEN	-	B	GP3/tool-prefix-standalone-mcp	FOUND	-	closed-by-design	ROUTING_FAILURE,INSTALL_UPGRADE	[Bug]: claude-code tool naming assumes the plugin install, so standalone-MCP sessions get routing guidance naming nonexistent tools	-
+1017	issue	2026-07-30	OPEN	-	B	GP7/adapter-root-path-containment	FOUND	e2e/cases/GP7-scope.e2e.mjs;tests/v2/store/resolve.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	[Bug]: Copilot CLI resolves ctx_execute_file project root to plugin install	-
+1016	issue	2026-07-30	OPEN	enhancement	C(v2.0)	N/A:deferred-v2.0-scope	-	-	closed-by-design	INSTALL_UPGRADE	[Feature]: a clean way to uninstall and remove configs	-
+1014	issue	2026-07-29	OPEN	-	C(v2.0)	N/A:deferred-v2.0-scope	-	e2e/cases/GP11-doctor-upgrade.e2e.mjs;tests/v2/ops/doctor-db.test.mjs	closed-by-design	FALSE_SUCCESS	No supported way to assert a source is populated: doctor says PASS on an empty index, ctx_stats measures session usage, search can't distinguish empty from no-match	-
+1006	issue	2026-07-27	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE	WebFetch deny is unconditional: claude.ai artifact URLs are unreachable via the suggested ctx_* replacements (breaks Artifact updates)	-
+1005	issue	2026-07-27	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	[Bug]: ctx upgrade freezes the NEW version dir's hooks.json onto the OLD version's paths on macOS (bun runtime opens the Windows-only normalization)	-
+1004	issue	2026-07-27	OPEN	-	A	REMOVED:D9	-	-	closed-by-design	-	buildRulesSection() if/else branches are identical — rule_content bodies inlined verbatim into <session_resume>, duplicating host-injected AGENTS.md	-
+1003	issue	2026-07-27	OPEN	-	A(part)/Q	LIVE:T-PAR	-	-	wont-fix	ROUTING_FAILURE	PreToolUse denies and nudges are defeated by parallel tool batches; WebFetch deny has no opt-out	-
+1000	issue	2026-07-26	OPEN	-	B	GP1/hooks-json-one-matcher-per-tool	FOUND	-	closed-by-design	ROUTING_FAILURE	Redundant PreToolUse matchers double-fire on ctx_execute/ctx_execute_file/ctx_batch_execute; no timeout on hot PostToolUse hook	-
+999	issue	2026-07-26	OPEN	-	B	GP9/idle-cpu-stdin-exit	FOUND	-	covered-by-test	ZOMBIE_OPERATION	MCP sidecar (start.mjs) CPU busy-loop — 23 concurrent instances at 284%+ CPU contributed to host system crash	-
+993	issue	2026-07-23	OPEN	-	Q	N/A:open-question	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	[Bug]: Windows hook commands fail under PowerShell (missing call operator `&`)	-
+992	issue	2026-07-23	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	FALSE_SUCCESS,INSTALL_UPGRADE	[Bug] Bun: live ContentStore/SessionDB handle wedges to permanent SQLITE_IOERR (disk I/O error) on healthy disk+DB; ctx_doctor stays green	-
+985	issue	2026-07-22	OPEN	-	A	REMOVED:D3	-	-	closed-by-design	-	Multi-session contention on shared per-project content DB → busy-wait CPU spin & event-loop hang (Windows)	-
+984	issue	2026-07-22	OPEN	-	D	N/A:duplicate-of-#1006	-	-	closed-by-design	ROUTING_FAILURE	WebFetch redirect has no exemption for claude.ai/code/artifact URLs, breaks artifact fetches	-
+983	issue	2026-07-21	OPEN	-	B	GP9/pi-reload-no-leak	FOUND	-	closed-by-design	HOST_ADAPTER_MISMATCH	[Bug]: Pi reload leaks foreground MCP helper after sub-context starts	-
+982	issue	2026-07-21	OPEN	-	B	GP9/windows-client-kill-exit	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	closed-by-design	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Windows: MCP server child orphans & CPU-spins on session end (parent-death guard is Linux/Bun-only)	-
+979	issue	2026-07-20	OPEN	-	A	REMOVED:D7	-	-	covered-by-test	ROUTING_FAILURE	Claude Code headless mode still denied by active PreToolUse formatter	-
+967	issue	2026-07-17	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	CAPABILITY_MISMATCH,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Auto-mode permission classifier denies ~40% of subagent spawns due to injected <context_window_protection> block	-
+964	issue	2026-07-16	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,CONTEXT_OVERHEAD	Feature request: env knob to disable the SessionStart routing-block injection	-
+962	issue	2026-07-16	OPEN	-	Q	N/A:open-question	-	-	closed-by-design	CONTEXT_OVERHEAD	RFC: bound trigram and vocabulary growth for logs, JSONL, and high-entropy sources	-
+961	issue	2026-07-16	OPEN	-	B	GP5/batch-index-byte-budget	FOUND	-	covered-by-test	CONTEXT_OVERHEAD	RFC: add indexed byte/chunk budgets and separate batch display from indexed input	-
+960	issue	2026-07-15	OPEN	-	B	GP3/unrelated-mcp-tool-no-hook	FOUND	e2e/cases/GP3-hooks.e2e.mjs	-	ROUTING_FAILURE	PreToolUse `mcp__` matcher routes observe-only MCP tools — add per-tool exclusion	-
+959	issue	2026-07-15	OPEN	-	B	GP4/hung-execute-cancel-kills-tree	FOUND	e2e/cases/GP4-execute.e2e.mjs	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	Pi adapter: hung ctx_execute cannot be aborted; Esc/Ctrl+C does nothing	-
+956	issue	2026-07-14	OPEN	enhancement	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	[Feature]: npm warn deprecated prebuild-install@7.1.3: No longer maintained.	-
+954	issue	2026-07-13	OPEN	-	B	GP7/worktree-containment-consistent	FOUND	e2e/cases/GP7-scope.e2e.mjs;tests/v2/store/resolve.test.mjs	closed-by-design	PROJECT_IDENTITY_FAILURE	[Bug]: ctx_execute_file rejects registered external Git worktrees while ctx_batch_execute accepts them as cwd	-
+953	issue	2026-07-13	OPEN	-	B	GP9/windows-stdio-close-plugin-dir-deletable	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	wont-fix	DELETION_DATA_LOSS,HOST_ADAPTER_MISMATCH	[Bug]: Codex Desktop on Windows retains one context-mode MCP server per task; cache cleanup hits os error 32	-
+951	issue	2026-07-12	OPEN	-	B	GP4/node-options-no-leak-across-servers	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	SECURITY_BOUNDARY_CONFUSION	[Bug] ctx_batch_execute crashes node/npm/npx: stale cm-fs-preload-<pid>.js (NODE_OPTIONS leak) + worker accumulation on reload	-
+950	issue	2026-07-11	OPEN	-	B	GP10/stats-totals-consistent	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/tools/stats.test.mjs	-	HOST_ADAPTER_MISMATCH	[Bug]: ctx_stats self-contradicts within one render — per-chat 'kept out' (2.7 MB) exceeds all-projects total (868 KB), and 100% savings reported for a session with zero ctx_execute calls	-
+949	issue	2026-07-11	OPEN	-	A	REMOVED:D6	-	-	covered-by-test	DELETION_DATA_LOSS	sessions/ directory has no retention — grows unbounded (content/ prunes at 14d, sessions/ never)	-
+947	issue	2026-07-10	OPEN	-	B	GP4/batch-timeout-bounds-whole-handler	FOUND	e2e/cases/GP4-execute.e2e.mjs;tests/v2/tools/batch.test.mjs	-	-	[Bug]: ctx_batch_execute timeout does not bound indexing/search, so Claude Code agents can hang for hours	-
+946	issue	2026-07-10	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	CAPABILITY_MISMATCH,ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Agent-prompt injection gets third-party plugins' subagent dispatches blocked by Claude Code's auto-mode classifier — needs an opt-out	-
+944	issue	2026-07-10	OPEN	-	Q	N/A:open-question	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION	[Bug]: Codex external-file check uses ~/.codex/settings.json instead of effective permission profile	-
+941	issue	2026-07-09	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Make JavaScript the default, not the only ctx_execute language in Codex guidance	-
+940	issue	2026-07-09	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	Feature: move OS-specific Codex guidance into an installer-managed OS overlay	-
+938	issue	2026-07-09	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE	WebFetch PreToolUse redirect has no exception for claude.ai/code/artifact URLs — ctx_fetch_and_index only ever gets the empty unauthenticated SPA shell	-
+936	issue	2026-07-09	OPEN	-	B	GP4/host-rpc-timeout-governs-no-default	FOUND	-	-	ZOMBIE_OPERATION	Claude Code stdio ctx_execute can hang indefinitely without server-side timeout	-
+925	issue	2026-07-06	OPEN	-	B	GP4/shell-syntax-with-spawn-env	FOUND	-	covered-by-test	-	Shell execution wrapper breaks commands that start with compound shell syntax	-
+923	issue	2026-07-06	OPEN	-	B	GP9/no-chdir-server-cwd-stable	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	covered-by-test	ZOMBIE_OPERATION,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	start.mjs: process.chdir(__dirname) changes MCP subprocess CWD, breaking gnome-terminal new-tab directory	-
+919	issue	2026-07-05	OPEN	enhancement	C	N/A:deferred-post-v2.0	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	[Feature]: Support for CommandCode CLI	-
+915	issue	2026-07-04	OPEN	-	B	GP8/runpool-capped-flag	FOUND	e2e/cases/GP8-concurrency.e2e.mjs;tests/v2/tools/batch.test.mjs	covered-by-test	-	runPool: `capped` is true when jobs.length < concurrency (not a real cap)	-
+914	issue	2026-07-04	OPEN	-	Q	N/A:open-question	-	-	wont-fix	-	Single-file `index --source <label>` stores a bare label (inconsistent with indexDirectory) — is a fix welcome?	-
+911	issue	2026-07-03	OPEN	-	A	REMOVED:D9	-	e2e/cases/GP6-journal-resume.e2e.mjs	covered-by-test	ROUTING_FAILURE,PROMPT_INTERFERENCE	Injected session_continuity/priority_instructions framing trips Claude Code's auto-mode classifier (Auto-Mode Bypass)	-
+908	issue	2026-07-02	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	ROUTING_FAILURE	[Feature]: Configurable redirect exclusions (per-domain fetch passthrough, e.g. claude.ai)	-
+905	issue	2026-07-02	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Pi bridge Bun/bun:sqlite same-turn ctx_index -> ctx_search fails with SQLITE_IOERR	-
+903	issue	2026-07-02	OPEN	-	B	GP4/code-point-safe-truncation-cut	FOUND	tests/v2/sandbox/cap.test.mjs	covered-by-test	ROUTING_FAILURE,DELETION_DATA_LOSS	SessionStart injection truncates UTF-16 surrogate pairs, producing orphan high surrogates that break the host API request	-
+902	issue	2026-07-01	OPEN	-	A	REMOVED:D8	-	-	closed-by-design	-	Resume/PreCompact snapshot serves stale data on long sessions -- priority-based eviction deletes newer events before they're ever read	-
+901	issue	2026-07-01	OPEN	-	Q	N/A:open-question	-	tests/v2/ops/detect-v1.test.mjs	closed-by-design	INSTALL_UPGRADE	[Bug]: \upgrade\ only updates one of two parallel install trees on Windows; \doctor\ reads the other	-
+895	issue	2026-06-29	OPEN	-	A	GP5/session-worktree-project-rank	FOUND	e2e/cases/GP5-index-search.e2e.mjs;tests/v2/tools/search-decision.test.mjs;tests/v2/tools/search.test.mjs	wont-fix	PROJECT_IDENTITY_FAILURE	ctx_search ranks stale cross-session memory above fresh same-session captures	-
+894	issue	2026-06-29	OPEN	-	A	REMOVED:D17	-	-	closed-by-design	ZOMBIE_OPERATION	[Bug]: statusline stuck on hardcoded "saves ~98%" — published 1.0.168 ships without build/, renderer swallows the import error	-
+891	issue	2026-06-28	OPEN	enhancement	C	N/A:deferred-post-v2.0	-	-	wont-fix	-	[Feature]: runtime/executor support for emacs lisp	-
+890	issue	2026-06-27	OPEN	-	B	GP1/bundle-no-import-attributes	FOUND	e2e/cases/GP1-install.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	omp plugin install fails: `with { type: "json" }` import in pricing.js breaks oh-my-pi extension validator (7 errors building model-prices.json)	-
+889	issue	2026-06-27	OPEN	-	A/B	GP1/npm-pack-includes-runtime-files	FOUND	e2e/cases/GP1-release-tree.e2e.mjs	covered-by-test	INSTALL_UPGRADE	[Bug]: v1.0.168 tarball missing all scripts/*.mjs (postinstall, heal-*, plugin-cache-integrity) — ctx doctor always FAILs "integrity helper unavailable"	-
+880	issue	2026-06-26	OPEN	-	A	REMOVED:D3	-	-	-	STARTUP_RACE,DELETION_DATA_LOSS,HOST_ADAPTER_MISMATCH	[Bug]: cleanupStaleContentDBs race with parallel Pi MCP servers poisons ContentStore singleton (permanent disk I/O error)	-
+878	issue	2026-06-25	OPEN	-	B	GP5/chunk-byte-cap	FOUND	tests/v2/index/chunk.test.mjs	covered-by-test	CONTEXT_OVERHEAD,HOST_ADAPTER_MISMATCH	#chunkMarkdown allows oversized single paragraphs, bypassing MAX_CHUNK_BYTES	-
+874	issue	2026-06-24	OPEN	-	Q	N/A:open-question	-	-	wont-fix	HOST_ADAPTER_MISMATCH	[BUG] OMP plugin tool_result captures metadata but never replaces output — bytes_avoided always 0	-
+873	issue	2026-06-24	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	[BUG] omp plugin install does not copy SYSTEM.md routing instructions	-
+867	issue	2026-06-22	OPEN	-	Q	N/A:open-question	-	-	closed-by-design	INSTALL_UPGRADE	ContentStore self-heals DB corruption only at open-time (lossy recreate) — mid-session SQLITE_CORRUPT on a held handle is never caught	-
+865	issue	2026-06-22	OPEN	-	A	REMOVED:D3	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	ctx_stats conversation count ignores $CLAUDE_CONFIG_DIR — enumerateAdapterDirs hardcodes ~/.claude	-
+45	issue	2026-03-03	OPEN	help wanted	D	N/A:not-a-bug	-	-	closed-by-design	-	Beta testers wanted — 15 platforms × 3 operating systems	-
+1295	PR	2026-10-12	OPEN	-	B	GP5/non-ascii-auto-memory-match	FOUND	tests/v2/index/auto-memory.test.mjs	covered-by-test	-	fix(search): match Unicode auto-memory word boundaries	-
+1294	PR	2026-10-12	OPEN	-	B(+M)	GP7/symlink-dot-prefix-containment	FOUND	e2e/cases/GP7-scope.e2e.mjs;tests/v2/store/contain.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH	fix(index): admit contained dot-prefixed symlink targets	f7499570
+1293	PR	2026-10-12	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(hooks): unlink dangling cache breadcrumbs before replacement	-
+1292	PR	2026-10-12	OPEN	-	B	GP5/nested-gitignore-negation	FOUND	tests/v2/index/walk.test.mjs	-	-	fix(index): honor nested gitignore rules in directory walks	-
+1291	PR	2026-10-12	OPEN	-	B(+M)	GP5/globstar-zero-depth	FOUND	tests/v2/index/walk.test.mjs	covered-by-test	-	fix(index): match zero-directory globstars in directory filters	-
+1290	PR	2026-10-12	OPEN	-	A	REMOVED:D8	-	-	closed-by-design	INSTALL_UPGRADE	perf(hooks): keep session-db bundle off the PreToolUse path	-
+1287	PR	2026-10-12	OPEN	-	C(later)	N/A:deferred-not-decided	-	-	wont-fix	HOST_ADAPTER_MISMATCH	fix(stats): say why each adapter is Skipped	-
+1286	PR	2026-10-11	OPEN	-	M+B	GP4/deleted-cwd-no-ansi	FOUND	-	-	DELETION_DATA_LOSS,SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	fix(executor): survive a deleted project directory and keep output plain under FORCE_COLOR	-
+1285	PR	2026-10-11	OPEN	-	C(v2docs)	N/A:docs	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	docs(cursor): clarify Windows PATH prerequisites	-
+1284	PR	2026-10-11	OPEN	-	C(later)	N/A:new-adapter-out-of-scope	-	-	wont-fix	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	feat: add native Qoder plugin support	-
+1283	PR	2026-10-11	OPEN	-	C(reject)	N/A:docs	-	-	wont-fix	-	docs: add Gaia Skill Tree recognition badge for Context Mode	-
+1281	PR	2026-10-08	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix: report missing fetch dependencies and failed background installs	-
+1279	PR	2026-10-08	OPEN	-	A/B	GP6/no-resume-hint-mid-session	FOUND	-	closed-by-design	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	fix: prevent OpenCode resume injection into running sessions	-
+1278	PR	2026-10-08	OPEN	-	A(+M?)	REMOVED:D2	-	-	wont-fix	INSTALL_UPGRADE	fix: bound hook dependency install retries and hide Windows consoles	-
+1277	PR	2026-10-08	OPEN	-	B	GP9/linux-procfs-ppid-no-spawn	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	closed-by-design	-	perf(lifecycle): read parent PID from procfs on Linux	-
+1276	PR	2026-10-08	OPEN	-	B	GP1/opencode-clientinfo-detect	FOUND	e2e/cases/GP1-opencode-clientinfo.e2e.mjs;tests/v2/adapters/client-map.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH	fix(adapters): detect OpenCode from MCP client info	-
+1275	PR	2026-10-08	OPEN	-	C(v2.0)	N/A:tool-design-not-decided	-	-	wont-fix	-	fix(batch): replace repeated section excerpts with query pointers	-
+1272	PR	2026-10-07	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	CAPABILITY_MISMATCH,ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(claude-code): deliver subagent routing via SubagentStart, not Agent prompt rewrite	-
+1271	PR	2026-10-07	OPEN	-	M+B	GP11/jsonc-comment-boundaries	FOUND	tests/v2/ops/host-config.test.mjs	covered-by-test	-	fix: preserve JSONC comment boundaries	-
+1270	PR	2026-10-07	OPEN	-	A	GP3/hint-once-per-session	FOUND	-	closed-by-design	ROUTING_FAILURE	fix(hooks): honor once-per-session guidance for large Read calls	855e330d
+1266	PR	2026-10-05	OPEN	-	B	GP11/pi-doctor-real-paths	FOUND	e2e/cases/GP11-pi-agy.e2e.mjs;tests/v2/ops/doctor-config.test.mjs	covered-by-test	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Fix: Pi adapter doctor checks use real Pi paths (#1168)	-
+1265	PR	2026-10-05	OPEN	-	B(+C)	GP3/powershell-same-hint-as-bash	FOUND	-	-	ROUTING_FAILURE	fix(hooks): route the PowerShell tool and re-fire the Bash nudge on a cadence	-
+1264	PR	2026-10-04	OPEN	-	B(+M)	GP2/pi-system-role-injection	FOUND	e2e/cases/GP2-prompt-surface.e2e.mjs;tests/v2/adapters/pi.test.mjs	wont-fix	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	fix(pi): tag injected context as role:"system", not role:"user" (#1263)	-
+1256	PR	2026-10-04	OPEN	-	A	REMOVED:D8	-	-	closed-by-design	-	fix(hooks): scope MCP readiness to the calling Claude Code session (#1055)	-
+1253	PR	2026-10-03	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(ensure-deps): skip the cache swap when the active binary is already current (#1196)	-
+1252	PR	2026-10-03	OPEN	-	B	GP10/binary-read-zero-savings	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/tools/stats.test.mjs	closed-by-design	CONTEXT_OVERHEAD	fix(stats): stop counting binary reads and responses as saved tokens (#1151)	-
+1250	PR	2026-10-03	OPEN	-	M+B	GP4/exit1-stderr-is-error	FOUND	-	covered-by-test	FALSE_SUCCESS	fix: classify shell exit 1 with stderr as an error	-
+1249	PR	2026-10-03	OPEN	-	M+B	GP1/pi-utf8-incremental-decode	FOUND	e2e/cases/GP1-install.e2e.mjs;tests/v2/plugins/pi.test.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	fix(pi): decode MCP stdout incrementally so multi-byte text survives chunk boundaries	-
+1247	PR	2026-10-02	OPEN	-	M	N/A:not-decided	-	-	wont-fix	-	fix(scripts): re-exec plugin shell scripts under bash for POSIX-sh callers (#1242)	-
+1246	PR	2026-10-02	OPEN	-	B	GP7/pi-bridge-per-session-workspace	FOUND	-	closed-by-design	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE	fix(pi): isolate MCP bridges by session workspace	-
+1245	PR	2026-10-02	OPEN	-	M(security)	REMOVED:D2	-	-	wont-fix	ZOMBIE_OPERATION,SECURITY_BOUNDARY_CONFUSION,INSTALL_UPGRADE	fix(deps): refresh express-rate-limit to pull in patched ip-address	-
+1244	PR	2026-10-02	OPEN	-	M	N/A:trivial-metadata	-	-	wont-fix	HOST_ADAPTER_MISMATCH	Add website URL to plugin.json	-
+1243	PR	2026-10-02	OPEN	-	D	N/A:duplicate-of-1247	-	-	wont-fix	-	fix(scripts): re-exec ctx-debug.sh under bash when invoked by a POSIX shell	-
+1241	PR	2026-10-02	OPEN	-	A/B	GP10/ctx-call-credited-to-caller-session	FOUND	e2e/cases/GP10-stats.e2e.mjs	closed-by-design	STARTUP_RACE,PROJECT_IDENTITY_FAILURE	fix(session): attribute MCP work to caller session	-
+1240	PR	2026-10-01	OPEN	-	B(+M)	GP3/antigravity-stop-hook-flat-schema	FOUND	e2e/cases/GP3-hooks.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	fix: declare antigravity-cli Stop hook in the flat form agy accepts	-
+1239	PR	2026-10-01	OPEN	-	M+B	GP11/keep-user-hooks-on-upgrade	FOUND	tests/v2/ops/host-config.test.mjs;tests/v2/ops/host-write.test.mjs;tests/v2/tools/upgrade.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(gemini-cli): retain sibling hooks when upgrading	-
+1238	PR	2026-10-01	OPEN	-	B(+M)	GP5/nested-fenced-code-intact	FOUND	tests/v2/index/chunk.test.mjs	covered-by-test	-	fix(fetch): keep nested fenced examples intact during extraction	-
+1237	PR	2026-10-01	OPEN	-	B(+M)	GP4/project-cwd-temp-dir-cleanup	FOUND	-	wont-fix	SECURITY_BOUNDARY_CONFUSION,PROJECT_IDENTITY_FAILURE	fix(executor): preserve Rust execution cwd and sandbox lifecycle	-
+1236	PR	2026-10-01	OPEN	-	A/B	GP10/stats-sibling-db-readonly	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/tools/stats.test.mjs	closed-by-design	ZOMBIE_OPERATION	fix(stats): probe session schemas read-only before migration	-
+1235	PR	2026-10-01	OPEN	-	M+B	GP11/keep-user-hooks-on-upgrade	FOUND	tests/v2/ops/host-config.test.mjs;tests/v2/ops/host-write.test.mjs;tests/v2/tools/upgrade.test.mjs	covered-by-test	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(copilot-cli): preserve custom hooks during upgrade	-
+1234	PR	2026-10-01	OPEN	-	A	REMOVED:D4	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	fix(codex): trust rollout content timestamp over mtime for Windows staleness check	-
+1231	PR	2026-09-30	OPEN	-	B(+M)	GP3/external-mcp-tool-routing-hint	FOUND	-	covered-by-test	ROUTING_FAILURE	fix(claude-code): restore external-MCP hook routing with `mcp__.*` (#1222)	-
+1230	PR	2026-09-30	OPEN	-	M+B	GP5/ctx-search-schema-declares-query	FOUND	-	covered-by-test	-	fix(search): declare singular query in ctx_search schema	-
+1229	PR	2026-09-30	OPEN	-	A(+M)	REMOVED:D8	-	-	closed-by-design	PROJECT_IDENTITY_FAILURE	fix: scope session-event indexing to the current project (#1214)	-
+1228	PR	2026-09-30	OPEN	-	M+B	GP1/default-hook-timeouts	FOUND	-	closed-by-design	-	fix(hooks): ship default timeouts so a hung hook cannot block the CLI	-
+1227	PR	2026-09-30	OPEN	-	A	REMOVED:ADR-0008	-	-	wont-fix	FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	fix(omp): allow quoted HTTP references and silent file downloads	-
+1224	PR	2026-09-29	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(ensure-deps): back off after a failed dependency install instead of retrying on every hook call	-
+1220	PR	2026-09-29	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(heal): keep project-scope installs out of user settings.json (#1215)	-
+1218	PR	2026-09-28	OPEN	-	B	GP4/windows-inherited-path	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	fix(executor): restore inherited PATH on win32 shell scripts (fixes #1217)	-
+1216	PR	2026-09-28	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(cache-heal): anchor version filter and report dead installPaths (#1191)	-
+1211	PR	2026-09-27	OPEN	-	A	GP9/no-periodic-stats-db-scan	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	closed-by-design	-	perf(analytics): stop re-reading every sidecar in getLifetimeStats	-
+1209	PR	2026-09-26	OPEN	-	B	GP4/windows-shim-interpreter	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	fix(executor): run extensionless POSIX-shim python/node via Git Bash on Windows (#1208)	-
+1207	PR	2026-09-26	OPEN	-	M+B	GP5/ctx-search-schema-declares-query	FOUND	-	covered-by-test	-	fix: accept singular `query` in ctx_search input schema	-
+1197	PR	2026-09-23	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix: reject unusable Bun shims and clarify OMP hook diagnostics	-
+1194	PR	2026-09-22	OPEN	-	C	REMOVED:D9	-	-	wont-fix	HOST_ADAPTER_MISMATCH	Opencode v2 compatibility (compaction within context-mode)	-
+1189	PR	2026-09-22	OPEN	-	A	GP3/p4-parser-coverage	MISSING	-	closed-by-design	ROUTING_FAILURE	fix(hooks): require curl/wget to be in command position (#679)	-
+1183	PR	2026-09-19	OPEN	-	B	GP1/stable-interpreter-path	FOUND	e2e/cases/GP1-release-tree.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(hooks): persist a stable interpreter path, not a version-pinned snapshot (#1090)	-
+1182	PR	2026-09-19	OPEN	-	B	GP4/abort-signal-pi-cancel	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	fix(pi): Honor AbortSignal so Escape cancels in-flight	-
+1181	PR	2026-09-19	OPEN	-	B	GP6/priority-polarity	FOUND	-	closed-by-design	-	fix(session): align priority contract and minPriority filtering	-
+1180	PR	2026-09-18	OPEN	-	M	GP3/pi-injected-message-timestamp	FOUND	e2e/cases/GP3-hooks.e2e.mjs;tests/v2/adapters/pi.test.mjs	covered-by-test	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	fix(pi): stamp the context-hook message with a timestamp so Radius accepts it	-
+1178	PR	2026-09-18	OPEN	-	C	N/A:deferred-rebuild-on-journal	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	feat(agy): capture user decisions and prompt events via PreInvocation hook	-
+1177	PR	2026-09-18	OPEN	-	M+B	GP4/batch-node-options-compound-cmd	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH	fix(batch): export NODE_OPTIONS so compound shell commands work (#1117)	-
+1176	PR	2026-09-18	OPEN	-	M+B	GP4/surrogate-safe-truncation	FOUND	tests/v2/sandbox/cap.test.mjs	covered-by-test	DELETION_DATA_LOSS	fix: make snippet and echo truncation surrogate-safe (#1163)	-
+1172	PR	2026-09-17	OPEN	-	B	GP5/fetch-error-one-line	FOUND	-	closed-by-design	-	fix(fetch): report concise subprocess errors	-
+1171	PR	2026-09-16	OPEN	-	C+B	GP1/opencode2-plugin-dual-export	FOUND	e2e/cases/GP1-install.e2e.mjs;tests/v2/plugins/opencode.test.mjs	unverified	HOST_ADAPTER_MISMATCH	fix(opencode): support OpenCode 2 plugin API (V1/V2 dual export)	-
+1170	PR	2026-09-16	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	fix(pi): preserve context across tool-loop requests	-
+1167	PR	2026-09-16	OPEN	-	B	GP9/no-process-spawn-at-boot	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(windows): resolve runtime probes in-process instead of spawning where	-
+1166	PR	2026-09-16	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(pi): spawn a Windows-spawnable runtime and keep bridge diagnostics	-
+1165	PR	2026-09-15	OPEN	-	C	N/A:not-decided	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION	fix(codex): honor active sandbox state for file reads	-
+1164	PR	2026-09-15	OPEN	-	D	N/A:duplicate-of-1182	-	-	wont-fix	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	fix(pi): propagate Pi's AbortSignal — kill the bridge server tree to stop runaway executors	-
+1161	PR	2026-09-14	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(tool-naming): use native ctx_* names for OpenCode/KiloCode plugin tools	-
+1160	PR	2026-09-14	OPEN	-	M+B	GP11/opencode-merge-sibling-plugins	FOUND	tests/v2/ops/host-config.test.mjs;tests/v2/ops/host-write.test.mjs;tests/v2/ops/uninstall.test.mjs;tests/v2/tools/upgrade.test.mjs	covered-by-test	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(opencode): merge sibling config plugin arrays when writing opencode.jsonc	-
+1158	PR	2026-09-14	OPEN	-	D	REMOVED:D8	-	-	wont-fix	-	fix(session): evict least-important events first	-
+1155	PR	2026-09-13	OPEN	-	D	N/A:duplicate-of-1144	-	-	wont-fix	SECURITY_BOUNDARY_CONFUSION	Redact secrets from the debug report before it leaves the machine	-
+1154	PR	2026-09-13	OPEN	-	M+B	GP4/windows-hide-console-on-spawn	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	fix(windows): suppress child process console windows	-
+1153	PR	2026-09-13	OPEN	-	B	GP11/codex-effective-hooks-state	FOUND	tests/v2/ops/doctor-config.test.mjs;tests/v2/tools/doctor.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH	fix(codex): read the effective hooks feature, not just the override	-
+1149	PR	2026-09-12	OPEN	-	D	N/A:duplicate-of-1180	-	-	wont-fix	PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	fix(pi): timestamp injected context messages for Radius	-
+1148	PR	2026-09-11	OPEN	-	A	REMOVED:D17	-	-	closed-by-design	INSTALL_UPGRADE	fix: bundle bin/statusline.mjs's analytics import (marketplace installs never get build/)	-
+1147	PR	2026-09-11	OPEN	-	B	GP4/default-timeout-every-host	FOUND	-	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	fix(exec): bound ctx_execute on Pi, which has no host-side ceiling	-
+1144	PR	2026-09-10	OPEN	-	M	GP11/redact-secrets-in-debug-report	FOUND	tests/v2/ops/report.test.mjs	closed-by-design	CONTEXT_OVERHEAD,SECURITY_BOUNDARY_CONFUSION	fix(ctx-debug): redact env blocks and credential-shaped keys in captured configs	-
+1143	PR	2026-09-10	OPEN	-	M+B	GP8/v22-project-cleanup	MISSING	-	covered-by-test	DELETION_DATA_LOSS	fix(session): key cleanupOldSessions TTL off last activity, not started_at	-
+1138	PR	2026-09-09	OPEN	-	M+B	GP5/rowless-tables	FOUND	tests/v2/index/chunk.test.mjs	covered-by-test	-	fix(fetch): handle HTML tables without rows	-
+1137	PR	2026-09-09	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	INSTALL_UPGRADE	docs: align session continuity guidance	-
+1129	PR	2026-09-08	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(hooks): pin ABI healing to the running Node	-
+1128	PR	2026-09-08	OPEN	-	A	GP3/p4-parser-coverage	MISSING	-	closed-by-design	ROUTING_FAILURE	Fix curl/wget pipe and multiline routing bounds	-
+1127	PR	2026-09-07	OPEN	-	C	N/A:not-decided	-	-	closed-by-design	-	feat(server): make echo budgets configurable per host	-
+1126	PR	2026-09-06	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(pi): remove unverified tool-availability routing anchor	-
+1124	PR	-	CLOSED	-	A	GP3/p4-parser-coverage	MISSING	-	closed-by-design	-	adapters: Route network commands by transfer output	-
+1123	PR	2026-09-05	OPEN	-	A	REMOVED:D9	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	fix: enforce the bounded resume snapshot budget	-
+1122	PR	2026-09-04	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	pi: inject routing anchor once per session instead of every turn	-
+1121	PR	2026-09-04	OPEN	-	B	GP4/exit1-stderr-is-error	FOUND	-	closed-by-design	FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	fix(pi): stream context tool output	ab5aad90
+1118	PR	2026-09-03	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(db-base): keep SQL comments from splitting exec statements	302bb7b8
+1116	PR	2026-09-02	OPEN	-	A	REMOVED:D9	-	-	closed-by-design	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	feat(omp): restore resume snapshot after compact	-
+1113	PR	2026-09-02	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	fix(detect): wait for MCP initialize before platform detect	-
+1111	PR	2026-09-01	OPEN	-	B	GP9/no-periodic-stats-db-scan	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	closed-by-design	ZOMBIE_OPERATION	fix(stats): stop heartbeat lifetime scans	-
+1104	PR	2026-08-30	OPEN	-	M	GP3/codex-exec-pretooluse-matcher	FOUND	e2e/cases/GP3-hooks.e2e.mjs	covered-by-test	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(codex): route Code Mode exec through PreToolUse	-
+1097	PR	2026-08-27	OPEN	-	C(reject)	N/A:rejected-not-decided	-	-	wont-fix	-	feat(server): CONTEXT_MODE_MAX_LIMIT env-var override	-
+1095	PR	2026-08-27	OPEN	-	M	N/A:pi-client-ui-cosmetic	-	-	wont-fix	HOST_ADAPTER_MISMATCH	fix(pi): strip echo preamble in collapsed renderResult	-
+1093	PR	2026-08-27	OPEN	-	B	GP4/abort-signal-pi-cancel	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	feat(pi): interrupt support (Esc) for in-flight ctx_* tool calls	c02b184d
+1092	PR	2026-08-27	OPEN	-	C(v2.0later)	N/A:ui-polish-deferred	-	-	wont-fix	HOST_ADAPTER_MISMATCH	feat(pi): live command preview and result tail in the Pi TUI	-
+1091	PR	2026-08-27	OPEN	-	M+B	GP5/fts-highlight-bytecap	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH	fix(search): guard FTS5 highlight on oversized rows	9cbac800
+1089	PR	2026-08-27	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix: derive context-mode registry key	-
+1087	PR	2026-08-26	OPEN	-	M+B	GP3/v17-read-glob-deny	FOUND	-	covered-by-test	ROUTING_FAILURE,SECURITY_BOUNDARY_CONFUSION	fix(security): expand // and ~/ anchors in permission patterns (#1075)	-
+1086	PR	2026-08-25	OPEN	-	A	GP3/p4-parser-coverage	MISSING	-	closed-by-design	ROUTING_FAILURE,SECURITY_BOUNDARY_CONFUSION	fix(hooks): scan quotes left to right so prose apostrophes cannot expose a command	-
+1084	PR	2026-08-25	OPEN	-	A	N/A:rejected-design	-	-	wont-fix	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(codex): redirect broad home searches before ingestion	-
+1082	PR	2026-08-24	OPEN	-	C	N/A:not-decided	-	-	closed-by-design	-	mcp: name execution timeout in milliseconds	-
+1076	PR	2026-08-24	OPEN	-	C	N/A:not-decided	-	-	wont-fix	-	feat: add CONTEXT_MODE_TOOLS allow-list to skip tool registration	-
+1073	PR	2026-08-24	OPEN	-	M	GP1/kiro-hooks-v1-schema	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix: update Kiro hooks config to 1.0 v1 schema	-
+1066	PR	2026-08-19	OPEN	-	A	REMOVED:ADR-0008	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	feat(omp): route broad tool calls and cap direct results	-
+1056	PR	2026-08-15	OPEN	-	A	GP8/verify-single-db	MISSING	-	closed-by-design	DELETION_DATA_LOSS	fix(db): stop mutating shared DB files across processes (close-time TRUNCATE checkpoint + default mmap)	-
+1044	PR	2026-08-08	OPEN	-	C(later)	N/A:new-adapter-out-of-scope	-	-	wont-fix	HOST_ADAPTER_MISMATCH	feat(adapters): add Mistral Vibe platform adapter	-
+1043	PR	2026-08-08	OPEN	-	A+B	GP6/hint-names-platform-tool	FOUND	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(precompact): use platform ctx_search name in resume snapshot	-
+1042	PR	2026-08-08	OPEN	-	B	GP10/reduction-pct-net-bytes	FOUND	e2e/cases/GP10-stats.e2e.mjs;tests/v2/tools/stats.test.mjs	covered-by-test	CONTEXT_OVERHEAD	fix(stats): net returned bytes in reduction_pct denominator (#1025)	-
+1041	PR	2026-08-08	OPEN	-	C	N/A:not-decided	-	-	covered-by-test	SECURITY_BOUNDARY_CONFUSION	fix: allow opt-in proxy env passthrough in ctx_fetch_and_index (CTX_FETCH_ALLOW_PROXY)	-
+1040	PR	2026-08-07	OPEN	-	C	N/A:not-decided	-	-	wont-fix	HOST_ADAPTER_MISMATCH	fix(cost): emit opencode multi-step usage as deltas (#1036)	cc675f06
+1035	PR	2026-08-06	OPEN	-	B	GP11/pi-detect-npm-managed-install	MISSING	tests/v2/ops/detect-v1.test.mjs;tests/v2/ops/doctor-config.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(pi): detect managed extension installs	-
+1034	PR	2026-08-04	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	CAPABILITY_MISMATCH,ROUTING_FAILURE	fix(routing): self-identify subagent routing block, add opt-out (#967)	1eca4398
+1033	PR	2026-08-04	OPEN	-	B	GP7/vscode-remote-wsl-project-root	FOUND	e2e/cases/GP7-scope.e2e.mjs	closed-by-design	HOST_ADAPTER_MISMATCH,PROJECT_IDENTITY_FAILURE,INSTALL_UPGRADE	Fix VS Code Remote-WSL project root detection (issue #1032)	53d2ec5a
+1030	PR	2026-08-03	OPEN	-	A	REMOVED:D3	-	-	closed-by-design	-	fix(db): retry transient SQLITE_IOERR instead of failing the caller	a5c449df
+1029	PR	2026-08-02	OPEN	-	D	N/A:duplicate-of-1093	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	fix(pi): propagate MCP cancellation to executor	-
+1019	PR	2026-07-31	OPEN	-	B	GP3/pi-project-permissions-honored	FOUND	e2e/cases/GP3-hooks.e2e.mjs;tests/v2/adapters/pi.test.mjs	closed-by-design	HOST_ADAPTER_MISMATCH,SECURITY_BOUNDARY_CONFUSION	fix(security): honor Pi project permission settings	696298ec
+1010	PR	2026-07-29	OPEN	-	C(later)	N/A:new-adapter-out-of-scope	-	-	wont-fix	-	feat: add native Hermes Agent support	-
+1009	PR	2026-07-28	OPEN	-	B	GP4/cancel-kills-child-tree	FOUND	-	covered-by-test	ZOMBIE_OPERATION	fix(executor): terminate abandoned execution trees	-
+1002	PR	2026-07-27	OPEN	-	A+B	GP2/pi-system-role-injection	FOUND	e2e/cases/GP2-prompt-surface.e2e.mjs;tests/v2/adapters/pi.test.mjs	closed-by-design	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	fix(pi): keep runtime context at system boundary	4ced18cb
+1001	PR	2026-07-26	OPEN	-	C	N/A:not-decided	-	-	wont-fix	-	fix(pricing): add MiniMax catalog entries	-
+996	PR	2026-07-24	OPEN	-	A	REMOVED:D9	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	fix: honest session_state source label — "compaction" only after real compaction	51570583
+995	PR	2026-07-24	OPEN	-	B	GP9/windows-ci-no-hang	FOUND	e2e/cases/GP1-install.e2e.mjs;e2e/cases/GP9-lifecycle.e2e.mjs	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	Fix Vitest Windows CI EPERM Hang	-
+991	PR	2026-07-23	OPEN	-	B	GP5/auto-index-exec-output	FOUND	-	covered-by-test	CONTEXT_OVERHEAD	fix: auto-index mid-size exec output for ctx_search without intent	a11f313b
+988	PR	2026-07-22	OPEN	-	A	REMOVED:D3	-	-	closed-by-design	-	fix(store): opportunistic PASSIVE WAL checkpoint to bound the content-store WAL (#985)	939c5ca8
+987	PR	2026-07-22	OPEN	-	M+B	GP9/windows-parent-pid-probe	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	covered-by-test	HOST_ADAPTER_MISMATCH	fix(lifecycle): detect parent death on Windows via PID existence probe (#982)	939c5ca8
+986	PR	2026-07-22	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(db): replace SQLITE_BUSY busy-wait backoff with Atomics.wait sleep (#985)	-
+980	PR	2026-07-20	OPEN	-	B	GP5/batch-ingestion-byte-caps	FOUND	tests/v2/tools/index.test.mjs	covered-by-test	-	fix(batch): enforce indexed byte and chunk budgets	-
+975	PR	2026-07-19	OPEN	-	M+B	GP4/background-no-timeout-hang	FOUND	e2e/cases/GP4-execute.e2e.mjs	closed-by-design	ZOMBIE_OPERATION	fix(ctx_execute): prevent hang when background=true without timeout	117e15f2
+974	PR	2026-07-19	OPEN	-	M+B	GP9/no-chdir	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	covered-by-test	ZOMBIE_OPERATION,PROJECT_IDENTITY_FAILURE	fix(start.mjs): remove chdir	-
+973	PR	2026-07-19	OPEN	-	A	REMOVED:D2	-	-	closed-by-design	INSTALL_UPGRADE	fix(start.mjs): allow resolve bun from $PATH	-
+972	PR	2026-07-18	OPEN	-	M	N/A:ci-test-harness-contract	-	-	covered-by-test	INSTALL_UPGRADE	fix(gitSetupShell): do not hardcode bash location	-
+971	PR	2026-07-18	OPEN	-	D	N/A:duplicate-of-910	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	fix(codex): omit empty hook context	-
+970	PR	2026-07-17	OPEN	-	B	GP8/v22-project-cleanup	MISSING	-	closed-by-design	DELETION_DATA_LOSS	fix(store): add 14-day retention for the sessions/ directory (#949)	-
+969	PR	2026-07-17	OPEN	-	B	GP4/recreate-preload-temp-file	FOUND	e2e/cases/GP4-execute.e2e.mjs	covered-by-test	DELETION_DATA_LOSS	fix(batch): re-create the fs-preload temp file if an OS cleaner removed it (#951)	-
+968	PR	2026-07-17	OPEN	-	C(v2.0)	N/A:design-rejected-v1-406-kept	-	-	-	ZOMBIE_OPERATION	fix(exec): add CONTEXT_MODE_DEFAULT_EXEC_TIMEOUT_MS opt-in bound for exec calls (#936)	-
+963	PR	2026-07-16	OPEN	-	B(+M)	GP5/fts-highlight-bytecap	FOUND	tests/v2/store/fts.test.mjs	covered-by-test	CONTEXT_OVERHEAD	fix(store): bound FTS search result hydration for oversized rows	ceb49688
+958	PR	2026-07-14	OPEN	-	A	REMOVED:D2	-	-	-	INSTALL_UPGRADE	refactor(cache-heal): extract inline healScript to hooks/cache-heal.mjs	-
+957	PR	2026-07-14	OPEN	-	C(later)	N/A:new-adapter-out-of-scope	-	-	wont-fix	HOST_ADAPTER_MISMATCH	feat: add Devin CLI adapter + decision extraction	-
+955	PR	2026-07-13	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	feat(codex): load Windows guidance as a platform overlay	-
+952	PR	2026-07-12	OPEN	-	B	GP10/real-savings-only	FOUND	tests/v2/tools/stats.test.mjs	closed-by-design	ROUTING_FAILURE,CONTEXT_OVERHEAD	fix(stats): count only measured redirects as savings, label capture volume honestly	-
+948	PR	2026-07-10	OPEN	-	A	REMOVED:D11	-	-	closed-by-design	HOST_ADAPTER_MISMATCH	docs(codex): make JavaScript the default ctx_execute runtime	-
+945	PR	2026-07-10	OPEN	-	A(+M)	GP3/webfetch-allow-claude-ai-artifacts	FOUND	-	covered-by-test	ROUTING_FAILURE	fix(routing): let claude.ai Artifact URLs pass through WebFetch (#938)	-
+939	PR	2026-07-09	OPEN	-	C	N/A:not-decided	-	-	wont-fix	-	feat: add ctx_forget for per-source knowledge-base eviction	-
+935	PR	2026-07-08	OPEN	-	C(later)	N/A:defer-reject	-	-	wont-fix	HOST_ADAPTER_MISMATCH	feat(opencode): add /ctx slash command to TUI for session stats	-
+934	PR	2026-07-08	OPEN	-	B(+M)	GP4/batch-node-options-compound-cmd	FOUND	-	covered-by-test	HOST_ADAPTER_MISMATCH	fix(batch): export NODE_OPTIONS as a statement so compound shell commands work (#925)	-
+932	PR	2026-07-08	OPEN	-	M	GP4/runpool-capped-flag	FOUND	tests/v2/tools/batch.test.mjs	covered-by-test	-	fix(runPool): don't report capped when pool is larger than workload (#915)	-
+931	PR	2026-07-08	OPEN	-	A	REMOVED:D17	-	-	covered-by-test	-	fix: surface statusline analytics import failures (#894)	6891def8
+930	PR	2026-07-08	OPEN	-	M	N/A:docs	-	-	closed-by-design	ZOMBIE_OPERATION	fix(docs): avoid GraphQL issue listing	-
+929	PR	2026-07-08	OPEN	-	A	REMOVED:D2	-	-	-	INSTALL_UPGRADE	fix(packaging): guard packaged helper scripts	-
+928	PR	2026-07-08	OPEN	-	M	N/A:docs	-	-	wont-fix	ZOMBIE_OPERATION	fix: avoid deprecated gh issue project cards query	-
+927	PR	2026-07-07	OPEN	-	A	REMOVED:ADR-0008	-	-	-	ROUTING_FAILURE,STARTUP_RACE	fix(hooks): downgrade WebFetch hard-deny to once-per-session advisory	-
+924	PR	2026-07-06	OPEN	-	B(+M)	GP9/no-chdir	FOUND	e2e/cases/GP9-lifecycle.e2e.mjs	-	ZOMBIE_OPERATION,PROJECT_IDENTITY_FAILURE	start: restore original CWD before importing server bundle	-
+922	PR	2026-07-05	OPEN	-	C(v2.0)	N/A:not-decided	-	-	-	-	fix: trim the per-call ctx_batch_execute footer	-
+921	PR	2026-07-05	OPEN	-	B	GP5/dedupe-chunks-across-queries	FOUND	-	-	-	fix: dedupe chunks across queries in a multi-query ctx_search call	-
+920	PR	2026-07-05	OPEN	-	C(v2.0)	N/A:not-decided	-	-	-	-	fix: state ctx_search throttle thresholds as absolute call numbers	-
+918	PR	2026-07-04	OPEN	-	A(+M)	REMOVED:D11	-	-	-	ROUTING_FAILURE,PROMPT_INTERFERENCE	fix(routing-block): remove injection-shaped framing (#911)	-
+913	PR	2026-07-03	OPEN	-	B	GP1/standalone-mcp-tool-prefix	FOUND	-	-	INSTALL_UPGRADE	fix(standalone): use mcp__context-mode__ prefix when CLAUDE_PLUGIN_ROOT is absent	-
+910	PR	2026-07-03	OPEN	-	B(+M)	GP3/no-empty-fields	FOUND	-	-	FALSE_SUCCESS,HOST_ADAPTER_MISMATCH	fix(codex): omit empty additionalContext in hook output	-
+907	PR	2026-07-02	OPEN	-	B(+M)	GP6/sessionstart-surrogate-safe-truncation	FOUND	-	-	ROUTING_FAILURE,DELETION_DATA_LOSS	fix(session): keep SessionStart truncation surrogate-safe	-
+906	PR	2026-07-02	OPEN	-	B	GP1/codex-platform-env	FOUND	e2e/cases/GP1-install.e2e.mjs	-	HOST_ADAPTER_MISMATCH	docs(codex): pin platform env in manual config	-
+904	PR	2026-07-02	OPEN	-	B	GP4/abort-signal-pi-cancel	FOUND	e2e/cases/GP4-execute.e2e.mjs	-	ZOMBIE_OPERATION,HOST_ADAPTER_MISMATCH	fix(pi): propagate abort signals through tools	-
+899	PR	2026-06-30	OPEN	-	B	GP6/no-false-shell-error-capture	FOUND	-	-	-	fix: avoid false shell error captures	-
+898	PR	2026-06-30	OPEN	-	B(+M)	GP5/chunk-size-cap	FOUND	tests/v2/index/chunk.test.mjs	-	HOST_ADAPTER_MISMATCH	fix(store): cap oversized markdown chunks	-
+897	PR	2026-06-30	OPEN	-	B	GP3/powershell-same-hint-as-bash	FOUND	-	-	ROUTING_FAILURE,HOST_ADAPTER_MISMATCH	fix(claude-code): route PowerShell hooks on Windows	-
+892	PR	2026-06-29	OPEN	-	M	N/A:docs	-	-	-	-	Fix typo in README verification instructions	-
+888	PR	2026-06-27	OPEN	-	D	N/A:stale-empty-issue	-	-	-	-	Fix/mcp singleton concurrency	-
+884	PR	2026-06-26	OPEN	-	A	N/A:docs	-	-	-	HOST_ADAPTER_MISMATCH	docs: sync adapter install/usage/debugging with the code (v1.0.167)	-
+877	PR	2026-06-24	OPEN	-	C(v2.0)	N/A:not-decided	-	-	-	HOST_ADAPTER_MISMATCH	fix(omp): replace large tool results with search references	-
+876	PR	2026-06-24	OPEN	-	A	REMOVED:D11	-	-	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(omp): seed APPEND_SYSTEM.md routing instructions	-
+871	PR	2026-06-23	OPEN	-	A	REMOVED:D3	-	-	-	INSTALL_UPGRADE	fix(db-base): extend withRetry to catch mid-session SQLITE_CORRUPT with lossless heal (#867)	-
+866	PR	2026-06-22	OPEN	-	A	REMOVED:D3	-	-	-	-	fix(analytics): honor $CLAUDE_CONFIG_DIR in enumerateAdapterDirs (ctx_stats conversation count)	-
+864	PR	2026-06-22	OPEN	-	B	GP2/pi-system-role-injection	FOUND	e2e/cases/GP2-prompt-surface.e2e.mjs;tests/v2/adapters/pi.test.mjs	-	ROUTING_FAILURE,PROMPT_INTERFERENCE,HOST_ADAPTER_MISMATCH	Hide Pi context injection from user entry	-
+863	PR	2026-06-22	OPEN	-	A	REMOVED:D2	-	-	-	HOST_ADAPTER_MISMATCH,INSTALL_UPGRADE	fix(windows): run the better-sqlite3 boot-install via node, not npm.cmd+shell (#861 follow-up)	-

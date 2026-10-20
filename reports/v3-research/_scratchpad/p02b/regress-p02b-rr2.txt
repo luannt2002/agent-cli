@@ -1,0 +1,29 @@
+faults rc=0 (163s)
+    selected-no-key-server    1 0     failed to initialize agent: failed {}
+    summary-loop         1 0     agent processing failed: failed to {'title': 1, 'main': 33, 'summary': 10}
+    truncated-stream     1 0     agent processing failed: failed to {'title': 1, 'main': 4}
+    FAULTS: PASS
+qwen rc=0 (2s)
+    roles on qwen: ['agentic_fetch', 'main', 'subagent', 'summary', 'title'] missing: []
+    text has no auto-summary (run --json, local mode): True 'DONE-AFTER-SUMMARY'
+    loop with an already-green gate stops NO_CHANGE, rc!=0: True (rc=1)
+    QWEN-ONLY: PASS
+workspaces rc=0 (2s)
+    ok   E-A2 request carries A1 history and nothing from B
+    ok   session list of A has A1, X1, Y1 and not B1
+    ok   session list of B has only B1
+    WORKSPACES: PASS
+runjson rc=0 (57s)
+    ok   clientserver: lượt của send vẫn xong sau Ctrl+C của send và của run -s (quan sát: end_turn|ECHO(2): SLOW send;)
+    ok   clientserver: prompt xếp hàng của run -s đã bị gỡ, không chạy (quan sát: end_turn|ECHO(2): SLOW send;)
+    ok   không còn server process
+    PASS
+c5 rc=0 (18s)
+    C5: EXPOSED — ENV=EXPOSED ALLOW=ok — env: second client (V3_ROUTE=c2) -> ['c1'], control alone -> ['c2'] | allowlist qwen-only: second client -> ['none'] err='failed to create workspace: status code 500: trust policy differs from the running agent-c', control alone -> ['none'] err='failed to create workspace: status code 500: failed to create app workspace: failed to ini' | holders: ['c1'] ['pp']
+    EXPOSURE: ran 1 verdict line(s); verdicts in /home/luannt/.cache/v3ev/p02b-rr2-c5/verdicts.txt
+home rc=0 (9s)
+    HOME (homeChildCmd): child env has trusted keys from .env: none | run: claude_code in tools=False
+    HOME2 (execHome via Alt+W): child env has trusted keys from .env: none | run: claude_code in tools=False
+    CTL (direct run in repo): claude_code in tools=False
+    NOT_EXPOSED
+DONE

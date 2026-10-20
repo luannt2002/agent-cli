@@ -1,0 +1,34 @@
+--- FAIL: TestRunsNoAgentExactCommandSet (0.00s)
+    no_agent_runs_test.go:31: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/no_agent_runs_test.go:31
+        	Error:      	elements differ
+        	            	
+        	            	extra elements in list B:
+        	            	([]interface {}) (len=1) {
+        	            	 (string) (len=14) "agent-cli send"
+        	            	}
+        	            	
+        	            	
+        	            	listA:
+        	            	([]string) (len=5) {
+        	            	 (string) (len=14) "agent-cli jobs",
+        	            	 (string) (len=21) "agent-cli jobs output",
+        	            	 (string) (len=19) "agent-cli jobs kill",
+        	            	 (string) (len=15) "agent-cli login",
+        	            	 (string) (len=16) "agent-cli logout"
+        	            	}
+        	            	
+        	            	
+        	            	listB:
+        	            	([]string) (len=6) {
+        	            	 (string) (len=14) "agent-cli jobs",
+        	            	 (string) (len=19) "agent-cli jobs kill",
+        	            	 (string) (len=21) "agent-cli jobs output",
+        	            	 (string) (len=15) "agent-cli login",
+        	            	 (string) (len=16) "agent-cli logout",
+        	            	 (string) (len=14) "agent-cli send"
+        	            	}
+        	Test:       	TestRunsNoAgentExactCommandSet
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.046s
+FAIL

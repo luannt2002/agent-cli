@@ -1,0 +1,906 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c68a03e5..35400e48 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -170,6 +170,14 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
+   `fg_subtle`; chỉ dùng token của chính theme nên theme sáng vẫn đúng. Theme dựng sẵn (Charmtone, Gruvbox,
+   mặc định) không đổi. Phải cài lại binary mới thấy (`scripts/install-agent-cli.sh`).
+   Chưa sửa: logo gradient (`secondary → primary`) và các style khác của `quickStyle` trong theme tuỳ chỉnh.
++- **Sổ ghi LLM ghi lỗi không còn im lặng.** Bật `AGENT_CLI_LLM_LEDGER` mà ghi lỗi (đĩa đầy; đo bằng `/dev/full`) thì
++  trước đây lượt chạy tiếp không một dấu hiệu: sổ thiếu dòng mà vẫn trông như bằng chứng. Nay mỗi prompt bị ảnh hưởng
++  (gồm các lượt tự làm tiếp của nó) có một dòng log WARN `Failed to write the LLM ledger…` (một lần mỗi prompt, không
++  phải mỗi lời gọi; lời gọi đặt tiêu đề không gắn session nên mỗi lần một dòng). `run --json` (chạy local lẫn qua server)
++  và `send --wait --json` có trường `ledger_error`. Lượt vẫn chạy và thoát 0: sổ là công cụ phụ, không dừng việc chính.
++  Không mở được tệp sổ (vd thư mục không ghi được) thì giữ như cũ: cảnh báo một lần mỗi tiến trình, không có
++  `ledger_error`. Kiểm: `scripts/eval/ledger.sh <thư-mục-mới> <binary>` (binary thật, LLM giả; thoát 1 khi thiếu
++  cảnh báo hay trường).
+ 
+ ## [0.2.0] - 2026-10-16
+ 
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 07f7f9d3..826d28ce 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -79,6 +79,7 @@
+ | E2E run/send | `bash scripts/test-agent-cli-run-json.sh` | xem P8 | Binary + server thật với LLM giả |
+ | E2E loop / routine | `AGENT_CLI_BIN=<binary> bash scripts/test-agent-cli-loop.sh`, `… scripts/test-agent-cli-routine.sh` | ĐÃ CHẠY 16/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả |
+ | Cô lập provider, tiêm lỗi | `bash scripts/eval/faults.sh <thư-mục-mới> <binary>`, `bash scripts/eval/qwen-only.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 16/10 | LLM giả đếm request theo provider. Thoát 1 khi: request lọt sang provider khác, model đang chọn thiếu key mà không dừng, `text` lẫn bản tóm tắt, loop có cổng xanh sẵn mà không ra `NO_CHANGE` |
++| Sổ ghi LLM lỗi ghi | `bash scripts/eval/ledger.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 19/10 (nhánh POC) | Sổ trỏ `/dev/full`: `run --json` có `ledger_error`, WARN mỗi lượt, rc 0; local và server; thoát 1 khi hỏng |
+ | Launcher + installer | `bash scripts/test-agent-cli-wrapper.sh` | ĐÃ CHẠY 14/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
+ | Giao việc thật | `bash scripts/test-agent-cli-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
+ | Lint | `task lint` | CHƯA CHẠY | |
+diff --git a/README.md b/README.md
+index 08de100f..f4d9d70f 100644
+--- a/README.md
++++ b/README.md
+@@ -299,10 +299,14 @@ Tên đặt bằng `f2` không bị tiêu đề do model sinh ghi đè. Terminal
+   chữ assistant của lượt nối lại, kể cả câu dẫn trước tool call; bản tự tóm tắt không có ở cả hai), `error`, `provider`/`model` (ghi trên tin trả
+   lời cuối đã lưu: model agent-cli đã định gọi, có cả khi request lỗi; bằng chứng provider ID nào đã được gọi là sổ ghi
+   LLM),
+-  `prompt_tokens` và `completion_tokens` (của bước cuối, không phải tổng), `cost` (cộng dồn của session).
++  `prompt_tokens` và `completion_tokens` (của bước cuối, không phải tổng), `cost` (cộng dồn của session), `ledger_error`
++  (chỉ có khi sổ ghi LLM bật mà lượt có lời gọi không ghi được vào sổ).
+ - Sổ ghi LLM (opt-in): `AGENT_CLI_LLM_LEDGER=<tệp>` ghi mỗi lời gọi LLM một dòng JSON: vai trò, provider, model, kích
+   thước, token. Không chép nội dung prompt. Biến này KHÔNG đọc từ `~/.config/agent-cli/env` và lịch routine không mang
+-  theo: export ở shell trước khi server của dự án khởi động.
++  theo: export ở shell trước khi server của dự án khởi động. Ghi sổ lỗi (vd đĩa đầy) thì lượt vẫn chạy, log có WARN mỗi
++  prompt, `run --json` và `send --wait --json` có `ledger_error`: lượt đó thiếu dòng trong sổ, đừng dùng sổ làm bằng
++  chứng cho nó. `send` không `--wait`, `loop`, `routine` và `run` dạng chữ chỉ có WARN trong log (khi đĩa đầy thật, log
++  cũng có thể không ghi được). Giới hạn khác: [docs/agent-cli-local-setup.md](docs/agent-cli-local-setup.md), mục sổ ghi LLM.
+ 
+ ## Giới hạn còn lại
+ 
+diff --git a/docs/agent-cli-local-setup.md b/docs/agent-cli-local-setup.md
+index 7b9d5ab8..275c901f 100644
+--- a/docs/agent-cli-local-setup.md
++++ b/docs/agent-cli-local-setup.md
+@@ -472,7 +472,7 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"
+ - `--wait`: đợi đúng run của lần gửi này (khớp session và run ID, run khác trên cùng session bị
+   bỏ qua), rồi in text cuối. `--json` in cùng dạng với `run --json`: `session_id`, `text`,
+   `error`, `prompt_tokens`, `completion_tokens`, `cost`. Token là usage của bước cuối, không phải tổng; `cost` là
+-  tổng cộng dồn của session. `send` không điền `provider`/`model`.
++  tổng cộng dồn của session. `send` không điền `provider`/`model`; có `ledger_error` như `run --json` (mục sổ ghi LLM).
+   `--timeout` (mặc định 0 = không giới hạn) hoặc Ctrl-C ngắt việc đợi; `send` không gửi lệnh huỷ run, và run
+   sống tiếp khi client cuối thoát (đã kiểm: `scripts/test-agent-cli-run-json.sh`, client bị SIGKILL giữa run mà run
+   vẫn xong; trần thời gian xem "Đã biết" ở mục Home: 30 phút khi kẹt chờ duyệt/trả lời, 6 giờ khi vẫn chạy).
+@@ -749,6 +749,17 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
+   `~/.config/agent-cli/env`. Export ở shell (hoặc đặt trước lệnh) trước khi server của dự án khởi động; server đang
+   chạy thì dừng hẳn rồi mở lại.
+ - Đếm theo provider và vai trò: `jq -r '.provider + " " + .role' <tệp> | sort | uniq -c`.
++- Ghi sổ lỗi (đĩa đầy, `/dev/full`): lượt vẫn chạy và thoát 0, nhưng sổ thiếu dòng. Mỗi prompt bị ảnh hưởng (gồm các
++  lượt tự làm tiếp sau tự tóm tắt hay khi trả lời bị cắt) có một dòng log WARN `Failed to write the LLM ledger…`
++  (`agent-cli logs`; khi đĩa đầy thật, log cũng có thể không ghi được). `run --json` và `send --wait --json` có
++  `ledger_error`. Có trường này thì đừng dùng sổ làm bằng chứng cho lượt đó. Không có trường này vẫn chưa chắc sổ đủ:
++  - `ledger_error` chỉ tính lời gọi gắn chính session của lượt. Lỗi ghi riêng ở agent con, hay ở lời gọi đặt tiêu đề
++    (không gắn session; mỗi lần một dòng WARN), chỉ có trong log.
++  - Stop hook chặn rồi chạy lại: lỗi của lần chạy trước bị xoá khi lần chạy lại bắt đầu.
++  - Hiếm: một prompt mới vào cùng session đúng lúc lượt vừa xong có thể xoá lỗi trước khi lượt kịp báo.
++  - `send` không `--wait`, `loop`, `routine`, `run` dạng chữ: chỉ có WARN trong log.
++  - Không mở được tệp (vd thư mục không ghi được): chỉ cảnh báo một lần mỗi tiến trình, không có `ledger_error`.
++- Kiểm: `scripts/eval/ledger.sh <thư-mục-mới> <binary>` (sổ là `/dev/full` rồi tệp thường, local và qua server).
+ 
+ **`run --json`.**
+ 
+@@ -761,6 +772,8 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
+   cả hai chế độ.
+ - `provider`/`model` là nhãn ghi trên tin trả lời: có cả khi request lỗi trước khi tới provider (vd provider chết: 0
+   request vẫn có `"provider"`). Bằng chứng đã gọi tới provider nào là sổ ghi LLM.
++- `ledger_error`: chỉ có khi sổ ghi LLM bật mà lượt có lời gọi không ghi được vào sổ (mục trên). Không làm lượt lỗi:
++  không có `error`, mã thoát vẫn 0.
+ 
+ **Loop: verify và cảnh báo khi GREEN.**
+ 
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 919e8383..df79e8e4 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -875,6 +875,11 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 		call.Accepted.Close()
+ 	}
+ 	sessMu.Unlock()
++	if !call.continuation {
++		// Lỗi ghi sổ tính cho cả prompt, gồm các lượt tự làm tiếp của nó. Ngoài
++		// sessMu: ledgerMu bị giữ trong lúc ghi đĩa.
++		resetLedgerTurn(call.SessionID)
++	}
+ 
+ 	defer cancel()
+ 	// Conditional cleanup: only remove our entry if it hasn't been replaced
+@@ -922,7 +927,7 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 		if skipRunComplete {
+ 			return
+ 		}
+-		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID}
++		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID, LedgerError: LedgerWriteError(call.SessionID)}
+ 		if currentAssistant != nil {
+ 			complete.MessageID = currentAssistant.ID
+ 			complete.Text = currentAssistant.Content().String()
+@@ -1699,7 +1704,7 @@ func (a *sessionAgent) handOff(ctx context.Context, call SessionAgentCall, assis
+ 		return false, nil, nil
+ 	}
+ 	if !ownPublished && owesOwnRunComplete(call, next, remaining) {
+-		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID}
++		complete := notify.RunComplete{SessionID: call.SessionID, RunID: call.RunID, LedgerError: LedgerWriteError(call.SessionID)}
+ 		if assistant != nil {
+ 			complete.MessageID = assistant.ID
+ 			complete.Text = assistant.Content().String()
+diff --git a/internal/agent/llm_ledger.go b/internal/agent/llm_ledger.go
+index 9c168464..4450c6e4 100644
+--- a/internal/agent/llm_ledger.go
++++ b/internal/agent/llm_ledger.go
+@@ -62,6 +62,11 @@ type ledgerEntry struct {
+ var (
+ 	ledgerMu    sync.Mutex
+ 	ledgerFiles = map[string]*os.File{}
++	// ledgerWriteErrs: session ID → lỗi ghi sổ đầu tiên của prompt gần nhất, gồm
++	// các lượt tự làm tiếp của nó (xoá khi session bắt đầu prompt mới), để cảnh
++	// báo một lần mỗi prompt và để lượt báo lỗi qua RunComplete / run --json.
++	// Mỗi session lỗi giữ một mục tới prompt kế của nó.
++	ledgerWriteErrs = map[string]string{}
+ )
+ 
+ // ledgerPath là tệp sổ ghi đang bật, đọc từ env tin cậy (chụp đầu main) nên
+@@ -84,11 +89,39 @@ func writeLedger(path string, e ledgerEntry) {
+ 		}
+ 		ledgerFiles[path] = f // nil khi lỗi: chỉ cảnh báo một lần
+ 	}
+-	if f != nil {
+-		_, _ = f.Write(append(line, '\n'))
++	if f == nil {
++		return
++	}
++	if _, err := f.Write(append(line, '\n')); err != nil {
++		// Lời gọi không gắn session (tiêu đề) thì cảnh báo mỗi lần: mỗi session
++		// mới chỉ có một lời gọi như vậy.
++		if _, seen := ledgerWriteErrs[e.SessionID]; seen && e.SessionID != "" {
++			return
++		}
++		if e.SessionID != "" {
++			ledgerWriteErrs[e.SessionID] = err.Error()
++		}
++		slog.Warn("Failed to write the LLM ledger; calls of this turn are missing from it",
++			"path", path, "session_id", e.SessionID, "role", e.Role, "error", err)
+ 	}
+ }
+ 
++// resetLedgerTurn quên lỗi ghi sổ của prompt trước khi session bắt đầu prompt mới.
++func resetLedgerTurn(sessionID string) {
++	ledgerMu.Lock()
++	defer ledgerMu.Unlock()
++	delete(ledgerWriteErrs, sessionID)
++}
++
++// LedgerWriteError trả lỗi ghi sổ đầu tiên trong prompt gần nhất của session
++// ("" khi sổ tắt hoặc ghi đủ). Chỉ tính lời gọi gắn chính session đó: lời gọi
++// của session con (agent con) và lời gọi tiêu đề chỉ có cảnh báo trong log.
++func LedgerWriteError(sessionID string) string {
++	ledgerMu.Lock()
++	defer ledgerMu.Unlock()
++	return ledgerWriteErrs[sessionID]
++}
++
+ // ledgerModel bọc model để ghi sổ mỗi lời gọi. provider/model là nhãn cấu hình
+ // của chính model được gọi (sau mọi lần chọn/khoá), không phải model "đang chọn".
+ type ledgerModel struct {
+diff --git a/internal/agent/llm_ledger_test.go b/internal/agent/llm_ledger_test.go
+index d9634e93..7b0caffb 100644
+--- a/internal/agent/llm_ledger_test.go
++++ b/internal/agent/llm_ledger_test.go
+@@ -4,8 +4,13 @@ import (
+ 	"bufio"
+ 	"context"
+ 	"encoding/json"
++	"fmt"
++	"log/slog"
+ 	"os"
+ 	"path/filepath"
++	"strings"
++	"sync"
++	"sync/atomic"
+ 	"testing"
+ 
+ 	"charm.land/catwalk/pkg/catwalk"
+@@ -109,3 +114,198 @@ func TestLedgerOffReturnsTheModelUnchanged(t *testing.T) {
+ 	m := &finishStreamModel{text: "x"}
+ 	require.Same(t, fantasy.LanguageModel(m), newLedgerModel(m, "p", "m", ""))
+ }
++
++// ledgerWarnRecorder đếm bản ghi slog mức Warn trở lên nói về sổ ghi.
++type ledgerWarnRecorder struct {
++	mu sync.Mutex
++	n  int
++}
++
++func (h *ledgerWarnRecorder) Enabled(_ context.Context, l slog.Level) bool {
++	return l >= slog.LevelWarn
++}
++
++func (h *ledgerWarnRecorder) Handle(_ context.Context, r slog.Record) error {
++	if strings.Contains(r.Message, "ledger") {
++		h.mu.Lock()
++		h.n++
++		h.mu.Unlock()
++	}
++	return nil
++}
++func (h *ledgerWarnRecorder) WithAttrs([]slog.Attr) slog.Handler { return h }
++func (h *ledgerWarnRecorder) WithGroup(string) slog.Handler      { return h }
++func (h *ledgerWarnRecorder) count() int {
++	h.mu.Lock()
++	defer h.mu.Unlock()
++	return h.n
++}
++
++// Sổ ghi bật mà ghi lỗi (đĩa đầy; /dev/full): mỗi lượt bị ảnh hưởng có đúng một
++// cảnh báo (không phải một cảnh báo mỗi lời gọi), lỗi đi theo RunComplete và
++// LedgerWriteError của session cho run --json, và lượt vẫn chạy xong. Tệp ghi
++// được thì im lặng. Đổi slog mặc định nên không chạy song song.
++func TestLedgerWriteFailureIsReportedOncePerTurn(t *testing.T) {
++	f, err := os.OpenFile("/dev/full", os.O_WRONLY, 0)
++	if err != nil {
++		t.Skipf("no /dev/full: %v", err)
++	}
++	_ = f.Close()
++	for _, tc := range []struct {
++		name, path string
++		fails      bool
++	}{
++		{"writable", filepath.Join(t.TempDir(), "ledger.jsonl"), false},
++		{"dev-full", "/dev/full", true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			rec := &ledgerWarnRecorder{}
++			prev := slog.Default()
++			slog.SetDefault(slog.New(rec))
++			t.Cleanup(func() { slog.SetDefault(prev) })
++			env := testEnv(t)
++			broker := pubsub.NewBroker[notify.RunComplete]()
++			t.Cleanup(broker.Shutdown)
++			cw := catwalk.Model{ContextWindow: 100000, DefaultMaxTokens: 100}
++			// Hai lời gọi mỗi lượt (tool rồi trả lời): cả hai cùng ghi lỗi.
++			script := &scriptModel{script: []string{"tool_small", "done", "tool_small", "done"}}
++			sa := NewSessionAgent(SessionAgentOptions{
++				LargeModel: modelWith(newLedgerModel(script, "prov", "model", tc.path), "prov", "model", cw),
++				SmallModel: modelWith(&finishStreamModel{text: "title"}, "prov", "small", cw),
++				IsYolo:     true, Sessions: env.sessions, Messages: env.messages, RunComplete: broker,
++				Tools: []fantasy.AgentTool{namedTool("noop")},
++			}).(*sessionAgent)
++			sess, err := env.sessions.Create(t.Context(), "session")
++			require.NoError(t, err)
++			ch := broker.Subscribe(t.Context())
++			for turn := 1; turn <= 2; turn++ {
++				before := rec.count()
++				runID := fmt.Sprintf("%s-%d", tc.name, turn)
++				_, err := sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, RunID: runID, Prompt: "go " + runID})
++				require.NoError(t, err, "a broken ledger must not fail the turn")
++				rc := waitRunComplete(t, ch, runID)
++				require.Empty(t, rc.Error)
++				if !tc.fails {
++					require.Zero(t, rec.count()-before)
++					require.Empty(t, rc.LedgerError)
++					require.Empty(t, LedgerWriteError(sess.ID))
++					continue
++				}
++				require.Equal(t, 1, rec.count()-before, "turn %d: one warning per affected turn, not one per call", turn)
++				require.Contains(t, rc.LedgerError, "no space left on device")
++				require.Equal(t, rc.LedgerError, LedgerWriteError(sess.ID))
++			}
++			if !tc.fails {
++				require.Len(t, readLedger(t, tc.path), 4, "both calls of both turns reach the ledger")
++			}
++		})
++	}
++}
++
++// Prompt xếp hàng sau lượt đang chạy: RunComplete của lượt trước do handOff phát
++// (trước khi lượt sau bắt đầu và xoá lỗi), nên cả hai lượt đều mang lỗi ghi sổ.
++func TestLedgerWriteErrorReachesRunCompleteOfAHandedOffTurn(t *testing.T) {
++	t.Parallel()
++	f, err := os.OpenFile("/dev/full", os.O_WRONLY, 0)
++	if err != nil {
++		t.Skipf("no /dev/full: %v", err)
++	}
++	_ = f.Close()
++	env := testEnv(t)
++	broker := pubsub.NewBroker[notify.RunComplete]()
++	t.Cleanup(broker.Shutdown)
++	large := &gatedStreamModel{text: "done", gate: make(chan struct{}), entered: make(chan struct{})}
++	cw := catwalk.Model{ContextWindow: 200000, DefaultMaxTokens: 10000}
++	sa := NewSessionAgent(SessionAgentOptions{
++		LargeModel: modelWith(newLedgerModel(large, "prov", "model", "/dev/full"), "prov", "model", cw),
++		SmallModel: modelWith(&finishStreamModel{text: "title"}, "prov", "small", cw),
++		IsYolo:     true, Sessions: env.sessions, Messages: env.messages, RunComplete: broker,
++	}).(*sessionAgent)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ch := broker.Subscribe(t.Context())
++
++	mainDone := make(chan error, 1)
++	go func() {
++		_, err := sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, RunID: "first", Prompt: "first"})
++		mainDone <- err
++	}()
++	waitEntered(t, large.entered)
++	_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, RunID: "queued", Prompt: "queued"})
++	require.NoError(t, err)
++	require.Equal(t, 1, sa.QueuedPrompts(sess.ID))
++	close(large.gate)
++	require.NoError(t, <-mainDone)
++
++	for _, runID := range []string{"first", "queued"} {
++		rc := waitRunComplete(t, ch, runID)
++		require.Contains(t, rc.LedgerError, "no space left on device", "run %s", runID)
++	}
++}
++
++// fixLedgerBeforeSecondCall đổi tệp sổ của path sang tệp ghi được ngay trước lời
++// gọi thứ hai: chỉ lời gọi đầu ghi lỗi (lỗi thoáng qua).
++type fixLedgerBeforeSecondCall struct {
++	fantasy.LanguageModel
++	path  string
++	calls atomic.Int64
++}
++
++func (m *fixLedgerBeforeSecondCall) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
++	if m.calls.Add(1) == 2 {
++		good, err := os.OpenFile(m.path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
++		if err != nil {
++			return nil, err
++		}
++		ledgerMu.Lock()
++		bad := ledgerFiles[m.path]
++		ledgerFiles[m.path] = good
++		ledgerMu.Unlock()
++		_ = bad.Close()
++	}
++	return m.LanguageModel.Stream(ctx, call)
++}
++
++// Lượt tự làm tiếp (trả lời bị cắt vì hết output) là phần của cùng một prompt:
++// lỗi ghi sổ của đoạn trước phải còn trong RunComplete cuối, kể cả khi đoạn sau
++// ghi được.
++func TestLedgerWriteErrorSurvivesTheTurnsOwnContinuation(t *testing.T) {
++	t.Parallel()
++	full, err := os.OpenFile("/dev/full", os.O_WRONLY, 0)
++	if err != nil {
++		t.Skipf("no /dev/full: %v", err)
++	}
++	path := filepath.Join(t.TempDir(), "ledger.jsonl")
++	ledgerMu.Lock()
++	ledgerFiles[path] = full
++	ledgerMu.Unlock()
++	t.Cleanup(func() {
++		ledgerMu.Lock()
++		f := ledgerFiles[path]
++		delete(ledgerFiles, path)
++		ledgerMu.Unlock()
++		_ = f.Close()
++	})
++	env := testEnv(t)
++	broker := pubsub.NewBroker[notify.RunComplete]()
++	t.Cleanup(broker.Shutdown)
++	script := &scriptModel{script: []string{"cut", "done"}}
++	cw := catwalk.Model{ContextWindow: 100000, DefaultMaxTokens: 100}
++	sa := NewSessionAgent(SessionAgentOptions{
++		LargeModel: modelWith(newLedgerModel(&fixLedgerBeforeSecondCall{LanguageModel: script, path: path}, "prov", "model", path), "prov", "model", cw),
++		SmallModel: modelWith(&finishStreamModel{text: "title"}, "prov", "small", cw),
++		IsYolo:     true, Sessions: env.sessions, Messages: env.messages, RunComplete: broker,
++	}).(*sessionAgent)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ch := broker.Subscribe(t.Context())
++
++	_, err = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, RunID: "r", Prompt: "write it"})
++	require.NoError(t, err)
++	rc := waitRunComplete(t, ch, "r")
++	kinds, _ := script.seen()
++	require.Equal(t, []string{"work", "work"}, kinds, "the cut reply was continued in a second call")
++	require.Len(t, readLedger(t, path), 1, "only the continuation reached the ledger")
++	require.Contains(t, rc.LedgerError, "no space left on device")
++	require.Equal(t, rc.LedgerError, LedgerWriteError(sess.ID))
++}
+diff --git a/internal/agent/notify/notify.go b/internal/agent/notify/notify.go
+index 0150235c..cf808abd 100644
+--- a/internal/agent/notify/notify.go
++++ b/internal/agent/notify/notify.go
+@@ -75,4 +75,7 @@ type RunComplete struct {
+ 	Text      string
+ 	Error     string
+ 	Cancelled bool
++	// LedgerError là lỗi ghi sổ ghi LLM (AGENT_CLI_LLM_LEDGER) đầu tiên của
++	// lượt; rỗng khi sổ tắt hoặc ghi đủ. Không làm lượt thất bại.
++	LedgerError string
+ }
+diff --git a/internal/cmd/loop.go b/internal/cmd/loop.go
+index 9913ccab..fe148e5d 100644
+--- a/internal/cmd/loop.go
++++ b/internal/cmd/loop.go
+@@ -404,7 +404,7 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
+ 				text bytes.Buffer
+ 			)
+ 			err := runNonInteractive(ctx, c, ws, io.MultiWriter(out, &text),
+-				func(id string) { info.SessionID = id },
++				func(id string) { info.SessionID = id }, nil,
+ 				prompt, p.Model, "", p.ReasoningEffort, true, "", false)
+ 			info.Text = text.String()
+ 			return info, err
+diff --git a/internal/cmd/run.go b/internal/cmd/run.go
+index 90102bea..3bee7e50 100644
+--- a/internal/cmd/run.go
++++ b/internal/cmd/run.go
+@@ -15,6 +15,7 @@ import (
+ 	"time"
+ 
+ 	"charm.land/log/v2"
++	"github.com/charmbracelet/crush/internal/agent"
+ 	"github.com/charmbracelet/crush/internal/client"
+ 	"github.com/charmbracelet/crush/internal/config"
+ 	"github.com/charmbracelet/crush/internal/event"
+@@ -70,7 +71,9 @@ agent-cli run --session {session-id} "Follow up on your last response"
+ agent-cli run --continue "Follow up on your last response"
+ 
+ # Machine-readable result: one JSON object on stdout with session_id,
+-# text, error, prompt_tokens, completion_tokens and cost
++# text, error, prompt_tokens, completion_tokens, cost, provider, model and
++# ledger_error (only when AGENT_CLI_LLM_LEDGER is set and a call of this
++# turn could not be written to it; the run still exits 0)
+ agent-cli run --json "Summarize this repo"
+ 
+ # run auto-approves every tool permission request of its own session, both
+@@ -187,13 +190,15 @@ agent-cli run --json "Summarize this repo"
+ 				slog.SetDefault(slog.New(log.New(os.Stderr)))
+ 			}
+ 
++			// Lỗi ghi sổ ghi LLM nằm ở server: tới đây qua RunComplete của lượt.
++			var ledgerErr string
+ 			return runOrJSON(ctx, jsonOut,
+ 				func(ctx context.Context, id string) (sessionUsage, error) {
+ 					sess, err := c.GetSession(ctx, ws.ID, id)
+ 					if err != nil {
+ 						return sessionUsage{}, err
+ 					}
+-					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
++					u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost, ledgerError: ledgerErr}
+ 					if msgs, err := c.ListMessages(ctx, ws.ID, id); err == nil {
+ 						for i := len(msgs) - 1; i >= 0; i-- {
+ 							if m := msgs[i]; m.Role == proto.Assistant && !m.IsSummaryMessage && m.Model != "" {
+@@ -205,7 +210,7 @@ agent-cli run --json "Summarize this repo"
+ 					return u, nil
+ 				},
+ 				func(out io.Writer, onSession func(string)) error {
+-					return runNonInteractive(ctx, c, ws, out, onSession, prompt, largeModel, smallModel, reasoningEffort, quiet || verbose, sessionID, useLast)
++					return runNonInteractive(ctx, c, ws, out, onSession, func(e string) { ledgerErr = e }, prompt, largeModel, smallModel, reasoningEffort, quiet || verbose, sessionID, useLast)
+ 				})
+ 		}
+ 
+@@ -241,7 +246,7 @@ agent-cli run --json "Summarize this repo"
+ 				if err != nil {
+ 					return sessionUsage{}, err
+ 				}
+-				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost}
++				u := sessionUsage{promptTokens: sess.PromptTokens, completionTokens: sess.CompletionTokens, cost: sess.Cost, ledgerError: agent.LedgerWriteError(id)}
+ 				if msgs, err := appWs.App().Messages.List(ctx, id); err == nil {
+ 					for i := len(msgs) - 1; i >= 0; i-- {
+ 						if m := msgs[i]; m.Role == message.Assistant && !m.IsSummaryMessage && m.Model != "" {
+@@ -266,7 +271,7 @@ func init() {
+ 	runCmd.Flags().String("reasoning-effort", "", "Reasoning effort for the model (e.g. low, medium, high). Levels depend on the model; unsupported values are rejected with the accepted values listed")
+ 	runCmd.Flags().StringP("session", "s", "", "Continue a previous session by ID")
+ 	runCmd.Flags().BoolP("continue", "C", false, "Continue the most recent session")
+-	runCmd.Flags().Bool("json", false, "Print one JSON object (session_id, text, error, token usage) to stdout instead of streaming text")
++	runCmd.Flags().Bool("json", false, "Print one JSON object (session_id, text, error, token usage, provider, model, ledger_error) to stdout instead of streaming text")
+ 	runCmd.MarkFlagsMutuallyExclusive("session", "continue")
+ 	runCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+ 		return &usageError{err}
+@@ -289,12 +294,17 @@ type runJSONResult struct {
+ 	// "đang chọn": script biết chắc model nào đã trả lời.
+ 	Provider string `json:"provider,omitempty"`
+ 	Model    string `json:"model,omitempty"`
++	// LedgerError: sổ ghi LLM bật mà có lời gọi của lượt không ghi được vào sổ.
++	// Lượt vẫn chạy (không có error, thoát 0) nhưng sổ thiếu dòng: đừng dùng
++	// sổ làm bằng chứng cho lượt này.
++	LedgerError string `json:"ledger_error,omitempty"`
+ }
+ 
+ type sessionUsage struct {
+ 	promptTokens, completionTokens int64
+ 	cost                           float64
+ 	provider, model                string
++	ledgerError                    string
+ }
+ 
+ // runMaybeJSON runs the prompt, streaming to stdout, or in JSON mode
+@@ -346,6 +356,7 @@ func runJSON(
+ 		}
+ 		res.PromptTokens, res.CompletionTokens, res.Cost = u.promptTokens, u.completionTokens, u.cost
+ 		res.Provider, res.Model = u.provider, u.model
++		res.LedgerError = u.ledgerError
+ 	}
+ 	if err != nil {
+ 		res.Error = err.Error()
+@@ -368,13 +379,15 @@ var (
+ 
+ // runNonInteractive executes the agent via the server and streams output
+ // to out. onSession, when non-nil, receives the ID of the session used or
+-// created, as soon as it is resolved.
++// created, as soon as it is resolved. onLedgerError, when non-nil, receives
++// the run's LLM ledger write error ("" when none) once the run ends.
+ func runNonInteractive(
+ 	ctx context.Context,
+ 	c *client.Client,
+ 	ws *proto.Workspace,
+ 	out io.Writer,
+ 	onSession func(sessionID string),
++	onLedgerError func(string),
+ 	prompt, largeModel, smallModel, reasoningEffort string,
+ 	hideSpinner bool,
+ 	continueSessionID string,
+@@ -528,6 +541,9 @@ func runNonInteractive(
+ 	if continueSessionID != "" || useLast {
+ 		stream.queued = promptQueued(ctx, c, ws.ID, sess.ID, prompt)
+ 	}
++	if onLedgerError != nil {
++		defer func() { onLedgerError(stream.ledgerError) }()
++	}
+ 
+ 	// Start herdr integration when running inside a herdr pane.
+ 	hc := herdr.Init()
+@@ -654,6 +670,8 @@ type runStream struct {
+ 	// queue, so the active turn is someone else's. Nil means the active
+ 	// turn is this run's (a session the run created).
+ 	queued func() bool
++	// ledgerError là lỗi ghi sổ ghi LLM mà RunComplete của lượt này mang về.
++	ledgerError string
+ }
+ 
+ // needsInputError reports that the run is blocked on a prompt a
+@@ -793,6 +811,7 @@ func (s *runStream) handle(ev any, stopSpinner func()) (done bool, err error) {
+ 			return false, nil
+ 		}
+ 		stop()
++		s.ledgerError = e.Payload.LedgerError
+ 		if e.Payload.Error != "" && !e.Payload.Cancelled {
+ 			return true, fmt.Errorf("agent run failed: %s", e.Payload.Error)
+ 		}
+diff --git a/internal/cmd/run_interrupt_test.go b/internal/cmd/run_interrupt_test.go
+index ef376ba5..7da85b9d 100644
+--- a/internal/cmd/run_interrupt_test.go
++++ b/internal/cmd/run_interrupt_test.go
+@@ -98,7 +98,7 @@ func runInLoop(t *testing.T, o interruptRun) (interrupt func(), done <-chan erro
+ 	ctx, cancel := context.WithCancel(t.Context())
+ 	ch := make(chan error, 1)
+ 	go func() {
+-		ch <- runNonInteractive(ctx, c, ws, io.Discard, nil, "SLOW", "", "", "", true, o.continueID, false)
++		ch <- runNonInteractive(ctx, c, ws, io.Discard, nil, nil, "SLOW", "", "", "", true, o.continueID, false)
+ 	}()
+ 	select {
+ 	case <-inLoop:
+@@ -282,7 +282,7 @@ func TestRunQueuedBehindOtherTurnLeavesItsPromptsAlone(t *testing.T) {
+ 						Type: pubsub.CreatedEvent, Payload: proto.QuestionRequest{ID: "q1", SessionID: "S"},
+ 					})
+ 					emit(pubsub.PayloadTypeRunComplete, pubsub.Event[proto.RunComplete]{
+-						Type: pubsub.UpdatedEvent, Payload: proto.RunComplete{SessionID: "S", RunID: runID, Text: "done"},
++						Type: pubsub.UpdatedEvent, Payload: proto.RunComplete{SessionID: "S", RunID: runID, Text: "done", LedgerError: "write /dev/full: no space left on device"},
+ 					})
+ 					w.(http.Flusher).Flush()
+ 					<-r.Context().Done()
+@@ -297,11 +297,15 @@ func TestRunQueuedBehindOtherTurnLeavesItsPromptsAlone(t *testing.T) {
+ 
+ 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+ 			defer cancel()
+-			err = runNonInteractive(ctx, c, ws, io.Discard, nil, "PROMPT", "", "", "", true, "S", false)
++			ledgerErr := "<not reported>"
++			err = runNonInteractive(ctx, c, ws, io.Discard, nil, func(e string) { ledgerErr = e }, "PROMPT", "", "", "", true, "S", false)
+ 			if tc.wantErr == "" {
+ 				require.NoError(t, err)
++				// Lỗi ghi sổ ghi LLM trong RunComplete của lượt tới được run --json.
++				require.Equal(t, "write /dev/full: no space left on device", ledgerErr)
+ 			} else {
+ 				require.ErrorContains(t, err, tc.wantErr)
++				require.Empty(t, ledgerErr, "no RunComplete of this run, so no ledger error")
+ 			}
+ 
+ 			mu.Lock()
+@@ -346,6 +350,6 @@ func TestRunEventStreamClosedEarlyFails(t *testing.T) {
+ 
+ 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+ 	defer cancel()
+-	err = runNonInteractive(ctx, c, ws, io.Discard, nil, "P", "", "", "", true, "", false)
++	err = runNonInteractive(ctx, c, ws, io.Discard, nil, nil, "P", "", "", "", true, "", false)
+ 	require.EqualError(t, err, "event stream closed before the run completed")
+ }
+diff --git a/internal/cmd/run_json_test.go b/internal/cmd/run_json_test.go
+index 4c4b199e..0dd9960a 100644
+--- a/internal/cmd/run_json_test.go
++++ b/internal/cmd/run_json_test.go
+@@ -221,3 +221,22 @@ func TestRunJSONReportsProviderAndModel(t *testing.T) {
+ 	require.NotContains(t, m, "provider")
+ 	require.NotContains(t, m, "model")
+ }
++
++// Sổ ghi LLM không ghi được trong lượt: run --json có ledger_error mà lượt vẫn
++// xong (không có error, thoát 0); sổ ổn thì không có trường này.
++func TestRunJSONReportsLedgerError(t *testing.T) {
++	t.Parallel()
++	var w bytes.Buffer
++	store := map[string]sessionUsage{
++		"bad": {promptTokens: 1, ledgerError: "write /dev/full: no space left on device"},
++		"ok":  {promptTokens: 1},
++	}
++	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("bad", "x", nil)))
++	m := decodeOne(t, w.Bytes())
++	require.Equal(t, "write /dev/full: no space left on device", m["ledger_error"])
++	require.NotContains(t, m, "error")
++
++	w.Reset()
++	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("ok", "x", nil)))
++	require.NotContains(t, decodeOne(t, w.Bytes()), "ledger_error")
++}
+diff --git a/internal/cmd/run_stream_test.go b/internal/cmd/run_stream_test.go
+index 37cbae5c..c8f8a049 100644
+--- a/internal/cmd/run_stream_test.go
++++ b/internal/cmd/run_stream_test.go
+@@ -542,3 +542,22 @@ func TestRunStream_PromptOnOtherSessionIgnored(t *testing.T) {
+ 	require.NoError(t, err)
+ 	require.Equal(t, []string{"child"}, granted)
+ }
++
++// Qua server, lỗi ghi sổ của lượt tới client trong RunComplete của CHÍNH lượt đó.
++func TestRunStream_KeepsTheLedgerErrorOfItsOwnRun(t *testing.T) {
++	t.Parallel()
++	s := &runStream{sessionID: "S", runID: "mine", out: &bytes.Buffer{}, read: map[string]int{}}
++	done, err := s.handle(pubsub.Event[proto.RunComplete]{Payload: proto.RunComplete{
++		SessionID: "S", RunID: "other", LedgerError: "foreign",
++	}}, nil)
++	require.NoError(t, err)
++	require.False(t, done)
++	require.Empty(t, s.ledgerError, "another turn's ledger error is not ours")
++
++	done, err = s.handle(pubsub.Event[proto.RunComplete]{Payload: proto.RunComplete{
++		SessionID: "S", RunID: "mine", LedgerError: "write /dev/full: no space left on device",
++	}}, nil)
++	require.NoError(t, err)
++	require.True(t, done)
++	require.Equal(t, "write /dev/full: no space left on device", s.ledgerError)
++}
+diff --git a/internal/cmd/send.go b/internal/cmd/send.go
+index 73d9861e..e1445910 100644
+--- a/internal/cmd/send.go
++++ b/internal/cmd/send.go
+@@ -299,6 +299,7 @@ func waitForRun(ctx context.Context, events <-chan any, sessionID, runID string,
+ 					continue
+ 				}
+ 				res.Text = p.Text
++				res.LedgerError = p.LedgerError
+ 				switch {
+ 				case p.Cancelled:
+ 					return errors.New("run cancelled")
+diff --git a/internal/cmd/send_test.go b/internal/cmd/send_test.go
+index b63fc63b..5db35cbb 100644
+--- a/internal/cmd/send_test.go
++++ b/internal/cmd/send_test.go
+@@ -293,3 +293,20 @@ func TestSendJSONShapes(t *testing.T) {
+ 	require.JSONEq(t, `{"session_id":"s1","text":"hi","prompt_tokens":1,"completion_tokens":2,"cost":0.5}`,
+ 		b(sendJSON(runJSONResult{SessionID: "s1", Text: "hi", PromptTokens: 1, CompletionTokens: 2, Cost: 0.5}, true)))
+ }
++
++// send --wait --json báo lỗi ghi sổ ghi LLM của chính lượt, như run --json.
++func TestSendWaitReportsLedgerError(t *testing.T) {
++	t.Parallel()
++	f := newFakeSendClient(proto.Session{ID: "s1"})
++	f.onSend = func(sessionID, runID string) {
++		other := runComplete(sessionID, "someone-elses-run", "x", "")
++		other.Payload.LedgerError = "foreign"
++		f.events <- other
++		own := runComplete(sessionID, runID, "done", "")
++		own.Payload.LedgerError = "write /dev/full: no space left on device"
++		f.events <- own
++	}
++	res, err := runSend(t.Context(), f, "ws", sendOptions{sessionID: "s1", prompt: "p", wait: true}, &bytes.Buffer{})
++	require.NoError(t, err)
++	require.Equal(t, "write /dev/full: no space left on device", res.LedgerError)
++}
+diff --git a/internal/proto/proto.go b/internal/proto/proto.go
+index 7207dd39..011652ef 100644
+--- a/internal/proto/proto.go
++++ b/internal/proto/proto.go
+@@ -82,6 +82,8 @@ type RunComplete struct {
+ 	Text      string `json:"text,omitempty"`
+ 	Error     string `json:"error,omitempty"`
+ 	Cancelled bool   `json:"cancelled,omitempty"`
++	// LedgerError: lỗi ghi sổ ghi LLM của lượt (notify.RunComplete.LedgerError).
++	LedgerError string `json:"ledger_error,omitempty"`
+ }
+ 
+ // SkillInfo describes a visible skill exposed to a frontend.
+diff --git a/internal/server/events.go b/internal/server/events.go
+index 8ecbb446..8a505567 100644
+--- a/internal/server/events.go
++++ b/internal/server/events.go
+@@ -150,6 +150,8 @@ func wrapEvent(ev any) *pubsub.Payload {
+ 				Text:      e.Payload.Text,
+ 				Error:     e.Payload.Error,
+ 				Cancelled: e.Payload.Cancelled,
++				// Lỗi ghi sổ ghi LLM của lượt tới client (run --json).
++				LedgerError: e.Payload.LedgerError,
+ 			},
+ 		})
+ 	case pubsub.Event[proto.ConfigChanged]:
+diff --git a/internal/server/events_test.go b/internal/server/events_test.go
+index b3f84651..609e355f 100644
+--- a/internal/server/events_test.go
++++ b/internal/server/events_test.go
+@@ -132,6 +132,8 @@ func TestRunCompleteToProto_RoundTrip(t *testing.T) {
+ 			Text:      "VERDICT: APPROVED",
+ 			Error:     "",
+ 			Cancelled: false,
++			// run --json đọc lỗi ghi sổ ghi LLM từ đây khi chạy qua server.
++			LedgerError: "write /dev/full: no space left on device",
+ 		},
+ 	}
+ 
+@@ -150,6 +152,7 @@ func TestRunCompleteToProto_RoundTrip(t *testing.T) {
+ 	require.Equal(t, "VERDICT: APPROVED", decoded.Payload.Text)
+ 	require.Empty(t, decoded.Payload.Error)
+ 	require.False(t, decoded.Payload.Cancelled)
++	require.Equal(t, "write /dev/full: no space left on device", decoded.Payload.LedgerError)
+ }
+ 
+ // TestAgentErrorToProto_PreservesRunID verifies that an async agent
+diff --git a/internal/workspace/client_workspace.go b/internal/workspace/client_workspace.go
+index 8f2c7aca..67a31875 100644
+--- a/internal/workspace/client_workspace.go
++++ b/internal/workspace/client_workspace.go
+@@ -1322,6 +1322,8 @@ func (w *ClientWorkspace) translateEvent(ev any) tea.Msg {
+ 				Text:      e.Payload.Text,
+ 				Error:     e.Payload.Error,
+ 				Cancelled: e.Payload.Cancelled,
++				// Chép đủ trường, kể cả lỗi ghi sổ ghi LLM của lượt.
++				LedgerError: e.Payload.LedgerError,
+ 			},
+ 		}
+ 	case pubsub.Event[proto.SkillsEvent]:
+diff --git a/internal/workspace/client_workspace_test.go b/internal/workspace/client_workspace_test.go
+index 9a3130e0..58c497d5 100644
+--- a/internal/workspace/client_workspace_test.go
++++ b/internal/workspace/client_workspace_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"time"
+ 
+ 	tea "charm.land/bubbletea/v2"
++	"github.com/charmbracelet/crush/internal/agent/notify"
+ 	"github.com/charmbracelet/crush/internal/agent/tools/mcp"
+ 	"github.com/charmbracelet/crush/internal/app"
+ 	"github.com/charmbracelet/crush/internal/client"
+@@ -1299,3 +1300,19 @@ func TestPermissionSkipRequestsTimesOut(t *testing.T) {
+ 	require.Error(t, ws.PermissionSetSkipRequests(true), "a timed-out write reports the failure")
+ 	require.Less(t, time.Since(start), 2*time.Second, "both calls must give up at the timeout")
+ }
++
++// RunComplete từ server về dạng domain không rơi trường nào, kể cả lỗi ghi sổ
++// ghi LLM của lượt.
++func TestTranslateEvent_RunCompleteKeepsLedgerError(t *testing.T) {
++	t.Parallel()
++
++	w := NewClientWorkspace(nil, proto.Workspace{})
++	out := w.translateEvent(pubsub.Event[proto.RunComplete]{
++		Type:    pubsub.UpdatedEvent,
++		Payload: proto.RunComplete{SessionID: "S", RunID: "R", LedgerError: "write /dev/full: no space left on device"},
++	})
++	got, ok := out.(pubsub.Event[notify.RunComplete])
++	require.True(t, ok, "expected pubsub.Event[notify.RunComplete], got %T", out)
++	require.Equal(t, "R", got.Payload.RunID)
++	require.Equal(t, "write /dev/full: no space left on device", got.Payload.LedgerError)
++}
+diff --git a/scripts/eval/ledger.sh b/scripts/eval/ledger.sh
+new file mode 100644
+index 00000000..748d78b6
+--- /dev/null
++++ b/scripts/eval/ledger.sh
+@@ -0,0 +1,107 @@
++#!/usr/bin/env bash
++# Sổ ghi LLM ghi lỗi phải thấy được (T15): binary thật, LLM giả, cả chạy local lẫn qua server
++# (CRUSH_CLIENT_SERVER=1, socket riêng trong thư mục ca). Sổ = /dev/full (mọi lần ghi lỗi ENOSPC):
++# mỗi lượt vẫn chạy xong và thoát 0, `run --json` có `ledger_error`, log có đúng một WARN gắn
++# session mỗi lượt; qua server chạy hai lượt trên cùng server (`run` rồi `run -s`). Đối chứng sổ là
++# tệp thường: không có `ledger_error`, số dòng sổ = số request server giả nhận.
++# Thoát 1 khi một điều trên sai.
++# Dùng: bash scripts/eval/ledger.sh <thư-mục-mới> <binary>
++set -u
++OUT="$1"; BIN="$2"
++R=$(cd "$(dirname "$0")/../.." && pwd)
++[ -e "$OUT" ] && { echo "exists: $OUT" >&2; exit 2; }
++mkdir -p "$OUT"
++
++# run_case <tên> <0|1: qua server> <sổ: /dev/full hoặc FILE>
++run_case() {
++  local name=$1 cs=$2 led=$3 P="$OUT/$1" host=() turns=1
++  mkdir -p "$P/home" "$P/proj" "$P/log"
++  [ "$led" = FILE ] && led="$P/ledger.jsonl"
++  [ "$cs" = 1 ] && host=(--host "unix://$P/s.sock") && turns=2
++  printf '%s' '[{"match":"LEDGER-PROBE","steps":[{"tool":"bash","args":{"command":"echo hi","description":"probe"}},{"text":"DONE-LEDGER"}]}]' > "$P/rules.json"
++  timeout 90 python3 -I "$R/scripts/eval/fakellm.py" "$P/port" "$P/log" "$P/rules.json" >/dev/null 2>&1 &
++  for _ in $(seq 50); do [ -s "$P/port" ] && break; sleep 0.1; done
++  local port; port=$(cat "$P/port")
++  cat > "$P/proj/crush.json" <<JSON
++{"providers":{"qwen":{"type":"openai-compat","base_url":"http://127.0.0.1:$port/qwen/v1","api_key":"x","models":[{"id":"qwen3-coder","name":"qwen3-coder","context_window":100000,"default_max_tokens":1000}]}},
++ "models":{"large":{"provider":"qwen","model":"qwen3-coder"},"small":{"provider":"qwen","model":"qwen3-coder"}},
++ "options":{"disable_provider_auto_update":true,"disable_metrics":true,"disable_default_providers":true}}
++JSON
++  (
++    cd "$P/proj" && git init -q && echo "# demo" > README.md
++    ac() {
++      env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
++        CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \
++        CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=$cs CRUSH_SERVER_IDLE_TIMEOUT=5 \
++        AGENT_CLI_LLM_LEDGER="$led" timeout 60 "$BIN" "${host[@]}" "$@"
++    }
++    ac run --json "LEDGER-PROBE turn 1" > "$P/out1.json" 2> "$P/err1.txt"
++    echo $? > "$P/rc1"
++    if [ "$turns" = 2 ]; then
++      sid=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$P/out1.json" 2>/dev/null)
++      ac run --json -s "$sid" "LEDGER-PROBE turn 2" > "$P/out2.json" 2> "$P/err2.txt"
++      echo $? > "$P/rc2"
++    fi
++  )
++  echo "$turns" > "$P/turns"
++  sleep 7 # tiêu đề chạy nền; server tự tắt sau idle
++}
++
++run_case local-devfull 0 /dev/full
++run_case local-file 0 FILE
++run_case server-devfull 1 /dev/full
++run_case server-file 1 FILE
++
++python3 -I - "$OUT" <<'PY'
++import glob, json, os, sys
++out = sys.argv[1]
++bad = []
++print("%-15s %-5s %-6s %-30s %4s %6s %s" % ("case", "rc", "text", "ledger_error", "reqs", "ledger", "warn session/none"))
++for name in sorted(os.listdir(out)):
++    P = os.path.join(out, name)
++    turns = int(open(os.path.join(P, "turns")).read())
++    rcs, texts, lerrs = [], [], []
++    for i in range(1, turns + 1):
++        rcs.append(open(os.path.join(P, "rc%d" % i)).read().strip())
++        try:
++            o = json.load(open(os.path.join(P, "out%d.json" % i)))
++        except Exception:
++            o = {}
++        texts.append(o.get("text"))
++        lerrs.append(o.get("ledger_error"))
++        if rcs[-1] != "0" or o.get("text") != "DONE-LEDGER" or o.get("error"):
++            bad.append("%s turn %d: did not run cleanly (rc=%s, error=%r)" % (name, i, rcs[-1], o.get("error")))
++    f = os.path.join(P, "log", "requests.jsonl")
++    reqs = sum(1 for _ in open(f)) if os.path.exists(f) else 0
++    lf = os.path.join(P, "ledger.jsonl")
++    led = sum(1 for _ in open(lf)) if os.path.exists(lf) else None
++    warn_sid = warn_none = 0
++    for log in glob.glob(os.path.join(P, "**", "crush.log"), recursive=True, include_hidden=True):
++        for line in open(log, errors="replace"):
++            if "Failed to write the LLM ledger" not in line:
++                continue
++            try:
++                sid = json.loads(line).get("session_id", "")
++            except Exception:
++                sid = "?"
++            if sid:
++                warn_sid += 1
++            else:
++                warn_none += 1
++    print("%-15s %-5s %-6s %-30s %4d %6s %d/%d" % (name, ",".join(rcs), "ok" if all(t == "DONE-LEDGER" for t in texts) else "BAD",
++          ",".join("-" if e is None else e[:14] for e in lerrs), reqs, "-" if led is None else led, warn_sid, warn_none))
++    if not reqs:
++        bad.append(name + ": no request reached the fake LLM")
++    if "devfull" in name:
++        if not all(e and "no space left on device" in e for e in lerrs):
++            bad.append(name + ": ledger_error missing in a turn")
++        if warn_sid != turns:
++            bad.append(name + ": %d warnings with a session for %d turns (want one per turn)" % (warn_sid, turns))
++    else:
++        if any(e is not None for e in lerrs):
++            bad.append(name + ": ledger_error although the ledger is writable")
++        if led != reqs:
++            bad.append(name + ": ledger lines %s != requests %d" % (led, reqs))
++print("LEDGER:", "PASS" if not bad else "FAIL " + "; ".join(bad))
++sys.exit(1 if bad else 0)
++PY

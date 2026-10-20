@@ -1,0 +1,221 @@
+diff --git a/internal/config/load.go b/internal/config/load.go
+index 3ca4a5a9..8ad00126 100644
+--- a/internal/config/load.go
++++ b/internal/config/load.go
+@@ -156,6 +156,7 @@ func Load(workingDir, dataDir string, debug bool) (*ConfigStore, error) {
+ 		return store, nil
+ 	}
+ 
++	configuredLarge, configuredSmall := cfg.Models[SelectedModelTypeLarge], cfg.Models[SelectedModelTypeSmall]
+ 	resolved, err := resolveSelectedModels(cfg, store.knownProviders)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to configure selected models: %w", err)
+@@ -163,20 +164,16 @@ func Load(workingDir, dataDir string, debug bool) (*ConfigStore, error) {
+ 	cfg.Models[SelectedModelTypeLarge] = resolved.Large
+ 	cfg.Models[SelectedModelTypeSmall] = resolved.Small
+ 
+-	// Persist any fallback corrections while we still hold writeMu.
++	// Fallback chỉ cho tiến trình này, KHÔNG ghi xuống đĩa: ghi thì một lần provider
++	// thiếu khoá thành đổi provider vĩnh viễn (với allowlist: mọi lần mở sau bị
++	// chặn MODEL_NOT_ALLOWED). Reload đã không ghi; nay Load cũng vậy.
+ 	if resolved.LargeFallback {
+-		if err := store.updateLocked(ScopeGlobal, func(c *Config) map[string]any {
+-			return store.updatePreferredModelFields(c, SelectedModelTypeLarge, resolved.Large)
+-		}); err != nil {
+-			return nil, fmt.Errorf("failed to update preferred large model: %w", err)
+-		}
++		slog.Warn("Selected large model is unavailable; using a fallback for this process only (not saved)",
++			"configured", configuredLarge.Provider+"/"+configuredLarge.Model, "using", resolved.Large.Provider+"/"+resolved.Large.Model)
+ 	}
+ 	if resolved.SmallFallback {
+-		if err := store.updateLocked(ScopeGlobal, func(c *Config) map[string]any {
+-			return store.updatePreferredModelFields(c, SelectedModelTypeSmall, resolved.Small)
+-		}); err != nil {
+-			return nil, fmt.Errorf("failed to update preferred small model: %w", err)
+-		}
++		slog.Warn("Selected small model is unavailable; using a fallback for this process only (not saved)",
++			"configured", configuredSmall.Provider+"/"+configuredSmall.Model, "using", resolved.Small.Provider+"/"+resolved.Small.Model)
+ 	}
+ 	store.SetupAgents()
+ 
+diff --git a/internal/config/model_pin_test.go b/internal/config/model_pin_test.go
+index 57a7f400..52fd4eef 100644
+--- a/internal/config/model_pin_test.go
++++ b/internal/config/model_pin_test.go
+@@ -2,6 +2,7 @@ package config
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -94,3 +95,46 @@ func TestModelSelectionYieldsToDiskWhenUnchosen(t *testing.T) {
+ 	require.Equal(t, "anthropic", large.Provider)
+ 	require.Equal(t, "claude-3", large.Model)
+ }
++
++// G-01 / PRB-04: model đang chọn nằm ở provider có sẵn bị thiếu khoá lúc khởi động.
++// Khởi động vẫn phải thành công (để còn chạy `agent-cli login`), nên model rơi về
++// provider khác TRONG RAM; nhưng lựa chọn đó không được GHI xuống đĩa: có khoá lại
++// thì lần mở sau phải dùng đúng model đã cấu hình. Trước đây fallback được ghi đè
++// vào tệp, nên một lần thiếu khoá thành đổi provider vĩnh viễn (và với allowlist
++// thì mọi lần mở sau đều bị chặn MODEL_NOT_ALLOWED).
++func TestStartupFallbackIsNotPersisted(t *testing.T) {
++	dir := t.TempDir()
++	configPath := filepath.Join(dir, "crush.json")
++	t.Setenv("CRUSH_GLOBAL_CONFIG", dir)
++	t.Setenv("CRUSH_GLOBAL_DATA", dir)
++	resetProviderState()
++	t.Cleanup(resetProviderState)
++	require.NoError(t, os.WriteFile(configPath, []byte(`{
++		"models": {"large": {"provider": "openai", "model": "gpt-4"}},
++		"providers": {
++			"openai": {"api_key": "$S10_OPENAI_KEY", "models": [{"id": "gpt-4", "name": "GPT-4"}]},
++			"anthropic": {"api_key": "test-key-2", "models": [{"id": "claude-3", "name": "Claude 3"}]}
++		}
++	}`), 0o600))
++
++	t.Setenv("S10_OPENAI_KEY", "")
++	store, err := Load(dir, dir, false)
++	require.NoError(t, err, "startup must not fail without credentials")
++	require.NotEqual(t, "openai", store.Config().Models[SelectedModelTypeLarge].Provider, "in memory the unusable provider is not used")
++
++	raw, err := os.ReadFile(configPath)
++	require.NoError(t, err)
++	var onDisk struct {
++		Models map[string]SelectedModel `json:"models"`
++	}
++	require.NoError(t, json.Unmarshal(raw, &onDisk))
++	require.Equal(t, "openai", onDisk.Models["large"].Provider, "the fallback must not be written to disk")
++	require.Equal(t, "gpt-4", onDisk.Models["large"].Model)
++
++	t.Setenv("S10_OPENAI_KEY", "test-key")
++	resetProviderState()
++	store, err = Load(dir, dir, false)
++	require.NoError(t, err)
++	require.Equal(t, "openai", store.Config().Models[SelectedModelTypeLarge].Provider, "with credentials back the configured model is used again")
++	require.Equal(t, "gpt-4", store.Config().Models[SelectedModelTypeLarge].Model)
++}
+diff --git a/internal/log/log.go b/internal/log/log.go
+index 54a0620f..2e7503e3 100644
+--- a/internal/log/log.go
++++ b/internal/log/log.go
+@@ -1,10 +1,12 @@
+ package log
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"io"
+ 	"log/slog"
+ 	"os"
++	"path/filepath"
+ 	"runtime/debug"
+ 	"sync"
+ 	"sync/atomic"
+@@ -18,10 +20,13 @@ import (
+ var (
+ 	initOnce    sync.Once
+ 	initialized atomic.Bool
++	// panicDir là thư mục ghi panic log (thư mục của tệp log); chưa đặt = thư mục tạm.
++	panicDir atomic.Value
+ )
+ 
+ func Setup(logFile string, debug bool, ws ...io.Writer) {
+ 	initOnce.Do(func() {
++		panicDir.Store(filepath.Dir(logFile))
+ 		logRotator := &lumberjack.Logger{
+ 			Filename:   logFile,
+ 			MaxSize:    10,    // Max size in MB
+@@ -67,23 +72,20 @@ func RecoverPanic(name string, cleanup func()) {
+ 	if r := recover(); r != nil {
+ 		event.Error(r, "panic", true, "name", name)
+ 
+-		// Create a timestamped panic log file
+-		timestamp := time.Now().Format("20060102-150405")
+-		filename := fmt.Sprintf("crush-panic-%s-%s.log", name, timestamp)
+-
+-		file, err := os.Create(filename)
+-		if err == nil {
+-			defer file.Close()
+-
+-			// Write panic information and stack trace
++		// Ghi vào thư mục log, không phải thư mục hiện tại (thường là repo đang
++		// làm, dễ bị commit nhầm), quyền 0600.
++		dir, _ := panicDir.Load().(string)
++		filename := filepath.Join(cmp.Or(dir, os.TempDir()),
++			fmt.Sprintf("crush-panic-%s-%s.log", name, time.Now().Format("20060102-150405")))
++		if file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600); err == nil {
+ 			fmt.Fprintf(file, "Panic in %s: %v\n\n", name, r)
+ 			fmt.Fprintf(file, "Time: %s\n\n", time.Now().Format(time.RFC3339))
+ 			fmt.Fprintf(file, "Stack Trace:\n%s\n", debug.Stack())
+-
+-			// Execute cleanup function if provided
+-			if cleanup != nil {
+-				cleanup()
+-			}
++			file.Close()
++		}
++		// Khôi phục (terminal…) kể cả khi không ghi được tệp.
++		if cleanup != nil {
++			cleanup()
+ 		}
+ 	}
+ }
+diff --git a/internal/log/panic_file_test.go b/internal/log/panic_file_test.go
+new file mode 100644
+index 00000000..a9dea656
+--- /dev/null
++++ b/internal/log/panic_file_test.go
+@@ -0,0 +1,50 @@
++package log
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++)
++
++// Panic log từng được tạo ở THƯ MỤC HIỆN TẠI (thường là repo đang làm) với quyền
++// mặc định: dễ bị commit nhầm stack trace. Nay ghi vào thư mục log, quyền 0600; và
++// cleanup (khôi phục terminal) luôn chạy kể cả khi không tạo được tệp.
++func TestRecoverPanicWritesToTheLogDirNotTheWorkingDir(t *testing.T) {
++	logs, cwd := t.TempDir(), t.TempDir()
++	t.Chdir(cwd)
++	prev, _ := panicDir.Load().(string)
++	panicDir.Store(logs)
++	t.Cleanup(func() { panicDir.Store(prev) })
++
++	cleaned := false
++	func() {
++		defer RecoverPanic("probe", func() { cleaned = true })
++		panic("boom")
++	}()
++
++	require.True(t, cleaned)
++	entries, err := os.ReadDir(cwd)
++	require.NoError(t, err)
++	require.Empty(t, entries, "nothing is written into the working directory")
++	matches, err := filepath.Glob(filepath.Join(logs, "crush-panic-probe-*.log"))
++	require.NoError(t, err)
++	require.Len(t, matches, 1)
++	info, err := os.Stat(matches[0])
++	require.NoError(t, err)
++	require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
++}
++
++func TestRecoverPanicRunsCleanupWhenTheFileCannotBeCreated(t *testing.T) {
++	prev, _ := panicDir.Load().(string)
++	panicDir.Store(filepath.Join(t.TempDir(), "missing", "dir"))
++	t.Cleanup(func() { panicDir.Store(prev) })
++
++	cleaned := false
++	func() {
++		defer RecoverPanic("probe", func() { cleaned = true })
++		panic("boom")
++	}()
++	require.True(t, cleaned)
++}

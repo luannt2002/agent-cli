@@ -1,0 +1,1 @@
+T5: EXPOSED — main requests=2 with <mcp-instructions>=True | subagent requests=1 with <mcp-instructions>=1, subagent tools=['glob', 'grep', 'ls', 'lsp_call_hierarchy', 'lsp_definition', 'lsp_symbols', 'sourcegraph', 'view'], subagent mcp tools=[] (rc=0)

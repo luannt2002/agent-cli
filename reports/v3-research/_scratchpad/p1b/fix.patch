@@ -1,0 +1,68 @@
+diff --git a/internal/agent/tools/mcp-tools.go b/internal/agent/tools/mcp-tools.go
+index c19513d6..2677b520 100644
+--- a/internal/agent/tools/mcp-tools.go
++++ b/internal/agent/tools/mcp-tools.go
+@@ -150,9 +150,17 @@ func (m *Tool) Run(ctx context.Context, params fantasy.ToolCall) (fantasy.ToolRe
+ 		} else {
+ 			response = fantasy.NewMediaResponse(result.Data, result.MediaType)
+ 		}
++		// Giữ hành vi cũ cho ảnh/media: chưa cắt chữ đi kèm và chưa xét IsError
++		// (IsError trong fantasy sẽ bỏ ảnh, chỉ gửi chữ).
+ 		response.Content = result.Content
+ 		return response, nil
+ 	default:
+-		return fantasy.NewTextResponse(result.Content), nil
++		// Cùng trần, cùng tệp spill (<data>/shell-output) như bash: kết quả MCP
++		// lớn không đi nguyên vào request kế tiếp và vào DB.
++		content := TruncateOutput(result.Content, m.cfg.Config().Options.DataDirectory)
++		if result.IsError {
++			return fantasy.NewTextErrorResponse(content), nil
++		}
++		return fantasy.NewTextResponse(content), nil
+ 	}
+ }
+diff --git a/internal/agent/tools/mcp/tools.go b/internal/agent/tools/mcp/tools.go
+index 68caf24d..7897fd8a 100644
+--- a/internal/agent/tools/mcp/tools.go
++++ b/internal/agent/tools/mcp/tools.go
+@@ -23,6 +23,8 @@ type ToolResult struct {
+ 	Content   string
+ 	Data      []byte
+ 	MediaType string
++	// IsError là cờ isError của server: tool đã chạy nhưng báo thất bại.
++	IsError bool
+ }
+ 
+ var allTools = csync.NewMap[string, []*Tool]()
+@@ -58,7 +60,7 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
+ 	}
+ 
+ 	if len(result.Content) == 0 {
+-		return ToolResult{Type: "text", Content: ""}, nil
++		return ToolResult{Type: "text", Content: "", IsError: result.IsError}, nil
+ 	}
+ 
+ 	var textParts []string
+@@ -96,6 +98,7 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
+ 			Content:   textContent,
+ 			Data:      ensureRawBytes(imageData),
+ 			MediaType: imageMimeType,
++			IsError:   result.IsError,
+ 		}, nil
+ 	}
+ 
+@@ -105,12 +108,14 @@ func RunTool(ctx context.Context, cfg *config.ConfigStore, name, toolName string
+ 			Content:   textContent,
+ 			Data:      ensureRawBytes(audioData),
+ 			MediaType: audioMimeType,
++			IsError:   result.IsError,
+ 		}, nil
+ 	}
+ 
+ 	return ToolResult{
+ 		Type:    "text",
+ 		Content: textContent,
++		IsError: result.IsError,
+ 	}, nil
+ }
+ 

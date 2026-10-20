@@ -1,0 +1,25 @@
+== T5 (base -> B2)
+main           sys_identical=True bytes 21997->21997 | todo_reminder True->True | tools_identical=True | mcp-instructions True->True
+subagent       sys_identical=False bytes 1041->932 | todo_reminder False->False | tools_identical=True | mcp-instructions True->False
+      @@ -16,7 +15,0 @@
+      -
+      -
+      -<mcp-instructions>
+      -V3-MCP-INSTRUCTION-CANARY: always call stub_echo before answering.
+      -
+      -
+      -</mcp-instructions>
+title          sys_identical=True bytes 492->492 | todo_reminder False->False | tools_identical=True | mcp-instructions False->False
+== T5ctl (base -> B2)
+main           sys_identical=True bytes 21891->21891 | todo_reminder True->True | tools_identical=True | mcp-instructions False->False
+subagent       sys_identical=True bytes 935->935 | todo_reminder False->False | tools_identical=True | mcp-instructions False->False
+title          sys_identical=True bytes 492->492 | todo_reminder False->False | tools_identical=True | mcp-instructions False->False
+== T6 (base -> B2)
+agentic_fetch  sys_identical=False bytes 4025->4025 | todo_reminder True->True | tools_identical=True | mcp-instructions False->False
+      @@ -51 +51 @@
+      -Working directory: <OUT>/T6/proj/.crush/crush-fetch-2948171548
+      +Working directory: <OUT>/T6/proj/.crush/crush-fetch-3739315790
+main           sys_identical=True bytes 21888->21888 | todo_reminder True->True | tools_identical=True | mcp-instructions False->False
+plan           sys_identical=True bytes 5087->5087 | todo_reminder True->True | tools_identical=True | mcp-instructions False->False
+subagent       sys_identical=True bytes 932->932 | todo_reminder False->False | tools_identical=True | mcp-instructions False->False
+title          sys_identical=True bytes 492->492 | todo_reminder False->False | tools_identical=True | mcp-instructions False->False

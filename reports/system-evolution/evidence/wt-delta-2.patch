@@ -1,0 +1,1841 @@
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 6ecedf75..24ec1f6a 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -55,6 +55,10 @@ const (
+ 	// hết ngân sách output, trong chuỗi của một prompt người dùng: model cứ
+ 	// viết quá dài thì dừng sau vài lần thay vì lặp mãi.
+ 	maxLengthContinues = 3
++	// maxAutoSummaries là số lần tối đa tự tóm tắt rồi làm tiếp trong chuỗi của
++	// một prompt người dùng: model làm lại việc sau mỗi lần tóm tắt thì không
++	// bao giờ xong và cháy token mãi.
++	maxAutoSummaries = 10
+ 	// lengthContinuePrompt là lời nhắc của lượt tự làm tiếp đó.
+ 	lengthContinuePrompt = "Your previous reply was cut off because it reached the output token limit. Continue exactly where you stopped. If you were writing a tool call or a large file, split the work into smaller steps (for example several smaller edits or writes) so each reply fits."
+ 
+@@ -167,6 +171,9 @@ type SessionAgentCall struct {
+ 	// (phần cố định của prompt đã gần đầy context): dừng với lỗi thay vì tóm tắt
+ 	// lại vô hạn.
+ 	afterSummary bool
++	// summaries đếm số lần đã tự tóm tắt trong chuỗi của một prompt người dùng
++	// (có trần maxAutoSummaries).
++	summaries int
+ 	// originalPrompt là prompt THẬT của người dùng mà chuỗi làm tiếp (tóm tắt,
+ 	// bị cắt output) đang phục vụ. Prompt của lượt làm tiếp chỉ là lời nhắc,
+ 	// nên bọc lại nó sẽ lồng "yêu cầu gốc" nhiều lớp và làm mất yêu cầu thật.
+@@ -1019,7 +1026,7 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 	a.eventPromptSent(call.SessionID)
+ 
+ 	var stepMessages []fantasy.Message
+-	var shouldSummarize, looping bool
++	var shouldSummarize, looping, summaryCapHit bool
+ 	var overflow *contextOverflowError
+ 	sanitizedToolCalls := make(map[string]bool)
+ 	// Full names of tool calls that completed without error this turn.
+@@ -1323,6 +1330,10 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 						overflow = &contextOverflowError{used: tokens, window: cw, threshold: threshold}
+ 						return true
+ 					}
++					if call.summaries >= maxAutoSummaries && len(steps[len(steps)-1].Content.ToolCalls()) > 0 {
++						summaryCapHit = true
++						return true
++					}
+ 					shouldSummarize = true
+ 					return true
+ 				}
+@@ -1345,6 +1356,12 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 	if err == nil && looping && !shouldSummarize {
+ 		err = errLoopDetected
+ 	}
++	if err == nil && emptyTurn(result) {
++		err = errEmptyReply
++	}
++	if err == nil && summaryCapHit {
++		err = errSummaryLimit
++	}
+ 	if err != nil {
+ 		isHyper := largeModel.ModelCfg.Provider == hyper.Name
+ 		isCancelErr := errors.Is(err, context.Canceled)
+@@ -1463,6 +1480,10 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 			currentAssistant.AddFinish(message.FinishReasonError, "Context window too small", overflow.Error())
+ 		} else if errors.Is(err, errLoopDetected) {
+ 			currentAssistant.AddFinish(message.FinishReasonError, "Loop detected", err.Error())
++		} else if errors.Is(err, errEmptyReply) {
++			currentAssistant.AddFinish(message.FinishReasonError, "Empty reply", err.Error())
++		} else if errors.Is(err, errSummaryLimit) {
++			currentAssistant.AddFinish(message.FinishReasonError, "Too many automatic summaries", err.Error())
+ 		} else if errors.As(err, &requestTimedOutErr) {
+ 			// Checked before the provider branches so a deadline our own
+ 			// request timeout imposed is never reported as a provider error.
+@@ -1559,6 +1580,9 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
+ 			}
+ 			call.continuation = true
+ 			call.afterSummary = summaryFailure == nil
++			if summaryFailure == nil {
++				call.summaries++
++			}
+ 			// Lượt làm tiếp là phần còn lại của việc đang chạy: chạy trước prompt
+ 			// mà người dùng vừa gõ thêm, không phải sau.
+ 			existing = append([]SessionAgentCall{call}, existing...)
+@@ -2223,6 +2247,20 @@ func hasUserTextMessage(msgs []message.Message) bool {
+ 	return false
+ }
+ 
++// emptyTurn cho biết lượt không ra chữ lẫn tool call nào ở mọi bước. Lượt có
++// tool call rồi kết thúc im lặng vẫn là lượt có làm.
++func emptyTurn(result *fantasy.AgentResult) bool {
++	if result == nil || len(result.Steps) == 0 {
++		return false
++	}
++	for _, s := range result.Steps {
++		if strings.TrimSpace(s.Content.Text()) != "" || len(s.Content.ToolCalls()) > 0 {
++			return false
++		}
++	}
++	return true
++}
++
+ // machineTitle cho biết title là tên do máy đặt (an toàn để tiêu đề LLM ghi
+ // đè): rỗng, tên mặc định lúc tạo session, hoặc tiêu đề suy ra từ prompt. Tên
+ // khác là do người dùng tự đổi nên phải giữ.
+diff --git a/internal/agent/agentic_fetch_tool.go b/internal/agent/agentic_fetch_tool.go
+index 152c87d3..355bf512 100644
+--- a/internal/agent/agentic_fetch_tool.go
++++ b/internal/agent/agentic_fetch_tool.go
+@@ -73,6 +73,12 @@ func (c *coordinator) agenticFetchTool(_ context.Context, client *http.Client) (
+ 				return fantasy.NewTextErrorResponse(err.Error()), nil
+ 			}
+ 
++			// Chế độ URL tự tải URL trước khi agent con chạy, nên tắt web_fetch phải
++			// chặn ở đây; chế độ tìm kiếm vẫn được nếu web_search còn bật.
++			if params.URL != "" && slices.Contains(c.cfg.Config().Options.DisabledTools, tools.WebFetchToolName) {
++				return fantasy.NewTextErrorResponse("URL mode is unavailable: the web_fetch tool is disabled. Omit url to search the web instead."), nil
++			}
++
+ 			// Determine description based on mode.
+ 			var description string
+ 			if params.URL != "" {
+@@ -163,16 +169,7 @@ func (c *coordinator) agenticFetchTool(_ context.Context, client *http.Client) (
+ 				return fantasy.ToolResponse{}, errors.New("small model provider not configured")
+ 			}
+ 
+-			webFetchTool := tools.NewWebFetchTool(tmpDir, client)
+-			webSearchTool := tools.NewWebSearchTool(client)
+-			fetchTools := filterDisabledTools([]fantasy.AgentTool{
+-				webFetchTool,
+-				webSearchTool,
+-				tools.NewGlobTool(c.permissions, tmpDir, c.cfg.Config().Tools.Glob),
+-				tools.NewGrepTool(c.permissions, tmpDir, c.cfg.Config().Tools.Grep),
+-				tools.NewSourcegraphTool(client),
+-				tools.NewViewTool(c.lspManager, c.permissions, c.filetracker, nil, tmpDir),
+-			}, c.cfg.Config().Options.DisabledTools)
++			fetchTools := c.agenticFetchInnerTools(tmpDir, client)
+ 
+ 			// Sub-agent tools run without hook interception. The top-level
+ 			// `agentic_fetch` call itself is already wrapped from the coder's
+@@ -201,12 +198,24 @@ func (c *coordinator) agenticFetchTool(_ context.Context, client *http.Client) (
+ 				// Không tự duyệt session con: nội dung web có thể tiêm lệnh bảo agent
+ 				// đọc tệp ngoài thư mục tạm (rồi gửi đi bằng web_fetch). Việc thường
+ 				// của nó (web_fetch/web_search, view/grep trong thư mục tạm) không cần
+-				// quyền; đọc ra ngoài thì phải hỏi người dùng (audit g5).
++				// quyền. Đọc ra ngoài: TUI hỏi người dùng; `run` không người hỏi nên
++				// duyệt mọi phiên con như phiên gốc (app.autoApproveRun) (audit g5).
+ 			})
+ 		},
+ 	), nil
+ }
+ 
++func (c *coordinator) agenticFetchInnerTools(tmpDir string, client *http.Client) []fantasy.AgentTool {
++	return filterDisabledTools([]fantasy.AgentTool{
++		tools.NewWebFetchTool(tmpDir, client),
++		tools.NewWebSearchTool(client),
++		tools.NewGlobTool(c.permissions, tmpDir, c.cfg.Config().Tools.Glob),
++		tools.NewGrepTool(c.permissions, tmpDir, c.cfg.Config().Tools.Grep),
++		tools.NewSourcegraphTool(client),
++		tools.NewViewTool(c.lspManager, c.permissions, c.filetracker, nil, tmpDir),
++	}, c.cfg.Config().Options.DisabledTools)
++}
++
+ // filterDisabledTools bỏ các tool có tên trong disabled_tools của người dùng: luật
+ // tắt tool áp cho cả agent con, không chỉ agent chính.
+ func filterDisabledTools(ts []fantasy.AgentTool, disabled []string) []fantasy.AgentTool {
+diff --git a/internal/agent/agentic_fetch_wiring_test.go b/internal/agent/agentic_fetch_wiring_test.go
+new file mode 100644
+index 00000000..5fa42b89
+--- /dev/null
++++ b/internal/agent/agentic_fetch_wiring_test.go
+@@ -0,0 +1,191 @@
++package agent
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"charm.land/fantasy"
++	"github.com/charmbracelet/crush/internal/agent/tools"
++	"github.com/charmbracelet/crush/internal/config"
++	"github.com/charmbracelet/crush/internal/permission"
++	"github.com/stretchr/testify/require"
++)
++
++// fetchTestEnv: coordinator với disabled_tools cho trước, provider giả trả 400 ngay
++// (agent con thất bại nhanh, không chạm mạng thật) và một trang /page đếm lượt tải.
++type fetchTestEnv struct {
++	coord     *coordinator
++	srv       *httptest.Server
++	pageHits  atomic.Int32
++	modelHits atomic.Int32
++}
++
++func newFetchTestEnv(t *testing.T, disabled []string, perms permission.Service) *fetchTestEnv {
++	t.Helper()
++	e := &fetchTestEnv{}
++	e.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path == "/page" {
++			e.pageHits.Add(1)
++			w.Header().Set("Content-Type", "text/plain")
++			fmt.Fprint(w, "hello")
++			return
++		}
++		e.modelHits.Add(1)
++		http.Error(w, `{"error":{"message":"bad request"}}`, http.StatusBadRequest)
++	}))
++	t.Cleanup(e.srv.Close)
++
++	env := testEnv(t)
++	disabledJSON, err := json.Marshal(disabled)
++	require.NoError(t, err)
++	crushJSON := fmt.Sprintf(`{
++  "options": {"disable_default_providers": true, "disable_provider_auto_update": true, "disabled_tools": %s},
++  "providers": {"mock": {"id": "mock", "name": "Mock", "type": "openai",
++    "base_url": %q, "api_key": "test-key",
++    "models": [{"id": "mock-model", "name": "Mock", "context_window": 8192, "default_max_tokens": 128}]}},
++  "models": {"large": {"provider": "mock", "model": "mock-model"},
++             "small": {"provider": "mock", "model": "mock-model"}}
++}`, disabledJSON, e.srv.URL+"/v1")
++	require.NoError(t, os.WriteFile(filepath.Join(env.workingDir, "crush.json"), []byte(crushJSON), 0o644))
++	cfg, err := config.Init(env.workingDir, "", false)
++	require.NoError(t, err)
++	cfg.SetupAgents()
++	require.NoError(t, os.MkdirAll(cfg.Config().Options.DataDirectory, 0o755))
++	if perms == nil {
++		perms = env.permissions
++	}
++	e.coord = &coordinator{
++		cfg:         cfg,
++		sessions:    env.sessions,
++		messages:    env.messages,
++		permissions: perms,
++		history:     env.history,
++		filetracker: *env.filetracker,
++		agents:      make(map[string]SessionAgent),
++	}
++	return e
++}
++
++func toolNames(ts []fantasy.AgentTool) []string {
++	var names []string
++	for _, tl := range ts {
++		names = append(names, tl.Info().Name)
++	}
++	return names
++}
++
++// runAgenticFetch gọi agentic_fetch như agent chính gọi, trong một phiên cha mới.
++func (e *fetchTestEnv) runAgenticFetch(t *testing.T, params tools.AgenticFetchParams) (parentID, childID string, resp fantasy.ToolResponse) {
++	t.Helper()
++	parent, err := e.coord.sessions.Create(t.Context(), "Parent")
++	require.NoError(t, err)
++	tool, err := e.coord.agenticFetchTool(t.Context(), e.srv.Client())
++	require.NoError(t, err)
++	input, err := json.Marshal(params)
++	require.NoError(t, err)
++	ctx := context.WithValue(t.Context(), tools.SessionIDContextKey, parent.ID)
++	ctx = context.WithValue(ctx, tools.MessageIDContextKey, "msg-1")
++	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
++	defer cancel()
++	resp, err = tool.Run(ctx, fantasy.ToolCall{ID: "call-1", Name: tools.AgenticFetchToolName, Input: string(input)})
++	require.NoError(t, err)
++	return parent.ID, e.coord.sessions.CreateAgentToolSessionID("msg-1", "call-1"), resp
++}
++
++// Tắt cả web_fetch lẫn web_search thì agentic_fetch không được đăng ký; còn một
++// trong hai thì vẫn có.
++func TestBuildToolsGatesAgenticFetchOnWebTools(t *testing.T) {
++	for _, tc := range []struct {
++		disabled []string
++		want     bool
++	}{
++		{[]string{tools.WebFetchToolName, tools.WebSearchToolName}, false},
++		{[]string{tools.WebFetchToolName}, true},
++		{nil, true},
++	} {
++		t.Run(fmt.Sprint(tc.disabled), func(t *testing.T) {
++			e := newFetchTestEnv(t, tc.disabled, nil)
++			agentCfg := e.coord.cfg.Config().Agents[config.AgentCoder]
++			require.Contains(t, agentCfg.AllowedTools, tools.AgenticFetchToolName, "disabled_tools does not name agentic_fetch itself")
++			ts, err := e.coord.buildTools(t.Context(), agentCfg, false)
++			require.NoError(t, err)
++			require.Equal(t, tc.want, contains(toolNames(ts), tools.AgenticFetchToolName))
++		})
++	}
++}
++
++func contains(names []string, name string) bool {
++	for _, n := range names {
++		if n == name {
++			return true
++		}
++	}
++	return false
++}
++
++// Bộ tool bên trong agentic_fetch lấy disabled_tools từ cấu hình thật.
++func TestAgenticFetchInnerToolsRespectDisabledTools(t *testing.T) {
++	e := newFetchTestEnv(t, []string{tools.WebSearchToolName, tools.SourcegraphToolName}, nil)
++	names := toolNames(e.coord.agenticFetchInnerTools(t.TempDir(), nil))
++	require.NotContains(t, names, tools.WebSearchToolName)
++	require.NotContains(t, names, tools.SourcegraphToolName)
++	require.Contains(t, names, tools.WebFetchToolName)
++	require.Contains(t, names, tools.ViewToolName)
++}
++
++// Tắt web_fetch (web_search còn) thì chế độ URL không tự tải URL; chế độ tìm kiếm
++// vẫn chạy tới agent con.
++func TestAgenticFetchURLModeRefusedWhenWebFetchDisabled(t *testing.T) {
++	e := newFetchTestEnv(t, []string{tools.WebFetchToolName}, nil)
++	_, _, resp := e.runAgenticFetch(t, tools.AgenticFetchParams{URL: e.srv.URL + "/page", Prompt: "summarise"})
++	require.True(t, resp.IsError, resp.Content)
++	require.Contains(t, resp.Content, tools.WebFetchToolName)
++	require.Zero(t, e.pageHits.Load(), "the URL was fetched although web_fetch is disabled")
++
++	_, _, resp = e.runAgenticFetch(t, tools.AgenticFetchParams{Prompt: "find something"})
++	require.NotContains(t, resp.Content, "disabled")
++	require.NotZero(t, e.modelHits.Load(), "search mode must still reach the sub-agent")
++}
++
++// Có người trực: phiên con của agentic_fetch không được tự duyệt; yêu cầu quyền của
++// nó phải hiện hộp thoại (nội dung web có thể tiêm lệnh đọc tệp ngoài thư mục tạm).
++func TestAgenticFetchChildSessionNotAutoApproved(t *testing.T) {
++	perms := permission.NewPermissionService(t.TempDir(), false, nil)
++	e := newFetchTestEnv(t, nil, perms)
++	events := perms.Subscribe(t.Context())
++	prompted := make(chan permission.PermissionRequest, 8)
++	go func() {
++		for ev := range events {
++			if ev.Payload.ToolName == tools.AgenticFetchToolName {
++				perms.Grant(ev.Payload) // người dùng cho phép lệnh agentic_fetch ở phiên cha
++				continue
++			}
++			prompted <- ev.Payload
++		}
++	}()
++	_, childID, _ := e.runAgenticFetch(t, tools.AgenticFetchParams{URL: e.srv.URL + "/page", Prompt: "summarise"})
++	require.NotZero(t, e.modelHits.Load(), "the sub-agent ran")
++	_, err := e.coord.sessions.Get(t.Context(), childID)
++	require.NoError(t, err, "the child session exists")
++
++	reqCtx, reqCancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
++	defer reqCancel()
++	ok, _ := perms.Request(reqCtx, permission.CreatePermissionRequest{
++		SessionID: childID, ToolCallID: "inner-1", ToolName: tools.ViewToolName, Action: "read", Path: "/etc",
++	})
++	require.False(t, ok, "the agentic_fetch child session must not be auto-approved")
++	select {
++	case p := <-prompted:
++		require.Equal(t, childID, p.SessionID)
++	default:
++		t.Fatal("the child's request did not reach the permission dialog")
++	}
++}
+diff --git a/internal/agent/continuation_test.go b/internal/agent/continuation_test.go
+index 5c1ff531..6aac8664 100644
+--- a/internal/agent/continuation_test.go
++++ b/internal/agent/continuation_test.go
+@@ -114,6 +114,8 @@ func (m *scriptModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.St
+ 	switch step {
+ 	case "cut":
+ 		return textStream("part ", fantasy.FinishReasonLength, small), nil
++	case "empty":
++		return textStream("", fantasy.FinishReasonStop, small), nil
+ 	case "tool", "tool_small":
+ 		id := fmt.Sprintf("tc%d", n)
+ 		usage := fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}
+diff --git a/internal/agent/errors.go b/internal/agent/errors.go
+index 4ef91479..5e50563d 100644
+--- a/internal/agent/errors.go
++++ b/internal/agent/errors.go
+@@ -14,6 +14,12 @@ var (
+ 	// errLoopDetected: lượt bị dừng vì model lặp lại cùng một tool call (cùng
+ 	// tham số, cùng kết quả) quá nhiều lần trong cửa sổ gần nhất.
+ 	errLoopDetected = fmt.Errorf("stopped: the model repeated the same tool call more than %d times in its last %d steps", loopDetectionMaxRepeats, loopDetectionWindowSize)
++
++	// errEmptyReply: mọi bước của lượt không có chữ lẫn tool call nào.
++	errEmptyReply = errors.New("the model returned an empty reply (no text and no tool call)")
++
++	// errSummaryLimit: một prompt đã tự tóm tắt maxAutoSummaries lần mà việc chưa xong.
++	errSummaryLimit = fmt.Errorf("stopped: auto-summarized %d times for one prompt without finishing; send a new prompt to keep going", maxAutoSummaries)
+ )
+ 
+ // contextOverflowError: sau một lần tự tóm tắt, bước đầu của lượt làm tiếp vẫn
+diff --git a/internal/agent/false_success_test.go b/internal/agent/false_success_test.go
+index db823773..8ebb08d8 100644
+--- a/internal/agent/false_success_test.go
++++ b/internal/agent/false_success_test.go
+@@ -38,6 +38,28 @@ func TestTruncatedSummaryKeepsHistory(t *testing.T) {
+ 	require.True(t, failed, "the truncated summary is recorded as failed, not end_turn")
+ }
+ 
++// Model trả lời không chữ, không tool call (finish=stop): lượt không làm gì cả.
++// Không có lỗi thì `run` thoát 0 với `text` rỗng (faults.sh ca empty-reply).
++func TestEmptyTurnIsAnError(t *testing.T) {
++	h := newContHarness(t, &scriptModel{script: []string{"empty"}, summaryText: "SUMMARY"})
++
++	_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "fix it"})
++	require.Error(t, err)
++	require.Contains(t, err.Error(), "empty reply")
++	rc := waitRunComplete(t, h.ch, "x")
++	require.Contains(t, rc.Error, "empty reply")
++}
++
++// Làm việc bằng tool rồi kết thúc im lặng vẫn là một lượt có làm: không phải lỗi.
++func TestToolWorkThenSilentEndIsNotAnError(t *testing.T) {
++	h := newContHarness(t, &scriptModel{script: []string{"tool_small", "empty"}, summaryText: "SUMMARY"})
++
++	_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "fix it"})
++	require.NoError(t, err)
++	rc := waitRunComplete(t, h.ch, "x")
++	require.Empty(t, rc.Error)
++}
++
+ // Loop detection dừng lượt vì model lặp cùng một tool call: đó là thất bại, không
+ // phải "xong". RunComplete phải mang lỗi để `run` thoát khác 0 (audit C-06).
+ func TestLoopDetectionStopIsAnError(t *testing.T) {
+diff --git a/internal/agent/llm_ledger.go b/internal/agent/llm_ledger.go
+index 75b54e98..9c168464 100644
+--- a/internal/agent/llm_ledger.go
++++ b/internal/agent/llm_ledger.go
+@@ -5,6 +5,8 @@ import (
+ 	"crypto/sha256"
+ 	"encoding/hex"
+ 	"encoding/json"
++	"errors"
++	"fmt"
+ 	"log/slog"
+ 	"os"
+ 	"sort"
+@@ -140,7 +142,7 @@ func (m ledgerModel) Generate(ctx context.Context, call fantasy.Call) (*fantasy.
+ 	resp, err := m.LanguageModel.Generate(ctx, call)
+ 	e.DurationMS = time.Since(start).Milliseconds()
+ 	if err != nil {
+-		e.Error = truncateLedger(err.Error())
++		e.Error = ledgerErrorKind(err)
+ 	} else if resp != nil {
+ 		e.InputTokens, e.OutputTokens, e.CacheReadTokens = resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.CacheReadTokens
+ 		e.Finish = string(resp.FinishReason)
+@@ -155,7 +157,7 @@ func (m ledgerModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Str
+ 	inner, err := m.LanguageModel.Stream(ctx, call)
+ 	if err != nil {
+ 		e.DurationMS = time.Since(start).Milliseconds()
+-		e.Error = truncateLedger(err.Error())
++		e.Error = ledgerErrorKind(err)
+ 		writeLedger(m.path, e)
+ 		return nil, err
+ 	}
+@@ -170,16 +172,24 @@ func (m ledgerModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Str
+ 				e.Finish = string(part.FinishReason)
+ 			}
+ 			if part.Error != nil && e.Error == "" {
+-				e.Error = truncateLedger(part.Error.Error())
++				e.Error = ledgerErrorKind(part.Error)
+ 			}
+ 			return yield(part)
+ 		})
+ 	}, nil
+ }
+ 
+-func truncateLedger(s string) string {
+-	if len(s) > 300 {
+-		return s[:300]
++// ledgerErrorKind chỉ ghi loại lỗi (và mã HTTP): server local hay chép mẩu prompt
++// vào thông báo lỗi, nên văn bản lỗi không vào sổ.
++func ledgerErrorKind(err error) string {
++	var pe *fantasy.ProviderError
++	switch {
++	case errors.As(err, &pe):
++		return fmt.Sprintf("provider_error status=%d", pe.StatusCode)
++	case errors.Is(err, context.Canceled):
++		return "canceled"
++	case errors.Is(err, context.DeadlineExceeded):
++		return "timeout"
+ 	}
+-	return s
++	return fmt.Sprintf("%T", err)
+ }
+diff --git a/internal/agent/llm_ledger_test.go b/internal/agent/llm_ledger_test.go
+index 1a3bb128..d9634e93 100644
+--- a/internal/agent/llm_ledger_test.go
++++ b/internal/agent/llm_ledger_test.go
+@@ -2,6 +2,7 @@ package agent
+ 
+ import (
+ 	"bufio"
++	"context"
+ 	"encoding/json"
+ 	"os"
+ 	"path/filepath"
+@@ -79,6 +80,29 @@ func TestLedgerRecordsEachCallWithRoleProviderAndUsage(t *testing.T) {
+ 	require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+ }
+ 
++type failingStreamModel struct{ finishStreamModel }
++
++func (*failingStreamModel) Stream(context.Context, fantasy.Call) (fantasy.StreamResponse, error) {
++	return nil, &fantasy.ProviderError{StatusCode: 400, Message: "Error rendering prompt: SECRET-PROMPT-TEXT"}
++}
++
++// Server OpenAI-compat local (llama.cpp, LM Studio) hay chép mẩu prompt vào thông
++// báo lỗi: sổ ghi chỉ giữ loại lỗi và mã HTTP, không giữ văn bản lỗi.
++func TestLedgerRecordsTheErrorKindNotItsText(t *testing.T) {
++	t.Parallel()
++	path := filepath.Join(t.TempDir(), "ledger.jsonl")
++	m := newLedgerModel(&failingStreamModel{}, "local", "qwen", path)
++	_, err := m.Stream(t.Context(), fantasy.Call{})
++	require.Error(t, err)
++
++	entries := readLedger(t, path)
++	require.Len(t, entries, 1)
++	require.Equal(t, "provider_error status=400", entries[0].Error)
++	raw, err := os.ReadFile(path)
++	require.NoError(t, err)
++	require.NotContains(t, string(raw), "SECRET-PROMPT-TEXT")
++}
++
+ // Tắt (path rỗng) thì không bọc gì: không chi phí, không tệp.
+ func TestLedgerOffReturnsTheModelUnchanged(t *testing.T) {
+ 	t.Parallel()
+diff --git a/internal/agent/summarize_overflow_test.go b/internal/agent/summarize_overflow_test.go
+index c669601a..a546a908 100644
+--- a/internal/agent/summarize_overflow_test.go
++++ b/internal/agent/summarize_overflow_test.go
+@@ -1,6 +1,7 @@
+ package agent
+ 
+ import (
++	"cmp"
+ 	"context"
+ 	"errors"
+ 	"strings"
+@@ -165,6 +166,8 @@ func TestAutoSummarizeStillRepeatsWhenItFreesRoom(t *testing.T) {
+ type roomModel struct {
+ 	overflowModel
+ 	work atomic.Int64
++	// rounds: số vòng (đầy lại → tóm tắt) trước khi trả lời xong; 0 = 2.
++	rounds int64
+ }
+ 
+ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
+@@ -179,7 +182,7 @@ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Stre
+ 		usage = fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}
+ 	}
+ 	finish, name := fantasy.FinishReasonToolCalls, "noop"
+-	if w > 4 {
++	if w > 2*cmp.Or(m.rounds, 2) {
+ 		return func(yield func(fantasy.StreamPart) bool) {
+ 			if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextStart, ID: "1"}) {
+ 				return
+@@ -208,6 +211,34 @@ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Stre
+ 	}, nil
+ }
+ 
++// Model cứ làm tiếp sau mỗi lần tóm tắt mà không bao giờ xong (model yếu làm lại
++// việc từ đầu sau tóm tắt): không có trần thì một prompt cháy token vô hạn
++// (faults: 1.338 lời gọi main / 120 s). Dừng có lỗi sau maxAutoSummaries lần.
++func TestAutoSummarizeHasACapPerPrompt(t *testing.T) {
++	env := testEnv(t)
++	broker := pubsub.NewBroker[notify.RunComplete]()
++	t.Cleanup(broker.Shutdown)
++	m := &roomModel{rounds: 1000}
++	cw := catwalk.Model{ContextWindow: 1000, DefaultMaxTokens: 100}
++	sa := NewSessionAgent(SessionAgentOptions{
++		LargeModel:  modelWith(m, "prov", "model", cw),
++		SmallModel:  modelWith(&finishStreamModel{text: "title"}, "prov", "small", cw),
++		IsYolo:      true,
++		Sessions:    env.sessions,
++		Messages:    env.messages,
++		RunComplete: broker,
++		Tools:       []fantasy.AgentTool{namedTool("noop")},
++	}).(*sessionAgent)
++	sess, err := env.sessions.Create(t.Context(), "session")
++	require.NoError(t, err)
++	ch := broker.Subscribe(t.Context())
++
++	_, _ = sa.Run(t.Context(), SessionAgentCall{SessionID: sess.ID, RunID: "x", Prompt: "endless job"})
++	rc := waitRunComplete(t, ch, "x")
++	require.Contains(t, rc.Error, "auto-summarized")
++	require.Equal(t, maxAutoSummaries, strings.Count(strings.Join(m.seen(), ","), "summary"))
++}
++
+ // Bước đầu sau tóm tắt vượt ngưỡng nhưng là câu trả lời cuối (không gọi tool):
+ // lượt kết thúc bình thường với câu trả lời đó, không báo lỗi, không tóm tắt lại.
+ func TestAutoSummarizeKeepsFinalAnswerAfterSummary(t *testing.T) {
+diff --git a/internal/agent/tools/lsp_rename.go b/internal/agent/tools/lsp_rename.go
+index 3c68b6b3..3f614875 100644
+--- a/internal/agent/tools/lsp_rename.go
++++ b/internal/agent/tools/lsp_rename.go
+@@ -11,6 +11,7 @@ import (
+ 
+ 	"charm.land/fantasy"
+ 
++	"github.com/charmbracelet/crush/internal/execpolicy"
+ 	"github.com/charmbracelet/crush/internal/filetracker"
+ 	"github.com/charmbracelet/crush/internal/history"
+ 	"github.com/charmbracelet/crush/internal/lsp"
+@@ -76,6 +77,15 @@ func NewRenameTool(
+ 			}
+ 
+ 			affectedFiles := collectAffectedFiles(edit)
++			if sessionID != "" && permissions != nil {
++				granted, err := authorizeRenameWrites(ctx, permissions, sessionID, call.ID, affectedFiles)
++				if err != nil {
++					return fantasy.ToolResponse{}, fmt.Errorf("permission request failed: %w", err)
++				}
++				if !granted {
++					return NewPermissionDeniedResponse(), nil
++				}
++			}
+ 
+ 			if files != nil && sessionID != "" {
+ 				for _, path := range affectedFiles {
+@@ -118,3 +128,27 @@ func NewRenameTool(
+ 		},
+ 	)
+ }
++
++// authorizeRenameWrites: yêu cầu gộp của lsp_rename không mang đường dẫn, nên khi
++// không người trực thì xin quyền ghi từng tệp để permission từ chối tệp ngoài thư
++// mục làm việc. Có người trực thì giữ một hộp thoại, không hỏi từng tệp.
++func authorizeRenameWrites(ctx context.Context, permissions permission.Service, sessionID, toolCallID string, files []string) (bool, error) {
++	if !execpolicy.Unattended() {
++		return true, nil
++	}
++	for _, path := range files {
++		granted, err := permissions.Request(ctx, permission.CreatePermissionRequest{
++			SessionID:   sessionID,
++			ToolCallID:  toolCallID,
++			ToolName:    RenameToolName,
++			Action:      "write",
++			Path:        path,
++			FilePath:    path,
++			Description: fmt.Sprintf("Write %s (rename)", path),
++		})
++		if err != nil || !granted {
++			return false, err
++		}
++	}
++	return true, nil
++}
+diff --git a/internal/agent/tools/lsp_replace_symbol.go b/internal/agent/tools/lsp_replace_symbol.go
+index 0e43ad04..4497d99c 100644
+--- a/internal/agent/tools/lsp_replace_symbol.go
++++ b/internal/agent/tools/lsp_replace_symbol.go
+@@ -132,17 +132,7 @@ func NewReplaceSymbolTool(
+ 
+ 			sessionID := GetSessionFromContext(ctx)
+ 			if sessionID != "" && permissions != nil {
+-				granted, err := permissions.Request(ctx, permission.CreatePermissionRequest{
+-					SessionID:   sessionID,
+-					Path:        params.FilePath,
+-					ToolName:    ReplaceSymbolToolName,
+-					Description: fmt.Sprintf("%s symbol '%s' in %s", action, params.Symbol, params.FilePath),
+-					Params: ReplaceSymbolPermissionsParams{
+-						FilePath:   params.FilePath,
+-						OldContent: string(content),
+-						NewContent: newContent,
+-					},
+-				})
++				granted, err := permissions.Request(ctx, replaceSymbolPermission(sessionID, action, params, string(content), newContent))
+ 				if err != nil {
+ 					return fantasy.ToolResponse{}, fmt.Errorf("permission request failed: %w", err)
+ 				}
+@@ -191,6 +181,24 @@ func NewReplaceSymbolTool(
+ 	)
+ }
+ 
++// replaceSymbolPermission: Action "write" + FilePath để lớp chặn ghi ngoài thư mục
++// làm việc khi không người trực xét được tệp này (tool ghi thẳng bằng os.WriteFile).
++func replaceSymbolPermission(sessionID, action string, params ReplaceSymbolParams, oldContent, newContent string) permission.CreatePermissionRequest {
++	return permission.CreatePermissionRequest{
++		SessionID:   sessionID,
++		Path:        params.FilePath,
++		FilePath:    params.FilePath,
++		ToolName:    ReplaceSymbolToolName,
++		Action:      "write",
++		Description: fmt.Sprintf("%s symbol '%s' in %s", action, params.Symbol, params.FilePath),
++		Params: ReplaceSymbolPermissionsParams{
++			FilePath:   params.FilePath,
++			OldContent: oldContent,
++			NewContent: newContent,
++		},
++	}
++}
++
+ // findSymbolByName searches for a symbol by name in the document symbol tree.
+ func findSymbolByName(symbols []protocol.DocumentSymbolResult, name string) protocol.DocumentSymbolResult {
+ 	for _, sym := range symbols {
+diff --git a/internal/agent/tools/lsp_write_permission_test.go b/internal/agent/tools/lsp_write_permission_test.go
+new file mode 100644
+index 00000000..36f40d8f
+--- /dev/null
++++ b/internal/agent/tools/lsp_write_permission_test.go
+@@ -0,0 +1,67 @@
++package tools
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/charmbracelet/crush/internal/permission"
++	"github.com/stretchr/testify/require"
++)
++
++// lspWriteFixture: dự án, một thư mục ngoài, và một symlink trong dự án trỏ ra
++// ngoài. Permission service ở YOLO và tự duyệt phiên, như routine không người trực.
++func lspWriteFixture(t *testing.T) (svc permission.Service, project, outside string) {
++	t.Helper()
++	project, outside = t.TempDir(), t.TempDir()
++	require.NoError(t, os.WriteFile(filepath.Join(project, "main.go"), []byte("package main\n"), 0o644))
++	require.NoError(t, os.WriteFile(filepath.Join(outside, "crushrc"), nil, 0o644))
++	require.NoError(t, os.Symlink(outside, filepath.Join(project, "link")))
++	execpolicy.SetUnattended(true, false)
++	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
++	svc = permission.NewPermissionService(project, true, nil)
++	svc.AutoApproveSession("s")
++	return svc, project, outside
++}
++
++// lsp_replace_symbol ghi params.FilePath bằng os.WriteFile: không người trực thì
++// không được ghi ra ngoài thư mục làm việc, kể cả qua symlink.
++func TestReplaceSymbolRefusedOutsideWhileUnattended(t *testing.T) {
++	svc, project, outside := lspWriteFixture(t)
++	for _, path := range []string{filepath.Join(outside, "crushrc"), filepath.Join(project, "link", "crushrc")} {
++		ok, err := svc.Request(t.Context(), replaceSymbolPermission("s", "replace", ReplaceSymbolParams{Symbol: "x", FilePath: path}, "", "y"))
++		require.NoError(t, err)
++		require.Falsef(t, ok, "%s must be refused while unattended", path)
++	}
++	ok, err := svc.Request(t.Context(), replaceSymbolPermission("s", "replace", ReplaceSymbolParams{Symbol: "x", FilePath: filepath.Join(project, "main.go")}, "", "y"))
++	require.NoError(t, err)
++	require.True(t, ok, "a file inside the working dir still passes")
++}
++
++// lsp_rename áp workspace edit lên mọi tệp bị ảnh hưởng: một tệp ngoài thư mục
++// làm việc là đủ để từ chối cả lượt khi không người trực.
++func TestRenameRefusedWhenAnyFileOutsideWhileUnattended(t *testing.T) {
++	svc, project, outside := lspWriteFixture(t)
++	inside := filepath.Join(project, "main.go")
++	for _, files := range [][]string{
++		{inside, filepath.Join(outside, "crushrc")},
++		{inside, filepath.Join(project, "link", "crushrc")},
++	} {
++		ok, err := authorizeRenameWrites(t.Context(), svc, "s", "call-1", files)
++		require.NoError(t, err)
++		require.Falsef(t, ok, "%v must be refused while unattended", files)
++	}
++	ok, err := authorizeRenameWrites(t.Context(), svc, "s", "call-1", []string{inside})
++	require.NoError(t, err)
++	require.True(t, ok, "files inside the working dir still pass")
++}
++
++// Có người trực thì lsp_rename giữ một hộp thoại duy nhất, không hỏi từng tệp.
++func TestRenameAttendedAsksNoPerFilePermission(t *testing.T) {
++	rec := newRecordingPermissions(true)
++	ok, err := authorizeRenameWrites(t.Context(), rec, "s", "call-1", []string{"/a.go", "/b.go"})
++	require.NoError(t, err)
++	require.True(t, ok)
++	require.Empty(t, rec.seen())
++}
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 14f877f4..37fdd2f1 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -397,8 +397,10 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
+ 	}
+ 
+ 	// Automatically approve all permission requests for this non-interactive
+-	// session.
+-	app.Permissions.AutoApproveSession(sess.ID)
++	// session and its sub-agent sessions.
++	permCtx, cancelPerm := context.WithCancel(ctx)
++	defer cancelPerm()
++	app.autoApproveRun(permCtx, sess.ID)
+ 
+ 	// Report session identity to herdr.
+ 	app.ReportCurrentSession(sess.ID)
+@@ -489,6 +491,33 @@ func (app *App) RunNonInteractive(ctx context.Context, output io.Writer, onSessi
+ 	}
+ }
+ 
++// autoApproveRun duyệt mọi yêu cầu quyền của phiên run và các phiên con của nó
++// (agent con, agentic_fetch), như server-mode run (cmd/run.go, rootOf): không người
++// trả lời thì yêu cầu của phiên con treo tới hết giờ. Lớp chặn ghi ngoài thư mục
++// làm việc khi không người trực nằm trong Request, chạy trước bước này.
++func (app *App) autoApproveRun(ctx context.Context, sessionID string) {
++	app.Permissions.AutoApproveSession(sessionID)
++	requests := app.Permissions.Subscribe(ctx)
++	go func() {
++		for ev := range requests {
++			req := ev.Payload
++			root, err := session.RootID(req.SessionID, func(id string) (string, error) {
++				s, err := app.Sessions.Get(ctx, id)
++				return s.ParentSessionID, err
++			})
++			if err != nil {
++				// Không xác định được phiên gốc: từ chối thay vì để treo.
++				slog.Warn("Denied a permission request whose session could not be resolved", "session_id", req.SessionID, "error", err)
++				app.Permissions.Deny(req)
++				continue
++			}
++			if root == sessionID {
++				app.Permissions.Grant(req)
++			}
++		}
++	}()
++}
++
+ func (app *App) UpdateAgentModel(ctx context.Context) error {
+ 	if app.AgentCoordinator == nil {
+ 		return fmt.Errorf("agent configuration is missing")
+diff --git a/internal/app/run_permissions_test.go b/internal/app/run_permissions_test.go
+new file mode 100644
+index 00000000..ddeb15f2
+--- /dev/null
++++ b/internal/app/run_permissions_test.go
+@@ -0,0 +1,42 @@
++package app
++
++import (
++	"context"
++	"testing"
++	"time"
++
++	"github.com/charmbracelet/crush/internal/permission"
++	"github.com/charmbracelet/crush/internal/session"
++	"github.com/stretchr/testify/require"
++)
++
++// `run` cục bộ phải duyệt cả yêu cầu quyền của phiên con (agent con, agentic_fetch)
++// như server-mode run, không thì chúng chờ một câu trả lời không ai đưa tới hết giờ
++// (PRB-63). Phiên không thuộc lượt run thì không được đụng tới.
++func TestRunNonInteractiveGrantsDescendantSessions(t *testing.T) {
++	t.Parallel()
++	perms := permission.NewPermissionService(t.TempDir(), false, nil)
++	app := &App{Permissions: perms, Sessions: &mockSessionService{sessions: []session.Session{
++		{ID: "run"},
++		{ID: "msg-1$$call-1", ParentSessionID: "run"},
++		{ID: "msg-2$$call-2", ParentSessionID: "msg-1$$call-1"},
++		{ID: "other"},
++		{ID: "other-child", ParentSessionID: "other"},
++	}}}
++	app.autoApproveRun(t.Context(), "run")
++
++	request := func(sessionID string, wait time.Duration) bool {
++		ctx, cancel := context.WithTimeout(t.Context(), wait)
++		defer cancel()
++		ok, _ := perms.Request(ctx, permission.CreatePermissionRequest{
++			SessionID: sessionID, ToolCallID: "c-" + sessionID, ToolName: "bash", Action: "execute", Path: t.TempDir(),
++		})
++		return ok
++	}
++	for _, id := range []string{"run", "msg-1$$call-1", "msg-2$$call-2"} {
++		require.Truef(t, request(id, 5*time.Second), "%s must be granted, not left waiting", id)
++	}
++	for _, id := range []string{"other", "other-child", "unknown"} {
++		require.Falsef(t, request(id, 200*time.Millisecond), "%s is not part of the run", id)
++	}
++}
+diff --git a/internal/cmd/loop.go b/internal/cmd/loop.go
+index f0fabd8c..f2ac0177 100644
+--- a/internal/cmd/loop.go
++++ b/internal/cmd/loop.go
+@@ -271,6 +271,10 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
+ 			res.Output += fmt.Sprintf("\nverify command timed out after %s", timeout)
+ 		case isExit && exit != 126 && exit != 127:
+ 			res.Status, res.ExitCode = loop.StatusFail, int(exit)
++			if exit == 141 {
++				// Vẫn FAIL (pipefail là cố ý), nhưng nói rõ: thường là đuôi đọc rồi thoát sớm.
++				res.Output += "\nexit 141 = SIGPIPE: a reader like head or grep -q exited early; with pipefail that counts as failure; drop the early-exit reader"
++			}
+ 		case isExit:
+ 			res.Status, res.ExitCode = loop.StatusUnmeasured, int(exit)
+ 		default:
+diff --git a/internal/cmd/routine.go b/internal/cmd/routine.go
+index 2eb1be77..bbc0f6da 100644
+--- a/internal/cmd/routine.go
++++ b/internal/cmd/routine.go
+@@ -310,14 +310,17 @@ func schedulePATH() string {
+ 	return "/usr/local/bin:/usr/bin:/bin"
+ }
+ 
+-// scheduleEnv là các biến mà launcher `agent-cli` đặt để chỉ chỗ cấu hình/dữ liệu.
+-// cron và systemd chạy với env gần rỗng: thiếu CRUSH_GLOBAL_CONFIG thì lần chạy theo
+-// lịch tìm định nghĩa ở ~/.config/crush và thoát 2.
++// scheduleEnv là các biến mà launcher `agent-cli` đặt để chỉ chỗ cấu hình/dữ liệu,
++// cộng tệp env và danh sách model của người dùng (lượt theo lịch giữ đúng ranh giới
++// provider). cron và systemd chạy với env gần rỗng: thiếu CRUSH_GLOBAL_CONFIG thì lần
++// chạy theo lịch tìm định nghĩa ở ~/.config/crush và thoát 2. Đọc env GỐC: `.env`
++// của thư mục hiện tại do repo kiểm soát, không được chen vào lịch.
+ func scheduleEnv() []string {
+ 	var env []string
+ 	for _, k := range []string{"CRUSH_GLOBAL_CONFIG", "CRUSH_GLOBAL_DATA", "CRUSH_CACHE_DIR",
+-		"CRUSH_DISABLE_METRICS", "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "CRUSH_DISABLE_UPDATE_CHECK"} {
+-		if v := os.Getenv(k); v != "" {
++		"CRUSH_DISABLE_METRICS", "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "CRUSH_DISABLE_UPDATE_CHECK",
++		execpolicy.EnvFileEnv, execpolicy.AllowedModelsEnv} {
++		if v := execpolicy.OriginalEnv(k); v != "" {
+ 			env = append(env, k+"="+v)
+ 		}
+ 	}
+@@ -432,16 +435,22 @@ func listRuns(dataDir, name string) []routineReport {
+ 	for i, dir := range dirs {
+ 		var rep routineReport
+ 		raw, err := os.ReadFile(filepath.Join(dir, "report.json"))
++		if i == 0 {
++			running = routineLockHeld(dataDir, name)
++		}
+ 		if err != nil || json.Unmarshal(raw, &rep) != nil {
++			// Lượt mới nhất giữ khoá mà chưa có báo cáo là vừa khởi động, chưa chết.
++			if i == 0 && running {
++				out = append(out, routineReport{Routine: name, Reason: "RUNNING",
++					Detail: "starting: no report written yet; run dir " + dir})
++				continue
++			}
+ 			rep = routineReport{Routine: name, Reason: "ABANDONED",
+ 				Detail: "no report: the run died before writing one; run dir " + dir}
+ 			out = append(out, rep)
+ 			continue
+ 		}
+ 		if rep.Reason == "RUNNING" {
+-			if i == 0 {
+-				running = routineLockHeld(dataDir, name)
+-			}
+ 			if i > 0 || !running {
+ 				rep.Reason = "ABANDONED"
+ 				rep.Detail = "the run stopped before finishing (killed, crashed or the machine restarted); its worktree and branch are kept: " + rep.Worktree
+@@ -609,35 +618,46 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
+ 		return routineOutcome{}, fmt.Errorf("repo %s is not a git repository with at least one commit: %s", def.Repo, base)
+ 	}
+ 
++	repairs, maxDur, runTO, verifyTO, err := def.Limits()
++	if err != nil {
++		return routineOutcome{}, &usageError{err}
++	}
++
+ 	started := now()
+ 	stamp := started.UTC().Format("20060102-150405")
+ 	branch := "routine/" + def.Name + "-" + stamp
+ 	worktree := filepath.Join(routineDir, "wt", stamp)
+ 	runDir := filepath.Join(routineDir, "runs", stamp)
+-	if err := os.MkdirAll(filepath.Dir(worktree), 0o700); err != nil {
+-		return routineOutcome{}, err
+-	}
+ 	if err := os.MkdirAll(runDir, 0o700); err != nil {
+ 		return routineOutcome{}, err
+ 	}
+-	if out, err := git("worktree", "add", "-b", branch, worktree, "HEAD"); err != nil {
+-		return routineOutcome{}, fmt.Errorf("create the worktree: %s", out)
+-	}
+-	fmt.Fprintf(stderr, "[routine] %s: worktree %s on branch %s (base %s)\n", def.Name, worktree, branch, shortSHA(base))
+-	// Báo cáo RUNNING ghi ngay: lượt bị kill giữa chừng vẫn để lại dấu (thành
+-	// ABANDONED khi khoá đã nhả) thay vì biến mất sau lượt cũ.
+-	if err := writeReport(runDir, routineReport{
++	// Báo cáo RUNNING ghi ngay khi có thư mục lượt, trước mọi bước có thể hỏng:
++	// lượt bị kill vẫn để lại dấu (ABANDONED khi khoá đã nhả), lượt lỗi sớm có ERROR.
++	running := routineReport{
+ 		Routine: def.Name, Mode: def.Mode, DefinitionSHA256: o.Sum, Scheduled: o.Scheduled,
+ 		Started: started, Repo: def.Repo, Worktree: worktree, Branch: branch, BaseSHA: base,
+ 		Commit: def.Commit, Reason: "RUNNING",
+-	}); err != nil {
+-		return routineOutcome{}, err
+ 	}
+-
+-	repairs, maxDur, runTO, verifyTO, err := def.Limits()
+-	if err != nil {
+-		return routineOutcome{}, &usageError{err}
++	// fail ghi đè RUNNING bằng ERROR mang lý do thật; worktree trống vì nó không còn.
++	fail := func(err error) (routineOutcome, error) {
++		rep := running
++		rep.Worktree, rep.Finished, rep.Reason, rep.Detail = "", now(), "ERROR", err.Error()
++		out := routineOutcome{Report: rep, RunDir: runDir}
++		if werr := writeReport(runDir, rep); werr != nil {
++			return out, errors.Join(err, werr)
++		}
++		return out, err
++	}
++	if err := writeReport(runDir, running); err != nil {
++		return fail(err)
++	}
++	if err := os.MkdirAll(filepath.Dir(worktree), 0o700); err != nil {
++		return fail(err)
+ 	}
++	if out, err := git("worktree", "add", "-b", branch, worktree, "HEAD"); err != nil {
++		return fail(fmt.Errorf("create the worktree: %s", out))
++	}
++	fmt.Fprintf(stderr, "[routine] %s: worktree %s on branch %s (base %s)\n", def.Name, worktree, branch, shortSHA(base))
+ 
+ 	execpolicy.SetUnattended(true, def.Commit)
+ 	defer execpolicy.SetUnattended(false, false)
+@@ -650,16 +670,7 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
+ 		// worktree của lượt đã chạy được giữ lại để duyệt.)
+ 		_, _ = git("worktree", "remove", "--force", worktree)
+ 		_, _ = git("branch", "-D", branch)
+-		rep := routineReport{
+-			Routine: def.Name, Mode: def.Mode, DefinitionSHA256: o.Sum, Scheduled: o.Scheduled,
+-			Started: started, Finished: now(), Repo: def.Repo, Branch: branch, BaseSHA: base,
+-			Commit: def.Commit, Reason: "ERROR", Detail: err.Error(),
+-		}
+-		out := routineOutcome{Report: rep, RunDir: runDir}
+-		if werr := writeReport(runDir, rep); werr != nil {
+-			return out, errors.Join(err, werr)
+-		}
+-		return out, err
++		return fail(err)
+ 	}
+ 	defer cleanup()
+ 
+diff --git a/internal/cmd/routine_status_test.go b/internal/cmd/routine_status_test.go
+index afee52e9..87439916 100644
+--- a/internal/cmd/routine_status_test.go
++++ b/internal/cmd/routine_status_test.go
+@@ -2,12 +2,17 @@ package cmd
+ 
+ import (
+ 	"encoding/json"
++	"fmt"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
++	"strings"
+ 	"testing"
+ 
+ 	"github.com/charmbracelet/crush/internal/execpolicy"
++	"github.com/charmbracelet/crush/internal/lock"
+ 	"github.com/charmbracelet/crush/internal/loop"
++	"github.com/joho/godotenv"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+@@ -120,3 +125,88 @@ func TestExecuteRoutine_ReportNoFlagsForOrdinaryChanges(t *testing.T) {
+ 	require.False(t, out.Report.TouchedTests)
+ 	require.False(t, out.Report.TouchedGate)
+ }
++
++// Tạo worktree hỏng (đích đã có, index.lock, đĩa đầy) phải để lại báo cáo ERROR
++// mang lý do thật, không thành ABANDONED "chết trước khi ghi báo cáo" (soát LC-1).
++func TestExecuteRoutine_WorktreeFailureWritesAnErrorReport(t *testing.T) {
++	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
++	e := newRoutineEnv(t)
++	// fixedClock: lần gọi đầu là 09:00:01, đúng dấu thời gian của lượt này.
++	target := filepath.Join(e.data, "nightly", "wt", "20261016-090001")
++	require.NoError(t, os.MkdirAll(target, 0o700))
++	require.NoError(t, os.WriteFile(filepath.Join(target, "occupied"), []byte("x"), 0o600))
++
++	_, err := executeRoutine(t.Context(), e.opts, e.deps(nil))
++	require.ErrorContains(t, err, "create the worktree")
++	require.Zero(t, e.runs)
++
++	rep, ok := lastReport(e.data, "nightly")
++	require.True(t, ok)
++	require.Equal(t, "ERROR", rep.Reason)
++	require.Contains(t, rep.Detail, "create the worktree")
++	require.Contains(t, rep.Detail, "already exists", "the git message must be kept")
++}
++
++// Lượt mới nhất chưa kịp ghi báo cáo nhưng đang giữ khoá là đang chạy, không phải
++// đã chết (soát LC-2).
++func TestListRuns_NewestRunWithoutReportIsRunningWhileLocked(t *testing.T) {
++	data := t.TempDir()
++	require.NoError(t, os.MkdirAll(filepath.Join(data, "nightly", "runs", "20261016-120000"), 0o700))
++	release, err := lock.TryFile(routineLockPath(data, "nightly"))
++	require.NoError(t, err)
++	runs := listRuns(data, "nightly")
++	require.Len(t, runs, 1)
++	require.Equal(t, "RUNNING", runs[0].Reason)
++
++	release()
++	runs = listRuns(data, "nightly")
++	require.Equal(t, "ABANDONED", runs[0].Reason)
++}
++
++// Biến định vị và ranh giới provider trong lịch in ra phải lấy từ env GỐC, không
++// từ `.env` của thư mục hiện tại (main nạp nó sau ảnh chụp; soát SEC-5). Chạy ở
++// tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.
++func TestScheduleEnv_IgnoresProjectDotenv(t *testing.T) {
++	if os.Getenv("SCHEDULE_ENV_CHILD") == "1" {
++		execpolicy.Snapshot()
++		if err := godotenv.Load(); err != nil {
++			t.Fatal(err)
++		}
++		for _, kv := range scheduleEnv() {
++			fmt.Println(kv)
++		}
++		return
++	}
++	dir := t.TempDir()
++	dotenv := "CRUSH_GLOBAL_CONFIG=/evil/config\nCRUSH_CACHE_DIR=/evil/cache\nAGENT_CLI_ENV_FILE=/evil/env\n"
++	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
++
++	var env []string
++	for _, kv := range os.Environ() {
++		k, _, _ := strings.Cut(kv, "=")
++		if !strings.HasPrefix(k, "CRUSH_") && !strings.HasPrefix(k, "AGENT_CLI_") {
++			env = append(env, kv)
++		}
++	}
++	env = append(env, "SCHEDULE_ENV_CHILD=1",
++		"CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli",
++		"AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x")
++	c := exec.Command(os.Args[0], "-test.run=^TestScheduleEnv_IgnoresProjectDotenv$")
++	c.Dir, c.Env = dir, env
++	out, err := c.CombinedOutput()
++	require.NoError(t, err, string(out))
++
++	got := string(out)
++	require.NotContains(t, got, "/evil", "a project .env must not reach the schedule")
++	require.Contains(t, got, "CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli\n")
++	require.Contains(t, got, "AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x\n")
++}
++
++// Biến tệp env của người dùng đi theo lịch khi có trong env gốc.
++func TestScheduleEnv_CarriesTheProviderBoundary(t *testing.T) {
++	t.Setenv("AGENT_CLI_ENV_FILE", "/home/u/.config/agent-cli/env")
++	t.Setenv("AGENT_CLI_ALLOWED_MODELS", "openai:gpt-5")
++	env := scheduleEnv()
++	require.Contains(t, env, "AGENT_CLI_ENV_FILE=/home/u/.config/agent-cli/env")
++	require.Contains(t, env, "AGENT_CLI_ALLOWED_MODELS=openai:gpt-5")
++}
+diff --git a/internal/cmd/run_json_test.go b/internal/cmd/run_json_test.go
+index 9401c3f1..4c4b199e 100644
+--- a/internal/cmd/run_json_test.go
++++ b/internal/cmd/run_json_test.go
+@@ -201,3 +201,23 @@ func TestRunJSONPreRunFailuresStillPrintJSON(t *testing.T) {
+ 	require.Error(t, err)
+ 	require.Empty(t, out)
+ }
++
++// run --json nói provider/model của câu trả lời cuối; không biết thì bỏ hẳn hai trường.
++func TestRunJSONReportsProviderAndModel(t *testing.T) {
++	t.Parallel()
++	var w bytes.Buffer
++	store := map[string]sessionUsage{
++		"s1": {promptTokens: 1, provider: "openai", model: "gpt-5"},
++		"s2": {promptTokens: 1},
++	}
++	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("s1", "x", nil)))
++	m := decodeOne(t, w.Bytes())
++	require.Equal(t, "openai", m["provider"])
++	require.Equal(t, "gpt-5", m["model"])
++
++	w.Reset()
++	require.NoError(t, runJSON(t.Context(), &w, fakeUsage(store), fakeRun("s2", "x", nil)))
++	m = decodeOne(t, w.Bytes())
++	require.NotContains(t, m, "provider")
++	require.NotContains(t, m, "model")
++}
+diff --git a/internal/cmd/verify_pipefail_test.go b/internal/cmd/verify_pipefail_test.go
+index 94ea0a53..1fb4fb31 100644
+--- a/internal/cmd/verify_pipefail_test.go
++++ b/internal/cmd/verify_pipefail_test.go
+@@ -26,3 +26,19 @@ func TestShellVerify_PipelineFailureIsFail(t *testing.T) {
+ 		require.Equal(t, tc.status, res.Status, tc.cmd)
+ 	}
+ }
++
++// Với pipefail, `cmd | head -1` có thể đỏ 141 vì cmd chết SIGPIPE dù kiểm đã đạt
++// (soát F1). Vẫn là FAIL, nhưng output phải nói lý do để người/agent bỏ đuôi đó.
++func TestShellVerify_SigpipeFailureExplainsItself(t *testing.T) {
++	t.Parallel()
++	verify := shellVerify(t.TempDir(), 5*time.Second)
++	res, err := verify(t.Context(), "yes | head -1")
++	require.NoError(t, err)
++	require.Equal(t, loop.StatusFail, res.Status)
++	require.Equal(t, 141, res.ExitCode)
++	require.Contains(t, res.Output, "SIGPIPE")
++
++	res, err = verify(t.Context(), "exit 3")
++	require.NoError(t, err)
++	require.NotContains(t, res.Output, "SIGPIPE", "the hint is only for exit 141")
++}
+diff --git a/internal/execpolicy/policy.go b/internal/execpolicy/policy.go
+index 53dbb900..442ec2f3 100644
+--- a/internal/execpolicy/policy.go
++++ b/internal/execpolicy/policy.go
+@@ -110,6 +110,8 @@ var trustedKeys = []string{
+ var (
+ 	snapshotOnce sync.Once
+ 	snapshot     map[string]string // nil: chưa chụp
++	// original là toàn bộ env lúc chụp, chỉ để đọc (OriginalEnv); không đổi ChildEnv.
++	original map[string]string
+ )
+ 
+ // Snapshot chụp các biến tin cậy từ env hiện tại. Gọi ĐẦU main, trước mọi
+@@ -123,9 +125,23 @@ func Snapshot() {
+ 			}
+ 		}
+ 		snapshot = m
++		original = make(map[string]string)
++		for _, kv := range os.Environ() {
++			k, v, _ := strings.Cut(kv, "=")
++			original[k] = v
++		}
+ 	})
+ }
+ 
++// OriginalEnv trả giá trị của key trong env gốc (trước `.env`), cho mọi key; chưa
++// chụp thì env hiện tại.
++func OriginalEnv(key string) string {
++	if snapshot != nil {
++		return original[key]
++	}
++	return os.Getenv(key)
++}
++
+ // TrustedEnv trả giá trị tin cậy của biến key: theo ảnh chụp nếu key thuộc
+ // danh sách và đã chụp, không thì env hiện tại (test, tiện ích không qua main).
+ func TrustedEnv(key string) string {
+diff --git a/internal/permission/permission.go b/internal/permission/permission.go
+index 7074eba5..7b0355c0 100644
+--- a/internal/permission/permission.go
++++ b/internal/permission/permission.go
+@@ -202,9 +202,11 @@ func (s *permissionService) Deny(permission PermissionRequest) bool {
+ }
+ 
+ func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRequest) (bool, error) {
+-	// Không người trực: ghi tệp ra ngoài thư mục làm việc bị từ chối cứng, trước cả
+-	// YOLO và tự duyệt. Tool ghi tệp không đi qua lớp chặn của bash, và ghi vào vd
+-	// ~/.config/agent-cli/crushrc là chạy mã ở lần mở sau.
++	// Không người trực: yêu cầu Action "write"/"download" có đích ngoài thư mục làm
++	// việc bị từ chối cứng, trước cả YOLO và tự duyệt (ghi vd ~/.config/agent-cli/crushrc
++	// là chạy mã ở lần mở sau). Chỉ phủ tool khai Action đó (write, edit, multiedit,
++	// download, lsp_replace_symbol, lsp_rename); bash (vd chuyển hướng `>`) KHÔNG đi
++	// qua kiểm tra này.
+ 	if execpolicy.Unattended() && s.writesOutside(opts) {
+ 		slog.Warn("Refused a write outside the working directory while unattended", "tool", opts.ToolName, "path", cmp.Or(opts.FilePath, opts.Path))
+ 		return false, nil
+@@ -223,7 +225,7 @@ func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRe
+ 	// with the tool call ID. Treat that as a pre-approval and skip the
+ 	// prompt entirely. We still publish a granted notification so the UI
+ 	// and audit subscribers see the outcome.
+-	// Accept-edits grants here too, before requestMu, so it never waits
++	// Accept-edits grants here too, before requestSem, so it never waits
+ 	// behind another session's prompt.
+ 	if hookApproved(ctx, opts.ToolCallID) || s.acceptsEdit(opts) {
+ 		s.notificationBroker.Publish(pubsub.CreatedEvent, PermissionNotification{
+@@ -234,8 +236,9 @@ func (s *permissionService) Request(ctx context.Context, opts CreatePermissionRe
+ 		return true, nil
+ 	}
+ 
+-	// Phiên được tự duyệt (lượt `run`, agent con của agentic_fetch) không xếp hàng
+-	// sau hộp thoại của phiên khác.
++	// Phiên được tự duyệt (phiên gốc của lượt `run` cục bộ) không xếp hàng sau hộp
++	// thoại của phiên khác. Phiên con của nó đi đường thường; run duyệt chúng qua
++	// Subscribe (app.autoApproveRun).
+ 	s.autoApproveSessionsMu.RLock()
+ 	autoApprove := s.autoApproveSessions[opts.SessionID]
+ 	s.autoApproveSessionsMu.RUnlock()
+@@ -368,7 +371,7 @@ func (s *permissionService) acceptsEdit(opts CreatePermissionRequest) bool {
+ 	return ok && !slices.ContainsFunc(strings.Split(rel, string(filepath.Separator)), isProtectedName)
+ }
+ 
+-// writesOutside: yêu cầu ghi (write/edit/multiedit qua FilePath, download qua Path)
++// writesOutside: yêu cầu ghi (Action "write" qua FilePath, "download" qua Path)
+ // có đích ngoài thư mục làm việc.
+ func (s *permissionService) writesOutside(opts CreatePermissionRequest) bool {
+ 	if opts.Action != "write" && opts.Action != "download" {
+diff --git a/internal/permission/permission_test.go b/internal/permission/permission_test.go
+index 7aad9453..6f7f61a2 100644
+--- a/internal/permission/permission_test.go
++++ b/internal/permission/permission_test.go
+@@ -1026,8 +1026,8 @@ func TestWaitingRequestIsCancellable(t *testing.T) {
+ 	require.True(t, service.Grant(first.Payload))
+ }
+ 
+-// Phiên đã được tự duyệt (lượt `run`, agent con của agentic_fetch) không phải
+-// xếp hàng sau hộp thoại của phiên khác.
++// Phiên đã được tự duyệt (phiên gốc của lượt `run` cục bộ) không phải xếp hàng
++// sau hộp thoại của phiên khác.
+ func TestAutoApprovedSessionDoesNotWaitForOtherPrompts(t *testing.T) {
+ 	t.Parallel()
+ 	dir := t.TempDir()
+diff --git a/internal/routine/routine.go b/internal/routine/routine.go
+index e1795d98..8e3de25b 100644
+--- a/internal/routine/routine.go
++++ b/internal/routine/routine.go
+@@ -68,8 +68,9 @@ var nameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+ // dấu nối lệnh (chống chèn dòng).
+ var safeText = regexp.MustCompile(`^[A-Za-z0-9 .,:*/\-_+@=]+$`)
+ 
+-// safeEnv: biến môi trường ghi vào unit/crontab, dạng KEY=giá-trị không có ký tự shell.
+-var safeEnv = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*=[A-Za-z0-9/._:+-]+$`)
++// safeEnv: biến môi trường ghi vào unit/crontab, dạng KEY=giá-trị không có ký tự shell
++// (dấu phẩy cho danh sách model được phép).
++var safeEnv = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*=[A-Za-z0-9/._:+,-]+$`)
+ 
+ // Parse đọc một định nghĩa, từ chối trường lạ (gõ sai tên trường không bị bỏ qua
+ // lặng lẽ) và nội dung thừa; trả về cả sha256 của nguyên văn tệp để ghim.
+diff --git a/internal/routine/schedule_env_test.go b/internal/routine/schedule_env_test.go
+index 0589edcf..06fe81ed 100644
+--- a/internal/routine/schedule_env_test.go
++++ b/internal/routine/schedule_env_test.go
+@@ -38,3 +38,19 @@ func TestScheduleText_RefusesUnsafeEnvValues(t *testing.T) {
+ 	_, err := d.ScheduleText("/bin/agent-cli", strings.Repeat("a", 64), "/bin", []string{"CRUSH_GLOBAL_CONFIG=/x; rm -rf ~"})
+ 	require.Error(t, err)
+ }
++
++// Danh sách model được phép có dấu phẩy và hai chấm: phải qua được. Ký tự shell,
++// khoảng trắng, nháy, $, %, xuống dòng, gạch ngược vẫn bị từ chối.
++func TestScheduleText_EnvAllowsModelAllowlist(t *testing.T) {
++	t.Parallel()
++	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
++		Schedule: &Schedule{Cron: "0 3 * * *"}}
++	sum := strings.Repeat("a", 64)
++	out, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x"})
++	require.NoError(t, err)
++	require.Contains(t, out, " AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x ")
++	for _, bad := range []string{"a b", `a"b`, "a'b", "a$b", "a%b", "a\nb", `a\b`, "a;b", "a`b"} {
++		_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"AGENT_CLI_ALLOWED_MODELS=" + bad})
++		require.Error(t, err, "%q", bad)
++	}
++}
+diff --git a/internal/shell/protect.go b/internal/shell/protect.go
+index 97a068ab..cfa15deb 100644
+--- a/internal/shell/protect.go
++++ b/internal/shell/protect.go
+@@ -4,6 +4,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -94,8 +95,8 @@ func baseName(arg string) string {
+ }
+ 
+ // peelLaunchers bỏ các lớp bọc (env FOO=1, timeout 5, nice -n 9...) để tới
+-// lệnh thật.
+-func peelLaunchers(args []string) []string {
++// lệnh thật; trả kèm các phép gán A=b đã bỏ (biến môi trường của lệnh thật).
++func peelLaunchers(args []string) (rest, assigns []string) {
+ 	for len(args) > 0 && processLaunchers[baseName(args[0])] {
+ 		name := baseName(args[0])
+ 		positionals := launcherPositionals[name]
+@@ -114,7 +115,12 @@ func peelLaunchers(args []string) []string {
+ 				}
+ 				continue
+ 			}
+-			if strings.Contains(a, "=") || isAllDigits(a) || isNumericArg(a) {
++			if strings.Contains(a, "=") {
++				assigns = append(assigns, a)
++				args = args[1:]
++				continue
++			}
++			if isAllDigits(a) || isNumericArg(a) {
+ 				args = args[1:]
+ 				continue
+ 			}
+@@ -126,7 +132,7 @@ func peelLaunchers(args []string) []string {
+ 			break
+ 		}
+ 	}
+-	return args
++	return args, assigns
+ }
+ 
+ // numericArg nhận tham số số của lớp bọc: thời gian (5, 5s, 1.5m, 2h), danh sách
+@@ -216,29 +222,63 @@ func shellScript(args []string) (script string, positional []string, ok bool) {
+ 	return "", nil, false
+ }
+ 
++// scriptCmd là một lệnh đơn trong script: argv và các biến gán cho nó (NAME=giá-trị).
++type scriptCmd struct {
++	args, env []string
++}
++
+ // scriptCommands phân tích script như bash và trả argv của MỌI lệnh đơn trong nó
+ // (kể cả trong vòng lặp, if, hàm, $(...), backtick). Từ chỉ gồm chữ và nháy
+ // được giải thành chuỗi (`ki""ll` -> kill); từ có expansion là dynamicWord.
+-func scriptCommands(script string) (cmds [][]string, ok bool) {
++// env của mỗi lệnh gồm phép gán đầu lệnh của nó cộng MỌI phép gán đứng riêng /
++// export / declare trong script: không theo dõi thứ tự, nghiêng về chặn.
++func scriptCommands(script string) (cmds []scriptCmd, ok bool) {
+ 	file, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(script), "")
+ 	if err != nil {
+ 		return nil, false
+ 	}
++	var shared []string
+ 	syntax.Walk(file, func(n syntax.Node) bool {
+-		call, isCall := n.(*syntax.CallExpr)
+-		if !isCall || len(call.Args) == 0 {
+-			return true
+-		}
+-		argv := make([]string, len(call.Args))
+-		for i, w := range call.Args {
+-			argv[i] = staticWord(w)
++		switch c := n.(type) {
++		case *syntax.DeclClause:
++			shared = append(shared, assignStrings(c.Args)...)
++		case *syntax.CallExpr:
++			if len(c.Args) == 0 {
++				shared = append(shared, assignStrings(c.Assigns)...)
++				return true
++			}
++			argv := make([]string, len(c.Args))
++			for i, w := range c.Args {
++				argv[i] = staticWord(w)
++			}
++			cmds = append(cmds, scriptCmd{args: argv, env: assignStrings(c.Assigns)})
+ 		}
+-		cmds = append(cmds, argv)
+ 		return true
+ 	})
++	if len(shared) > 0 {
++		for i := range cmds {
++			cmds[i].env = append(cmds[i].env, shared...)
++		}
++	}
+ 	return cmds, true
+ }
+ 
++// assignStrings đổi phép gán thành "NAME=giá-trị" (giá trị động là dynamicWord).
++func assignStrings(assigns []*syntax.Assign) []string {
++	var out []string
++	for _, a := range assigns {
++		if a.Name == nil {
++			continue // cờ của declare/export (`-x`), không phải biến
++		}
++		value := ""
++		if a.Value != nil {
++			value = staticWord(a.Value)
++		}
++		out = append(out, a.Name.Value+"="+value)
++	}
++	return out
++}
++
+ func staticWord(w *syntax.Word) string {
+ 	var b strings.Builder
+ 	for _, part := range w.Parts {
+@@ -284,15 +324,21 @@ type ProcessGuard struct {
+ 	// Deny (tuỳ chọn) được gọi với argv của MỌI lệnh đơn sau khi bóc lớp bọc,
+ 	// kể cả lệnh nằm trong script của `sh -c`; trả (lý do, true) để chặn.
+ 	Deny func(args []string) (reason string, blocked bool)
++	// DenyEnv (tuỳ chọn) như Deny nhưng nhận thêm các biến (NAME=giá-trị) gán cho
++	// lệnh: qua `env A=b`, gán đầu lệnh trong `sh -c`, hay kế thừa từ shell bọc
++	// ngoài. Chỉ gọi khi có ít nhất một biến.
++	DenyEnv func(env, args []string) (reason string, blocked bool)
+ }
+ 
+ // Blocked báo lệnh args có bị chặn không, và lý do để ghi log.
+ func (g ProcessGuard) Blocked(args []string) (reason string, blocked bool) {
+-	return g.blocked(args, 0)
++	return g.blocked(args, nil, 0)
+ }
+ 
+-func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked bool) {
+-	args = peelLaunchers(args)
++// env là các biến đã gán cho lệnh từ lớp ngoài (shell bọc nó).
++func (g ProcessGuard) blocked(args, env []string, depth int) (reason string, blocked bool) {
++	args, assigns := peelLaunchers(args)
++	env = append(slices.Clip(env), assigns...)
+ 	if len(args) == 0 {
+ 		return "", false
+ 	}
+@@ -302,6 +348,11 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked
+ 			return reason, true
+ 		}
+ 	}
++	if g.DenyEnv != nil && len(env) > 0 {
++		if reason, denied := g.DenyEnv(env, args); denied {
++			return reason, true
++		}
++	}
+ 	switch {
+ 	case shutdownCommands[cmd]:
+ 		return "shutting the machine down or rebooting is never allowed", true
+@@ -316,7 +367,7 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked
+ 				return "", false
+ 			}
+ 		}
+-		return g.blockedScript(script, positional, depth)
++		return g.blockedScript(script, positional, env, depth)
+ 	case killByPID[cmd]:
+ 		pids := killPIDs(args)
+ 		// Không có PID tường minh thì PID đến từ nơi khác (xargs, stdin): không
+@@ -343,8 +394,9 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked
+ 	return "", false
+ }
+ 
+-// blockedScript soi từng lệnh đơn trong script của `sh -c` / `eval`.
+-func (g ProcessGuard) blockedScript(script string, positional []string, depth int) (string, bool) {
++// blockedScript soi từng lệnh đơn trong script của `sh -c` / `eval`; env là biến
++// shell bọc ngoài đã nhận, lệnh trong script kế thừa chúng.
++func (g ProcessGuard) blockedScript(script string, positional, env []string, depth int) (string, bool) {
+ 	if depth >= maxShellDepth {
+ 		return "shell commands nested too deep to inspect for process-killing", true
+ 	}
+@@ -357,12 +409,18 @@ func (g ProcessGuard) blockedScript(script string, positional []string, depth in
+ 		return "", false
+ 	}
+ 	dynamicHead := false
+-	for _, argv := range cmds {
+-		if argv[0] == dynamicWord {
++	for _, c := range cmds {
++		if c.args[0] == dynamicWord {
+ 			dynamicHead = true
++			// Tên lệnh chưa biết vẫn phải qua DenyEnv (`g=git; GIT_DIR=x $g rm f`).
++			if cmdEnv := append(slices.Clip(env), c.env...); g.DenyEnv != nil && len(cmdEnv) > 0 {
++				if reason, denied := g.DenyEnv(cmdEnv, c.args); denied {
++					return reason, true
++				}
++			}
+ 			continue
+ 		}
+-		if reason, blocked := g.blocked(argv, depth+1); blocked {
++		if reason, blocked := g.blocked(c.args, append(slices.Clip(env), c.env...), depth+1); blocked {
+ 			return reason, true
+ 		}
+ 	}
+@@ -373,7 +431,7 @@ func (g ProcessGuard) blockedScript(script string, positional []string, depth in
+ 			return "shell script runs a command whose name is only known at run time, next to kill", true
+ 		}
+ 		for i := range positional {
+-			if reason, blocked := g.blocked(positional[i:], depth+1); blocked {
++			if reason, blocked := g.blocked(positional[i:], env, depth+1); blocked {
+ 				return reason, true
+ 			}
+ 		}
+diff --git a/internal/shell/run.go b/internal/shell/run.go
+index f611f565..e521acf4 100644
+--- a/internal/shell/run.go
++++ b/internal/shell/run.go
+@@ -343,7 +343,39 @@ func blockHandler(blockFuncs []BlockFunc) execMiddleware {
+ 					return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
+ 				}
+ 			}
++			// Biến git (`GIT_DIR=x git rm`, `export GIT_DIR=x`) nằm trong env chứ
++			// không trong argv: soi thêm một lượt với tiền tố `env NAME=...` mà
++			// BlockFunc nào cũng đọc được. Lượt đầu giữ nguyên quyết định cũ.
++			if len(blockFuncs) > 0 {
++				if env := gitRedirectEnv(interp.HandlerCtx(ctx).Env); len(env) > 0 {
++					withEnv := append(append([]string{"env"}, env...), args...)
++					for _, blockFunc := range blockFuncs {
++						if blockFunc(withEnv) {
++							return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
++						}
++					}
++				}
++			}
+ 			return next(ctx, args)
+ 		}
+ 	}
+ }
++
++// gitRedirectEnv trả các biến export trong isGitEnvRedirect mà lệnh tự đặt. Biến
++// có cùng giá trị trong môi trường của chính agent-cli là của người khởi chạy
++// (vd chạy trong git hook), không phải của lệnh, nên bỏ qua.
++func gitRedirectEnv(env expand.Environ) []string {
++	var out []string
++	env.Each(func(name string, vr expand.Variable) bool {
++		if !vr.Exported || !vr.IsSet() || !isGitEnvRedirect(name) {
++			return true
++		}
++		if v, ok := os.LookupEnv(name); ok && v == vr.String() {
++			return true
++		}
++		out = append(out, name+"="+vr.String())
++		return true
++	})
++	slices.Sort(out)
++	return out
++}
+diff --git a/internal/shell/unattended.go b/internal/shell/unattended.go
+index 09fe80c7..6ed2f6ea 100644
+--- a/internal/shell/unattended.go
++++ b/internal/shell/unattended.go
+@@ -13,14 +13,21 @@ import (
+ //
+ // Cố ý KHÔNG phủ: ngôn ngữ khác (python/node tự xoá hay mở socket), `find
+ // -delete`, script nạp từ tệp hoặc stdin. Xem docs trong CHANGELOG.
++//
++// Guard soi CHỮ của lệnh nên cũng không phủ: thư mục symlink (`ln -s /other r;
++// git -C r ...`), `cd` ra ngoài trước lệnh, và chuyển hướng/cp ghi ra ngoài
++// (`> /other/f`). Đây là danh sách đen, không phải sandbox.
+ 
+ // UnattendedGuard là BlockFunc chặn lệnh nguy hiểm khi enabled() trả true.
+ // allowCommit() mở các lệnh tạo commit (git commit, am, cherry-pick, revert) khi
+ // routine bật commit tường minh; không mở thứ nào khác. onBlock (có thể nil) nhận lý do để ghi log.
+ func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason string, args []string)) BlockFunc {
+-	g := ProcessGuard{Deny: func(args []string) (string, bool) {
+-		return unattendedDenied(args, allowCommit())
+-	}}
++	g := ProcessGuard{
++		Deny: func(args []string) (string, bool) {
++			return unattendedDenied(args, allowCommit())
++		},
++		DenyEnv: gitEnvDenied,
++	}
+ 	return func(args []string) bool {
+ 		if !enabled() {
+ 			return false
+@@ -54,6 +61,35 @@ func unattendedDenied(args []string, allowCommit bool) (string, bool) {
+ 	return "", false
+ }
+ 
++// gitEnvRedirect là biến môi trường trỏ git sang repo/chỉ mục/kho đối tượng khác
++// hoặc nạp cấu hình (làm việc của -C/--git-dir/-c, mà guard thấy qua argv còn
++// biến thì không). Cấm bất kể giá trị: kiểm đường dẫn phức tạp hơn mà không cần.
++var gitEnvRedirect = map[string]bool{
++	"GIT_DIR": true, "GIT_WORK_TREE": true, "GIT_COMMON_DIR": true, "GIT_INDEX_FILE": true,
++	"GIT_OBJECT_DIRECTORY": true, "GIT_NAMESPACE": true, "GIT_CONFIG_PARAMETERS": true,
++	"GIT_CONFIG_COUNT": true, "GIT_CONFIG_GLOBAL": true, "GIT_CONFIG_SYSTEM": true, "GIT_EXEC_PATH": true,
++}
++
++// isGitEnvRedirect: name nằm trong gitEnvRedirect hoặc là GIT_CONFIG_KEY_n/VALUE_n.
++func isGitEnvRedirect(name string) bool {
++	return gitEnvRedirect[name] || strings.HasPrefix(name, "GIT_CONFIG_KEY_") || strings.HasPrefix(name, "GIT_CONFIG_VALUE_")
++}
++
++// gitEnvDenied chặn lệnh git/git-* (hoặc lệnh có tên chỉ biết lúc chạy) được gán
++// biến trong gitEnvRedirect.
++func gitEnvDenied(env, args []string) (string, bool) {
++	name := baseName(args[0])
++	if name != "git" && !strings.HasPrefix(name, "git-") && args[0] != dynamicWord {
++		return "", false
++	}
++	for _, kv := range env {
++		if k, _, _ := strings.Cut(kv, "="); isGitEnvRedirect(k) {
++			return "git with " + k + " set (it points git at another repository or injects config) is not allowed while unattended", true
++		}
++	}
++	return "", false
++}
++
+ // gitGlobalValueFlags là cờ toàn cục của git ăn thêm một giá trị ở arg kế. Cờ
+ // khác ăn giá trị tách rời mà ta không biết thì giá trị rơi vào chỗ lệnh con và
+ // bị danh sách trắng chặn (fail-closed).
+diff --git a/internal/shell/unattended_gitenv_test.go b/internal/shell/unattended_gitenv_test.go
+new file mode 100644
+index 00000000..09f1248f
+--- /dev/null
++++ b/internal/shell/unattended_gitenv_test.go
+@@ -0,0 +1,162 @@
++package shell
++
++import (
++	"context"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++)
++
++// gitInitWithFile tạo repo git thật ở dir, commit sẵn precious.txt.
++func gitInitWithFile(t *testing.T, dir string) string {
++	t.Helper()
++	precious := filepath.Join(dir, "precious.txt")
++	require.NoError(t, os.WriteFile(precious, []byte("x\n"), 0o644))
++	for _, args := range [][]string{
++		{"init", "-q"},
++		{"add", "precious.txt"},
++		{"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init"},
++	} {
++		cmd := exec.Command("git", args...)
++		cmd.Dir = dir
++		out, err := cmd.CombinedOutput()
++		require.NoErrorf(t, err, "git %v: %s", args, out)
++	}
++	return precious
++}
++
++func runGuarded(t *testing.T, cwd, command string, unattended bool, reasons *[]string) error {
++	t.Helper()
++	guard := UnattendedGuard(func() bool { return unattended }, func() bool { return false },
++		func(reason string, _ []string) { *reasons = append(*reasons, reason) })
++	return Run(context.Background(), RunOptions{
++		Command:    command,
++		Cwd:        cwd,
++		Env:        os.Environ(),
++		BlockFuncs: []BlockFunc{guard},
++	})
++}
++
++// SEC-1: chặn -C/--git-dir/--work-tree là chưa đủ, git cũng bị trỏ sang repo khác
++// qua BIẾN MÔI TRƯỜNG (gán đầu lệnh, env, sh -c), và GIT_CONFIG_* làm việc của -c.
++// Mỗi ca chạy thật: không người trực thì tệp ngoài workspace còn nguyên; cùng lệnh
++// khi có người trực thì tệp mất (chứng minh lệnh thật sự phá được, test không mù).
++func TestUnattendedGitDeniesRedirectingEnvEndToEnd(t *testing.T) {
++	t.Parallel()
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("git not installed")
++	}
++	cases := map[string]string{
++		"assign prefix":     `GIT_DIR=$O/.git GIT_WORK_TREE=$O git rm -q precious.txt`,
++		"env launcher":      `env GIT_DIR=$O/.git GIT_WORK_TREE=$O git rm -q precious.txt`,
++		"nested sh -c":      `sh -c 'GIT_DIR=$O/.git GIT_WORK_TREE=$O git rm -q precious.txt'`,
++		"export then git":   `export GIT_DIR=$O/.git GIT_WORK_TREE=$O; git rm -q precious.txt`,
++		"env into sh -c":    `GIT_DIR=$O/.git GIT_WORK_TREE=$O sh -c 'git rm -q precious.txt'`,
++		"export in sh -c":   `sh -c 'export GIT_DIR=$O/.git GIT_WORK_TREE=$O; git rm -q precious.txt'`,
++		"config injection":  `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="rm -f $O/precious.txt" git status`,
++		"config parameters": `GIT_CONFIG_PARAMETERS="'core.fsmonitor'='rm -f $O/precious.txt'" git status`,
++	}
++	for name, tmpl := range cases {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			ws := t.TempDir()
++			gitInitWithFile(t, ws)
++			outside := t.TempDir()
++			precious := gitInitWithFile(t, outside)
++			command := strings.ReplaceAll(tmpl, "$O", outside)
++
++			var reasons []string
++			err := runGuarded(t, ws, command, true, &reasons)
++			require.Error(t, err)
++			require.Contains(t, err.Error(), "not allowed for security reasons")
++			require.FileExists(t, precious, "unattended: file outside the workspace must survive")
++			require.NotEmpty(t, reasons)
++			require.Contains(t, reasons[0], "GIT_")
++
++			reasons = nil
++			_ = runGuarded(t, ws, command, false, &reasons)
++			require.Empty(t, reasons)
++			require.NoFileExists(t, precious, "attended control: the same command must really delete")
++		})
++	}
++}
++
++// Biến không liên quan git và lệnh không đụng biến git thì vẫn chạy như cũ.
++func TestUnattendedGitAllowsUnrelatedEnv(t *testing.T) {
++	t.Parallel()
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("git not installed")
++	}
++	ws := t.TempDir()
++	gitInitWithFile(t, ws)
++	for _, command := range []string{
++		`env FOO=1 git status`,
++		`FOO=1 git status`,
++		`sh -c 'FOO=1 git status'`,
++		`GIT_DIR=x echo not-git`,
++	} {
++		var reasons []string
++		require.NoErrorf(t, runGuarded(t, ws, command, true, &reasons), "%s", command)
++		require.Emptyf(t, reasons, "%s", command)
++	}
++}
++
++// Lớp guard thuần (không chạy shell): biến git trên lệnh git/git-* bị chặn ở mọi
++// dạng; process guard mặc định không đổi quyết định.
++func TestUnattendedGitEnvGuardUnit(t *testing.T) {
++	t.Parallel()
++	g := UnattendedGuard(func() bool { return true }, func() bool { return false }, nil)
++	for _, args := range [][]string{
++		{"env", "GIT_DIR=/o/.git", "git", "status"},
++		{"env", "GIT_WORK_TREE=/o", "git", "add", "."},
++		{"env", "GIT_COMMON_DIR=/o", "git", "status"},
++		{"env", "GIT_INDEX_FILE=/o/idx", "git", "add", "."},
++		{"env", "GIT_OBJECT_DIRECTORY=/o", "git", "status"},
++		{"env", "GIT_NAMESPACE=x", "git", "status"},
++		{"env", "GIT_CONFIG_PARAMETERS='a.b'='c'", "git", "status"},
++		{"env", "GIT_CONFIG_COUNT=1", "git", "status"},
++		{"env", "GIT_CONFIG_KEY_3=a.b", "git", "status"},
++		{"env", "GIT_CONFIG_VALUE_3=c", "git", "status"},
++		{"env", "GIT_CONFIG_GLOBAL=/o/cfg", "git", "status"},
++		{"env", "GIT_CONFIG_SYSTEM=/o/cfg", "git", "status"},
++		{"env", "GIT_EXEC_PATH=/o", "git", "status"},
++		{"nice", "env", "GIT_DIR=/o", "timeout", "5", "git", "status"},
++		{"env", "GIT_DIR=/o/.git", "bash", "-c", "git status"},
++		{"bash", "-c", "GIT_DIR=x; git status"},
++		{"sh", "-c", "declare -x GIT_DIR=x; git status"},
++		{"sh", "-c", "g=git; GIT_DIR=x $g rm f"},
++	} {
++		require.Truef(t, g(args), "%q must be blocked", args)
++	}
++	for _, args := range [][]string{
++		{"env", "FOO=1", "git", "status"},
++		{"env", "GIT_SSH_COMMAND_X=1", "git", "status"},
++		{"env", "GIT_DIR=/o", "ls"},
++		{"sh", "-c", "GIT_DIR=x make"},
++	} {
++		require.Falsef(t, g(args), "%q must pass", args)
++	}
++	off := UnattendedGuard(func() bool { return false }, func() bool { return false }, nil)
++	require.False(t, off([]string{"env", "GIT_DIR=/o", "git", "rm", "f"}), "attended mode unchanged")
++}
++
++// Biến git có sẵn trong môi trường của chính agent-cli (vd chạy trong git hook)
++// là của người khởi chạy, không phải do lệnh đặt: không chặn. Lệnh đổi giá trị thì
++// vẫn chặn. Không Parallel vì t.Setenv.
++func TestUnattendedGitAllowsInheritedEnv(t *testing.T) {
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("git not installed")
++	}
++	ws := t.TempDir()
++	gitInitWithFile(t, ws)
++	t.Setenv("GIT_INDEX_FILE", filepath.Join(ws, ".git", "index"))
++	var reasons []string
++	require.NoError(t, runGuarded(t, ws, `git status`, true, &reasons))
++	require.Empty(t, reasons)
++	require.Error(t, runGuarded(t, ws, `GIT_INDEX_FILE=`+filepath.Join(t.TempDir(), "idx")+` git status`, true, &reasons))
++	require.NotEmpty(t, reasons)
++}
+diff --git a/internal/skills/hidden_dirs_test.go b/internal/skills/hidden_dirs_test.go
+index 7852b084..a853244f 100644
+--- a/internal/skills/hidden_dirs_test.go
++++ b/internal/skills/hidden_dirs_test.go
+@@ -37,3 +37,19 @@ func TestDiscoverSkipsHiddenDirectories(t *testing.T) {
+ 	}
+ 	require.Equal(t, []string{"kept"}, names, "only the visible skill; a hidden parent dir in the base path itself is fine")
+ }
++
++// Gốc cấu hình tên ẩn viết kèm "/" cuối (skills_paths: ["~/.myskills/"]): fastwalk
++// bỏ "/" khỏi gốc, nên so chuỗi với base không nhận ra gốc và bỏ cả cây.
++func TestDiscoverKeepsAHiddenBaseWrittenWithATrailingSlash(t *testing.T) {
++	t.Parallel()
++	base := filepath.Join(t.TempDir(), ".myskills")
++	dir := filepath.Join(base, "mine")
++	require.NoError(t, os.MkdirAll(dir, 0o755))
++	require.NoError(t, os.WriteFile(filepath.Join(dir, SkillFileName),
++		[]byte("---\nname: mine\ndescription: test skill.\n---\n# x\n"), 0o644))
++
++	for _, b := range []string{base, base + "/", filepath.Join(base, "..", ".myskills")} {
++		skills, _ := DiscoverWithStates([]string{b})
++		require.Len(t, skills, 1, "base %q", b)
++	}
++}
+diff --git a/internal/skills/skills.go b/internal/skills/skills.go
+index 3cff2289..69591ede 100644
+--- a/internal/skills/skills.go
++++ b/internal/skills/skills.go
+@@ -254,7 +254,8 @@ func DiscoverWithStates(paths []string) ([]*Skill, []*SkillState) {
+ 			// ẩn (~/.agents/skills). Kiểm cả đường dẫn tệp vì symlink thư mục không
+ 			// đi qua nhánh IsDir.
+ 			if d.IsDir() {
+-				if path != base && strings.HasPrefix(d.Name(), ".") {
++				// So bằng Rel: fastwalk làm sạch gốc ("/" cuối), base thì chưa.
++				if rel, _ := filepath.Rel(base, path); rel != "." && strings.HasPrefix(d.Name(), ".") {
+ 					return fastwalk.SkipDir
+ 				}
+ 				return nil

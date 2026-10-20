@@ -1,0 +1,8 @@
+trial 1: send rc=0 session=002db582-b137-4339-a419-2c725c169bdb user_message_in_db=no
+trial 2: send rc=0 session=ed2783c6-9990-4000-afd1-0f52424b6453 user_message_in_db=no
+trial 3: send rc=0 session=fc57d691-103f-4e66-ae6d-171eca460fb6 user_message_in_db=no
+trial 4: send rc=0 session=109578a8-657b-43db-adb6-84caf83d9137 user_message_in_db=no
+trial 5: send rc=0 session=f81aabd9-53dd-4602-9334-578974b4a8d7 user_message_in_db=no
+trial 6: send rc=0 session=01a35a7b-c46c-4687-9e42-7528439afbf9 user_message_in_db=no
+trial 7: send rc=0 session=ee70072c-a1d9-4236-a7de-c3fb579e2323 user_message_in_db=no
+trial 8: send rc=0 session=b688a95a-c1a4-48c6-91b9-7c9d9fb74343 user_message_in_db=no

@@ -1,0 +1,6 @@
+case             rc text         ledger_error                                 reqs ledger warn(sid/nosid)
+local-devfull     0 'DONE-LEDGER None                                            3      - 0/0
+local-file        0 'DONE-LEDGER None                                            3      3 0/0
+server-devfull    0 'DONE-LEDGER None                                            3      - 0/0
+server-file       0 'DONE-LEDGER None                                            3      3 0/0
+E2E-LEDGER: FAIL local-devfull: no ledger_error; local-devfull: session warnings=0 (want 1 per turn); server-devfull: no ledger_error; server-devfull: session warnings=0 (want 1 per turn)

@@ -1,0 +1,18 @@
+--- FAIL: TestLastReply (0.00s)
+    --- FAIL: TestLastReply/no_model_after_a_reply (0.00s)
+        last_reply_test.go:38: 
+            	Error Trace:	/home/luannt/application/opensource/agent-cli-cand/internal/message/last_reply_test.go:38
+            	Error:      	Not equal: 
+            	            	expected: "r1"
+            	            	actual  : "x"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-r1
+            	            	+x
+            	Test:       	TestLastReply/no_model_after_a_reply
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/message	0.012s
+FAIL

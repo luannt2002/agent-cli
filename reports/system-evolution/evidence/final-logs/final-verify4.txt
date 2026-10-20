@@ -1,0 +1,16 @@
+built /tmp/claude-1000/-home-luannt-application/1ba1a44b-c74c-4a9d-b148-f58af7166a87/scratchpad/evo/bin/agent-cli-final4 sha256=b67375cef956c4b9 head=4a0b25b6 diff= 88 files changed, 5925 insertions(+), 306 deletions(-)
+e2e run-json rc=0 57s last='PASS' fails=0
+e2e loop rc=0 16s last='PASS' fails=0
+e2e routine rc=0 19s last='PASS' fails=0
+faults rc=0
+qwen-only rc=0 QWEN-ONLY: PASS
+workspaces rc=0 WORKSPACES: PASS
+race rc=0 413s data_races=0 fail_lines=0
+suite rc=0 117s
+base tests: 4501 {'pass': 4489, 'skip': 12} packages: {'skip': 17, 'pass': 68}
+cand tests: 4637 {'pass': 4625, 'skip': 12} packages: {'skip': 17, 'pass': 68}
+disappeared: 0
+status changed: 0
+new: 136 {'pass': 136}
+candidate failures: 0
+final-verify4 exit=0

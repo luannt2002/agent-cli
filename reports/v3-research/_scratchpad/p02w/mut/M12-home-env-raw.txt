@@ -1,0 +1,9 @@
+--- FAIL: TestChildEnvsIgnoreProjectDotenv (0.05s)
+    child_env_test.go:73: 
+        	Error Trace:	/home/luannt/application/opensource/agent-cli-p02/internal/cmd/child_env_test.go:73
+        	Error:      	Should be empty, but was [AGENT_CLI_DELEGATION=on AGENT_CLI_ENV_FILE=./evil.env AGENT_CLI_CLAUDE_BIN=./evil AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions AGENT_CLI_CODEX_SANDBOX=danger-full-access AGENT_CLI_DELEGATION=on AGENT_CLI_ENV_FILE=./evil.env AGENT_CLI_CLAUDE_BIN=./evil AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions AGENT_CLI_CODEX_SANDBOX=danger-full-access]
+        	Test:       	TestChildEnvsIgnoreProjectDotenv
+        	Messages:   	a project .env must not reach a child agent-cli
+FAIL
+FAIL	github.com/charmbracelet/crush/internal/cmd	0.098s
+FAIL
