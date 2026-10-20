@@ -124,7 +124,7 @@ func TestPSNoServerDoesNotSpawn(t *testing.T) {
 
 func TestPSSocketDirsFindsSockets(t *testing.T) {
 	rt := t.TempDir()
-	t.Setenv("AGENT_CLI_RUNTIME_DIR", rt)
+	t.Setenv("DEW_RUNTIME_DIR", rt)
 	t.Setenv("XDG_RUNTIME_DIR", rt) // Duplicate dir must not duplicate hosts.
 	t.Setenv("HOME", t.TempDir())
 	want := filepath.Join(rt, "agent-cli-12345678.sock")

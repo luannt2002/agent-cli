@@ -565,7 +565,7 @@ func (m *Models) setProviderItems() error {
 		}
 	}
 
-	// Ranh giới model (AGENT_CLI_ALLOWED_MODELS, execpolicy): chỉ hiện model
+	// Ranh giới model (DEW_ALLOWED_MODELS, execpolicy): chỉ hiện model
 	// được phép; chọn model khác thì coordinator cũng từ chối.
 	if pol, err := execpolicy.Current(); err == nil && pol.Restricted() {
 		groups = allowedModelGroups(t, groups, pol)

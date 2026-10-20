@@ -48,13 +48,13 @@ func TestRunShellCommandIgnoresProjectDotenvTrustedKeys(t *testing.T) {
 		return
 	}
 	dir := t.TempDir()
-	dotenv := "AGENT_CLI_DELEGATION=CANARY_DOTENV\nAGENT_CLI_ALLOWED_MODELS=claude_code:CANARY_DOTENV-5\n" +
-		"AGENT_CLI_ENV_FILE=/CANARY_DOTENV/env\nAGENT_CLI_CLAUDE_BIN=/CANARY_DOTENV/claude\n" +
-		"AGENT_CLI_CODEX_SANDBOX=CANARY_DOTENV\nPLAIN_CANARY=CANARY_DOTENV\n"
+	dotenv := "DEW_DELEGATION=CANARY_DOTENV\nDEW_ALLOWED_MODELS=claude_code:CANARY_DOTENV-5\n" +
+		"DEW_ENV_FILE=/CANARY_DOTENV/env\nDEW_CLAUDE_BIN=/CANARY_DOTENV/claude\n" +
+		"DEW_CODEX_SANDBOX=CANARY_DOTENV\nPLAIN_CANARY=CANARY_DOTENV\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
 	var env []string
 	for _, kv := range os.Environ() {
-		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "AGENT_CLI_") && k != "PLAIN_CANARY" {
+		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "DEW_") && k != "PLAIN_CANARY" {
 			env = append(env, kv)
 		}
 	}

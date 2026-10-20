@@ -51,8 +51,8 @@ with one of:
 
 Every step is written to a journal (JSON Lines) BEFORE it happens, so a killed loop
 still shows how far it got. The verify command runs in the workspace with your
-environment, except that the trusted variables (AGENT_CLI_ALLOWED_MODELS,
-AGENT_CLI_DELEGATION, ...) come from the original environment, never from the
+environment, except that the trusted variables (DEW_ALLOWED_MODELS,
+DEW_DELEGATION, ...) come from the original environment, never from the
 repo's .env.
 
 SAFETY: like "run", loop auto-approves the agent's tool requests. It is meant for

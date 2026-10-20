@@ -28,19 +28,19 @@ const (
 	// dấu phẩy hoặc khoảng trắng. Có ít nhất một provider chính trong danh
 	// sách thì model chính (large/small) phải nằm trong đó: model mới của
 	// provider mặc định bị chặn cho tới khi được thêm vào.
-	AllowedModelsEnv = "AGENT_CLI_ALLOWED_MODELS"
+	AllowedModelsEnv = "DEW_ALLOWED_MODELS"
 	// DelegationEnv bật giao việc sang CLI agent khác provider ("on"); mặc
 	// định tắt dù CLI có trên máy.
-	DelegationEnv = "AGENT_CLI_DELEGATION"
+	DelegationEnv = "DEW_DELEGATION"
 	// UnattendedEnv bật chế độ không người trực (routine chạy theo lịch): lớp
 	// chặn lệnh phá huỷ/đẩy ra ngoài ở trình thực thi shell. UnattendedCommitEnv
 	// mở riêng các lệnh tạo commit (git commit, am, cherry-pick, revert) và không
 	// mở thứ nào khác. Cả hai là biến tin cậy.
-	UnattendedEnv       = "AGENT_CLI_UNATTENDED"
-	UnattendedCommitEnv = "AGENT_CLI_UNATTENDED_COMMIT"
+	UnattendedEnv       = "DEW_UNATTENDED"
+	UnattendedCommitEnv = "DEW_UNATTENDED_COMMIT"
 	// LLMLedgerEnv là tệp sổ ghi lời gọi LLM (kích thước, hash, usage; không nội
 	// dung). Biến tin cậy để `.env` của repo không chuyển được sổ ra chỗ khác.
-	LLMLedgerEnv = "AGENT_CLI_LLM_LEDGER"
+	LLMLedgerEnv = "DEW_LLM_LEDGER"
 )
 
 // Backend giao việc: CLI agent bên ngoài, gọi qua tool cùng tên.
@@ -95,7 +95,7 @@ func (d *Denied) Error() string {
 
 // EnvFileEnv đặt đường dẫn tệp env của dew (mặc định
 // ~/.config/agent-cli/env), như crushrc mẫu.
-const EnvFileEnv = "AGENT_CLI_ENV_FILE"
+const EnvFileEnv = "DEW_ENV_FILE"
 
 // trustedKeys là các biến chỉ được lấy từ env GỐC của tiến trình: chụp đầu
 // main, trước khi nạp `.env` của thư mục hiện tại hay `env` trong cấu hình
@@ -103,8 +103,8 @@ const EnvFileEnv = "AGENT_CLI_ENV_FILE"
 // đặt tệp env (và HOME suy ra nó), cùng CLI và mức quyền của tool giao việc.
 var trustedKeys = []string{
 	AllowedModelsEnv, DelegationEnv, UnattendedEnv, UnattendedCommitEnv, EnvFileEnv, LLMLedgerEnv, "HOME",
-	"AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_BIN",
-	"AGENT_CLI_CLAUDE_PERMISSION_MODE", "AGENT_CLI_CODEX_SANDBOX",
+	"DEW_CLAUDE_BIN", "DEW_CODEX_BIN",
+	"DEW_CLAUDE_PERMISSION_MODE", "DEW_CODEX_SANDBOX",
 }
 
 var (
@@ -143,7 +143,7 @@ func OriginalEnv(key string) string {
 }
 
 // OriginalEnviron trả env gốc (trước `.env` và `env` của cấu hình dự án) dạng KEY=value,
-// cho các biến còn trong env hiện tại: biến tiến trình đã gỡ (AGENT_CLI_HOME_CHILD) không
+// cho các biến còn trong env hiện tại: biến tiến trình đã gỡ (DEW_HOME_CHILD) không
 // quay lại, biến `.env` thêm thì không có, biến bị đè thì về giá trị gốc. Chưa chụp thì
 // env hiện tại.
 func OriginalEnviron() []string {

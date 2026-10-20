@@ -25,7 +25,7 @@ func configureWith(t *testing.T, providers map[string]ProviderConfig, models map
 	return cfg, err
 }
 
-// Gõ sai ID provider dựng sẵn (vd AGENT_CLI_PROVIDER_ID=foo) cho ra một
+// Gõ sai ID provider dựng sẵn (vd DEW_PROVIDER_ID=foo) cho ra một
 // provider không có base_url. Nếu nó đang được chọn làm model large/small thì
 // khởi động phải dừng và nêu đúng tên provider, thay vì lặng lẽ chọn model khác.
 func TestConfigureProviders_SelectedProviderWithoutEndpointFails(t *testing.T) {

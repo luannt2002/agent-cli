@@ -5,11 +5,11 @@
 # hình agent-cli thật.
 #
 # Dùng: scripts/test-agent-cli-delegation.sh [ca...]   (ca: claude codex sandbox registry)
-#   AGENT_CLI_BIN=...   dùng binary có sẵn thay vì build
+#   DEW_BIN=...   dùng binary có sẵn thay vì build
 #   MODES="local server" chế độ chạy (mặc định server, như launcher)
-#   AGENT_CLI_CODEX_BIN=... khi codex không nằm trong PATH (vd app ChatGPT desktop)
+#   DEW_CODEX_BIN=... khi codex không nằm trong PATH (vd app ChatGPT desktop)
 #   Mức quyền CLI con mặc định an toàn: acceptEdits / workspace-write; đặt
-#   AGENT_CLI_CLAUDE_PERMISSION_MODE, AGENT_CLI_CODEX_SANDBOX để thử mức khác.
+#   DEW_CLAUDE_PERMISSION_MODE, DEW_CODEX_SANDBOX để thử mức khác.
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cases=" ${*:-claude codex sandbox registry} "
@@ -19,7 +19,7 @@ done
 t="$(mktemp -d "${TMPDIR:-/tmp}/aclideleg.XXXXXX")"
 # Socket ở thư mục ngắn riêng: sun_path tối đa 107 byte, TMPDIR dài là connect lỗi EINVAL.
 sock_dir="$(mktemp -d /tmp/aclisock.XXXXXX)"
-bin="${AGENT_CLI_BIN:-$t/agent-cli}"
+bin="${DEW_BIN:-$t/agent-cli}"
 fake_pid=
 # Dừng server agent-cli do lần chạy này dựng. Không dùng `pgrep -f "$bin server"`: -f khớp REGEX trên cả
 # dòng lệnh, nên ký tự đặc biệt trong đường dẫn (TMPDIR) khớp sai và tiến trình lạ có chứa chuỗi đó cũng
@@ -50,10 +50,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ -z "${AGENT_CLI_BIN:-}" ]]; then
+if [[ -z "${DEW_BIN:-}" ]]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi
-codex_bin="${AGENT_CLI_CODEX_BIN:-$(command -v codex || true)}"
+codex_bin="${DEW_CODEX_BIN:-$(command -v codex || true)}"
 command -v claude >/dev/null || { echo "thiếu claude trong PATH"; exit 1; }
 
 # --- LLM chính giả ------------------------------------------------------------
@@ -120,12 +120,12 @@ JSON
     TERM=xterm-256color SHELL=/bin/bash XDG_RUNTIME_DIR="$d/run"
     CRUSH_GLOBAL_CONFIG="$d/cfg" CRUSH_GLOBAL_DATA="$d/data" CRUSH_CACHE_DIR="$d/cache"
     CRUSH_DISABLE_METRICS=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_DISABLE_UPDATE_CHECK=1 CRUSH_CLIENT_SERVER=$cs
-    AGENT_CLI_CODEX_BIN="$codex_bin"
-    AGENT_CLI_CLAUDE_PERMISSION_MODE="${AGENT_CLI_CLAUDE_PERMISSION_MODE:-acceptEdits}"
-    AGENT_CLI_CODEX_SANDBOX="${AGENT_CLI_CODEX_SANDBOX:-workspace-write}"
+    DEW_CODEX_BIN="$codex_bin"
+    DEW_CLAUDE_PERMISSION_MODE="${DEW_CLAUDE_PERMISSION_MODE:-acceptEdits}"
+    DEW_CODEX_SANDBOX="${DEW_CODEX_SANDBOX:-workspace-write}"
     # Giao việc mặc định tắt (execpolicy): bật cho lượt kiểm, model cụ thể.
-    AGENT_CLI_DELEGATION=on
-    AGENT_CLI_ALLOWED_MODELS="${AGENT_CLI_ALLOWED_MODELS:-claude_code:claude-haiku-5-5 codex:gpt-6.1-sol}")
+    DEW_DELEGATION=on
+    DEW_ALLOWED_MODELS="${DEW_ALLOWED_MODELS:-claude_code:claude-haiku-5-5 codex:gpt-6.1-sol}")
   # run <tên> <prompt> [VAR=giá trị...]. Chế độ server: server giữ môi trường của
   # client đã dựng nó, nên ca đổi biến phải dùng server riêng (SOCK=<tên>).
   run() {
@@ -158,26 +158,26 @@ JSON
     run x3 '@codex {"prompt":"- reply with the single word DASHOK"}'
     check "$mode codex: prompt bắt đầu bằng '-'" "$(jtext "$d/x3.json" | grep -q DASHOK; echo $?)"
   elif [[ "$cases" == *" codex "* ]]; then
-    echo "skip $mode codex: không tìm thấy codex (đặt AGENT_CLI_CODEX_BIN)"
+    echo "skip $mode codex: không tìm thấy codex (đặt DEW_CODEX_BIN)"
   fi
   if [[ "$cases" == *" sandbox "* ]]; then
     # Mức quyền cấu hình phải có hiệu lực thật: dontAsk / read-only thì không tạo được
     # tệp. (Không dùng plan: Claude Code ghi tệp kế hoạch vào ~/.claude/plans thật.)
-    SOCK=s1 run s1 '@claude_code {"prompt":"Create a file named deny_claude.txt containing ok. Reply DONE."}' AGENT_CLI_CLAUDE_PERMISSION_MODE=dontAsk
+    SOCK=s1 run s1 '@claude_code {"prompt":"Create a file named deny_claude.txt containing ok. Reply DONE."}' DEW_CLAUDE_PERMISSION_MODE=dontAsk
     check "$mode claude dontAsk: CLI có chạy và không tạo được tệp" "$(jtext "$d/s1.json" | grep -q 'claude_code session:' && [[ ! -e "$d/proj/deny_claude.txt" ]]; echo $?)"
     if [[ -n "$codex_bin" ]]; then
-      SOCK=s2 run s2 '@codex {"prompt":"Create a file named ro_codex.txt containing ok. Reply DONE."}' AGENT_CLI_CODEX_SANDBOX=read-only
+      SOCK=s2 run s2 '@codex {"prompt":"Create a file named ro_codex.txt containing ok. Reply DONE."}' DEW_CODEX_SANDBOX=read-only
       check "$mode codex read-only: CLI có chạy và không tạo được tệp" "$(jtext "$d/s2.json" | grep -q 'codex session:' && [[ ! -e "$d/proj/ro_codex.txt" ]]; echo $?)"
     fi
   fi
   if [[ "$cases" == *" registry "* ]]; then
-    # PATH chỉ có claude, không đặt AGENT_CLI_CODEX_BIN: tool codex vắng mặt.
+    # PATH chỉ có claude, không đặt DEW_CODEX_BIN: tool codex vắng mặt.
     mkdir -p "$d/onlyclaude" && ln -sf "$(command -v claude)" "$d/onlyclaude/claude"
-    SOCK=r1 run r1 'hello' AGENT_CLI_CODEX_BIN= PATH="$d/onlyclaude"
+    SOCK=r1 run r1 'hello' DEW_CODEX_BIN= PATH="$d/onlyclaude"
     local tl; tl=",$(tail -1 "$t/requests.log" | cut -d'|' -f1),"
     check "$mode đăng ký: có claude_code, không có codex khi thiếu CLI" "$([[ "$tl" == *,claude_code,* && "$tl" != *,codex,* ]]; echo $?)"
-    SOCK=r2 run r2 'hello' AGENT_CLI_CODEX_BIN=/nonexistent/codex
-    check "$mode BIN trỏ sai: run thất bại, lỗi nêu tên biến" "$([[ "$(cat "$d/r2.rc")" != 0 ]] && cat "$d/r2.json" "$d/r2.err" | grep -q AGENT_CLI_CODEX_BIN; echo $?)"
+    SOCK=r2 run r2 'hello' DEW_CODEX_BIN=/nonexistent/codex
+    check "$mode BIN trỏ sai: run thất bại, lỗi nêu tên biến" "$([[ "$(cat "$d/r2.rc")" != 0 ]] && cat "$d/r2.json" "$d/r2.err" | grep -q DEW_CODEX_BIN; echo $?)"
   fi
 }
 

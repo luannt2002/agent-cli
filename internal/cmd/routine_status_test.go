@@ -178,19 +178,19 @@ func TestScheduleEnv_IgnoresProjectDotenv(t *testing.T) {
 		return
 	}
 	dir := t.TempDir()
-	dotenv := "CRUSH_GLOBAL_CONFIG=/evil/config\nCRUSH_CACHE_DIR=/evil/cache\nAGENT_CLI_ENV_FILE=/evil/env\n"
+	dotenv := "CRUSH_GLOBAL_CONFIG=/evil/config\nCRUSH_CACHE_DIR=/evil/cache\nDEW_ENV_FILE=/evil/env\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
 
 	var env []string
 	for _, kv := range os.Environ() {
 		k, _, _ := strings.Cut(kv, "=")
-		if !strings.HasPrefix(k, "CRUSH_") && !strings.HasPrefix(k, "AGENT_CLI_") {
+		if !strings.HasPrefix(k, "CRUSH_") && !strings.HasPrefix(k, "DEW_") {
 			env = append(env, kv)
 		}
 	}
 	env = append(env, "SCHEDULE_ENV_CHILD=1",
 		"CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli",
-		"AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x")
+		"DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x")
 	c := exec.Command(os.Args[0], "-test.run=^TestScheduleEnv_IgnoresProjectDotenv$")
 	c.Dir, c.Env = dir, env
 	out, err := c.CombinedOutput()
@@ -199,16 +199,16 @@ func TestScheduleEnv_IgnoresProjectDotenv(t *testing.T) {
 	got := string(out)
 	require.NotContains(t, got, "/evil", "a project .env must not reach the schedule")
 	require.Contains(t, got, "CRUSH_GLOBAL_DATA=/home/u/.local/share/agent-cli\n")
-	require.NotContains(t, got, "AGENT_CLI_ALLOWED_MODELS", "the allowlist belongs in the env file, not the schedule")
+	require.NotContains(t, got, "DEW_ALLOWED_MODELS", "the allowlist belongs in the env file, not the schedule")
 }
 
 // Allowlist (dạng nào cũng vậy, kể cả cách nhau bằng dấu cách) không vào lịch:
 // biến export thắng tệp env, nên chép vào lịch sẽ làm việc siết lại trong tệp env
 // bị lượt theo lịch lặng lẽ bỏ qua.
 func TestScheduleEnv_DropsASpaceSeparatedAllowlist(t *testing.T) {
-	t.Setenv("AGENT_CLI_ALLOWED_MODELS", " zai:glm-5.3  openai:gpt-5,x:y ")
+	t.Setenv("DEW_ALLOWED_MODELS", " zai:glm-5.3  openai:gpt-5,x:y ")
 	for _, kv := range scheduleEnv() {
-		require.NotContains(t, kv, "AGENT_CLI_ALLOWED_MODELS")
+		require.NotContains(t, kv, "DEW_ALLOWED_MODELS")
 	}
 }
 
@@ -225,11 +225,11 @@ func TestListRuns_DoesNotProbeTheLockForAFinishedRun(t *testing.T) {
 }
 
 func TestScheduleEnv_CarriesTheProviderBoundary(t *testing.T) {
-	t.Setenv("AGENT_CLI_ENV_FILE", "/home/u/.config/agent-cli/env")
-	t.Setenv("AGENT_CLI_ALLOWED_MODELS", "openai:gpt-5")
+	t.Setenv("DEW_ENV_FILE", "/home/u/.config/agent-cli/env")
+	t.Setenv("DEW_ALLOWED_MODELS", "openai:gpt-5")
 	env := scheduleEnv()
-	require.Contains(t, env, "AGENT_CLI_ENV_FILE=/home/u/.config/agent-cli/env")
+	require.Contains(t, env, "DEW_ENV_FILE=/home/u/.config/agent-cli/env")
 	for _, kv := range env {
-		require.NotContains(t, kv, "AGENT_CLI_ALLOWED_MODELS", "the env file owns the allowlist for scheduled runs")
+		require.NotContains(t, kv, "DEW_ALLOWED_MODELS", "the env file owns the allowlist for scheduled runs")
 	}
 }

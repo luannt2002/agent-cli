@@ -18,8 +18,8 @@ const CodexToolName = "codex"
 // Biến env cấu hình tool codex; như tool claude_code, phải có trong môi
 // trường của tiến trình dew (export ở shell).
 const (
-	codexBinEnv     = "AGENT_CLI_CODEX_BIN"
-	codexSandboxEnv = "AGENT_CLI_CODEX_SANDBOX"
+	codexBinEnv     = "DEW_CODEX_BIN"
+	codexSandboxEnv = "DEW_CODEX_SANDBOX"
 )
 
 // defaultCodexSandbox giữ mặc định đã chốt của tool, cùng mức tin cậy với

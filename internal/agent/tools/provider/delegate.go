@@ -94,8 +94,8 @@ type strategy interface {
 // prompt đầu tiên), trừ khi tool đã bị tắt (permissions deny).
 //
 // Ranh giới provider (execpolicy): CLI có trên máy, đã đăng nhập hay có key
-// chưa đủ. Giao việc phải được bật (AGENT_CLI_DELEGATION=on) và backend phải
-// có model cụ thể trong AGENT_CLI_ALLOWED_MODELS; không thì tool không tồn
+// chưa đủ. Giao việc phải được bật (DEW_DELEGATION=on) và backend phải
+// có model cụ thể trong DEW_ALLOWED_MODELS; không thì tool không tồn
 // tại, model chính không thể gọi tới.
 func NewTools(workingDir string, perms permissionRequester, allowed []string, pol execpolicy.Policy) ([]fantasy.AgentTool, error) {
 	// Không người trực (routine): CLI con chạy ở mức quyền rất rộng (mặc định claude

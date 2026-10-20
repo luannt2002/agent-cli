@@ -73,7 +73,7 @@ dew run --continue "Follow up on your last response"
 
 # Machine-readable result: one JSON object on stdout with session_id,
 # text, error, prompt_tokens, completion_tokens, cost, provider, model and
-# ledger_error (only when AGENT_CLI_LLM_LEDGER is set and a call of this
+# ledger_error (only when DEW_LLM_LEDGER is set and a call of this
 # turn could not be written to it; the run still exits 0)
 dew run --json "Summarize this repo"
 

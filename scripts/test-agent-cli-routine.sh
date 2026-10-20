@@ -5,7 +5,7 @@
 # chạy chồng (mã 75), từ chối --scheduled cho việc có đích và định nghĩa đã đổi,
 # huỷ bằng SIGTERM, và `schedule --print` chỉ in.
 # Mọi thứ nằm trong thư mục tạm. Dùng: scripts/test-agent-cli-routine.sh
-# (AGENT_CLI_BIN=... để bỏ qua build)
+# (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclrtn.XXXXXX)"
@@ -33,8 +33,8 @@ print(obj)
 PY
 }
 
-bin="${AGENT_CLI_BIN:-$t/agent-cli}"
-if [ -z "${AGENT_CLI_BIN:-}" ]; then
+bin="${DEW_BIN:-$t/agent-cli}"
+if [ -z "${DEW_BIN:-}" ]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi
 
@@ -87,7 +87,7 @@ mkdir -p "$t/home"
 export HOME="$t/home" XDG_CONFIG_HOME="$t/home/c" XDG_DATA_HOME="$t/home/d" XDG_CACHE_HOME="$t/home/x"
 export XDG_RUNTIME_DIR="$t/run"; mkdir -p "$t/run" && chmod 700 "$t/run"
 export CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1
-unset CRUSH_CLIENT_SERVER AGENT_CLI_UNATTENDED AGENT_CLI_UNATTENDED_COMMIT
+unset CRUSH_CLIENT_SERVER DEW_UNATTENDED DEW_UNATTENDED_COMMIT
 git config --global user.email t@t; git config --global user.name t
 git config --global protocol.file.allow always
 cat > "$t/crush.json" <<JSON

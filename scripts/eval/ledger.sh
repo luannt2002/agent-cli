@@ -33,7 +33,7 @@ JSON
       env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
         CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \
         CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=$cs CRUSH_SERVER_IDLE_TIMEOUT=5 \
-        AGENT_CLI_LLM_LEDGER="$led" timeout 60 "$BIN" "${host[@]}" "$@"
+        DEW_LLM_LEDGER="$led" timeout 60 "$BIN" "${host[@]}" "$@"
     }
     ac run --json "LEDGER-PROBE turn 1" > "$P/out1.json" 2> "$P/err1.txt"
     echo $? > "$P/rc1"

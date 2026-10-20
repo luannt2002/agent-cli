@@ -85,13 +85,13 @@ func TestExecuteRoutine_NoChangeInGoalModeExitsNonZero(t *testing.T) {
 // Allowlist trong env của shell không đi vào lịch nữa: in cảnh báo bảo người dùng
 // đặt nó vào tệp env. Không đặt thì im lặng.
 func TestWarnAllowlistNotScheduled(t *testing.T) {
-	t.Setenv("AGENT_CLI_ALLOWED_MODELS", "openai:gpt-5")
+	t.Setenv("DEW_ALLOWED_MODELS", "openai:gpt-5")
 	var b bytes.Buffer
 	warnAllowlistNotScheduled(&b)
-	require.Contains(t, b.String(), "AGENT_CLI_ALLOWED_MODELS")
+	require.Contains(t, b.String(), "DEW_ALLOWED_MODELS")
 	require.Contains(t, b.String(), "env file")
 
-	t.Setenv("AGENT_CLI_ALLOWED_MODELS", "")
+	t.Setenv("DEW_ALLOWED_MODELS", "")
 	b.Reset()
 	warnAllowlistNotScheduled(&b)
 	require.Empty(t, b.String())

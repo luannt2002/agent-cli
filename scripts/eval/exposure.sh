@@ -6,9 +6,9 @@
 # EXPOSED đều có ĐỐI CHỨNG chạy trong cùng ca, bỏ đúng điều kiện gây phơi nhiễm, phải ra xanh (ghi trong lý do).
 # Đây là bộ ĐO, không phải cổng: thoát 0 khi chạy đủ các ca bất kể kết quả; thoát 2 khi sai cách dùng.
 # Bằng chứng thô của từng ca nằm trong <thư-mục>/<ca>/ (summary.txt, log/requests.jsonl, log/sys-*.txt...).
-# Cô lập như faults.sh: mỗi ca HOME/XDG/CRUSH_GLOBAL_*/AGENT_CLI_RUNTIME_DIR riêng trong thư mục ca, socket riêng,
+# Cô lập như faults.sh: mỗi ca HOME/XDG/CRUSH_GLOBAL_*/DEW_RUNTIME_DIR riêng trong thư mục ca, socket riêng,
 # tmux riêng (T4), không LLM thật. Launcher thật (install-agent-cli.sh) cài vào <thư-mục>/_launcher với
-# AGENT_CLI_SKIP_BUILD=1 và một shim gọi <binary>.
+# DEW_SKIP_BUILD=1 và một shim gọi <binary>.
 # Dùng: bash scripts/eval/exposure.sh <thư-mục-mới, ≤ 70 byte> <binary> [ca...]
 set -u
 [ $# -ge 2 ] || { echo "usage: $0 <new-dir> <binary> [cases...]" >&2; exit 2; }
@@ -31,7 +31,7 @@ install_launcher() {
   cp "$R/agent-cli.crushrc.example" "$R/agent-cli.env.example" "$L/fake/"
   printf '#!/bin/sh\nexec %s "$@"\n' "$BIN" > "$L/inst/lib/agent-cli/crush"
   chmod 755 "$L/inst/lib/agent-cli/crush"
-  env -i PATH=/usr/bin:/bin HOME="$L/home" AGENT_CLI_RUNTIME_DIR="$L/rt" AGENT_CLI_INSTALL_DIR="$L/inst" AGENT_CLI_SKIP_BUILD=1 \
+  env -i PATH=/usr/bin:/bin HOME="$L/home" DEW_RUNTIME_DIR="$L/rt" DEW_INSTALL_DIR="$L/inst" DEW_SKIP_BUILD=1 \
     bash "$L/fake/scripts/install-agent-cli.sh" > "$L/install.log" 2>&1
 }
 
@@ -62,7 +62,7 @@ iso() {
   local d=$1; shift
   (cd "$d" && env -i PATH="${XPATH:+$XPATH:}/usr/bin:/bin" HOME="$P/home" XDG_CONFIG_HOME="$P/home/.config" \
     XDG_DATA_HOME="$P/home/.local/share" XDG_CACHE_HOME="$P/home/.cache" CRUSH_GLOBAL_CONFIG="$P/home/.config/agent-cli" \
-    CRUSH_GLOBAL_DATA="$P/home/.local/share/agent-cli" CRUSH_CACHE_DIR="$P/home/.cache/agent-cli" AGENT_CLI_RUNTIME_DIR="$P/rt" \
+    CRUSH_GLOBAL_DATA="$P/home/.local/share/agent-cli" CRUSH_CACHE_DIR="$P/home/.cache/agent-cli" DEW_RUNTIME_DIR="$P/rt" \
     GIT_CEILING_DIRECTORIES="$OUT" CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 \
     CRUSH_CLIENT_SERVER=$CS CRUSH_SERVER_IDLE_TIMEOUT=60 "${EXTRA[@]}" timeout "${TO:-60}" "$@")
 }
@@ -411,9 +411,9 @@ t6() {
   local wsid body
   body=$(python3 -I - "$P/proj" "$P/home" <<'PY'
 import json, sys, uuid
-keys = ["AGENT_CLI_ALLOWED_MODELS", "AGENT_CLI_DELEGATION", "AGENT_CLI_UNATTENDED", "AGENT_CLI_UNATTENDED_COMMIT",
-        "AGENT_CLI_ENV_FILE", "AGENT_CLI_LLM_LEDGER", "HOME", "AGENT_CLI_CLAUDE_BIN", "AGENT_CLI_CODEX_BIN",
-        "AGENT_CLI_CLAUDE_PERMISSION_MODE", "AGENT_CLI_CODEX_SANDBOX"]
+keys = ["DEW_ALLOWED_MODELS", "DEW_DELEGATION", "DEW_UNATTENDED", "DEW_UNATTENDED_COMMIT",
+        "DEW_ENV_FILE", "DEW_LLM_LEDGER", "HOME", "DEW_CLAUDE_BIN", "DEW_CODEX_BIN",
+        "DEW_CLAUDE_PERMISSION_MODE", "DEW_CODEX_SANDBOX"]
 env = {"HOME": sys.argv[2]}
 print(json.dumps({"path": sys.argv[1], "client_id": str(uuid.uuid4()),
                   "trusted_env": ["%s=%s" % (k, env.get(k, "")) for k in keys]}))
@@ -913,7 +913,7 @@ PY
 # C5/S10: hai client cùng workspace (cùng server), client đầu đang giữ một lượt chạy. Bất biến: lượt của client sau
 # chạy theo env và allowlist provider của CHÍNH nó (hoặc server từ chối rõ ràng). Đối chứng: client sau tự dựng server.
 #   env:   base_url của provider dùng $V3_ROUTE; client đầu c1, client sau c2 (LLM giả ghi tên provider = route).
-#   allow: client đầu không allowlist; client sau AGENT_CLI_ALLOWED_MODELS=qwen:m-qwen, dự án chọn pp/m-pp.
+#   allow: client đầu không allowlist; client sau DEW_ALLOWED_MODELS=qwen:m-qwen, dự án chọn pp/m-pp.
 c5() {
   begin C5 '[{"match":"C5-hold","steps":[{"sleep":8,"text":"held"}]}]' qwen
   mkdir -p "$P/envp" "$P/allowp"; git_repo "$P/envp"; git_repo "$P/allowp"
@@ -932,11 +932,11 @@ c5() {
   # allowlist, hai client
   server_mode allow2; EXTRA=()
   ac "$P/allowp" run --json "C5-hold allow one" > "$P/allow-hold.json" 2>&1 & hold=$!
-  sleep 2.5; EXTRA=(AGENT_CLI_ALLOWED_MODELS=qwen:m-qwen)
+  sleep 2.5; EXTRA=(DEW_ALLOWED_MODELS=qwen:m-qwen)
   ac "$P/allowp" run --json "C5-allow second client" > "$P/allow-two.json" 2> "$P/allow-two.err"
   wait $hold; stop_servers
   # allowlist, đối chứng
-  server_mode allowctl; EXTRA=(AGENT_CLI_ALLOWED_MODELS=qwen:m-qwen)
+  server_mode allowctl; EXTRA=(DEW_ALLOWED_MODELS=qwen:m-qwen)
   ac "$P/allowp" run --json "C5-allow control alone" > "$P/allow-ctl.json" 2> "$P/allow-ctl.err"; stop_servers
   EXTRA=()
   finish

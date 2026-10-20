@@ -3,7 +3,7 @@
 # client/server. Chứng minh: xanh khi lệnh verify thoát 0, STALLED / MAX_REPAIRS /
 # UNMEASURED / CANCELLED đúng lý do và đúng số lượt agent, thiếu --verify thoát 2.
 # Mọi thứ nằm trong thư mục tạm; không đụng repo hay cấu hình thật.
-# Dùng: scripts/test-agent-cli-loop.sh   (AGENT_CLI_BIN=... để bỏ qua build)
+# Dùng: scripts/test-agent-cli-loop.sh   (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclloop.XXXXXX)"
@@ -46,8 +46,8 @@ PY
 # last_event <journal> <key>: giá trị key của dòng journal cuối.
 last_event() { tail -1 "$1" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$2"; }
 
-bin="${AGENT_CLI_BIN:-$t/agent-cli}"
-if [ -z "${AGENT_CLI_BIN:-}" ]; then
+bin="${DEW_BIN:-$t/agent-cli}"
+if [ -z "${DEW_BIN:-}" ]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi
 

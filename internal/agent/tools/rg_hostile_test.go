@@ -49,7 +49,7 @@ func TestGrepHostileArgsWithRealRg(t *testing.T) {
 		{"include files", "line", "--files", "", false},
 		{"include negation", "line", "!*.go", "", false},
 		{"include dotdot", "API_KEY", "../**", "", false},
-		{"pattern secret via symlink file", "AGENT_CLI_API_KEY", "", "", false},
+		{"pattern secret via symlink file", "DEW_API_KEY", "", "", false},
 		{"path symlink to outside", "API_KEY", "", "docs", false},
 		{"path dash", "line", "", "-x", false},
 	}

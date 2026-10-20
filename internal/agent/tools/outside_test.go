@@ -55,7 +55,7 @@ func outsideFixture(t *testing.T) (project, outside string) {
 	require.NoError(t, os.MkdirAll(project, 0o755))
 	require.NoError(t, os.MkdirAll(outside, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(project, "main.go"), []byte("package main // API_KEY not here\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(outside, "env"), []byte("AGENT_CLI_API_KEY=secret-value\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "env"), []byte("DEW_API_KEY=secret-value\n"), 0o600))
 	return project, outside
 }
 

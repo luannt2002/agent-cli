@@ -2,7 +2,7 @@
 # E2E cho `agent-cli run --json` với server OpenAI-compat giả, cả đường local
 # lẫn client/server (CRUSH_CLIENT_SERVER=1). Chứng minh mỗi tiến trình trả
 # đúng session ID của nó. Mọi thứ nằm trong thư mục tạm; không đụng repo.
-# Dùng: scripts/test-agent-cli-run-json.sh   (AGENT_CLI_BIN=... để bỏ qua build)
+# Dùng: scripts/test-agent-cli-run-json.sh   (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 t="$(mktemp -d /tmp/aclijson.XXXXXX)"
@@ -62,8 +62,8 @@ for m in json.load(sys.stdin)["messages"]:
 # last_reply <dir> <session>: dòng của tin assistant cuối ("|" khi chưa có).
 last_reply() { local r; r="$(replies "$@" | tail -1)"; echo "${r:-|}"; }
 
-bin="${AGENT_CLI_BIN:-$t/agent-cli}"
-if [ -z "${AGENT_CLI_BIN:-}" ]; then
+bin="${DEW_BIN:-$t/agent-cli}"
+if [ -z "${DEW_BIN:-}" ]; then
   (cd "$here" && GOMAXPROCS=2 go build -p 2 -o "$bin" .) || { echo "build failed"; exit 1; }
 fi
 

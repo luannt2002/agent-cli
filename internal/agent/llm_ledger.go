@@ -19,7 +19,7 @@ import (
 	"github.com/charmbracelet/crush/internal/execpolicy"
 )
 
-// Sổ ghi lời gọi LLM (opt-in, AGENT_CLI_LLM_LEDGER=<tệp>): mỗi lời gọi một dòng
+// Sổ ghi lời gọi LLM (opt-in, DEW_LLM_LEDGER=<tệp>): mỗi lời gọi một dòng
 // JSON nói vai trò, provider/model THẬT đã gọi, kích thước prompt và usage của
 // chính lời gọi đó. Chỉ có kích thước và hash, không chép nội dung prompt. Dùng để
 // chứng minh "phiên chọn provider X không gọi provider khác" và để đo token thật

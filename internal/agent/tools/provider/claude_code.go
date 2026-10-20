@@ -18,8 +18,8 @@ const ClaudeCodeToolName = "claude_code"
 // trình dew (export ở shell); biến chỉ khai trong crushrc/tệp env
 // không tới được đây vì crushrc chạy trong trình thông dịch riêng.
 const (
-	claudeBinEnv  = "AGENT_CLI_CLAUDE_BIN"
-	claudeModeEnv = "AGENT_CLI_CLAUDE_PERMISSION_MODE"
+	claudeBinEnv  = "DEW_CLAUDE_BIN"
+	claudeModeEnv = "DEW_CLAUDE_PERMISSION_MODE"
 )
 
 // defaultClaudePermissionMode giữ mặc định đã chốt của tool: Claude Code

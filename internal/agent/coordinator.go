@@ -969,7 +969,7 @@ func (c *coordinator) buildTools(ctx context.Context, agent config.Agent, isSubA
 	)
 
 	// Tool uỷ quyền cho Claude Code/Codex chỉ có mặt khi agent được phép dùng
-	// và máy có CLI đó; biến AGENT_CLI_*_BIN trỏ sai thì dựng agent lỗi.
+	// và máy có CLI đó; biến DEW_*_BIN trỏ sai thì dựng agent lỗi.
 	pol, err := c.execPolicy()
 	if err != nil {
 		return nil, err
@@ -1061,7 +1061,7 @@ func (c *coordinator) execPolicy() (execpolicy.Policy, error) {
 // TODO: when we support multiple agents we need to change this so that we pass in the agent specific model config
 
 // checkModelPolicy chặn model chính (large/small) không có trong
-// AGENT_CLI_ALLOWED_MODELS trước khi dựng provider: lượt chính, sub-agent,
+// DEW_ALLOWED_MODELS trước khi dựng provider: lượt chính, sub-agent,
 // đặt tiêu đề và tóm tắt đều dựng model qua buildAgentModels.
 func checkModelPolicy(pol execpolicy.Policy, models ...config.SelectedModel) error {
 	for _, m := range models {

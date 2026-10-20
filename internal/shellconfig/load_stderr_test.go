@@ -177,7 +177,7 @@ func TestLoadShellConfig_StderrOnSuccessIsNotAnError(t *testing.T) {
 }
 
 // TestLoadShellConfig_ExampleCrushrcNamesMissingVariable chạy chính tệp mẫu
-// crushrc khi thiếu AGENT_CLI_BASE_URL: lỗi phải nêu tên biến, đây là đúng lỗi
+// crushrc khi thiếu DEW_BASE_URL: lỗi phải nêu tên biến, đây là đúng lỗi
 // người dùng gặp khi cài mới mà chưa điền tệp env.
 func TestLoadShellConfig_ExampleCrushrcNamesMissingVariable(t *testing.T) {
 	example := filepath.Join("..", "..", "agent-cli.crushrc.example")
@@ -188,24 +188,24 @@ func TestLoadShellConfig_ExampleCrushrcNamesMissingVariable(t *testing.T) {
 
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, "env")
-	t.Setenv("AGENT_CLI_ENV_FILE", envFile)
-	t.Setenv("AGENT_CLI_PROVIDER_ID", "")
-	t.Setenv("AGENT_CLI_BASE_URL", "")
-	t.Setenv("AGENT_CLI_MODEL", "")
+	t.Setenv("DEW_ENV_FILE", envFile)
+	t.Setenv("DEW_PROVIDER_ID", "")
+	t.Setenv("DEW_BASE_URL", "")
+	t.Setenv("DEW_MODEL", "")
 
 	// Chỉ so tên biến và đường dẫn tệp env, không so nguyên câu chữ của tệp mẫu,
 	// để sửa lời nhắc trong tệp mẫu không làm đỏ test này.
 	_, err = LoadShellConfig(t.Context(), filepath.Join(dir, "crushrc"), src)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "exit status 1")
-	require.Contains(t, err.Error(), "AGENT_CLI_BASE_URL")
+	require.Contains(t, err.Error(), "DEW_BASE_URL")
 	require.Contains(t, err.Error(), envFile)
 
 	// Biến thứ hai cũng được báo khi biến thứ nhất đã có.
-	t.Setenv("AGENT_CLI_BASE_URL", "http://127.0.0.1:1/v1")
+	t.Setenv("DEW_BASE_URL", "http://127.0.0.1:1/v1")
 	_, err = LoadShellConfig(t.Context(), filepath.Join(dir, "crushrc"), src)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "AGENT_CLI_MODEL")
+	require.Contains(t, err.Error(), "DEW_MODEL")
 	require.Contains(t, err.Error(), envFile)
 }
 

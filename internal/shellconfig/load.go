@@ -34,7 +34,7 @@ const loadTimeout = 30 * time.Second
 // Stderr của script được thu lại thay vì bỏ đi: khi script thất bại,
 // maxStderrTailBytes byte cuối của nó được nối vào lỗi trả về, ví dụ
 //
-//	executing shell config .../crushrc: exit status 1: AGENT_CLI_BASE_URL: đặt ...
+//	executing shell config .../crushrc: exit status 1: DEW_BASE_URL: đặt ...
 //
 // Không có bước này thì chốt chặn kiểu `: "${VAR:?thông báo}"` chỉ để lại
 // "exit status 1", và ở chế độ client/server lý do mất hẳn (stderr của server

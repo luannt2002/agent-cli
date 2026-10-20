@@ -5,7 +5,7 @@
 #
 # Provider: cấu hình THẬT của bạn (CRUSH_GLOBAL_CONFIG mặc định ~/.config/agent-cli), skill thật trong HOME,
 # nhưng dữ liệu (global data, cache, DB dự án) nằm trong <out-dir>, chạy in-process (không đụng server đang
-# chạy). Sổ ghi LLM (AGENT_CLI_LLM_LEDGER) bật để đếm lời gọi/token THẬT; binary không có sổ ghi thì cột
+# chạy). Sổ ghi LLM (DEW_LLM_LEDGER) bật để đếm lời gọi/token THẬT; binary không có sổ ghi thì cột
 # token để trống. Không in secret: chỉ ghi kết quả JSON của agent-cli và số đo.
 #   EVAL_SMALL_MODEL   provider/model dùng cho bước có "models": "small" (kịch bản đổi model)
 #   EVAL_STEP_TIMEOUT  giây tối đa mỗi bước (mặc định 900)
@@ -23,7 +23,7 @@ run_env=(env -i PATH=/usr/local/bin:/usr/bin:/bin HOME="$HOME"
   CRUSH_GLOBAL_DATA="$out/gdata" CRUSH_CACHE_DIR="$out/cache"
   CRUSH_CLIENT_SERVER=0 CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1
   CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_DISABLE_UPDATE_CHECK=1
-  AGENT_CLI_LLM_LEDGER="$out/ledger.jsonl")
+  DEW_LLM_LEDGER="$out/ledger.jsonl")
 
 nsteps=$(python3 -I -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["steps"]))' "$out/scenario.json")
 sid=""

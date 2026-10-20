@@ -53,7 +53,7 @@ func TestRunCommandIgnoresProjectDotenv(t *testing.T) {
 	var env []string
 	for _, kv := range os.Environ() {
 		k, _, _ := strings.Cut(kv, "=")
-		if !strings.HasPrefix(k, "AGENT_CLI_") && !slices.Contains(steeringEnv, k) {
+		if !strings.HasPrefix(k, "DEW_") && !slices.Contains(steeringEnv, k) {
 			env = append(env, kv)
 		}
 	}

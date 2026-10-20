@@ -28,7 +28,7 @@ echo "\$CRUSH_CLIENT_SERVER \$*" >> $work/calls
 sleep 30 & wait
 STUB
 chmod +x "$work/bin/tmux" "$work/bin/agent-cli"
-export PATH="$work/bin:$PATH" AGENT_CLI_TMUX_NO_ATTACH=1
+export PATH="$work/bin:$PATH" DEW_TMUX_NO_ATTACH=1
 unset TMUX
 tmux kill-server 2>/dev/null || true
 

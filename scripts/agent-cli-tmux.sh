@@ -4,9 +4,9 @@
 #       agent-cli-tmux new <name> [--model P/M] [--repo dir] [--base ref]  (worktree + window riêng)
 #       agent-cli-tmux rm <name> [--repo dir] [--force] | ls [--repo dir]
 #         (rm từ chối khi worktree có file bị gitignore, vd .crush/ lịch sử session, .env; --force mới xoá)
-# Env: AGENT_CLI_TMUX_SESSION (mặc định agents), AGENT_CLI_TMUX_NO_ATTACH=1 (không attach).
+# Env: DEW_TMUX_SESSION (mặc định agents), DEW_TMUX_NO_ATTACH=1 (không attach).
 set -euo pipefail
-session="${AGENT_CLI_TMUX_SESSION:-agents}"
+session="${DEW_TMUX_SESSION:-agents}"
 
 if [[ $# -eq 0 || "$1" == -h || "$1" == --help ]]; then
   echo "Dùng: agent-cli-tmux <dir>... | new <name> [--model P/M] [--repo dir] [--base ref] | rm <name> [--repo dir] [--force] | ls [--repo dir]" >&2
@@ -187,7 +187,7 @@ for abs in "${dirs[@]}"; do
 done
 tmux select-window -t "$target"
 
-[[ "${AGENT_CLI_TMUX_NO_ATTACH:-}" == 1 ]] && exit 0
+[[ "${DEW_TMUX_NO_ATTACH:-}" == 1 ]] && exit 0
 if [[ -n "${TMUX:-}" ]]; then
   exec tmux switch-client -t "=$session"
 fi

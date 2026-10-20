@@ -36,14 +36,14 @@ JSON
   env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
     CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \
     CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=0 \
-    AGENT_CLI_LLM_LEDGER="$P/ledger.jsonl" \
+    DEW_LLM_LEDGER="$P/ledger.jsonl" \
     timeout 120 "$BIN" run --json "QWEN-ONLY exercise every pathway" > "$P/out.json" 2> "$P/err.txt"
   echo $? > "$P/rc"
   # Đường loop/routine (cùng coordinator, chạy agent in-process) với cùng cấu hình hai provider.
   env -i PATH=/usr/bin:/bin HOME="$P/home" XDG_CONFIG_HOME="$P/home/c" XDG_DATA_HOME="$P/home/d" XDG_CACHE_HOME="$P/home/x" \
     CRUSH_GLOBAL_CONFIG="$P/home/cfg" CRUSH_GLOBAL_DATA="$P/home/data" CRUSH_CACHE_DIR="$P/home/cache" \
     CRUSH_DISABLE_METRICS=1 DO_NOT_TRACK=1 CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1 CRUSH_CLIENT_SERVER=0 \
-    AGENT_CLI_LLM_LEDGER="$P/ledger.jsonl" \
+    DEW_LLM_LEDGER="$P/ledger.jsonl" \
     timeout 120 "$BIN" loop --verify "test -f README.md" "LOOP-PATH make sure the readme exists" > "$P/loop.out" 2> "$P/loop.err"
   echo $? > "$P/loop.rc"
 )

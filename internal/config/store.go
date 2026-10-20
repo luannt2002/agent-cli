@@ -529,7 +529,7 @@ var checkPreferredModel = func(m SelectedModel) error {
 // latency); agents are refreshed separately by the caller (see
 // UpdateAgentModel).
 func (s *ConfigStore) UpdatePreferredModel(scope Scope, modelType SelectedModelType, model SelectedModel) error {
-	// Model ngoài ranh giới (AGENT_CLI_ALLOWED_MODELS) không được ghi xuống
+	// Model ngoài ranh giới (DEW_ALLOWED_MODELS) không được ghi xuống
 	// đĩa: ghi rồi thì lần mở sau dừng ngay lúc dựng agent, không sửa được
 	// từ TUI.
 	if err := checkPreferredModel(model); err != nil {

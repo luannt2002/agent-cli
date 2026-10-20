@@ -11,14 +11,14 @@
 #     "hooks": {
 #       "Stop": [
 #         {
-#           "command": "AGENT_CLI_VERIFY_CMD='go build ./... && go test ./...' /ĐƯỜNG/DẪN/verify-gate.sh",
+#           "command": "DEW_VERIFY_CMD='go build ./... && go test ./...' /ĐƯỜNG/DẪN/verify-gate.sh",
 #           "timeout": 300
 #         }
 #       ]
 #     }
 #   }
 #
-# KHÔNG đặt AGENT_CLI_VERIFY_CMD trong ~/.config/agent-cli/env: tệp đó chỉ được
+# KHÔNG đặt DEW_VERIFY_CMD trong ~/.config/agent-cli/env: tệp đó chỉ được
 # crushrc nạp trong trình thông dịch riêng, biến không tới hook (cổng sẽ tắt).
 # Đặt `export` ở shell trước khi mở server cũng được, nhưng chỉ có hiệu lực lúc
 # server được dựng. Đặt "timeout" đủ lớn cho cả bộ verify: hook quá hạn thì lượt
@@ -33,10 +33,10 @@
 
 set -uo pipefail
 
-cmd="${AGENT_CLI_VERIFY_CMD:-}"
+cmd="${DEW_VERIFY_CMD:-}"
 if [[ -z "$cmd" ]]; then
 	# Chưa cấu hình cổng: không cản, nhưng nói rõ để không tưởng cổng đang chạy.
-	echo "verify-gate: AGENT_CLI_VERIFY_CMD rỗng, cổng KHÔNG chạy (xem hướng dẫn đầu tệp)" >&2
+	echo "verify-gate: DEW_VERIFY_CMD rỗng, cổng KHÔNG chạy (xem hướng dẫn đầu tệp)" >&2
 	exit 0
 fi
 

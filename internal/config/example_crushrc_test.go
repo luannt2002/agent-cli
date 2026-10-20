@@ -23,7 +23,7 @@ import (
 const loginToken = "login-access-token"
 
 // loadExampleCrushrc dựng một "máy" sạch (HOME, XDG, CRUSH_GLOBAL_* trỏ vào thư
-// mục tạm; mọi biến AGENT_CLI_* và khoá provider quen thuộc bị xoá) rồi nạp
+// mục tạm; mọi biến DEW_* và khoá provider quen thuộc bị xoá) rồi nạp
 // cấu hình với crushrc mẫu. storedData là nội dung crush.json trong thư mục dữ
 // liệu toàn cục (rỗng = chưa đăng nhập gì).
 func loadExampleCrushrc(t *testing.T, env map[string]string, storedData string) (*ConfigStore, error) {
@@ -47,11 +47,11 @@ func loadExampleCrushrc(t *testing.T, env map[string]string, storedData string) 
 	t.Setenv("CRUSH_GLOBAL_CONFIG", cfgDir)
 	t.Setenv("CRUSH_GLOBAL_DATA", dataGlobal)
 	t.Setenv("CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "1")
-	t.Setenv("AGENT_CLI_ENV_FILE", filepath.Join(isolated, "no-env-file"))
+	t.Setenv("DEW_ENV_FILE", filepath.Join(isolated, "no-env-file"))
 	for _, k := range []string{
-		"AGENT_CLI_PROVIDER_ID", "AGENT_CLI_PROVIDER_NAME", "AGENT_CLI_PROVIDER_TYPE",
-		"AGENT_CLI_BASE_URL", "AGENT_CLI_MODEL", "AGENT_CLI_SMALL_MODEL", "AGENT_CLI_API_KEY",
-		"AGENT_CLI_CONTEXT_WINDOW", "AGENT_CLI_MAX_TOKENS", "AGENT_CLI_CAN_REASON",
+		"DEW_PROVIDER_ID", "DEW_PROVIDER_NAME", "DEW_PROVIDER_TYPE",
+		"DEW_BASE_URL", "DEW_MODEL", "DEW_SMALL_MODEL", "DEW_API_KEY",
+		"DEW_CONTEXT_WINDOW", "DEW_MAX_TOKENS", "DEW_CAN_REASON",
 		// Khoá provider của người chạy test không được làm provider "tự cấu hình".
 		"OPENAI_API_KEY", "OPENAI_API_ENDPOINT", "ANTHROPIC_API_KEY", "XAI_API_KEY", "ZAI_API_KEY",
 	} {
@@ -98,9 +98,9 @@ func storedLogin(providerID string) string {
 // dừng và nêu đúng tên, thay vì lặng lẽ chọn model của provider khác.
 func TestExampleCrushrc_TypoedProviderIDStopsStartup(t *testing.T) {
 	_, err := loadExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "foo",
-		"AGENT_CLI_MODEL":       "some-model",
-		"AGENT_CLI_API_KEY":     "test-key",
+		"DEW_PROVIDER_ID": "foo",
+		"DEW_MODEL":       "some-model",
+		"DEW_API_KEY":     "test-key",
 	}, "")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `provider "foo"`)
@@ -108,11 +108,11 @@ func TestExampleCrushrc_TypoedProviderIDStopsStartup(t *testing.T) {
 	require.Contains(t, err.Error(), "typo")
 }
 
-// Đường provider "main" tự khai bằng AGENT_CLI_BASE_URL phải nạp như cũ.
+// Đường provider "main" tự khai bằng DEW_BASE_URL phải nạp như cũ.
 func TestExampleCrushrc_MainProviderStillLoads(t *testing.T) {
 	store, err := loadExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_BASE_URL": "http://127.0.0.1:1/v1",
-		"AGENT_CLI_MODEL":    "local-model",
+		"DEW_BASE_URL": "http://127.0.0.1:1/v1",
+		"DEW_MODEL":    "local-model",
 	}, "")
 	require.NoError(t, err)
 
@@ -127,21 +127,21 @@ func TestExampleCrushrc_MainProviderStillLoads(t *testing.T) {
 	require.EqualValues(t, 32000, large.MaxTokens)
 
 	small, err := loadExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_BASE_URL":       "http://127.0.0.1:1/v1",
-		"AGENT_CLI_MODEL":          "local-model",
-		"AGENT_CLI_CONTEXT_WINDOW": "32768",
+		"DEW_BASE_URL":       "http://127.0.0.1:1/v1",
+		"DEW_MODEL":          "local-model",
+		"DEW_CONTEXT_WINDOW": "32768",
 	}, "")
 	require.NoError(t, err)
 	require.EqualValues(t, 8192, small.Config().Models[SelectedModelTypeLarge].MaxTokens, "a small context keeps room for the input")
 }
 
-// Đã `dew login` thì để trống AGENT_CLI_API_KEY: provider vẫn lên, token
+// Đã `dew login` thì để trống DEW_API_KEY: provider vẫn lên, token
 // đăng nhập còn nguyên (crushrc không phát key rỗng đè lên nó).
 func TestExampleCrushrc_LoginProviderKeepsStoredToken(t *testing.T) {
 	model := firstEmbeddedModel(t, "xai")
 	store, err := loadExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "xai",
-		"AGENT_CLI_MODEL":       model,
+		"DEW_PROVIDER_ID": "xai",
+		"DEW_MODEL":       model,
 	}, storedLogin("xai"))
 	require.NoError(t, err)
 
@@ -156,13 +156,13 @@ func TestExampleCrushrc_LoginProviderKeepsStoredToken(t *testing.T) {
 }
 
 // Thứ tự nạp: crush.json trong thư mục dữ liệu (nơi login ghi token) nằm SAU
-// crushrc, nên khi đã đăng nhập thì token thắng AGENT_CLI_API_KEY. Muốn dùng
+// crushrc, nên khi đã đăng nhập thì token thắng DEW_API_KEY. Muốn dùng
 // khoá thì `dew logout` trước; docs ghi đúng điều này.
 func TestExampleCrushrc_StoredLoginBeatsEnvKey(t *testing.T) {
 	store, err := loadExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "xai",
-		"AGENT_CLI_MODEL":       firstEmbeddedModel(t, "xai"),
-		"AGENT_CLI_API_KEY":     "env-key",
+		"DEW_PROVIDER_ID": "xai",
+		"DEW_MODEL":       firstEmbeddedModel(t, "xai"),
+		"DEW_API_KEY":     "env-key",
 	}, storedLogin("xai"))
 	require.NoError(t, err)
 
@@ -175,8 +175,8 @@ func TestExampleCrushrc_StoredLoginBeatsEnvKey(t *testing.T) {
 // chưa được cấu hình). Nếu không, `dew login openai` cũng không chạy nổi.
 func TestExampleCrushrc_LoginProviderNotLoggedInStillStarts(t *testing.T) {
 	store, err := loadExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "openai",
-		"AGENT_CLI_MODEL":       firstEmbeddedModel(t, "openai"),
+		"DEW_PROVIDER_ID": "openai",
+		"DEW_MODEL":       firstEmbeddedModel(t, "openai"),
 	}, "")
 	require.NoError(t, err)
 

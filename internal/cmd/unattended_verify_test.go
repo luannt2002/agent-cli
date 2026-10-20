@@ -15,7 +15,7 @@ import (
 )
 
 // Verify của `routine run` là tiến trình con của lượt không người trực: nó phải thấy
-// AGENT_CLI_UNATTENDED=1 (và AGENT_CLI_UNATTENDED_COMMIT theo định nghĩa) như mọi tiến
+// DEW_UNATTENDED=1 (và DEW_UNATTENDED_COMMIT theo định nghĩa) như mọi tiến
 // trình con khác. Ngoài routine, `.env` của repo không bật được chế độ đó cho verify.
 // Chạy ở tiến trình con vì ảnh chụp env gốc là toàn cục, chỉ chụp một lần.
 func TestVerifyCarriesTheCurrentUnattendedState(t *testing.T) {
@@ -26,7 +26,7 @@ func TestVerifyCarriesTheCurrentUnattendedState(t *testing.T) {
 		wd, err := os.Getwd()
 		require.NoError(t, err)
 		state := filepath.Join(wd, "state.txt")
-		probe := `echo "on=${AGENT_CLI_UNATTENDED:-unset} commit=${AGENT_CLI_UNATTENDED_COMMIT:-unset}"`
+		probe := `echo "on=${DEW_UNATTENDED:-unset} commit=${DEW_UNATTENDED_COMMIT:-unset}"`
 		res, err := shellVerify(wd, 0)(context.Background(), probe)
 		require.NoError(t, err)
 		fmt.Print("LOOP " + res.Output)
@@ -46,10 +46,10 @@ func TestVerifyCarriesTheCurrentUnattendedState(t *testing.T) {
 	}
 	dir := t.TempDir()
 	// `.env` của repo cố bật cả hai công tắc.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte("AGENT_CLI_UNATTENDED=1\nAGENT_CLI_UNATTENDED_COMMIT=1\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte("DEW_UNATTENDED=1\nDEW_UNATTENDED_COMMIT=1\n"), 0o600))
 	var env []string
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "AGENT_CLI_") {
+		if !strings.HasPrefix(kv, "DEW_") {
 			env = append(env, kv)
 		}
 	}

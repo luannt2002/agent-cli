@@ -13,11 +13,11 @@ cp "$here"/agent-cli.crushrc.example "$here"/agent-cli.env.example "$t/fake/"
 cat > "$t/inst/lib/agent-cli/crush" <<'STUB'
 #!/usr/bin/env bash
 echo "CS=${CRUSH_CLIENT_SERVER-unset}"
-echo "L=${AGENT_CLI_LAUNCHER-unset}"
+echo "L=${DEW_LAUNCHER-unset}"
 printf 'ARG=%s\n' "$@"
 STUB
 chmod 755 "$t/inst/lib/agent-cli/crush"
-install1() { HOME="$t/home" AGENT_CLI_INSTALL_DIR="$t/inst" AGENT_CLI_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
+install1() { HOME="$t/home" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
 msg_first="$(install1)"
 wrapper="$t/inst/bin/agent-cli"
 
@@ -106,7 +106,7 @@ out="$(run "$t/repoA" -- -c "$t/repoA" run x)"
 check "run vẫn thêm --host" "$(same "$(host_of "$out")" "$h_a1"; echo $?)"
 out="$(run "$t/repoA" --)"
 check "không đối số, không phải terminal (TUI thẳng) vẫn thêm --host" "$(same "$(host_of "$out")" "$h_a1"; echo $?)"
-check "launcher tự khai đường dẫn của nó (AGENT_CLI_LAUNCHER) cho Home" "$(grep -qx "L=$wrapper" <<<"$out"; echo $?)"
+check "launcher tự khai đường dẫn của nó (DEW_LAUNCHER) cho Home" "$(grep -qx "L=$wrapper" <<<"$out"; echo $?)"
 
 # Trên terminal, agent-cli trần (hoặc chỉ -d) là Home: chưa có workspace nên không chọn server.
 # `script` cấp pty để stdin/stdout là terminal như khi gõ tay.
@@ -133,22 +133,22 @@ else
 fi
 
 # Thứ tự thư mục socket: không bao giờ /tmp, ~/.cache/agent-cli mode 0700.
-out="$(run "$t/repoA" AGENT_CLI_RUNTIME_DIR=/nonexistent XDG_RUNTIME_DIR= -- run x)"
+out="$(run "$t/repoA" DEW_RUNTIME_DIR=/nonexistent XDG_RUNTIME_DIR= -- run x)"
 check "không có /run/user, không XDG -> \$HOME/.cache/agent-cli" "$([[ "$(host_of "$out")" == "unix://$t/home/.cache/agent-cli/agent-cli-$(sha8 "$root_a").sock" ]]; echo $?)"
 check "thư mục dự phòng mode 700" "$([[ "$(stat -c %a "$t/home/.cache/agent-cli")" == 700 ]]; echo $?)"
 mkdir -p "$t/xdg"
-out="$(run "$t/repoA" AGENT_CLI_RUNTIME_DIR=/nonexistent XDG_RUNTIME_DIR="$t/xdg" -- run x)"
+out="$(run "$t/repoA" DEW_RUNTIME_DIR=/nonexistent XDG_RUNTIME_DIR="$t/xdg" -- run x)"
 check "không có /run/user -> XDG_RUNTIME_DIR" "$([[ "$(host_of "$out")" == "unix://$t/xdg/agent-cli-$(sha8 "$root_a").sock" ]]; echo $?)"
 long="$t/$(printf 'd%.0s' {1..100})"; mkdir -p "$long"
 # Socket quá dài: KHÔNG chạy tiếp không --host (client sẽ rơi về server mặc định dùng chung, mất cách ly theo dự án).
-rc=0; out="$(run "$t/repoA" AGENT_CLI_RUNTIME_DIR="$long" -- run x 2>"$t/err")" || rc=$?
+rc=0; out="$(run "$t/repoA" DEW_RUNTIME_DIR="$long" -- run x 2>"$t/err")" || rc=$?
 check "socket quá 107 byte -> dừng mã 1, không chạy binary" "$([[ "$rc" == 1 && -z "$out" ]]; echo $?)"
-check "socket quá dài -> lỗi nêu độ dài và AGENT_CLI_RUNTIME_DIR" "$(grep -q 'quá dài' "$t/err" && grep -q AGENT_CLI_RUNTIME_DIR "$t/err" && grep -q 'CRUSH_CLIENT_SERVER=0' "$t/err"; echo $?)"
-rc=0; out="$(run "$t/repoA" AGENT_CLI_RUNTIME_DIR="$long" CRUSH_CLIENT_SERVER=0 -- run x 2>/dev/null)" || rc=$?
+check "socket quá dài -> lỗi nêu độ dài và DEW_RUNTIME_DIR" "$(grep -q 'quá dài' "$t/err" && grep -q DEW_RUNTIME_DIR "$t/err" && grep -q 'CRUSH_CLIENT_SERVER=0' "$t/err"; echo $?)"
+rc=0; out="$(run "$t/repoA" DEW_RUNTIME_DIR="$long" CRUSH_CLIENT_SERVER=0 -- run x 2>/dev/null)" || rc=$?
 check "socket quá dài nhưng CRUSH_CLIENT_SERVER=0 -> vẫn chạy (không cần socket)" "$([[ "$rc" == 0 ]] && grep -qx 'CS=0' <<<"$out"; echo $?)"
-rc=0; out="$(run "$t/repoA" AGENT_CLI_RUNTIME_DIR="$long" -- --host "$u" run x 2>/dev/null)" || rc=$?
+rc=0; out="$(run "$t/repoA" DEW_RUNTIME_DIR="$long" -- --host "$u" run x 2>/dev/null)" || rc=$?
 check "socket quá dài nhưng user tự truyền --host -> vẫn chạy, giữ host của user" "$([[ "$rc" == 0 && "$(host_of "$out")" == "$u" ]]; echo $?)"
-rc=0; out="$(run "$t/repoA" AGENT_CLI_RUNTIME_DIR="$long" -- ps 2>/dev/null)" || rc=$?
+rc=0; out="$(run "$t/repoA" DEW_RUNTIME_DIR="$long" -- ps 2>/dev/null)" || rc=$?
 check "socket quá dài nhưng lệnh ps (không cần host) -> vẫn chạy" "$([[ "$rc" == 0 ]] && grep -qx 'ARG=ps' <<<"$out"; echo $?)"
 
 # Repo nằm ở đường dẫn rất dài: socket vẫn ngắn vì tên chỉ dùng 8 ký tự sha1.
@@ -182,17 +182,17 @@ for v in yes no on off 2 tRuE y; do
   check "CRUSH_CLIENT_SERVER=$v (Go không hiểu, coi là tắt) -> không --host, cảnh báo stderr" "$([[ "$(count_host "$out")" == 0 ]] && grep -q 'không hợp lệ' "$t/err" && grep -qx 'ARG=run' <<<"$out"; echo $?)"
 done
 
-# AGENT_CLI_SKIP_BUILD chỉ bỏ build khi đúng bằng 1. go giả ghi dấu mỗi lần được gọi.
+# DEW_SKIP_BUILD chỉ bỏ build khi đúng bằng 1. go giả ghi dấu mỗi lần được gọi.
 mkdir -p "$t/gobin" "$t/inst2/lib/agent-cli"
 # go giả giữ đúng hợp đồng của go build: sinh tệp -o (installer build ra tệp tạm rồi mv).
 printf '#!/bin/sh\ntouch "%s/go-called"\necho "CGO_ENABLED=$CGO_ENABLED GOEXPERIMENT=$GOEXPERIMENT" > "%s/go-env"\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && cp "%s" "$2"; shift; done\n' "$t" "$t" "$t/inst/lib/agent-cli/crush" > "$t/gobin/go"; chmod 755 "$t/gobin/go"
 cp "$t/inst/lib/agent-cli/crush" "$t/inst2/lib/agent-cli/crush"
-inst2() { HOME="$t/home" PATH="$t/gobin:$PATH" AGENT_CLI_INSTALL_DIR="$t/inst2" AGENT_CLI_SKIP_BUILD="$1" bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
+inst2() { HOME="$t/home" PATH="$t/gobin:$PATH" DEW_INSTALL_DIR="$t/inst2" DEW_SKIP_BUILD="$1" bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
 rm -f "$t/go-called" "$t/go-env"; msg="$(CGO_ENABLED=1 GOEXPERIMENT=nogreenteagc inst2 0)"
-check "AGENT_CLI_SKIP_BUILD=0 vẫn build" "$([[ -e "$t/go-called" ]] && ! grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
+check "DEW_SKIP_BUILD=0 vẫn build" "$([[ -e "$t/go-called" ]] && ! grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
 check "build như bản chính thức: CGO_ENABLED=0 GOEXPERIMENT=greenteagc (đè biến của user)" "$([[ "$(cat "$t/go-env")" == "CGO_ENABLED=0 GOEXPERIMENT=greenteagc" ]]; echo $?)"
 rm -f "$t/go-called"; msg="$(inst2 1)"
-check "AGENT_CLI_SKIP_BUILD=1 bỏ build và báo" "$([[ ! -e "$t/go-called" ]] && grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
+check "DEW_SKIP_BUILD=1 bỏ build và báo" "$([[ ! -e "$t/go-called" ]] && grep -q 'Bỏ qua go build' <<<"$msg"; echo $?)"
 
 # Cài đặt cấu hình chung: crushrc + env mẫu, không .crush.json, không ghi đè lần hai.
 cfg="$t/home/.config/agent-cli"
@@ -200,15 +200,15 @@ check "cài lần đầu tạo crushrc từ mẫu" "$(cmp -s "$here/agent-cli.cr
 check "cài lần đầu tạo env từ mẫu, mode 600" "$(cmp -s "$here/agent-cli.env.example" "$cfg/env" && [[ "$(stat -c %a "$cfg/env")" == 600 ]]; echo $?)"
 check "cài đặt không tạo .crush.json" "$([[ ! -e "$t/fake/.crush.json" && ! -e "$cfg/crush.json" ]]; echo $?)"
 check "không có crush.json cũ -> không in hướng dẫn chuyển đổi" "$(! grep -q 'crush.json cũ' <<<"$msg_first"; echo $?)"
-echo '# của user' >> "$cfg/crushrc"; echo 'AGENT_CLI_MODEL=mine' >> "$cfg/env"
+echo '# của user' >> "$cfg/crushrc"; echo 'DEW_MODEL=mine' >> "$cfg/env"
 msg_second="$(install1)"
 check "cài lần hai không ghi đè crushrc" "$(tail -1 "$cfg/crushrc" | grep -qx '# của user'; echo $?)"
-check "cài lần hai không ghi đè env" "$(tail -1 "$cfg/env" | grep -qx 'AGENT_CLI_MODEL=mine'; echo $?)"
+check "cài lần hai không ghi đè env" "$(tail -1 "$cfg/env" | grep -qx 'DEW_MODEL=mine'; echo $?)"
 check "cài lần đầu (tệp = mẫu) -> không in gợi ý diff" "$(! grep -q 'diff -u' <<<"$msg_first"; echo $?)"
 # repo giả là $t/fake nên mẫu trong gợi ý nằm ở đó.
 check "cài lần hai, crushrc khác mẫu -> gợi ý diff -u crushrc mẫu" "$(grep -F 'diff -u' <<<"$msg_second" | grep -F "$cfg/crushrc" | grep -qF "$t/fake/agent-cli.crushrc.example"; echo $?)"
 check "cài lần hai, env khác mẫu -> gợi ý diff -u env mẫu" "$(grep -F 'diff -u' <<<"$msg_second" | grep -F "$cfg/env" | grep -qF "$t/fake/agent-cli.env.example"; echo $?)"
-check "gợi ý diff chỉ là gợi ý: hai tệp của user vẫn nguyên" "$(tail -1 "$cfg/crushrc" | grep -qx '# của user' && tail -1 "$cfg/env" | grep -qx 'AGENT_CLI_MODEL=mine'; echo $?)"
+check "gợi ý diff chỉ là gợi ý: hai tệp của user vẫn nguyên" "$(tail -1 "$cfg/crushrc" | grep -qx '# của user' && tail -1 "$cfg/env" | grep -qx 'DEW_MODEL=mine'; echo $?)"
 echo '{}' > "$cfg/crush.json"
 msg_old="$(install1)"
 check "có crush.json cũ -> giữ nguyên và in hướng dẫn" "$(grep -q 'crush.json cũ' <<<"$msg_old" && [[ "$(cat "$cfg/crush.json")" == '{}' ]]; echo $?)"
@@ -222,7 +222,7 @@ chmod 755 "$cfg"; install1 >/dev/null
 check "thư mục cấu hình mở rộng (755) được siết về 700" "$([[ "$(stat -c %a "$cfg")" == 700 ]]; echo $?)"
 
 # crush.json đang khai provider thì không tạo crushrc/env (crushrc sẽ ghi đè nó); chỉ để bản .example.
-install_in() { HOME="$1" AGENT_CLI_INSTALL_DIR="$t/inst" AGENT_CLI_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
+install_in() { HOME="$1" DEW_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" 2>&1; }
 mkdir -p "$t/hp/.config/agent-cli"; cj='{"providers":{"mine":{"type":"openai-compat"}},"models":{"large":{"provider":"mine","model":"x"}}}'
 printf '%s' "$cj" > "$t/hp/.config/agent-cli/crush.json"
 msg_p="$(install_in "$t/hp")"; c="$t/hp/.config/agent-cli"
@@ -263,11 +263,11 @@ install1 >/dev/null
 check "cài lại thay symlink agent-cli-tmux của bản cài cũ bằng bản chép" "$([[ -f "$tmux_inst" && ! -L "$tmux_inst" ]]; echo $?)"
 check "thay symlink không ghi xuyên vào tệp trong repo" "$([[ "$(cksum < "$t/fake/scripts/agent-cli-tmux.sh")" == "$before_sum" ]]; echo $?)"
 
-# AGENT_CLI_INSTALL_DIR tương đối: wrapper phải ghi đường dẫn binary tuyệt đối.
+# DEW_INSTALL_DIR tương đối: wrapper phải ghi đường dẫn binary tuyệt đối.
 mkdir -p "$t/relcwd/rel-inst/lib/agent-cli"
 cp "$t/inst/lib/agent-cli/crush" "$t/relcwd/rel-inst/lib/agent-cli/crush"
-(cd "$t/relcwd" && HOME="$t/home" AGENT_CLI_INSTALL_DIR=rel-inst AGENT_CLI_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" >/dev/null 2>&1)
-check "AGENT_CLI_INSTALL_DIR tương đối -> wrapper ghi đường dẫn binary tuyệt đối" "$(grep -Fqx "exec \"$t/relcwd/rel-inst/lib/agent-cli/crush\" \"\$@\"" "$t/relcwd/rel-inst/bin/agent-cli"; echo $?)"
+(cd "$t/relcwd" && HOME="$t/home" DEW_INSTALL_DIR=rel-inst DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-agent-cli.sh" >/dev/null 2>&1)
+check "DEW_INSTALL_DIR tương đối -> wrapper ghi đường dẫn binary tuyệt đối" "$(grep -Fqx "exec \"$t/relcwd/rel-inst/lib/agent-cli/crush\" \"\$@\"" "$t/relcwd/rel-inst/bin/agent-cli"; echo $?)"
 out="$(cd / && HOME="$t/home" "$t/relcwd/rel-inst/bin/agent-cli" run x 2>&1)" || true
 check "wrapper cài bằng đường dẫn tương đối chạy được từ thư mục khác" "$(grep -qx 'ARG=run' <<<"$out"; echo $?)"
 

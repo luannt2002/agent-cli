@@ -20,7 +20,7 @@ const serverDiedBlock = "          \n" +
 	"   ERROR  \n" +
 	"          \n" +
 	"  Failed to load configuration: failed to load config from paths [/c/crushrc]:   \n" +
-	"  executing shell config /c/crushrc: exit status 1: AGENT_CLI_BASE_URL: đặt AGENT_CLI_BASE_URL trong /c/env.   \n\n"
+	"  executing shell config /c/crushrc: exit status 1: DEW_BASE_URL: đặt DEW_BASE_URL trong /c/env.   \n\n"
 
 func TestCleanLogTail(t *testing.T) {
 	t.Parallel()
@@ -36,7 +36,7 @@ func TestCleanLogTail(t *testing.T) {
 			raw:  serverDiedBlock,
 			max:  1024,
 			want: "ERROR Failed to load configuration: failed to load config from paths [/c/crushrc]: " +
-				"executing shell config /c/crushrc: exit status 1: AGENT_CLI_BASE_URL: đặt AGENT_CLI_BASE_URL trong /c/env.",
+				"executing shell config /c/crushrc: exit status 1: DEW_BASE_URL: đặt DEW_BASE_URL trong /c/env.",
 		},
 		{
 			name: "ANSI sequences are removed",
@@ -150,7 +150,7 @@ func TestWaitForServerReadyShowsServerStderr(t *testing.T) {
 		msg := err.Error()
 		require.Contains(t, msg, "/v1/health", "the original probe error must stay")
 		require.Contains(t, msg, "server stderr ("+serverStderrPath(u)+"): ERROR Failed to load configuration")
-		require.True(t, strings.HasSuffix(msg, "exit status 1: AGENT_CLI_BASE_URL: đặt AGENT_CLI_BASE_URL trong /c/env"),
+		require.True(t, strings.HasSuffix(msg, "exit status 1: DEW_BASE_URL: đặt DEW_BASE_URL trong /c/env"),
 			"the server's own final period is dropped because fang adds one: %q", msg)
 		require.NotContains(t, msg, "\x1b")
 		require.NotContains(t, msg, "\n")

@@ -164,19 +164,19 @@ func TestLoadReadsEnvFileAndProcessEnv(t *testing.T) {
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, "env")
 	require.NoError(t, os.WriteFile(envFile, []byte(`# comment
-AGENT_CLI_API_KEY='secret-must-not-matter'
-export AGENT_CLI_ALLOWED_MODELS="zai:glm-5.3 claude_code:claude-opus-5-5"  # trailing comment
-AGENT_CLI_DELEGATION=on   # bật giao việc
+DEW_API_KEY='secret-must-not-matter'
+export DEW_ALLOWED_MODELS="zai:glm-5.3 claude_code:claude-opus-5-5"  # trailing comment
+DEW_DELEGATION=on   # bật giao việc
 `), 0o600))
 
-	p, err := load(env(map[string]string{"AGENT_CLI_ENV_FILE": envFile}))
+	p, err := load(env(map[string]string{"DEW_ENV_FILE": envFile}))
 	require.NoError(t, err)
 	require.True(t, p.AllowsModel("zai", "glm-5.3"))
 	require.False(t, p.AllowsModel("zai", "glm-4.6"))
 	require.Equal(t, []string{"claude-opus-5-5"}, p.DelegationModels(BackendClaudeCode))
 
 	// Env đã export thắng tệp.
-	p, err = load(env(map[string]string{"AGENT_CLI_ENV_FILE": envFile, DelegationEnv: "off", AllowedModelsEnv: "zai:glm-4.6"}))
+	p, err = load(env(map[string]string{"DEW_ENV_FILE": envFile, DelegationEnv: "off", AllowedModelsEnv: "zai:glm-4.6"}))
 	require.NoError(t, err)
 	require.True(t, p.AllowsModel("zai", "glm-4.6"))
 	require.Nil(t, p.DelegationModels(BackendClaudeCode))
@@ -207,11 +207,11 @@ func TestEnvFileUnusualSpellingsFailClosed(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	for i, line := range []string{
-		"declare -x AGENT_CLI_ALLOWED_MODELS=zai:glm-5.3",
-		"typeset -x AGENT_CLI_ALLOWED_MODELS=zai:glm-5.3",
-		"readonly AGENT_CLI_DELEGATION=on",
-		"X=1; AGENT_CLI_ALLOWED_MODELS=zai:glm-5.3",
-		"AGENT_CLI_ALLOWED_MODELS+=zai:glm-5.3",
+		"declare -x DEW_ALLOWED_MODELS=zai:glm-5.3",
+		"typeset -x DEW_ALLOWED_MODELS=zai:glm-5.3",
+		"readonly DEW_DELEGATION=on",
+		"X=1; DEW_ALLOWED_MODELS=zai:glm-5.3",
+		"DEW_ALLOWED_MODELS+=zai:glm-5.3",
 	} {
 		f := filepath.Join(dir, fmt.Sprintf("env%d", i))
 		require.NoError(t, os.WriteFile(f, []byte(line+"\n"), 0o600))
@@ -219,7 +219,7 @@ func TestEnvFileUnusualSpellingsFailClosed(t *testing.T) {
 		require.Errorf(t, err, "%q", line)
 	}
 	ok := filepath.Join(dir, "ok")
-	require.NoError(t, os.WriteFile(ok, []byte("export\tAGENT_CLI_DELEGATION=on\r\n# AGENT_CLI_ALLOWED_MODELS=commented\n"), 0o600))
+	require.NoError(t, os.WriteFile(ok, []byte("export\tDEW_DELEGATION=on\r\n# DEW_ALLOWED_MODELS=commented\n"), 0o600))
 	got, err := readEnvFile(ok)
 	require.NoError(t, err)
 	require.Equal(t, "on", strings.TrimSpace(got[DelegationEnv]))
@@ -275,8 +275,8 @@ func TestInputsUseSnapshotAndEnvFile(t *testing.T) {
 	t.Cleanup(func() { snapshot = prev })
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, "env")
-	require.NoError(t, os.WriteFile(envFile, []byte("AGENT_CLI_API_KEY='secret'\nAGENT_CLI_ALLOWED_MODELS=zai:glm-5.3\nAGENT_CLI_DELEGATION=on\n"), 0o600))
-	snapshot = map[string]string{EnvFileEnv: envFile, "AGENT_CLI_CODEX_SANDBOX": "read-only"}
+	require.NoError(t, os.WriteFile(envFile, []byte("DEW_API_KEY='secret'\nDEW_ALLOWED_MODELS=zai:glm-5.3\nDEW_DELEGATION=on\n"), 0o600))
+	snapshot = map[string]string{EnvFileEnv: envFile, "DEW_CODEX_SANDBOX": "read-only"}
 	// `.env` của repo nạp sau ảnh chụp: không được chọn chính sách.
 	t.Setenv(AllowedModelsEnv, "pp:m-pp")
 	t.Setenv(DelegationEnv, "off")
@@ -286,7 +286,7 @@ func TestInputsUseSnapshotAndEnvFile(t *testing.T) {
 	require.Len(t, l.inputs, len(trustedKeys), "every trusted key, set or not")
 	require.Contains(t, l.inputs, AllowedModelsEnv+"=zai:glm-5.3", "from the env file, not the repo's .env")
 	require.Contains(t, l.inputs, DelegationEnv+"=on")
-	require.Contains(t, l.inputs, "AGENT_CLI_CODEX_SANDBOX=read-only")
+	require.Contains(t, l.inputs, "DEW_CODEX_SANDBOX=read-only")
 	require.Contains(t, l.inputs, "HOME=", "unset keys are sent empty")
 	require.NotContains(t, strings.Join(l.inputs, "\n"), "secret", "only trusted keys, never other env file lines")
 	require.True(t, l.policy.AllowsModel("zai", "glm-5.3"))

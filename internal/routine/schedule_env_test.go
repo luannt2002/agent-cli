@@ -46,11 +46,11 @@ func TestScheduleText_EnvAllowsModelAllowlist(t *testing.T) {
 	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
 		Schedule: &Schedule{Cron: "0 3 * * *"}}
 	sum := strings.Repeat("a", 64)
-	out, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x"})
+	out, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x"})
 	require.NoError(t, err)
-	require.Contains(t, out, " AGENT_CLI_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x ")
+	require.Contains(t, out, " DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x ")
 	for _, bad := range []string{"a b", `a"b`, "a'b", "a$b", "a%b", "a\nb", `a\b`, "a;b", "a`b"} {
-		_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"AGENT_CLI_ALLOWED_MODELS=" + bad})
+		_, err := d.ScheduleText("/bin/agent-cli", sum, "/bin", []string{"DEW_ALLOWED_MODELS=" + bad})
 		require.Error(t, err, "%q", bad)
 	}
 }

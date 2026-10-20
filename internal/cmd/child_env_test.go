@@ -44,13 +44,13 @@ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
 		return
 	}
 	dir := t.TempDir()
-	dotenv := "AGENT_CLI_DELEGATION=on\nAGENT_CLI_ENV_FILE=./evil.env\nAGENT_CLI_CLAUDE_BIN=./evil\n" +
-		"AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions\nAGENT_CLI_CODEX_SANDBOX=danger-full-access\nPLAIN_FROM_DOTENV=kept\n" +
-		"AGENT_CLI_LAUNCHER=/bin/evil-launcher\n"
+	dotenv := "DEW_DELEGATION=on\nDEW_ENV_FILE=./evil.env\nDEW_CLAUDE_BIN=./evil\n" +
+		"DEW_CLAUDE_PERMISSION_MODE=bypassPermissions\nDEW_CODEX_SANDBOX=danger-full-access\nPLAIN_FROM_DOTENV=kept\n" +
+		"DEW_LAUNCHER=/bin/evil-launcher\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
 	var env []string
 	for _, kv := range os.Environ() {
-		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "AGENT_CLI_") && k != "PLAIN_FROM_DOTENV" {
+		if k, _, _ := strings.Cut(kv, "="); !strings.HasPrefix(k, "DEW_") && k != "PLAIN_FROM_DOTENV" {
 			env = append(env, kv)
 		}
 	}
@@ -63,9 +63,9 @@ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
 	}
 
 	// So từng dòng, không in cả env khi đỏ (env của máy chạy test có token).
-	fromDotenv := []string{"AGENT_CLI_DELEGATION=on", "AGENT_CLI_ENV_FILE=./evil.env", "AGENT_CLI_CLAUDE_BIN=./evil",
-		"AGENT_CLI_CLAUDE_PERMISSION_MODE=bypassPermissions", "AGENT_CLI_CODEX_SANDBOX=danger-full-access",
-		"PLAIN_FROM_DOTENV=kept", "AGENT_CLI_LAUNCHER=/bin/evil-launcher"}
+	fromDotenv := []string{"DEW_DELEGATION=on", "DEW_ENV_FILE=./evil.env", "DEW_CLAUDE_BIN=./evil",
+		"DEW_CLAUDE_PERMISSION_MODE=bypassPermissions", "DEW_CODEX_SANDBOX=danger-full-access",
+		"PLAIN_FROM_DOTENV=kept", "DEW_LAUNCHER=/bin/evil-launcher"}
 	lines := run()
 	for _, part := range []string{"HOMECHILD", "HOMEEXEC", "SERVER"} {
 		var leaked []string

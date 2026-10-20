@@ -92,7 +92,7 @@ func init() {
 // the dew launcher chooses from.
 func discoverPSHosts() []string {
 	var dirs []string
-	rt := os.Getenv("AGENT_CLI_RUNTIME_DIR")
+	rt := os.Getenv("DEW_RUNTIME_DIR")
 	if rt == "" {
 		rt = fmt.Sprintf("/run/user/%d", os.Getuid())
 	}

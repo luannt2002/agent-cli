@@ -39,19 +39,19 @@ func TestCreateWorkspace_TrustPolicyMismatch(t *testing.T) {
 		{
 			name: "allowlist differs",
 			mutate: func(p *proto.Workspace) {
-				p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
+				p.TrustedEnv = withTrusted(p.TrustedEnv, "DEW_ALLOWED_MODELS", "qwen:m-qwen")
 			},
-			wantKey: "AGENT_CLI_ALLOWED_MODELS",
+			wantKey: "DEW_ALLOWED_MODELS",
 		},
 		{
 			name:    "delegation differs",
-			mutate:  func(p *proto.Workspace) { p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_DELEGATION", "on") },
-			wantKey: "AGENT_CLI_DELEGATION",
+			mutate:  func(p *proto.Workspace) { p.TrustedEnv = withTrusted(p.TrustedEnv, "DEW_DELEGATION", "on") },
+			wantKey: "DEW_DELEGATION",
 		},
 		{
 			name:    "other trusted var differs",
-			mutate:  func(p *proto.Workspace) { p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_UNATTENDED", "1") },
-			wantKey: "AGENT_CLI_UNATTENDED",
+			mutate:  func(p *proto.Workspace) { p.TrustedEnv = withTrusted(p.TrustedEnv, "DEW_UNATTENDED", "1") },
+			wantKey: "DEW_UNATTENDED",
 		},
 		{
 			name:    "yolo differs",
@@ -76,7 +76,7 @@ func TestCreateWorkspace_TrustPolicyMismatch(t *testing.T) {
 			name: "no-agent client, allowlist differs",
 			mutate: func(p *proto.Workspace) {
 				p.NoAgentRuns = true
-				p.TrustedEnv = withTrusted(p.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
+				p.TrustedEnv = withTrusted(p.TrustedEnv, "DEW_ALLOWED_MODELS", "qwen:m-qwen")
 			},
 		},
 	}
@@ -124,7 +124,7 @@ func TestCreateWorkspace_ClosingServerBeatsPolicyMismatch(t *testing.T) {
 	b.closing = true
 	b.mu.Unlock()
 	args := protoWS(t.TempDir(), t.TempDir(), uuid.New().String())
-	args.TrustedEnv = withTrusted(args.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
+	args.TrustedEnv = withTrusted(args.TrustedEnv, "DEW_ALLOWED_MODELS", "qwen:m-qwen")
 	_, _, err := b.CreateWorkspace(args)
 	require.ErrorIs(t, err, ErrServerShuttingDown)
 }
@@ -142,7 +142,7 @@ func TestCreateWorkspace_TrustPolicyMismatchOnNewWorkspace(t *testing.T) {
 	require.NoError(t, err)
 
 	args := protoWS(t.TempDir(), t.TempDir(), uuid.New().String())
-	args.TrustedEnv = withTrusted(args.TrustedEnv, "AGENT_CLI_ALLOWED_MODELS", "qwen:m-qwen")
+	args.TrustedEnv = withTrusted(args.TrustedEnv, "DEW_ALLOWED_MODELS", "qwen:m-qwen")
 	_, _, err = b.CreateWorkspace(args)
 	require.ErrorIs(t, err, ErrPolicyMismatch)
 	require.Len(t, b.ListWorkspaces(), 1, "no workspace is built for a refused client")

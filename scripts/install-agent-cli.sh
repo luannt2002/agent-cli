@@ -2,7 +2,7 @@
 # Build và cài CLI cá nhân; không ghi đè cấu hình thật.
 set -euo pipefail
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-install_dir="${AGENT_CLI_INSTALL_DIR:-$HOME/.local}"
+install_dir="${DEW_INSTALL_DIR:-$HOME/.local}"
 # Đổi sang đường dẫn tuyệt đối ngay từ đầu: wrapper ghi cứng đường dẫn binary vào chính nó,
 # nên nếu để tương đối thì wrapper chỉ chạy được khi đứng đúng thư mục cài.
 mkdir -p -- "$install_dir"
@@ -34,7 +34,7 @@ else
     fi
   fi
 fi
-# Cấu hình chung: crushrc đọc biến AGENT_CLI_* từ tệp env. Không ghi đè tệp có sẵn.
+# Cấu hình chung: crushrc đọc biến DEW_* từ tệp env. Không ghi đè tệp có sẵn.
 # crushrc thắng crush.json cùng thư mục: nếu crush.json (theo cả symlink, không sửa) đang khai
 # provider thì KHÔNG tạo crushrc, kẻo thay provider đang chạy bằng placeholder. jq thiếu hoặc
 # JSON hỏng thì coi như có provider (an toàn hơn là ghi đè).
@@ -46,7 +46,7 @@ fi
 if [[ ! -e "$config_dir/crushrc" && -n "$legacy_providers" ]]; then
   [[ -e "$config_dir/crushrc.example" ]] || install -m 644 "$repo_dir/agent-cli.crushrc.example" "$config_dir/crushrc.example"
   [[ -e "$config_dir/env.example" ]] || install -m 644 "$repo_dir/agent-cli.env.example" "$config_dir/env.example"
-  echo "Có $config_dir/crush.json đang khai provider: KHÔNG tạo crushrc (nó sẽ ghi đè provider đó). Đã để crushrc.example và env.example cạnh nó; để chuyển sang biến AGENT_CLI_*, xoá 'providers' và 'models' khỏi crush.json (giữ theme), rồi đổi tên: crushrc.example -> crushrc, env.example -> env (chmod 600) và điền giá trị."
+  echo "Có $config_dir/crush.json đang khai provider: KHÔNG tạo crushrc (nó sẽ ghi đè provider đó). Đã để crushrc.example và env.example cạnh nó; để chuyển sang biến DEW_*, xoá 'providers' và 'models' khỏi crush.json (giữ theme), rồi đổi tên: crushrc.example -> crushrc, env.example -> env (chmod 600) và điền giá trị."
 else
   if [[ ! -e "$config_dir/crushrc" ]]; then
     install -m 644 "$repo_dir/agent-cli.crushrc.example" "$config_dir/crushrc"
@@ -54,15 +54,15 @@ else
   fi
   if [[ ! -e "$config_dir/env" ]]; then
     install -m 600 "$repo_dir/agent-cli.env.example" "$config_dir/env"
-    echo "Đã tạo $config_dir/env (mode 600); điền AGENT_CLI_BASE_URL, AGENT_CLI_MODEL, AGENT_CLI_API_KEY trước khi gọi AI."
+    echo "Đã tạo $config_dir/env (mode 600); điền DEW_BASE_URL, DEW_MODEL, DEW_API_KEY trước khi gọi AI."
   fi
   if [[ -e "$config_dir/crush.json" || -L "$config_dir/crush.json" ]]; then
     echo "Có $config_dir/crush.json cũ: giữ nguyên (không khai provider). Cấu hình model nay nằm ở crushrc + env."
   fi
 fi
-# AGENT_CLI_SKIP_BUILD=1: dùng binary có sẵn (test launcher đặt stub vào đó).
-if [[ "${AGENT_CLI_SKIP_BUILD:-}" == 1 ]]; then
-  echo "Bỏ qua go build (AGENT_CLI_SKIP_BUILD=1); dùng binary có sẵn."
+# DEW_SKIP_BUILD=1: dùng binary có sẵn (test launcher đặt stub vào đó).
+if [[ "${DEW_SKIP_BUILD:-}" == 1 ]]; then
+  echo "Bỏ qua go build (DEW_SKIP_BUILD=1); dùng binary có sẵn."
 else
   # Build ra tệp tạm: build lỗi thì dừng ở đây, bản đang chạy và các bản sao lưu còn nguyên.
   # Biến build như bản chính thức (.goreleaser.yml, Taskfile.yaml): CGO_ENABLED=0 và
@@ -82,7 +82,7 @@ export CRUSH_DISABLE_PROVIDER_AUTO_UPDATE=1
 export CRUSH_DISABLE_UPDATE_CHECK=1
 export CRUSH_CLIENT_SERVER="${CRUSH_CLIENT_SERVER:-1}"
 # Home mở workspace qua chính launcher này để mỗi workspace có --host riêng của nó.
-export AGENT_CLI_LAUNCHER="$0"
+export DEW_LAUNCHER="$0"
 # Giá trị hiểu đúng như strconv.ParseBool của Go (useClientServer trong internal/cmd/root.go): bật là
 # 1 t T TRUE true True, tắt là 0 f F FALSE false False. Giá trị khác Go coi là tắt, nên launcher cũng
 # coi là tắt (cảnh báo) thay vì thêm --host cho một tiến trình sẽ chạy in-process.
@@ -114,7 +114,7 @@ case "$CRUSH_CLIENT_SERVER" in 0 | f | F | FALSE | false | False) ;;
   [[ -n "$bare" && -t 0 && -t 1 ]] && home=1
   if [[ -z "$have_host" && -z "$home" && "$sub" != ps ]] && root=$(cd -- "$cwd" 2>/dev/null && { git rev-parse --show-toplevel 2>/dev/null || pwd -P; }); then
     # Không dùng /tmp: ai cũng ghi được và tên đoán được -> user khác chiếm socket trước.
-    rt=${AGENT_CLI_RUNTIME_DIR:-/run/user/$UID}
+    rt=${DEW_RUNTIME_DIR:-/run/user/$UID}
     [[ -d "$rt" ]] || rt=${XDG_RUNTIME_DIR:-}
     if [[ ! -d "$rt" ]]; then
       rt=$HOME/.cache/agent-cli
@@ -129,7 +129,7 @@ case "$CRUSH_CLIENT_SERVER" in 0 | f | F | FALSE | false | False) ;;
       exit 1
     elif [[ ${#sock} -gt 107 ]]; then # giới hạn sun_path 108 byte gồm NUL
       echo "agent-cli: đường dẫn socket quá dài (${#sock} byte, tối đa 107): $sock" >&2
-      echo "agent-cli: đặt AGENT_CLI_RUNTIME_DIR trỏ tới thư mục riêng ngắn hơn (mode 700), hoặc chạy CRUSH_CLIENT_SERVER=0 agent-cli (in-process)." >&2
+      echo "agent-cli: đặt DEW_RUNTIME_DIR trỏ tới thư mục riêng ngắn hơn (mode 700), hoặc chạy CRUSH_CLIENT_SERVER=0 agent-cli (in-process)." >&2
       exit 1
     fi
     set -- --host "unix://$sock" "$@"

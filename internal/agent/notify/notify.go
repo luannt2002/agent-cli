@@ -75,7 +75,7 @@ type RunComplete struct {
 	Text      string
 	Error     string
 	Cancelled bool
-	// LedgerError là lỗi ghi sổ ghi LLM (AGENT_CLI_LLM_LEDGER) đầu tiên của
+	// LedgerError là lỗi ghi sổ ghi LLM (DEW_LLM_LEDGER) đầu tiên của
 	// lượt; rỗng khi sổ tắt hoặc ghi đủ. Không làm lượt thất bại.
 	LedgerError string
 }

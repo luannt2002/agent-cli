@@ -10,18 +10,18 @@ import (
 )
 
 // runExampleCrushrc chạy chính tệp agent-cli.crushrc.example ở gốc repo với env
-// cho sẵn. Mọi biến AGENT_CLI_* khác bị xoá và tệp env trỏ tới chỗ không tồn
+// cho sẵn. Mọi biến DEW_* khác bị xoá và tệp env trỏ tới chỗ không tồn
 // tại, để test không bao giờ đọc cấu hình (và khoá) thật của người chạy.
 func runExampleCrushrc(t *testing.T, env map[string]string) (map[string]any, error) {
 	t.Helper()
 	script, err := os.ReadFile(filepath.Join("..", "..", "agent-cli.crushrc.example"))
 	require.NoError(t, err)
 
-	t.Setenv("AGENT_CLI_ENV_FILE", filepath.Join(t.TempDir(), "no-env-file"))
+	t.Setenv("DEW_ENV_FILE", filepath.Join(t.TempDir(), "no-env-file"))
 	for _, k := range []string{
-		"AGENT_CLI_PROVIDER_ID", "AGENT_CLI_PROVIDER_NAME", "AGENT_CLI_PROVIDER_TYPE",
-		"AGENT_CLI_BASE_URL", "AGENT_CLI_MODEL", "AGENT_CLI_SMALL_MODEL", "AGENT_CLI_API_KEY",
-		"AGENT_CLI_CONTEXT_WINDOW", "AGENT_CLI_MAX_TOKENS", "AGENT_CLI_CAN_REASON",
+		"DEW_PROVIDER_ID", "DEW_PROVIDER_NAME", "DEW_PROVIDER_TYPE",
+		"DEW_BASE_URL", "DEW_MODEL", "DEW_SMALL_MODEL", "DEW_API_KEY",
+		"DEW_CONTEXT_WINDOW", "DEW_MAX_TOKENS", "DEW_CAN_REASON",
 	} {
 		t.Setenv(k, env[k])
 	}
@@ -39,10 +39,10 @@ func runExampleCrushrc(t *testing.T, env map[string]string) (map[string]any, err
 // đó, alt+p liệt kê provider này đầu tiên.
 func TestExampleCrushrc_CatalogProvider(t *testing.T) {
 	cfg, err := runExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "zai",
-		"AGENT_CLI_MODEL":       "glm-5.3",
-		"AGENT_CLI_SMALL_MODEL": "glm-5.3-flash",
-		"AGENT_CLI_API_KEY":     "test-key",
+		"DEW_PROVIDER_ID": "zai",
+		"DEW_MODEL":       "glm-5.3",
+		"DEW_SMALL_MODEL": "glm-5.3-flash",
+		"DEW_API_KEY":     "test-key",
 	})
 	require.NoError(t, err)
 
@@ -62,12 +62,12 @@ func TestExampleCrushrc_CatalogProvider(t *testing.T) {
 	require.Equal(t, []any{"zai", "openai", "anthropic"}, opts["visible_providers"])
 }
 
-// Endpoint tự khai (không đặt AGENT_CLI_PROVIDER_ID): provider "main" như cũ.
+// Endpoint tự khai (không đặt DEW_PROVIDER_ID): provider "main" như cũ.
 func TestExampleCrushrc_CustomEndpoint(t *testing.T) {
 	cfg, err := runExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_BASE_URL":   "http://127.0.0.1:8080/v1",
-		"AGENT_CLI_MODEL":      "local-model",
-		"AGENT_CLI_CAN_REASON": "true",
+		"DEW_BASE_URL":   "http://127.0.0.1:8080/v1",
+		"DEW_MODEL":      "local-model",
+		"DEW_CAN_REASON": "true",
 	})
 	require.NoError(t, err)
 
@@ -81,19 +81,19 @@ func TestExampleCrushrc_CustomEndpoint(t *testing.T) {
 func TestExampleCrushrc_MissingRequired(t *testing.T) {
 	_, err := runExampleCrushrc(t, map[string]string{})
 	require.Error(t, err)
-	_, err = runExampleCrushrc(t, map[string]string{"AGENT_CLI_PROVIDER_ID": "zai", "AGENT_CLI_MODEL": "glm-5.3"})
+	_, err = runExampleCrushrc(t, map[string]string{"DEW_PROVIDER_ID": "zai", "DEW_MODEL": "glm-5.3"})
 	require.Error(t, err, "a catalog provider still needs an API key")
 }
 
 // Provider đăng nhập bằng tài khoản (dew login ...): không có
-// AGENT_CLI_API_KEY vẫn nạp được, và crushrc KHÔNG phát ra trường api_key (một
+// DEW_API_KEY vẫn nạp được, và crushrc KHÔNG phát ra trường api_key (một
 // key rỗng không được phép đè lên token đăng nhập đã lưu).
 func TestExampleCrushrc_LoginProviderWithoutKey(t *testing.T) {
 	for _, id := range []string{"openai", "xai", "copilot", "hyper"} {
 		t.Run(id, func(t *testing.T) {
 			cfg, err := runExampleCrushrc(t, map[string]string{
-				"AGENT_CLI_PROVIDER_ID": id,
-				"AGENT_CLI_MODEL":       "some-model",
+				"DEW_PROVIDER_ID": id,
+				"DEW_MODEL":       "some-model",
 			})
 			require.NoError(t, err)
 
@@ -110,9 +110,9 @@ func TestExampleCrushrc_LoginProviderWithoutKey(t *testing.T) {
 // API key thay cho tài khoản ChatGPT).
 func TestExampleCrushrc_LoginProviderWithKeyPassesIt(t *testing.T) {
 	cfg, err := runExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "openai",
-		"AGENT_CLI_MODEL":       "some-model",
-		"AGENT_CLI_API_KEY":     "sk-test",
+		"DEW_PROVIDER_ID": "openai",
+		"DEW_MODEL":       "some-model",
+		"DEW_API_KEY":     "sk-test",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "sk-test", cfg["providers"].(map[string]any)["openai"].(map[string]any)["api_key"])
@@ -122,25 +122,25 @@ func TestExampleCrushrc_LoginProviderWithKeyPassesIt(t *testing.T) {
 func TestExampleCrushrc_NonLoginCatalogProviderStillNeedsKey(t *testing.T) {
 	for _, id := range []string{"zai", "anthropic", "openrouter"} {
 		_, err := runExampleCrushrc(t, map[string]string{
-			"AGENT_CLI_PROVIDER_ID": id,
-			"AGENT_CLI_MODEL":       "some-model",
+			"DEW_PROVIDER_ID": id,
+			"DEW_MODEL":       "some-model",
 		})
 		require.Error(t, err, id)
-		require.Contains(t, err.Error(), "AGENT_CLI_API_KEY", id)
+		require.Contains(t, err.Error(), "DEW_API_KEY", id)
 	}
 }
 
-// AGENT_CLI_CAN_REASON sai giá trị phải làm crushrc dừng với thông báo nêu đúng
+// DEW_CAN_REASON sai giá trị phải làm crushrc dừng với thông báo nêu đúng
 // tên biến, không để lộ thông báo của lệnh `model add --can-reason`.
 func TestExampleCrushrc_CanReasonInvalid(t *testing.T) {
 	for _, bad := range []string{"on", "off", "maybe", "2", "enabled", "y", "t", "f"} {
 		_, err := runExampleCrushrc(t, map[string]string{
-			"AGENT_CLI_BASE_URL":   "http://127.0.0.1:8080/v1",
-			"AGENT_CLI_MODEL":      "local-model",
-			"AGENT_CLI_CAN_REASON": bad,
+			"DEW_BASE_URL":   "http://127.0.0.1:8080/v1",
+			"DEW_MODEL":      "local-model",
+			"DEW_CAN_REASON": bad,
 		})
 		require.Error(t, err, bad)
-		require.Contains(t, err.Error(), "AGENT_CLI_CAN_REASON", bad)
+		require.Contains(t, err.Error(), "DEW_CAN_REASON", bad)
 		require.Contains(t, err.Error(), `"`+bad+`"`, "the message must echo the bad value: %s", bad)
 		require.NotContains(t, err.Error(), "--can-reason expects", "the builtin's own message must not surface: %s", bad)
 	}
@@ -162,9 +162,9 @@ func TestExampleCrushrc_CanReasonValid(t *testing.T) {
 		"no":    false,
 	} {
 		cfg, err := runExampleCrushrc(t, map[string]string{
-			"AGENT_CLI_BASE_URL":   "http://127.0.0.1:8080/v1",
-			"AGENT_CLI_MODEL":      "local-model",
-			"AGENT_CLI_CAN_REASON": value,
+			"DEW_BASE_URL":   "http://127.0.0.1:8080/v1",
+			"DEW_MODEL":      "local-model",
+			"DEW_CAN_REASON": value,
 		})
 		require.NoError(t, err, "value %q", value)
 		models := cfg["providers"].(map[string]any)["main"].(map[string]any)["models"].([]any)
@@ -172,14 +172,14 @@ func TestExampleCrushrc_CanReasonValid(t *testing.T) {
 	}
 }
 
-// AGENT_CLI_CAN_REASON không dùng ở chế độ provider dựng sẵn (catalog tự khai),
+// DEW_CAN_REASON không dùng ở chế độ provider dựng sẵn (catalog tự khai),
 // nên giá trị lạ ở đó không được làm hỏng khởi động.
 func TestExampleCrushrc_CanReasonIgnoredForCatalogProvider(t *testing.T) {
 	_, err := runExampleCrushrc(t, map[string]string{
-		"AGENT_CLI_PROVIDER_ID": "zai",
-		"AGENT_CLI_MODEL":       "glm-5.3",
-		"AGENT_CLI_API_KEY":     "test-key",
-		"AGENT_CLI_CAN_REASON":  "on",
+		"DEW_PROVIDER_ID": "zai",
+		"DEW_MODEL":       "glm-5.3",
+		"DEW_API_KEY":     "test-key",
+		"DEW_CAN_REASON":  "on",
 	})
 	require.NoError(t, err)
 }
@@ -193,9 +193,9 @@ func TestExampleCrushrc_VisibleProvidersHaveNoDuplicates(t *testing.T) {
 		"zai":       {"zai", "openai", "anthropic"},
 	} {
 		cfg, err := runExampleCrushrc(t, map[string]string{
-			"AGENT_CLI_PROVIDER_ID": id,
-			"AGENT_CLI_MODEL":       "some-model",
-			"AGENT_CLI_API_KEY":     "test-key",
+			"DEW_PROVIDER_ID": id,
+			"DEW_MODEL":       "some-model",
+			"DEW_API_KEY":     "test-key",
 		})
 		require.NoError(t, err, id)
 		require.Equal(t, want, cfg["options"].(map[string]any)["visible_providers"], id)
@@ -206,8 +206,8 @@ func TestExampleCrushrc_VisibleProvidersHaveNoDuplicates(t *testing.T) {
 // `Generated with Crush` vào commit/PR; mẫu tắt cả hai (cả hai chế độ provider).
 func TestExampleCrushrc_AttributionOff(t *testing.T) {
 	for name, env := range map[string]map[string]string{
-		"catalog": {"AGENT_CLI_PROVIDER_ID": "zai", "AGENT_CLI_MODEL": "glm-5.3", "AGENT_CLI_API_KEY": "test-key"},
-		"custom":  {"AGENT_CLI_BASE_URL": "http://127.0.0.1:8080/v1", "AGENT_CLI_MODEL": "local-model"},
+		"catalog": {"DEW_PROVIDER_ID": "zai", "DEW_MODEL": "glm-5.3", "DEW_API_KEY": "test-key"},
+		"custom":  {"DEW_BASE_URL": "http://127.0.0.1:8080/v1", "DEW_MODEL": "local-model"},
 	} {
 		cfg, err := runExampleCrushrc(t, env)
 		require.NoError(t, err, name)

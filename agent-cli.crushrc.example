@@ -1,52 +1,52 @@
 # Cấu hình chính của agent-cli (crushrc, cú pháp Bash). Installer chép tệp này
 # thành ~/.config/agent-cli/crushrc nếu chưa có. Provider/model đọc từ biến
-# AGENT_CLI_* trong tệp env (xem agent-cli.env.example), không viết cứng ở đây.
+# DEW_* trong tệp env (xem agent-cli.env.example), không viết cứng ở đây.
 
 # Nạp biến; bỏ qua nếu tệp không có (khi đó biến phải có sẵn trong môi trường).
-env_file="${AGENT_CLI_ENV_FILE:-$HOME/.config/agent-cli/env}"
+env_file="${DEW_ENV_FILE:-$HOME/.config/agent-cli/env}"
 [[ -f "$env_file" ]] && source "$env_file"
 
-# Hai cách khai provider chính, chọn bằng AGENT_CLI_PROVIDER_ID:
+# Hai cách khai provider chính, chọn bằng DEW_PROVIDER_ID:
 # - ID của provider dựng sẵn trong catalog (vd zai cho GLM, openai, anthropic):
-#   chỉ cần AGENT_CLI_API_KEY; catalog lo endpoint, danh sách model, mức effort
+#   chỉ cần DEW_API_KEY; catalog lo endpoint, danh sách model, mức effort
 #   (alt+e) và khả năng suy luận của model. Riêng openai, xai, copilot, hyper còn
 #   dùng được bằng tài khoản đăng nhập (agent-cli login openai | grok | copilot |
-#   không đối số cho hyper): khi đó để trống AGENT_CLI_API_KEY, crushrc không ghi
+#   không đối số cho hyper): khi đó để trống DEW_API_KEY, crushrc không ghi
 #   key rỗng đè lên token đăng nhập. ID gõ sai (không có trong catalog, không có
-#   AGENT_CLI_BASE_URL) làm agent-cli dừng lúc khởi động và nêu tên provider.
-# - Bỏ trống: provider "main" tự khai bằng AGENT_CLI_BASE_URL (model local, hoặc
+#   DEW_BASE_URL) làm agent-cli dừng lúc khởi động và nêu tên provider.
+# - Bỏ trống: provider "main" tự khai bằng DEW_BASE_URL (model local, hoặc
 #   endpoint tương thích OpenAI không có trong catalog).
-provider_id="${AGENT_CLI_PROVIDER_ID:-}"
+provider_id="${DEW_PROVIDER_ID:-}"
 
 # Thiếu biến bắt buộc thì dừng; lý do in ra stderr đi kèm thông báo lỗi khi mở
 # agent-cli (cả chế độ client/server).
 if [[ -n "$provider_id" ]]; then
   {
-    : "${AGENT_CLI_MODEL:?đặt AGENT_CLI_MODEL trong ${env_file} (vd glm-5.3)}"
+    : "${DEW_MODEL:?đặt DEW_MODEL trong ${env_file} (vd glm-5.3)}"
     case "$provider_id" in
       openai | xai | copilot | hyper) ;; # đăng nhập bằng `agent-cli login`, key không bắt buộc
-      *) : "${AGENT_CLI_API_KEY:?đặt AGENT_CLI_API_KEY trong ${env_file}}" ;;
+      *) : "${DEW_API_KEY:?đặt DEW_API_KEY trong ${env_file}}" ;;
     esac
   } 2>/dev/stderr
 else
   {
-    : "${AGENT_CLI_BASE_URL:?đặt AGENT_CLI_BASE_URL trong ${env_file} (vd http://127.0.0.1:<port>/v1)}"
-    : "${AGENT_CLI_MODEL:?đặt AGENT_CLI_MODEL trong ${env_file}}"
+    : "${DEW_BASE_URL:?đặt DEW_BASE_URL trong ${env_file} (vd http://127.0.0.1:<port>/v1)}"
+    : "${DEW_MODEL:?đặt DEW_MODEL trong ${env_file}}"
   } 2>/dev/stderr
 
   # Giá trị `model add --can-reason` nhận: true/false, 1/0, yes/no (không phân biệt
   # hoa thường). Kiểm ở đây để lỗi nêu đúng tên biến thay vì thông báo của lệnh model.
-  can_reason="${AGENT_CLI_CAN_REASON:-false}"
+  can_reason="${DEW_CAN_REASON:-false}"
   case "${can_reason,,}" in
     true | false | 1 | 0 | yes | no) ;;
     *)
-      echo "AGENT_CLI_CAN_REASON phải là true hoặc false, nhận \"${can_reason}\" (sửa trong ${env_file})" >&2
+      echo "DEW_CAN_REASON phải là true hoặc false, nhận \"${can_reason}\" (sửa trong ${env_file})" >&2
       exit 1
       ;;
   esac
 fi
-model="$AGENT_CLI_MODEL"
-small_model="${AGENT_CLI_SMALL_MODEL:-$model}"
+model="$DEW_MODEL"
+small_model="${DEW_SMALL_MODEL:-$model}"
 
 if [[ -n "$provider_id" ]]; then
   # Provider dựng sẵn: chỉ ghi khoá; endpoint, model, tên và mức effort lấy từ catalog.
@@ -55,27 +55,27 @@ if [[ -n "$provider_id" ]]; then
   # crushrc nên không bị key rỗng đè, nhưng không phát ra trường api_key thì khỏi phải
   # trông vào thứ tự nạp.
   key_args=()
-  [[ -n "${AGENT_CLI_API_KEY:-}" ]] && key_args=(--api-key "$AGENT_CLI_API_KEY")
+  [[ -n "${DEW_API_KEY:-}" ]] && key_args=(--api-key "$DEW_API_KEY")
   provider add "$provider_id" "${key_args[@]}"
   tok_args=()
-  [[ -n "${AGENT_CLI_MAX_TOKENS:-}" ]] && tok_args=(--max-tokens "$AGENT_CLI_MAX_TOKENS")
+  [[ -n "${DEW_MAX_TOKENS:-}" ]] && tok_args=(--max-tokens "$DEW_MAX_TOKENS")
   model large "$provider_id/$model" "${tok_args[@]}"
   model small "$provider_id/$small_model" "${tok_args[@]}"
 else
   provider_id=main
-  base_url="$AGENT_CLI_BASE_URL"
-  context_window="${AGENT_CLI_CONTEXT_WINDOW:-128000}"
+  base_url="$DEW_BASE_URL"
+  context_window="${DEW_CONTEXT_WINDOW:-128000}"
   # Ngân sách output mặc định: một phần tư context, tối đa 32000. 8192 cũ quá nhỏ cho
   # model có suy luận (phần nghĩ cũng tính vào đây) khi viết tệp lớn: trả lời bị cắt.
   quarter=$((context_window / 4))
-  max_tokens="${AGENT_CLI_MAX_TOKENS:-$((quarter < 32000 ? quarter : 32000))}"
+  max_tokens="${DEW_MAX_TOKENS:-$((quarter < 32000 ? quarter : 32000))}"
 
   # API key rỗng được (model local).
   provider add main \
-    --name "${AGENT_CLI_PROVIDER_NAME:-main}" \
-    --type "${AGENT_CLI_PROVIDER_TYPE:-openai-compat}" \
+    --name "${DEW_PROVIDER_NAME:-main}" \
+    --type "${DEW_PROVIDER_TYPE:-openai-compat}" \
     --base-url "$base_url" \
-    --api-key "${AGENT_CLI_API_KEY-}"
+    --api-key "${DEW_API_KEY-}"
 
   # --can-reason: model có suy luận cần hạn mức token đủ để vừa nghĩ vừa trả
   # lời, kể cả khi đặt tiêu đề session (không thì mọi session tên "Untitled
@@ -133,7 +133,7 @@ permissions deny sourcegraph fetch agentic_fetch download
 # Cho phép ở đây là bỏ luôn lời hỏi đó. glob/grep cũng chỉ hỏi khi tìm NGOÀI dự án.
 
 # claude_code / codex (giao việc cho Claude Code / Codex đã đăng nhập trên máy)
-# mặc định TẮT: chỉ có khi AGENT_CLI_DELEGATION=on, allowlist có claude_code:<id> /
+# mặc định TẮT: chỉ có khi DEW_DELEGATION=on, allowlist có claude_code:<id> /
 # codex:<id>, và máy có CLI đó. Mỗi lần giao hỏi quyền, trừ khi quyền đang tự duyệt
 # (run/loop, YOLO, Allow for Session, permissions allow; xem README). Chế độ không
 # người trực (routine) không bao giờ có hai tool này.

@@ -40,11 +40,11 @@ const (
 	homeExitCode = 10
 	// homeChildEnv marks a workspace TUI started by Home: on Alt+W it exits
 	// with homeExitCode instead of starting a new Home.
-	homeChildEnv = "AGENT_CLI_HOME_CHILD"
+	homeChildEnv = "DEW_HOME_CHILD"
 	// launcherEnv holds the path of the dew launcher, which sets it.
 	// Workspaces are started through it so each gets the launcher's
 	// per-project --host.
-	launcherEnv = "AGENT_CLI_LAUNCHER"
+	launcherEnv = "DEW_LAUNCHER"
 	// homeStatusProbes caps the per-session "waiting?" requests to one
 	// server; a busy session past the cap shows as running.
 	homeStatusProbes = 20

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMain gỡ biến cấu hình thật của người chạy test (vd AGENT_CLI_CODEX_BIN
+// TestMain gỡ biến cấu hình thật của người chạy test (vd DEW_CODEX_BIN
 // trong ~/.bashrc): biến env thắng CLI giả mà test tiêm vào, nên nếu còn thì
 // test sẽ chạy CLI THẬT với toàn quyền.
 func TestMain(m *testing.M) {
@@ -276,7 +276,7 @@ var testPolicy = func() execpolicy.Policy {
 
 // Tool giao việc chạy CLI con ở mức quyền rất rộng (mặc định claude --permission-mode
 // bypassPermissions, codex danger-full-access): khi không người trực nó không được
-// tồn tại, kể cả khi người dùng đã bật AGENT_CLI_DELEGATION. KHÔNG song song: công tắc
+// tồn tại, kể cả khi người dùng đã bật DEW_DELEGATION. KHÔNG song song: công tắc
 // là biến toàn cục.
 func TestNewToolsRegistersNothingWhileUnattended(t *testing.T) {
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
