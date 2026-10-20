@@ -40,9 +40,15 @@ cd <thư mục clone cũ>
 git remote set-url origin https://github.com/luannt2002/dew.git   # hoặc URL SSH ở trên
 git fetch origin && git pull --ff-only
 # tuỳ chọn: đổi tên thư mục cho khớp (thư mục đang mở trong dew thì Home còn mục cũ; mở lại bằng đường mới)
+find ~ -maxdepth 4 -lname "$PWD*" 2>/dev/null   # symlink trỏ vào thư mục này: sẽ gãy khi đổi tên, phải trỏ lại
 mv ../agent-cli ../dew
 git worktree repair   # chỉ cần khi repo có worktree phụ
 ```
+
+Đổi tên thư mục làm gãy mọi symlink trỏ vào nó. Ví dụ gặp thật (20/10): `~/.config/agent-cli/crush.json` là symlink tới
+`<clone>/.crush.json`, nơi khai provider; đổi tên thư mục thì provider đó mất ("provider … is unavailable"). Trỏ lại bằng
+`ln -sfn <đường mới>/.crush.json ~/.config/dew/crush.json`, và đổi đường `.../agent-cli/...` bên trong tệp đó. Trình cài
+cảnh báo khi gặp symlink gãy.
 
 Chuyển bản cài và cấu hình: thoát mọi client `agent-cli` (TUI, `run`, `loop`) và chờ server tự tắt (khoảng một phút),
 rồi chạy `bash scripts/install-dew.sh`. Trình cài chuyển `~/.config|.local/share|.cache|.local/lib/agent-cli` sang

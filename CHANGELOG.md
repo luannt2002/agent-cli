@@ -115,6 +115,8 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
     `crush.json` và `projects.json` (sao lưu trước ở `~/.config/dew/pre-dew-<thời điểm>/`), nối lại worktree routine,
     gỡ `agent-cli`/`agent-cli-tmux` do trình cài cũ tạo, in lệnh quay lại. Build chạy trước mọi chuyển đổi; lệnh quay lại
     được ghi dần vào `pre-dew-<thời điểm>/undo.sh` và in ra khi trình cài dừng giữa chừng.
+  - Symlink trỏ vào thư mục clone cũ (vd `~/.config/agent-cli/crush.json` → `<clone>/.crush.json`) gãy nếu bạn đổi tên
+    thư mục đó; trình cài cảnh báo symlink gãy nhưng không tự trỏ lại (xem `docs/dew-sync.md` mục 3).
   - Biến `AGENT_CLI_*` bạn tự export ở shell (`~/.bashrc`…) phải đổi tay; trình cài liệt kê TÊN biến và tên các tệp
     khởi động shell còn nhắc tên cũ. Unit
     systemd/crontab của routine đã cài theo tên cũ: in lại bằng `dew routine schedule <tên> --print` rồi cài tay.
