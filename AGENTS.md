@@ -1,8 +1,8 @@
-# agent-cli Development Guide
+# DEW Development Guide
 
 ## Project Overview
 
-agent-cli is a personal fork of Crush. User-visible names say "agent-cli"; the
+DEW is a personal fork of Crush. User-visible names say "DEW" (command `dew`); the
 module path, config file names (`crush.json`), `CRUSH_*` environment variables
 and the system prompts still say Crush on purpose, to keep merging upstream
 cheap. Upstream description follows.

@@ -3,8 +3,8 @@
 **DEW — Daily Engineering Workspace** là tên mới của dự án trước đây gọi là agent-cli.
 
 - **Repo:** `luannt2002/dew` (trước là `luannt2002/agent-cli`; GitHub tự chuyển hướng URL cũ sau khi đổi tên).
-- **Lệnh, cấu hình và biến môi trường vẫn mang tên cũ** cho tới khi đổi tên sản phẩm xong: lệnh `agent-cli`, cấu hình
-  `~/.config/agent-cli/`, biến `AGENT_CLI_*`. Phần nào đổi lúc nào: [kế hoạch đổi
+- **Lệnh, cấu hình và biến môi trường đã đổi tên:** lệnh `dew` (trước là `agent-cli`), cấu hình `~/.config/dew/`, biến
+  `DEW_*` (trước là `AGENT_CLI_*`). Máy đang dùng tên cũ: xem mục 3. Chi tiết: [kế hoạch đổi
   tên](../reports/documentation/RENAME_PLAN.md).
 
 ## 1. Lấy code lần đầu
@@ -25,7 +25,7 @@ git pull --ff-only
 bash scripts/install-dew.sh   # build lại và cài; in sẵn lệnh quay về bản cũ
 ```
 
-- Sau khi cài, thoát mọi client của các dự án đang mở (`agent-cli ps`) để server nền dựng lại bằng bản mới.
+- Sau khi cài, thoát mọi client của các dự án đang mở (`dew ps`) để server nền dựng lại bằng bản mới.
 - `git pull --ff-only` từ chối nếu máy bạn có commit riêng trên `main`. Giữ commit đó ở nhánh riêng rồi đưa `main` về
   bản chung (cây làm việc phải sạch trước, kiểm bằng `git status`):
   ```bash
@@ -33,16 +33,22 @@ bash scripts/install-dew.sh   # build lại và cài; in sẵn lệnh quay về 
   git fetch origin && git reset --hard origin/main
   ```
 
-## 3. Máy đang có bản clone tên cũ (`agent-cli`)
+## 3. Máy đang có bản clone hoặc bản cài tên cũ (`agent-cli`)
 
 ```bash
 cd <thư mục clone cũ>
 git remote set-url origin https://github.com/luannt2002/dew.git   # hoặc URL SSH ở trên
 git fetch origin && git pull --ff-only
-# tuỳ chọn: đổi tên thư mục cho khớp (thư mục đang mở trong agent-cli thì Home còn mục cũ; mở lại bằng đường mới)
+# tuỳ chọn: đổi tên thư mục cho khớp (thư mục đang mở trong dew thì Home còn mục cũ; mở lại bằng đường mới)
 mv ../agent-cli ../dew
 git worktree repair   # chỉ cần khi repo có worktree phụ
 ```
+
+Chuyển bản cài và cấu hình: thoát mọi client `agent-cli` (TUI, `run`, `loop`) và chờ server tự tắt (khoảng một phút),
+rồi chạy `bash scripts/install-dew.sh`. Trình cài chuyển `~/.config|.local/share|.cache|.local/lib/agent-cli` sang
+`.../dew`, đổi `AGENT_CLI_` thành `DEW_` trong `env`, `crushrc`, `crush.json` (sao lưu trước ở
+`~/.config/dew/pre-dew-<thời điểm>/`), gỡ `agent-cli`/`agent-cli-tmux` của trình cài cũ và in lệnh quay lại. Biến
+`AGENT_CLI_*` bạn tự export ở shell (`~/.bashrc`…) phải đổi tay; dew từ chối chạy khi còn biến tin cậy tên cũ.
 
 ## 4. Repo có gì để làm tiếp
 

@@ -48,7 +48,26 @@ chuyển đổi.
    `git remote set-url origin https://github.com/luannt2002/dew.git`, rồi push qua alias SSH
    `git@github.com-luannt2002:luannt2002/dew.git`.
 
-## Pha DEW (sau)
+## Đã làm ở pha DEW (20/10, nhánh `dew-rename`)
+
+Người dùng chốt "đổi tên toàn bộ, đừng để agent-cli nữa": KHÔNG có giai đoạn alias và không đọc song song `AGENT_CLI_*`
+(khác bảng trên, ghi ở DECISIONS.md mục 2026-10-20).
+
+- [x] BINARY_NAME: `dew`, `dew-tmux`; binary ở `~/.local/lib/dew/crush`.
+- [x] CONFIG_PATH: `~/.config/dew`, `~/.local/share/dew`, `~/.cache/dew`; socket `dew-<hash>.sock`.
+- [x] ENV_PREFIX: `DEW_*`. Biến tin cậy tên cũ còn trong env gốc hay tệp env thì `internal/execpolicy` dừng với lỗi nêu
+  cả hai tên.
+- [x] Chuỗi trong mã Go: "dew" (lệnh), "DEW" (header, logo, Home, banner thoát, trang OAuth, thông báo). `userAgent`
+  = `dew/<version>`: cassette VCR không so header User-Agent (`TestCoderAgent` xanh).
+- [x] Tệp: `scripts/install-dew.sh`, `scripts/dew-tmux.sh`, `scripts/test-dew-*.sh`, `dew.{crushrc,env}.example`,
+  `docs/dew-local-setup.md`.
+- [x] Chuyển đổi trong `scripts/install-dew.sh`, test trong `scripts/test-dew-wrapper.sh`; "Lưu ý nâng cấp" ở CHANGELOG.
+- Còn chữ agent-cli có chủ đích: giá trị `agent-cli-pending` (DB), danh sách chặn `selfNames`/`ProcessGuard`,
+  `.gitignore` `/agent-cli.env`, mã và test chuyển đổi, hồ sơ lịch sử (`docs/reviews`, `docs/superpowers`, `reports/`,
+  mục đã phát hành của CHANGELOG, mục cũ của DECISIONS).
+- Chưa làm: chạy trình cài thật trên máy (điều phối làm sau khi soát).
+
+## Pha DEW (kế hoạch ban đầu, đã thay bằng mục trên)
 
 BINARY_NAME, CONFIG_PATH, ENV_PREFIX và chuỗi trong mã theo bảng trên, mỗi phần kèm:
 - test chuyển đổi (máy đang có cấu hình cũ vẫn chạy);

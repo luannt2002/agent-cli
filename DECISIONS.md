@@ -362,3 +362,10 @@ Nạp tự động vào mọi phiên Claude. Mục đích: không bàn lại cá
 - **Vì:** đo được (binary thật, LLM giả; `scripts/eval/session-model.sh` giữ ca này): `run -s X` qua server ghi model của X thành cấu hình dự án, mọi session sau (kể cả session đang dùng model khác) đi theo mà không ai chọn. Người dùng chốt 19/10: model thuộc workspace nhưng chỉ đổi khi người dùng chọn.
 - **Đã thử và bỏ:** (a) model riêng từng session (mục 2026-10-15, phương án c) — đúng nhất nhưng đổi API model của UI, backend, CLI và proto; (b) giữ khôi phục trong RAM cho chế độ local — làm cùng lệnh `run -s` ra provider khác nhau tuỳ local hay server.
 - **Lật lại khi:** cần model khác nhau theo session một cách bền (không chỉ "lượt giữ model lúc gửi") thì làm phương án (a).
+
+## 2026-10-20 — Đổi tên agent-cli → dew: không đọc song song tên cũ, biến tin cậy tên cũ thì dừng
+**Trạng thái:** đã làm (nhánh `dew-rename`, chưa phát hành). Các mục trên giữ tên cũ (`agent-cli`, `AGENT_CLI_*`) vì là hồ sơ; nay đọc là `dew`, `DEW_*`.
+- **Chốt:** đổi toàn bộ lệnh (`dew`, `dew-tmux`), thư mục (`~/.config|.local/share|.cache|.local/lib/dew`), biến (`DEW_*`), socket, script và mẫu. Không có giai đoạn alias. Máy cũ chuyển bằng `scripts/install-dew.sh` (chuyển thư mục, đổi tên biến trong tệp cấu hình sau khi sao lưu, in lệnh quay lại). `internal/execpolicy` từ chối khi env gốc còn biến tin cậy `AGENT_CLI_*` hoặc tệp env còn `AGENT_CLI_ALLOWED_MODELS`/`AGENT_CLI_DELEGATION`. Danh sách chặn tiến trình (`selfNames`, `ProcessGuard`) giữ thêm tên `agent-cli`. Giữ `agent-cli-pending` (giá trị đã lưu trong DB).
+- **Vì:** người dùng chốt 20/10 "đổi tên toàn bộ, đừng để agent-cli nữa" (thay phương án "đọc cả hai tên một thời gian" của `reports/documentation/RENAME_PLAN.md`). Bỏ qua lặng lẽ biến tên cũ sẽ nới ranh giới: `AGENT_CLI_ALLOWED_MODELS` mất thì model chính hết bị giới hạn; `AGENT_CLI_CLAUDE_PERMISSION_MODE=acceptEdits` mất thì CLI con về mặc định toàn quyền.
+- **Đã thử và bỏ:** chỉ cảnh báo lúc cài (không phủ biến export sau khi cài, và stderr bị TUI che).
+- **Lật lại khi:** có người dùng thứ hai cần chạy song song bản cũ và bản mới trên cùng máy.

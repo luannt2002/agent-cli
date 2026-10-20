@@ -1,4 +1,4 @@
-# Cài agent-cli trên máy cá nhân hoặc server nhà
+# Cài dew trên máy cá nhân hoặc server nhà
 
 Fork từ Crush; giữ nguyên LICENSE.md và thông báo upstream.
 
@@ -10,83 +10,83 @@ Cần sẵn:
 - `sha1sum` hoặc `shasum`: launcher dùng để chọn server riêng cho từng dự án (mục "Một server cho
   mỗi dự án"). Thiếu cả hai thì launcher dừng với lỗi rõ, trừ khi chạy `CRUSH_CLIENT_SERVER=0`.
 - `jq`: installer dùng để đọc `crush.json` cũ (thiếu thì coi như `crush.json` đang khai provider,
-  xem "Chuyển từ `crush.json` cũ"); `agent-cli-tmux new --model` và `agent-cli-tmux rm` cũng cần.
-- `tmux`: chỉ cho `agent-cli-tmux`.
+  xem "Chuyển từ `crush.json` cũ"); `dew-tmux new --model` và `dew-tmux rm` cũng cần.
+- `tmux`: chỉ cho `dew-tmux`.
 - Chạy các script kiểm trong `scripts/`: thêm `python3` (server LLM giả của
   `test-dew-run-json.sh` và `test-dew-delegation.sh`) và lệnh `script` của util-linux
   (ca terminal của `test-dew-wrapper.sh`; thiếu thì ca đó bị bỏ qua).
 
 ```bash
-git clone https://github.com/luannt2002/agent-cli.git
-cd agent-cli
+git clone https://github.com/luannt2002/dew.git
+cd dew
 bash scripts/install-dew.sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Script build tối đa hai luồng với `CGO_ENABLED=0 GOEXPERIMENT=greenteagc` (như bản phát hành chính thức; phiên bản
 hiển thị lấy từ VCS stamping của `go build`), rồi chép hai tệp mẫu nếu chưa có (không bao giờ ghi đè; riêng trường hợp đã có `crush.json` khai provider, xem "Chuyển từ `crush.json` cũ"):
-`~/.config/agent-cli/crushrc` (cấu hình chính) và `~/.config/agent-cli/env` (mode 600,
-chứa endpoint, model, key). Sau khi cài, mở `~/.config/agent-cli/env` và điền giá trị thật
+`~/.config/dew/crushrc` (cấu hình chính) và `~/.config/dew/env` (mode 600,
+chứa endpoint, model, key). Sau khi cài, mở `~/.config/dew/env` và điền giá trị thật
 theo mục dưới. Tệp env nằm ngoài repo; không commit key hoặc OAuth token. Sao lưu cấu hình
 thật riêng bằng kênh an toàn.
 
-Installer cài hai lệnh: `agent-cli` (wrapper, trỏ tới binary `lib/agent-cli/crush`) và `agent-cli-tmux`
+Installer cài hai lệnh: `dew` (wrapper, trỏ tới binary `lib/dew/crush`) và `dew-tmux`
 (**bản chép** của `scripts/dew-tmux.sh`, không phải symlink vào thư mục checkout; muốn lấy bản mới
 thì chạy lại installer). Cuối lần chạy, nếu `crushrc` hoặc `env` đang dùng khác mẫu trong repo (mẫu có thể
 đã thêm biến hay chú thích mới), installer in sẵn lệnh `diff -u <tệp của bạn> <mẫu>` để bạn tự xem và gộp
 tay; nó không bao giờ ghi đè tệp của bạn (với env, `diff` hiện cả key: đừng chạy khi chia sẻ màn hình).
-Nếu `~/.config/agent-cli` là symlink thì installer chỉ siết quyền (về 700) thư mục đích khi đích là của chính
+Nếu `~/.config/dew` là symlink thì installer chỉ siết quyền (về 700) thư mục đích khi đích là của chính
 bạn, và nói rõ đã làm; symlink hỏng thì dừng.
 
 Biến môi trường của installer, launcher và crushrc:
 
 | Biến | Dùng ở | Ý nghĩa | Mặc định |
 |---|---|---|---|
-| `AGENT_CLI_INSTALL_DIR` | installer | gốc cài: `bin/agent-cli`, `bin/agent-cli-tmux`, `lib/agent-cli/crush` nằm dưới đó. Đường dẫn tương đối được đổi sang tuyệt đối lúc cài (wrapper ghi cứng đường dẫn binary) | `~/.local` |
-| `AGENT_CLI_SKIP_BUILD` | installer | đúng `1` thì bỏ `go build` và dùng binary sẵn có ở `<gốc cài>/lib/agent-cli/crush` (test launcher đặt binary giả vào đó); giá trị khác `1` vẫn build | không đặt |
-| `AGENT_CLI_ENV_FILE` | crushrc | tệp env mà crushrc `source` (bỏ qua nếu không có) | `~/.config/agent-cli/env` |
-| `AGENT_CLI_RUNTIME_DIR` | launcher | thư mục chứa socket server của từng dự án; phải đã tồn tại, thuộc bạn, mode 700 (launcher chỉ siết quyền thư mục dự phòng `~/.cache/agent-cli`), và đủ ngắn để socket không quá 107 byte | `/run/user/$UID`, rồi `$XDG_RUNTIME_DIR`, rồi `~/.cache/agent-cli` |
+| `DEW_INSTALL_DIR` | installer | gốc cài: `bin/dew`, `bin/dew-tmux`, `lib/dew/crush` nằm dưới đó. Đường dẫn tương đối được đổi sang tuyệt đối lúc cài (wrapper ghi cứng đường dẫn binary) | `~/.local` |
+| `DEW_SKIP_BUILD` | installer | đúng `1` thì bỏ `go build` và dùng binary sẵn có ở `<gốc cài>/lib/dew/crush` (test launcher đặt binary giả vào đó); giá trị khác `1` vẫn build | không đặt |
+| `DEW_ENV_FILE` | crushrc | tệp env mà crushrc `source` (bỏ qua nếu không có) | `~/.config/dew/env` |
+| `DEW_RUNTIME_DIR` | launcher | thư mục chứa socket server của từng dự án; phải đã tồn tại, thuộc bạn, mode 700 (launcher chỉ siết quyền thư mục dự phòng `~/.cache/dew`), và đủ ngắn để socket không quá 107 byte | `/run/user/$UID`, rồi `$XDG_RUNTIME_DIR`, rồi `~/.cache/dew` |
 
 ## Cấu hình model
 
-Provider và model được cấu hình bằng biến dùng chung `AGENT_CLI_*` trong
-`~/.config/agent-cli/env`. `crushrc` (bản mẫu: `dew.crushrc.example`) `source` tệp này
-(đổi đường dẫn bằng `AGENT_CLI_ENV_FILE`; bỏ qua nếu tệp không có) rồi khai provider chính cùng
-model lớn/nhỏ: hoặc một provider tên `main` tự khai bằng `AGENT_CLI_BASE_URL` (cách 1 và 2 bên
-dưới), hoặc một provider dựng sẵn trong catalog chọn bằng `AGENT_CLI_PROVIDER_ID` (cách 3). Mẫu env:
+Provider và model được cấu hình bằng biến dùng chung `DEW_*` trong
+`~/.config/dew/env`. `crushrc` (bản mẫu: `dew.crushrc.example`) `source` tệp này
+(đổi đường dẫn bằng `DEW_ENV_FILE`; bỏ qua nếu tệp không có) rồi khai provider chính cùng
+model lớn/nhỏ: hoặc một provider tên `main` tự khai bằng `DEW_BASE_URL` (cách 1 và 2 bên
+dưới), hoặc một provider dựng sẵn trong catalog chọn bằng `DEW_PROVIDER_ID` (cách 3). Mẫu env:
 `dew.env.example`, chỉ chứa placeholder.
 
 | Biến | Ý nghĩa | Mặc định |
 |---|---|---|
-| `AGENT_CLI_PROVIDER_ID` | ID provider dựng sẵn trong catalog (vd `zai`, `openai`, `anthropic`); đặt thì dùng cách 3 và bỏ qua `AGENT_CLI_BASE_URL`, `AGENT_CLI_PROVIDER_TYPE`, `AGENT_CLI_PROVIDER_NAME`, `AGENT_CLI_CAN_REASON`, `AGENT_CLI_CONTEXT_WINDOW` | không có |
-| `AGENT_CLI_PROVIDER_TYPE` | loại provider: `openai-compat`, `openai`, `anthropic`, `ollama`... | `openai-compat` |
-| `AGENT_CLI_PROVIDER_NAME` | tên hiển thị của provider `main` | `main` |
-| `AGENT_CLI_BASE_URL` | URL gốc của API (bắt buộc ở cách 1 và 2); dạng URL theo loại: `openai-compat`, `openai`, `ollama` tới `/v1`; `anthropic` là URL gốc KHÔNG có `/v1` | không có |
-| `AGENT_CLI_API_KEY` | API key; để rỗng cho model local, và cho `openai`/`xai`/`copilot`/`hyper` đã đăng nhập (cách 3) | rỗng |
-| `AGENT_CLI_MODEL` | model chính (bắt buộc) | không có |
-| `AGENT_CLI_SMALL_MODEL` | model nhỏ (đặt tiêu đề...) | `AGENT_CLI_MODEL` |
-| `AGENT_CLI_CAN_REASON` | model của provider `main` có suy luận không: `true`/`false` (nhận cả `1`/`0`, `yes`/`no`, không phân biệt hoa thường); giá trị khác làm khởi động dừng và nêu đúng tên biến này | `false` |
-| `AGENT_CLI_CONTEXT_WINDOW` | context window khai cho model (áp cho cả model chính và nhỏ) | 128000 |
-| `AGENT_CLI_MAX_TOKENS` | số token đầu ra tối đa (áp cho cả model chính và nhỏ); model có suy luận cần đủ lớn vì phần nghĩ cũng tính vào đây | min(32000, `AGENT_CLI_CONTEXT_WINDOW`/4) |
+| `DEW_PROVIDER_ID` | ID provider dựng sẵn trong catalog (vd `zai`, `openai`, `anthropic`); đặt thì dùng cách 3 và bỏ qua `DEW_BASE_URL`, `DEW_PROVIDER_TYPE`, `DEW_PROVIDER_NAME`, `DEW_CAN_REASON`, `DEW_CONTEXT_WINDOW` | không có |
+| `DEW_PROVIDER_TYPE` | loại provider: `openai-compat`, `openai`, `anthropic`, `ollama`... | `openai-compat` |
+| `DEW_PROVIDER_NAME` | tên hiển thị của provider `main` | `main` |
+| `DEW_BASE_URL` | URL gốc của API (bắt buộc ở cách 1 và 2); dạng URL theo loại: `openai-compat`, `openai`, `ollama` tới `/v1`; `anthropic` là URL gốc KHÔNG có `/v1` | không có |
+| `DEW_API_KEY` | API key; để rỗng cho model local, và cho `openai`/`xai`/`copilot`/`hyper` đã đăng nhập (cách 3) | rỗng |
+| `DEW_MODEL` | model chính (bắt buộc) | không có |
+| `DEW_SMALL_MODEL` | model nhỏ (đặt tiêu đề...) | `DEW_MODEL` |
+| `DEW_CAN_REASON` | model của provider `main` có suy luận không: `true`/`false` (nhận cả `1`/`0`, `yes`/`no`, không phân biệt hoa thường); giá trị khác làm khởi động dừng và nêu đúng tên biến này | `false` |
+| `DEW_CONTEXT_WINDOW` | context window khai cho model (áp cho cả model chính và nhỏ) | 128000 |
+| `DEW_MAX_TOKENS` | số token đầu ra tối đa (áp cho cả model chính và nhỏ); model có suy luận cần đủ lớn vì phần nghĩ cũng tính vào đây | min(32000, `DEW_CONTEXT_WINDOW`/4) |
 
 Tệp env là Bash nên cách đặt nháy quan trọng. Giá trị có ký tự đặc biệt (`<`, khoảng trắng) phải nằm
-trong nháy. **Key dạng chữ thường nên đặt trong nháy ĐƠN** (`AGENT_CLI_API_KEY='sk-...'`): nháy kép để
+trong nháy. **Key dạng chữ thường nên đặt trong nháy ĐƠN** (`DEW_API_KEY='sk-...'`): nháy kép để
 shell mở rộng `$`, dấu backtick và `\`, nên key có các ký tự đó bị đổi âm thầm (vd `"ab$cd"` ra `ab`).
 Nháy kép dành cho giá trị cần mở rộng, như `"$(pass show <entry> | head -n1)"` (xem cách 2).
 
 Thiếu biến bắt buộc thì nạp cấu hình thất bại, và thông báo lỗi nêu đúng biến thiếu ở cả hai
 chế độ: chế độ client/server (mặc định) nối phần cuối `stderr.log` của server vào câu
-`failed to initialize agent-cli server: ...`, ví dụ `... exit status 1: AGENT_CLI_BASE_URL: đặt
-AGENT_CLI_BASE_URL trong ...`.
+`failed to initialize dew server: ...`, ví dụ `... exit status 1: DEW_BASE_URL: đặt
+DEW_BASE_URL trong ...`.
 
-Dạng `AGENT_CLI_BASE_URL` theo loại provider:
+Dạng `DEW_BASE_URL` theo loại provider:
 
 - `openai-compat`, `openai`, `ollama`: phần tới `/v1`, KHÔNG gồm `/chat/completions` (client
   tự thêm; thêm đuôi này vào sẽ ra URL sai).
 - `anthropic`: URL gốc, KHÔNG có `/v1` (client tự thêm `/v1/messages`).
 
 Crushrc mẫu tắt metrics và tự cập nhật catalog (dùng catalog nhúng sẵn), KHÔNG tắt provider dựng sẵn
-(cần cho `agent-cli login` và `Alt+P`; muốn tắt thì bật dòng `option default-providers false` trong mẫu),
+(cần cho `dew login` và `Alt+P`; muốn tắt thì bật dòng `option default-providers false` trong mẫu),
 và ẩn các tool chạm mạng
 `sourcegraph`, `fetch`, `agentic_fetch`, `download` (tên phải đúng tên tool; tên sai bị bỏ qua
 không báo lỗi). Mẫu KHÔNG `permissions allow` tool đọc nào: trong thư mục dự án `view`, `ls`,
@@ -100,10 +100,10 @@ allow sẽ bỏ luôn lời hỏi đó. Bản crushrc cài từ mẫu cũ còn d
 Chạy một server tương thích OpenAI trên máy (llama.cpp, vLLM, Ollama...), rồi:
 
 ```bash
-AGENT_CLI_PROVIDER_TYPE=openai-compat
-AGENT_CLI_BASE_URL="http://127.0.0.1:<port>/v1"
-AGENT_CLI_API_KEY=
-AGENT_CLI_MODEL="<model-id>"
+DEW_PROVIDER_TYPE=openai-compat
+DEW_BASE_URL="http://127.0.0.1:<port>/v1"
+DEW_API_KEY=
+DEW_MODEL="<model-id>"
 ```
 
 `<model-id>` là tên model server đó báo ra. Trên server nhà, `127.0.0.1` chỉ là chính server
@@ -113,52 +113,52 @@ công khai chỉ để thử.
 ### Cách 2: provider qua API key
 
 ```bash
-AGENT_CLI_PROVIDER_TYPE=openai-compat
-AGENT_CLI_BASE_URL="https://<your-endpoint>/v1"
-AGENT_CLI_API_KEY='<your-api-key>'
-AGENT_CLI_MODEL="<model-id>"
+DEW_PROVIDER_TYPE=openai-compat
+DEW_BASE_URL="https://<your-endpoint>/v1"
+DEW_API_KEY='<your-api-key>'
+DEW_MODEL="<model-id>"
 ```
 
 Key không vào repo và không dán vào chat. Nên lấy key từ kho bí mật, vì tệp env được shell
 nạp nên `$(lệnh)` chạy được:
 
 ```bash
-AGENT_CLI_API_KEY="$(pass show <entry> | head -n1)"
+DEW_API_KEY="$(pass show <entry> | head -n1)"
 ```
 
 `head -n1` vì `pass show` in cả các dòng ghi chú sau dòng mật khẩu; thiếu nó thì key gồm nhiều dòng.
 
 Tránh để key dạng văn bản thường trong tệp env. Trong TUI, `view` hỏi quyền khi đọc tệp ngoài thư mục dự án
-(kể cả `~/.config/agent-cli/env`), nhưng `run`, `loop`, `routine`, `--yolo` và "Allow for Session" cho qua lời hỏi
+(kể cả `~/.config/dew/env`), nhưng `run`, `loop`, `routine`, `--yolo` và "Allow for Session" cho qua lời hỏi
 đó, nên model vẫn có thể đọc key. Mode 600 chỉ chặn người dùng khác, không chặn agent chạy dưới tài khoản của bạn.
 
-Kiểm cấu hình đã nạp mà không gọi model: `agent-cli models` liệt kê `main/<model-id>`.
+Kiểm cấu hình đã nạp mà không gọi model: `dew models` liệt kê `main/<model-id>`.
 
 ### Cách 3: provider dựng sẵn trong catalog
 
 ```bash
-AGENT_CLI_PROVIDER_ID=zai
-AGENT_CLI_MODEL="glm-5.3"
-AGENT_CLI_SMALL_MODEL="glm-5.3-flash"
-AGENT_CLI_API_KEY='<khoá z.ai>'
+DEW_PROVIDER_ID=zai
+DEW_MODEL="glm-5.3"
+DEW_SMALL_MODEL="glm-5.3-flash"
+DEW_API_KEY='<khoá z.ai>'
 ```
 
 Catalog lo endpoint, danh sách model, mức effort (`Alt+E`) và khả năng suy luận, nên không cần
-`AGENT_CLI_BASE_URL` hay `AGENT_CLI_CAN_REASON`. Mỗi provider có thông tin xác thực riêng:
+`DEW_BASE_URL` hay `DEW_CAN_REASON`. Mỗi provider có thông tin xác thực riêng:
 
-- Phần lớn provider (`zai`, `anthropic`, `openrouter`...) bắt buộc `AGENT_CLI_API_KEY`; thiếu thì khởi
+- Phần lớn provider (`zai`, `anthropic`, `openrouter`...) bắt buộc `DEW_API_KEY`; thiếu thì khởi
   động dừng và nêu đúng biến.
 - `openai` (tài khoản ChatGPT), `xai` (Grok), `copilot`, `hyper` còn đăng nhập được bằng tài khoản
-  (`agent-cli login openai`, `login grok`, `login copilot`, `login` không đối số cho hyper). Đã đăng nhập thì để
-  TRỐNG `AGENT_CLI_API_KEY`: crushrc không phát key rỗng đè lên token đã lưu (nằm ở
-  `~/.local/share/agent-cli/crush.json`, được nạp SAU crushrc). Ngược lại, đã đăng nhập thì token đăng nhập
-  thắng `AGENT_CLI_API_KEY` (đã có test cho thứ tự nạp của `xai`); muốn dùng key thì `agent-cli logout <nền tảng>`
-  trước. Chưa đăng nhập và chưa có key thì provider chỉ là chưa được cấu hình, agent-cli vẫn khởi động được
+  (`dew login openai`, `login grok`, `login copilot`, `login` không đối số cho hyper). Đã đăng nhập thì để
+  TRỐNG `DEW_API_KEY`: crushrc không phát key rỗng đè lên token đã lưu (nằm ở
+  `~/.local/share/dew/crush.json`, được nạp SAU crushrc). Ngược lại, đã đăng nhập thì token đăng nhập
+  thắng `DEW_API_KEY` (đã có test cho thứ tự nạp của `xai`); muốn dùng key thì `dew logout <nền tảng>`
+  trước. Chưa đăng nhập và chưa có key thì provider chỉ là chưa được cấu hình, dew vẫn khởi động được
   (cần vậy để chạy được lệnh login). Cấu hình này đã kiểm bằng test nạp cấu hình với token giả; việc đăng nhập
   thật (trình duyệt) chưa được thử trong đợt sửa này.
-- `AGENT_CLI_PROVIDER_ID` gõ sai (không có trong catalog, và không có base URL để thành provider tự khai)
+- `DEW_PROVIDER_ID` gõ sai (không có trong catalog, và không có base URL để thành provider tự khai)
   làm khởi động DỪNG, lỗi nêu tên provider và model đang chọn nó (`provider "foo" is selected as the large
-  model but is not a built-in provider and has no base_url`). Trước đây provider bị bỏ qua lặng lẽ, agent-cli
+  model but is not a built-in provider and has no base_url`). Trước đây provider bị bỏ qua lặng lẽ, dew
   chọn model của provider khác và ghi lựa chọn đó xuống đĩa. Provider không ai chọn mà thiếu base URL vẫn chỉ bị
   cảnh báo trong log như cũ.
 
@@ -170,29 +170,29 @@ vào commit/PR do agent tạo (qua mô tả của tool bash). Crushrc mẫu tắ
 thoát hết client của dự án và mở lại. Muốn bật lại: `option attribution-trailer-style assisted-by` (hoặc `co-authored-by`) và
 `option attribution-generated-with true`; dòng chú thích trong mẫu ghi sẵn cách này.
 
-### Sửa env khi agent-cli đang chạy
+### Sửa env khi dew đang chạy
 
 Mỗi dự án có một server nền. Cấu hình (crushrc, crush.json, khoá trong tệp env mà crushrc `source`)
 được đọc khi workspace của dự án được dựng. Chính sách tin cậy thì nạp MỘT lần cho mỗi tiến trình
-server và không bao giờ nạp lại: `AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION` (export ở shell
-hay trong `~/.config/agent-cli/env`) cùng các biến tin cậy khác (`AGENT_CLI_UNATTENDED`,
-`AGENT_CLI_LLM_LEDGER`, CLI và mức quyền của tool giao việc ở dưới), theo env của client đã dựng
-server. Sửa `~/.config/agent-cli/env` (hay crushrc) KHÔNG tác dụng với workspace đang mở: còn một
+server và không bao giờ nạp lại: `DEW_ALLOWED_MODELS`, `DEW_DELEGATION` (export ở shell
+hay trong `~/.config/dew/env`) cùng các biến tin cậy khác (`DEW_UNATTENDED`,
+`DEW_LLM_LEDGER`, CLI và mức quyền của tool giao việc ở dưới), theo env của client đã dựng
+server. Sửa `~/.config/dew/env` (hay crushrc) KHÔNG tác dụng với workspace đang mở: còn một
 client (TUI hay `run`) nào của dự án đó đang sống thì nó vẫn dùng giá trị cũ (đã đo: `touch
 crushrc` cũng không kích hoạt nạp lại). Client chạy model (TUI, `run`, `send`, `loop`) mở sau mà
 chính sách tin cậy (env gốc của nó và tệp env; `.env` của repo không tính) khác chính sách server
 đang áp, hoặc `--yolo` khác workspace đang mở, thì bị TỪ CHỐI với lỗi `trust policy differs from
-the running agent-cli server: <tên biến>` (chỉ tên, không giá trị). Chỉ 11 biến tin cậy bị so:
-`AGENT_CLI_ALLOWED_MODELS`, `AGENT_CLI_DELEGATION`, `AGENT_CLI_UNATTENDED`,
-`AGENT_CLI_UNATTENDED_COMMIT`, `AGENT_CLI_ENV_FILE`, `AGENT_CLI_LLM_LEDGER`, `HOME`,
-`AGENT_CLI_CLAUDE_BIN`, `AGENT_CLI_CODEX_BIN`, `AGENT_CLI_CLAUDE_PERMISSION_MODE`,
-`AGENT_CLI_CODEX_SANDBOX`. Biến môi trường thường, kể cả biến mà `crush.json` dùng qua `$VAR` cho
+the running dew server: <tên biến>` (chỉ tên, không giá trị). Chỉ 11 biến tin cậy bị so:
+`DEW_ALLOWED_MODELS`, `DEW_DELEGATION`, `DEW_UNATTENDED`,
+`DEW_UNATTENDED_COMMIT`, `DEW_ENV_FILE`, `DEW_LLM_LEDGER`, `HOME`,
+`DEW_CLAUDE_BIN`, `DEW_CODEX_BIN`, `DEW_CLAUDE_PERMISSION_MODE`,
+`DEW_CODEX_SANDBOX`. Biến môi trường thường, kể cả biến mà `crush.json` dùng qua `$VAR` cho
 `api_key`/`base_url`, KHÔNG được so: client vẫn gắn vào và chạy theo giá trị của client đã dựng
 server (giới hạn như allowlist chỉ so tên provider/model, không kiểm `base_url`). Phép so là so
-chuỗi thô: khác thứ tự trong allowlist, `on`/`ON`/`1`, hay khác `HOME`/`AGENT_CLI_ENV_FILE` dù
+chuỗi thô: khác thứ tự trong allowlist, `on`/`ON`/`1`, hay khác `HOME`/`DEW_ENV_FILE` dù
 allowlist hiệu lực bằng nhau đều bị từ chối. `--yolo` (TUI, `run`, `send`, `loop` đều nhận) bị so cả
 hai chiều và lỗi nói dự án đang mở có hay không `--yolo` ("pass --yolo too" / "drop --yolo"): dự án đang giữ bởi client
-mở bằng `--yolo` thì mọi client mở không `--yolo` bị từ chối, kể cả Home và `agent-cli-tmux` (chúng mở
+mở bằng `--yolo` thì mọi client mở không `--yolo` bị từ chối, kể cả Home và `dew-tmux` (chúng mở
 dự án không kèm `--yolo`); thoát client đó hoặc mở lại không `--yolo`. Bật YOLO lúc chạy (`ctrl+y`,
 `shift+tab`) thì không bị so: client sau vào được, và cũng thành YOLO cho cả workspace. Lệnh không gửi prompt (`jobs`, `login`, `logout`)
 không bị so chính sách tin cậy và `--yolo` (vẫn bị so `--channels`; `login` khi tự nối lại sau lúc
@@ -203,9 +203,9 @@ và lệnh `!` bạn gõ trong TUI (local lẫn server), biến tin cậy đều
 repo không chen vào được (biến thường của `.env` thì vẫn tới các lệnh đó; verify của `routine run`
 nhận công tắc không người trực của chính lượt chạy). Để áp giá trị mới: thoát hết client của dự
 án đó, chờ
-server tắt (khoảng 60 giây sau khi client cuối thoát, xem `agent-cli ps`) rồi mở lại; hoặc dừng
+server tắt (khoảng 60 giây sau khi client cuối thoát, xem `dew ps`) rồi mở lại; hoặc dừng
 thẳng server của dự án: `pgrep -af 'crush server --host'` liệt kê các server (tên socket
-`agent-cli-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`; việc đang
+`dew-<8 hex>` xem ở mục "Một server cho mỗi dự án" bên dưới), rồi `kill <pid>`; việc đang
 chạy ở dự án đó sẽ mất.
 
 Chỉ sửa tệp trên đĩa thì không nạp lại, nhưng MỌI lần ghi cấu hình của chính workspace đó (vd chọn model
@@ -216,7 +216,7 @@ là env của tiến trình server (xem mục giao việc ở dưới).
 
 ### Chuyển từ `crush.json` cũ
 
-`~/.config/agent-cli/crush.json` vẫn được đọc và gộp chung với `crushrc`, nhưng cùng thư mục thì
+`~/.config/dew/crush.json` vẫn được đọc và gộp chung với `crushrc`, nhưng cùng thư mục thì
 `crushrc` thắng. Vì vậy nếu `crush.json` (kể cả khi nó là symlink; installer theo symlink để
 đọc, không sửa) đang khai provider, installer KHÔNG tạo `crushrc`/`env` (sẽ thay provider đang
 chạy bằng placeholder): nó chỉ đặt `crushrc.example` và `env.example` cạnh `crush.json` (không
@@ -229,20 +229,20 @@ ghi đè bản có sẵn) và in hướng dẫn. Cũng vậy khi thiếu `jq` ho
 ## Sử dụng
 
 ```bash
-agent-cli                      # Home: chọn workspace rồi session (xem mục Home)
-agent-cli -c /path/to/project  # vào thẳng workspace, bỏ qua Home (-c tương đối tính theo thư mục hiện tại)
-agent-cli run "Đọc repo và tóm tắt kiến trúc, chưa sửa code."   # CẢNH BÁO: run TỰ DUYỆT mọi quyền (xem dưới)
-agent-cli --continue
-agent-cli login openai
-agent-cli run -m main/<model-id> --reasoning-effort high -q "..."   # chọn model, effort; -q ẩn spinner, -v in log
-git diff | agent-cli run "Review thay đổi này"                     # nội dung stdin đứng trước prompt
-agent-cli session list --json    # cùng nhóm: show <id>, last, rename <id> <tên>, delete <id>
-agent-cli logs -f                # bám log; -t N chỉ N dòng cuối
+dew                      # Home: chọn workspace rồi session (xem mục Home)
+dew -c /path/to/project  # vào thẳng workspace, bỏ qua Home (-c tương đối tính theo thư mục hiện tại)
+dew run "Đọc repo và tóm tắt kiến trúc, chưa sửa code."   # CẢNH BÁO: run TỰ DUYỆT mọi quyền (xem dưới)
+dew --continue
+dew login openai
+dew run -m main/<model-id> --reasoning-effort high -q "..."   # chọn model, effort; -q ẩn spinner, -v in log
+git diff | dew run "Review thay đổi này"                     # nội dung stdin đứng trước prompt
+dew session list --json    # cùng nhóm: show <id>, last, rename <id> <tên>, delete <id>
+dew logs -f                # bám log; -t N chỉ N dòng cuối
 ```
 
 Trong TUI và `send`: sửa file, chạy shell (trừ lệnh chỉ đọc an toàn), đọc ngoài thư mục
 dự án và giao việc cho Claude Code/Codex đều hỏi quyền; không dùng `--yolo` mặc định.
-**`agent-cli run` thì tự duyệt MỌI lời xin quyền của session nó chạy** (session mới, hoặc
+**`dew run` thì tự duyệt MỌI lời xin quyền của session nó chạy** (session mới, hoặc
 session có sẵn qua `-s`/`-C`; gồm bash, edit, claude_code, codex...): ràng buộc duy nhất là lời
 trong prompt (dòng "chưa sửa code" ở ví dụ trên chỉ là lời dặn model, không phải rào chắn). Cần được hỏi
 thì dùng TUI hoặc `send` (`send` KHÔNG tự duyệt). `run` không có tool `question` (không ai trả lời
@@ -260,7 +260,7 @@ upstream (hỏi GitHub) **mặc định TẮT ngay trong binary**, kể cả khi
 feed release riêng để so sánh. Chỉ bật khi đặt tường minh `CRUSH_DISABLE_UPDATE_CHECK=false` (hoặc `0`; giá trị
 hiểu theo `strconv.ParseBool`); không đặt, rỗng, `1`/`true` hay giá trị không hiểu được đều là không gọi GitHub.
 Launcher luôn đặt `CRUSH_DISABLE_UPDATE_CHECK=1` nên qua launcher kiểm tra này không bao giờ chạy; chỉ chạy thẳng
-binary (`~/.local/lib/agent-cli/crush`) mới bật được.
+binary (`~/.local/lib/dew/crush`) mới bật được.
 Các cờ tắt này không chặn mọi request mạng: request model tới provider đang chọn, MCP và các tool mạng mà bạn
 không `permissions deny` (crushrc mẫu chặn `sourcegraph`, `fetch`, `agentic_fetch`, `download`) vẫn đi.
 
@@ -272,8 +272,8 @@ thanh trạng thái, `run` in ra stderr `session <id> last ran on <cũ>; continu
 model <đang chọn> (pick another with -m)`. Model, effort đổi được bất cứ lúc nào, kể cả khi
 có run ở session này hay session khác: mỗi lượt chạy giữ model và bộ tool lúc nó bắt đầu, prompt
 xếp hàng giữ model lúc gửi, nên thiết lập mới chỉ áp cho tin nhắn gửi sau, không đổi provider
-giữa chừng lượt đang chạy (agent con của lượt cũng vậy). Thứ tự gộp config, từ thấp đến cao: `~/.config/agent-cli/crush.json`
-< `~/.local/share/agent-cli/crush.json` < `crush.json` / `.crush.json` trong repo
+giữa chừng lượt đang chạy (agent con của lượt cũng vậy). Thứ tự gộp config, từ thấp đến cao: `~/.config/dew/crush.json`
+< `~/.local/share/dew/crush.json` < `crush.json` / `.crush.json` trong repo
 < `<project>/.crush/crush.json` (cao nhất). Hệ quả:
 
 - Dự án chưa từng chọn model thì theo model mặc định toàn cục. Đã chọn một lần
@@ -281,19 +281,19 @@ giữa chừng lượt đang chạy (agent con của lượt cũng vậy). Thứ
 - Muốn dự án theo mặc định trở lại: xoá `models` (và `recent_models`) khỏi
   `<project>/.crush/crush.json`.
 - Muốn đổi mặc định toàn cục: các bản TUI cũ ghi lựa chọn vào
-  `~/.local/share/agent-cli/crush.json` (nằm TRÊN file trong `~/.config`), nên
-  phải xoá `models` khỏi file đó rồi đặt `models` ở `~/.config/agent-cli/crush.json`;
+  `~/.local/share/dew/crush.json` (nằm TRÊN file trong `~/.config`), nên
+  phải xoá `models` khỏi file đó rồi đặt `models` ở `~/.config/dew/crush.json`;
   chỉ sửa file trong `~/.config` thì không có tác dụng nếu file data còn `models`.
 
 ## Home: chọn workspace và session
 
-`agent-cli` không tham số (chỉ `-d/--debug` là được) trên terminal mở **Home**, kiểu "Open Recent":
+`dew` không tham số (chỉ `-d/--debug` là được) trên terminal mở **Home**, kiểu "Open Recent":
 
 - **Active**: workspace có server đang sống, kèm số session `running` / `waiting` (chờ duyệt hoặc trả lời).
   Server có socket mà không trả lời trong 3 giây hiện `server not responding (unknown)`, không bao giờ
-  bị coi là rảnh. Home chỉ hỏi server đang chạy (quét socket như `agent-cli ps`), không khởi động server nào.
+  bị coi là rảnh. Home chỉ hỏi server đang chạy (quét socket như `dew ps`), không khởi động server nào.
 - **Pinned**, rồi **Recent**: 5 workspace mở gần nhất. 5 chỉ là giới hạn hiển thị: sổ
-  (`~/.local/share/agent-cli/projects.json`) giữ hết; gõ để tìm theo tên/đường dẫn trong toàn bộ sổ,
+  (`~/.local/share/dew/projects.json`) giữ hết; gõ để tìm theo tên/đường dẫn trong toàn bộ sổ,
   hoặc chọn `→ Show all / search`.
 - `→ Open current folder`, `→ Open other folder…` (nhập đường dẫn thư mục đã có; chỉ đăng ký vào sổ,
   không `git init`/clone/tạo worktree). Thư mục con của repo quy về gốc repo.
@@ -308,23 +308,23 @@ mở lại (CHANGELOG, mục Thay đổi). `→ New session` mở màn hình tr�
 session tới khi bạn gửi prompt; chọn session đang chạy chỉ mở để xem/tiếp, không gửi lại gì. `esc` về
 danh sách workspace.
 
-Home chạy TUI của workspace như process con trên cùng terminal (`agent-cli -c <dir> [--session <id>]`,
+Home chạy TUI của workspace như process con trên cùng terminal (`dew -c <dir> [--session <id>]`,
 qua chính launcher nên mỗi dự án vẫn có server riêng). Trong TUI, `Alt+W` thoát về Home và không gửi
 lệnh huỷ nào; với client/server (mặc định của launcher) server giữ run đang chạy khi client cuối rời
 (xem "Đã biết" bên dưới về các trần thời gian). **In-process
 (`CRUSH_CLIENT_SERVER=0`): `Alt+W` đóng app nên huỷ run đang chạy**; khi đang có run, TUI hỏi
 xác nhận ("Stop the running task and go to Home?") thay vì huỷ ngay. `Ctrl+P` → Home làm đúng như
 `Alt+W` (dùng khi terminal không gửi phím Alt).
-`agent-cli -c dir` mở thẳng rồi bấm `Alt+W` cũng về Home (process tự thay bằng Home).
+`dew -c dir` mở thẳng rồi bấm `Alt+W` cũng về Home (process tự thay bằng Home).
 
 Chỉ thư mục trên máy này (workspace của máy khác trong sổ bị ẩn). Làm việc trên server: SSH vào
-server rồi chạy `agent-cli` ở đó.
+server rồi chạy `dew` ở đó.
 
 ## Một server cho mỗi dự án
 
-Launcher bật sẵn `CRUSH_CLIENT_SERVER=1`: mọi `agent-cli` (TUI, `run`, script) chạy
+Launcher bật sẵn `CRUSH_CLIENT_SERVER=1`: mọi `dew` (TUI, `run`, script) chạy
 như client và nối vào một server nền. Launcher tự thêm
-`--host unix:///run/user/$UID/agent-cli-<8 hex đầu của sha1(thư mục gốc)>.sock`
+`--host unix:///run/user/$UID/dew-<8 hex đầu của sha1(thư mục gốc)>.sock`
 khi bạn không tự truyền `--host`/`-H`. Thư mục gốc là `git rev-parse --show-toplevel`
 của `-c/--cwd` (hoặc thư mục hiện tại); ngoài repo git thì lấy đường dẫn thật
 (`pwd -P`). Kết quả: mọi process cùng một dự án dùng chung một server nên trạng thái
@@ -336,18 +336,18 @@ và DB `.crush/` đều là của gốc; tệp riêng của thư mục con khôn
 riêng thì cho nó repo git riêng (hoặc worktree).
 Server tự tắt 60 giây sau khi workspace cuối được nhả (`CRUSH_SERVER_IDLE_TIMEOUT`, giây; `0` = tắt ngay); mở
 workspace mới trong khoảng đó thì huỷ lệnh tắt. Socket nằm ở
-`AGENT_CLI_RUNTIME_DIR` nếu bạn đặt, mặc định `/run/user/$UID`; thư mục đó chưa có thì tới `$XDG_RUNTIME_DIR`, rồi
-cuối cùng tới `$HOME/.cache/agent-cli` (launcher tạo và siết mode 700). Cố ý KHÔNG bao giờ dùng `/tmp` vì ai
-cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạn tự chọn phải đã tồn tại, thuộc bạn và mode 700
+`DEW_RUNTIME_DIR` nếu bạn đặt, mặc định `/run/user/$UID`; thư mục đó chưa có thì tới `$XDG_RUNTIME_DIR`, rồi
+cuối cùng tới `$HOME/.cache/dew` (launcher tạo và siết mode 700). Cố ý KHÔNG bao giờ dùng `/tmp` vì ai
+cũng ghi được và tên socket đoán được. `DEW_RUNTIME_DIR` bạn tự chọn phải đã tồn tại, thuộc bạn và mode 700
 (launcher không siết quyền hộ).
 
-- Log server: `~/.cache/agent-cli/server-<host>/crush.log` (`<host>` là địa chỉ socket
+- Log server: `~/.cache/dew/server-<host>/crush.log` (`<host>` là địa chỉ socket
   đã thay ký tự lạ bằng `_`). Mỗi dự án một thư mục, không trộn log. Khi tiến trình panic, tệp
   `crush-panic-<tên>-<thời điểm>.log` (quyền 600) nằm cùng thư mục với log, không còn rơi vào thư mục đang làm việc.
 - Trả lời bị cắt vì hết ngân sách output (`max_tokens`) thì lượt tự làm tiếp (tin "Your previous reply was
   cut off..."), tối đa 3 lần liên tiếp không tiến triển cho mỗi prompt của bạn (lượt nào đã chạy xong
   ít nhất một tool call thì đếm lại từ đầu). Lượt làm tiếp chạy trước prompt bạn gõ thêm sau đó. Ngân sách mặc định của provider `main` là
-  min(32000, `AGENT_CLI_CONTEXT_WINDOW`/4); đặt `AGENT_CLI_MAX_TOKENS` để đổi.
+  min(32000, `DEW_CONTEXT_WINDOW`/4); đặt `DEW_MAX_TOKENS` để đổi.
 - Tự tóm tắt khi phần context còn trống ≤ 20% context window (window ≤ 200k token) hoặc ≤ 20.000 token (window
   lớn hơn); model không khai `context_window` thì không bao giờ tự tóm tắt. Bước tóm tắt có hạn chờ gấp 3
   `request-timeout` (mặc định 6 phút). Tóm
@@ -367,7 +367,7 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   ghi khi session cha không còn run. Kết quả ghi cho model dặn kiểm tra trạng thái thật
   trước khi chạy lại, vì lệnh có thể đã chạy một phần (bản vá upstream `fix/dangling-tool-calls`
   và `fix/shutdown-records-work`, port 15/10).
-- Tắt: `CRUSH_CLIENT_SERVER=0 agent-cli` chạy in-process như trước và launcher không
+- Tắt: `CRUSH_CLIENT_SERVER=0 dew` chạy in-process như trước và launcher không
   thêm `--host`. Giới hạn của chế độ này: danh sách session vẫn đủ (đọc từ DB) nhưng
   trạng thái bận/chờ duyệt chỉ đúng với session do chính process đó chạy. Launcher hiểu
   giá trị đúng như `strconv.ParseBool` của Go: bật là `1 t T TRUE true True`, tắt là
@@ -375,11 +375,11 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   cũng chạy in-process và in cảnh báo thay vì thêm `--host`.
 - Không chọn được server riêng thì launcher DỪNG (mã 1, lỗi rõ) thay vì chạy tiếp không `--host`: client sẽ rơi về
   server mặc định dùng chung và mất cách ly theo dự án (session, trạng thái bận, log lẫn nhau). Hai trường hợp: socket
-  vượt 107 byte (đặt `AGENT_CLI_RUNTIME_DIR` ngắn hơn) và thiếu cả `sha1sum` lẫn `shasum`. Lối thoát: cài công
+  vượt 107 byte (đặt `DEW_RUNTIME_DIR` ngắn hơn) và thiếu cả `sha1sum` lẫn `shasum`. Lối thoát: cài công
   cụ còn thiếu, hoặc `CRUSH_CLIENT_SERVER=0`. Bước chọn server (và hai lỗi trên) được bỏ qua khi bạn tự truyền
   `--host`/`-H`, với `ps` và với Home.
-- Tự chọn server: `agent-cli --host unix:///đường/dẫn.sock ...` được giữ nguyên.
-- Home (`agent-cli` không tham số trên terminal) không có `--host`: chưa chọn workspace nên chưa có
+- Tự chọn server: `dew --host unix:///đường/dẫn.sock ...` được giữ nguyên.
+- Home (`dew` không tham số trên terminal) không có `--host`: chưa chọn workspace nên chưa có
   server; Home gọi lại launcher với `-c <dir>` cho từng workspace.
 - Đã biết: client mất stream mà không thoát sạch thì server giữ workspace (và run) thêm
   một khoảng detach grace, mặc định 10 giây (`backend.DefaultDetachGrace`, đổi bằng
@@ -393,7 +393,7 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
   - `CRUSH_SERVER_ORPHAN_MAX_RUN` (giây, mặc định 21600 = 6 giờ; `0` = không trần) cho run
     mồ côi vẫn đang tiến triển: việc giao dài bằng `send` không bị huỷ ở phút 30, nhưng một
     run lặp vô tận không giữ server mãi.
-- Lượt của `agent-cli run` gắn với chính tiến trình `run`: Ctrl+C, SIGTERM hay đóng terminal
+- Lượt của `dew run` gắn với chính tiến trình `run`: Ctrl+C, SIGTERM hay đóng terminal
   (SIGHUP) huỷ **đúng lượt đó** theo RunID, kể cả với `run -s/-C` (lượt khác và prompt xếp
   hàng của session giữ nguyên; Ctrl+C khi prompt chưa kịp tới server thì nó bị huỷ lúc tới).
   `run` bị kill hẳn (SIGKILL, OOM) thì server huỷ lượt của nó sau detach grace, thay vì để lượt
@@ -421,23 +421,23 @@ cũng ghi được và tên socket đoán được. `AGENT_CLI_RUNTIME_DIR` bạ
 ## Nhiều dự án trong một cửa sổ terminal
 
 ```bash
-agent-cli-tmux ~/code/api ~/code/web ~/code/infra
+dew-tmux ~/code/api ~/code/web ~/code/infra
 ```
 
 Mở (hoặc nối vào) tmux session `agents`, mỗi thư mục một window đặt theo basename, chạy
-`CRUSH_CLIENT_SERVER=1 agent-cli -c <đường dẫn tuyệt đối>`. Chạy lại với thư mục đã có thì
+`CRUSH_CLIENT_SERVER=1 dew -c <đường dẫn tuyệt đối>`. Chạy lại với thư mục đã có thì
 chỉ chọn window đó, không đẻ thêm (nhận diện theo đường dẫn, không theo tên). Thư mục không
 tồn tại: in lỗi ra stderr, thoát mã 2 và không tạo gì. Đang ở trong tmux thì `switch-client`,
 ngoài tmux thì `attach`.
 
 - `prefix+w` liệt kê các window (dự án) để chọn; `prefix+n`/`prefix+p` chuyển nhanh.
-- Đổi tên session: `AGENT_CLI_TMUX_SESSION=tên`. Không attach: `AGENT_CLI_TMUX_NO_ATTACH=1`.
-- Installer chép `scripts/dew-tmux.sh` thành `~/.local/bin/agent-cli-tmux` (bản chép mode 755, không
+- Đổi tên session: `DEW_TMUX_SESSION=tên`. Không attach: `DEW_TMUX_NO_ATTACH=1`.
+- Installer chép `scripts/dew-tmux.sh` thành `~/.local/bin/dew-tmux` (bản chép mode 755, không
   symlink: đổi nhánh hay xoá checkout không làm hỏng nó; chạy lại installer để lấy bản mới). Bản cài cũ là
   symlink thì được thay bằng bản chép, không ghi xuyên vào tệp trong repo.
-- Mỗi window là một client nối vào server của dự án đó (xem mục trên). Thoát agent-cli thì window đóng.
+- Mỗi window là một client nối vào server của dự án đó (xem mục trên). Thoát dew thì window đóng.
 - Kiểm: `bash scripts/test-dew-tmux.sh` (tmux server riêng qua `-S <socket trong thư mục tạm>` và
-  agent-cli giả, in `PASS`; không đụng tmux thật của bạn).
+  dew giả, in `PASS`; không đụng tmux thật của bạn).
 
 ### Mỗi việc một worktree: `new` / `rm` / `ls`
 
@@ -446,14 +446,14 @@ riêng (pwd riêng, DB/log `.crush/` riêng, model riêng) và một window tmux
 
 ```bash
 cd ~/code/api
-agent-cli-tmux new fix-login --model main/<model-id>   # worktree + branch agent/fix-login + window
-agent-cli-tmux ls                                   # fix-login  agent/fix-login  clean|dirty|broken
-agent-cli-tmux rm fix-login                         # dọn khi xong; từ chối nếu còn thay đổi, session đang chạy hoặc file gitignore
+dew-tmux new fix-login --model main/<model-id>   # worktree + branch agent/fix-login + window
+dew-tmux ls                                   # fix-login  agent/fix-login  clean|dirty|broken
+dew-tmux rm fix-login                         # dọn khi xong; từ chối nếu còn thay đổi, session đang chạy hoặc file gitignore
 ```
 
-`rm` không kèm `--force` từ chối khi worktree có file bị gitignore, mà worktree từng chạy agent-cli hầu như
+`rm` không kèm `--force` từ chối khi worktree có file bị gitignore, mà worktree từng chạy dew hầu như
 luôn có `.crush/` (DB session và log). Chỉ khi chắc chắn bỏ cả lịch sử đó mới thêm `--force`
-(`agent-cli-tmux rm fix-login --force` xoá `.crush/` VĨNH VIỄN); cần giữ thì chép `.crush/` ra trước.
+(`dew-tmux rm fix-login --force` xoá `.crush/` VĨNH VIỄN); cần giữ thì chép `.crush/` ra trước.
 
 - `new <name> [--model <provider>/<model>] [--repo <dir>] [--base <ref>]`: `<repo>` là
   `git rev-parse --show-toplevel` của `--repo` hoặc thư mục hiện tại (không phải repo git:
@@ -469,17 +469,17 @@ luôn có `.crush/` (DB session và log). Chỉ khi chắc chắn bỏ cả lị
   khởi động lại mới nhận.
 - `rm <name> [--repo dir] [--force]`: worktree còn thay đổi chưa commit (kể cả file chưa theo dõi, bất kể
   `status.showUntrackedFiles`) hoặc không đọc được trạng thái git thì in lý do, mã 3, không
-  xoá gì. Worktree còn session BUSY hoặc WAITING ở gốc hoặc thư mục con (theo `agent-cli ps --json --all`, so path đã chuẩn hoá `pwd -P`; ps lỗi, có stderr, JSON
+  xoá gì. Worktree còn session BUSY hoặc WAITING ở gốc hoặc thư mục con (theo `dew ps --json --all`, so path đã chuẩn hoá `pwd -P`; ps lỗi, có stderr, JSON
   hỏng, hoặc hàng BUSY có path không phân giải được đều bị coi là không an toàn và từ chối) cũng bị từ
   chối, mã 3: dưới `CRUSH_CLIENT_SERVER=1` agent chạy ở server riêng nên đóng window KHÔNG
-  dừng nó ngay (xem "Đã biết" ở mục trên về detach grace và trần mồ côi); thiếu `agent-cli` trên
+  dừng nó ngay (xem "Đã biết" ở mục trên về detach grace và trần mồ côi); thiếu `dew` trên
   PATH thì bỏ qua kiểm này và cảnh báo. Sạch thì đóng window `<name>` và mọi window mở ở thư mục con của worktree, đợi tiến trình pane
   thoát, gỡ worktree (git kiểm lại, kể cả file agent vừa ghi) và in `branch agent/<name> kept`. Script KHÔNG bao giờ xoá branch; bỏ hẳn thì tự chạy
   `git branch -d agent/<name>` (hoặc `-D` nếu chưa merge).
 - `rm` từ chối (mã 3) khi worktree có file bị gitignore, gồm `.crush/` (DB session và log của
   agent việc đó) và các file như `.env`, vì `git worktree remove` xoá chúng vĩnh viễn; stderr
   liệt kê từng mục. Chắc chắn bỏ thì thêm `--force` (chỉ nới kiểm này; kiểm thay đổi chưa
-  commit và session BUSY/WAITING vẫn giữ). Vì vậy lần dọn đầu của một worktree đã chạy agent-cli thường bị
+  commit và session BUSY/WAITING vẫn giữ). Vì vậy lần dọn đầu của một worktree đã chạy dew thường bị
   từ chối cho tới khi bạn quyết định bỏ hay giữ `.crush/` (xem ví dụ ở trên).
 - `--base` được phân giải tại nơi chạy lệnh (chạy từ worktree con thì lấy HEAD của worktree
   đó). `<name>` là symlink trong `<tên repo>-agents/` thì `new`/`rm` từ chối (mã 2).
@@ -487,16 +487,16 @@ luôn có `.crush/` (DB session và log). Chỉ khi chắc chắn bỏ cả lị
   vẫn đặt/tìm ở cùng `<tên repo chính>-agents/`. `ls` báo `dirty` khi không đọc được trạng thái, `broken` khi dữ liệu git của worktree mất (vẫn liệt kê tiếp các worktree khác).
 - Thư mục thật tên `new`/`rm`/`ls` thì viết `./new` để không bị hiểu là lệnh con.
 
-## Giao việc vào session đang mở: `agent-cli send`
+## Giao việc vào session đang mở: `dew send`
 
 Gửi prompt vào một session của dự án đã có server (ví dụ TUI đang mở ở window tmux khác);
 prompt hiện trong TUI đó như tin nhắn bình thường. Dành cho script hoặc agent điều phối
 nhiều session/dự án.
 
 ```bash
-agent-cli send -c ~/code/api --session 3f2a "Thêm test cho handler login"      # trả ngay, in session_id
-agent-cli send -c ~/code/web --new --title review --wait "Review commit cuối"  # đợi run xong, in text cuối
-agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"     # một object JSON
+dew send -c ~/code/api --session 3f2a "Thêm test cho handler login"      # trả ngay, in session_id
+dew send -c ~/code/web --new --title review --wait "Review commit cuối"  # đợi run xong, in text cuối
+dew send --session 3f2a --wait --timeout 10m --json "Chạy lại test"     # một object JSON
 ```
 
 - Bắt buộc đúng một trong `--session <id>` (ID đầy đủ hoặc tiền tố hash như `run -s`) hoặc
@@ -531,17 +531,17 @@ agent-cli send --session 3f2a --wait --timeout 10m --json "Chạy lại test"   
 - Chỉ nhận prompt từ đối số, không đọc stdin.
 - Chưa kiểm với server và model thật (test chỉ dùng client giả).
 
-## Xem và dừng job bash: `agent-cli jobs`
+## Xem và dừng job bash: `dew jobs`
 
 Mỗi lệnh bash do agent chạy là một job, kèm session sở hữu, giờ bắt đầu, thời gian chạy và kết
 quả. Job sống trong server của dự án, nên đóng TUI không làm mất danh sách; server dừng thì
 danh sách mất theo (job chết cùng server, không có job "running" giả).
 
 ```bash
-agent-cli jobs                # đang chạy trước, rồi job vừa xong; mới nhất trước
-agent-cli jobs --json         # một mảng JSON: id, session_id, tool_call_id, command, status, exit_code, started_at, finished_at, background, output_bytes
-agent-cli jobs output 01A     # output của job (stdout rồi stderr)
-agent-cli jobs kill 01A       # dừng job đang chạy; job đã xong thì không làm gì
+dew jobs                # đang chạy trước, rồi job vừa xong; mới nhất trước
+dew jobs --json         # một mảng JSON: id, session_id, tool_call_id, command, status, exit_code, started_at, finished_at, background, output_bytes
+dew jobs output 01A     # output của job (stdout rồi stderr)
+dew jobs kill 01A       # dừng job đang chạy; job đã xong thì không làm gì
 ```
 
 - `STATUS`: `RUNNING`, `SUCCEEDED`, `FAILED (mã thoát)`, `KILLED`. Cột `BG` là job chạy tiếp
@@ -567,16 +567,16 @@ nên mặc định TẮT: cài CLI, đăng nhập hay có key đều không mở
 
 ### Ranh giới provider/model
 
-Hai biến trong `~/.config/agent-cli/env` (hoặc tệp ở `AGENT_CLI_ENV_FILE`); agent-cli đọc thẳng đúng
+Hai biến trong `~/.config/dew/env` (hoặc tệp ở `DEW_ENV_FILE`); dew đọc thẳng đúng
 hai dòng này (dạng `KEY=value`, có thể `export`; dạng shell khác như `declare -x`, `KEY+=` thì báo
 lỗi lúc khởi động thay vì bỏ qua). Export ở shell cũng được và thắng giá trị trong tệp. Các biến này
-(cùng `AGENT_CLI_ENV_FILE`, `HOME`, `AGENT_CLI_*_BIN`, `*_PERMISSION_MODE`, `*_SANDBOX`) được chụp ngay
+(cùng `DEW_ENV_FILE`, `HOME`, `DEW_*_BIN`, `*_PERMISSION_MODE`, `*_SANDBOX`) được chụp ngay
 đầu tiến trình, trước khi nạp `.env` của thư mục hiện tại hay `env` trong `crush.json` của dự án, và
 server của dự án nhận đúng ảnh chụp đó: repo đang mở không đổi được chúng.
 
 ```bash
-AGENT_CLI_ALLOWED_MODELS="zai:glm-5.3 zai:glm-5.3-flash main:qwen3.8 claude_code:claude-opus-5-5 claude_code:claude-sonnet-5-5 claude_code:claude-haiku-5-5 codex:gpt-6.1-sol"
-AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
+DEW_ALLOWED_MODELS="zai:glm-5.3 zai:glm-5.3-flash main:qwen3.8 claude_code:claude-opus-5-5 claude_code:claude-sonnet-5-5 claude_code:claude-haiku-5-5 codex:gpt-6.1-sol"
+DEW_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
 ```
 
 - Danh sách có provider chính (`zai`, `main`...) thì model chính và model nhỏ chỉ được là các cặp
@@ -586,7 +586,7 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
   danh sách; agent con và tóm tắt dùng model chính. Model nhỏ ở provider khác được thay bằng model chính trước
   khi kiểm (mục "Cô lập provider, sổ ghi LLM, bằng chứng của loop/routine"). Không đặt danh sách thì model chính
   không giới hạn như trước.
-- Tool `claude_code` / `codex` chỉ có khi `AGENT_CLI_DELEGATION=on` VÀ backend có ít nhất một
+- Tool `claude_code` / `codex` chỉ có khi `DEW_DELEGATION=on` VÀ backend có ít nhất một
   model `claude_code:<id>` / `codex:<id>` trong danh sách. Model phải là ID cụ thể: alias như
   `opus`, `latest`, `fable` bị từ chối vì CLI tự đổi chúng sang model mới nhất. Tool luôn truyền
   model (`claude --model=<id>`, `codex -c model="<id>"`), không để CLI tự chọn mặc định (vd Fable)
@@ -595,7 +595,7 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
 - Tool bash chặn gọi thẳng CLI agent khác (`claude`, `claude-code`, `codex`, `gemini`, `qwen`,
   `opencode`, `aider`, `cursor-agent`, `amp`, `kiro`, kể cả đuôi `.exe`/`.js`): qua đường dẫn (script
   có shebang cũng vậy), `env`/`env -S`/`nohup`/`timeout`/`sudo`/`doas`/`xargs`, `find -exec`,
-  `npx`/`bunx`/`npm exec`/`pnpm dlx`, `bash -c "..."`; cùng agent-cli lồng (`agent-cli run|send|server|loop|routine`,
+  `npx`/`bunx`/`npm exec`/`pnpm dlx`, `bash -c "..."`; cùng dew lồng (`dew run|send|server|loop|routine`,
   `jobs`/`ps`/`logs` thì được). Báo `command is not allowed`. `goose` (migration DB) không bị chặn.
   Đây là lớp thứ hai, theo tên: bản chép mang tên khác, `python -c` hay script tự viết rồi chạy không bị
   nhận ra, nhưng vẫn phải qua hộp thoại xin quyền của bash.
@@ -611,54 +611,54 @@ AGENT_CLI_DELEGATION=on   # bỏ dòng này (hoặc off) = không giao việc
 ### Cách hoạt động khi đã bật
 
 - Tool chỉ có mặt khi tìm thấy CLI (`claude`, `codex` trong `PATH`, hoặc đường dẫn ở
-  `AGENT_CLI_CLAUDE_BIN` / `AGENT_CLI_CODEX_BIN`) và không bị `permissions deny`. Không có CLI
+  `DEW_CLAUDE_BIN` / `DEW_CODEX_BIN`) và không bị `permissions deny`. Không có CLI
   thì model không thấy tool và request không tốn token mô tả nó. Biến `*_BIN` đặt mà trỏ sai,
-  hay `AGENT_CLI_CLAUDE_PERMISSION_MODE` / `AGENT_CLI_CODEX_SANDBOX` gõ sai giá trị (tool không bị
+  hay `DEW_CLAUDE_PERMISSION_MODE` / `DEW_CODEX_SANDBOX` gõ sai giá trị (tool không bị
   deny), thì mọi prompt báo lỗi nêu đúng tên biến và các giá trị hợp lệ cho tới khi sửa và khởi
   động lại server.
 - Mỗi lần giao đều hỏi quyền, hộp thoại hiện nguyên văn việc giao, model, thư mục và mức quyền (bằng lời,
   ví dụ "FULL ACCESS: runs any command…", kèm cờ thật). Ký tự điều khiển và ký tự đảo chiều trong
   prompt được thay bằng `�` để hộp thoại không hiện khác việc sẽ chạy.
   Ngoại lệ, đều do bạn chủ động bật: "Allow for Session" (mọi lần giao sau của CLI đó trong
-  session), `agent-cli run` (tự duyệt mọi quyền của session nó chạy), `--yolo`,
+  session), `dew run` (tự duyệt mọi quyền của session nó chạy), `--yolo`,
   `permissions allow claude_code`, hook PreToolUse trả allow.
 - `resume` chỉ nhận ID dạng chữ/số/`._:-` (đúng ID tool đã trả về); giá trị giống cờ bị từ chối
   trước khi hỏi quyền, để model không chèn được cờ vào lệnh gọi CLI con.
 - Sau khi được duyệt, CLI con chạy không hỏi lại ai: mặc định Claude Code
   `--dangerously-skip-permissions`, Codex sandbox `danger-full-access`. Muốn chặt hơn:
-  `AGENT_CLI_CLAUDE_PERMISSION_MODE=acceptEdits` (hoặc `plan`),
-  `AGENT_CLI_CODEX_SANDBOX=workspace-write` (hoặc `read-only`).
+  `DEW_CLAUDE_PERMISSION_MODE=acceptEdits` (hoặc `plan`),
+  `DEW_CODEX_SANDBOX=workspace-write` (hoặc `read-only`).
 - Kết quả trả về kèm session/thread ID; model truyền lại vào `resume` để nói tiếp đúng
   cuộc hội thoại đó.
 - CLI con chạy trong nhóm tiến trình riêng: huỷ hoặc hết 15 phút thì dừng cả nhóm (kể cả dev
   server, watcher nó bật), không treo theo tiến trình cháu giữ stdout. Nó không nhận các biến
   gắn với một phiên Claude Code khác (`CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`,
-  `CLAUDE_CODE_SESSION_ID`, socket nhắn tin…), nên mở agent-cli từ trong Claude Code thì CLI con
+  `CLAUDE_CODE_SESSION_ID`, socket nhắn tin…), nên mở dew từ trong Claude Code thì CLI con
   vẫn chạy như ở terminal thường; biến cấu hình của bạn (khoá, provider) giữ nguyên.
-- CLI con nhận env GỐC của agent-cli: env lúc tiến trình khởi động, trước khi nạp `.env` của
+- CLI con nhận env GỐC của dew: env lúc tiến trình khởi động, trước khi nạp `.env` của
   thư mục hiện tại và `env` trong `crush.json`. Biến lái endpoint, khoá hay thư mục cấu hình của
   CLI con (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
   `CLAUDE_CONFIG_DIR`, `CODEX_HOME`...) đặt trong `.env` của repo, hay `env` của `crush.json` (kể
   cả `crush.json` toàn cục của bạn), không tới CLI con; muốn CLI con dùng chúng thì export ở shell
   (ví dụ `~/.bashrc`). Workspace mà Home mở và server của dự án cũng được dựng với env gốc rồi tự
   nạp `.env` cho riêng chúng, nên mở qua Home hay chế độ server cũng vậy.
-- Giới hạn: agent-cli gọi lồng từ một tiến trình đã nạp `.env` (lệnh `!agent-cli run …` trong TUI,
-  `agent-cli loop --verify "agent-cli run …"`) chụp env của tiến trình cha, gồm biến thường của
-  `.env`, làm env gốc của nó: CLI con mà agent-cli lồng đó giao việc nhận các biến này khi lời gọi
+- Giới hạn: dew gọi lồng từ một tiến trình đã nạp `.env` (lệnh `!dew run …` trong TUI,
+  `dew loop --verify "dew run …"`) chụp env của tiến trình cha, gồm biến thường của
+  `.env`, làm env gốc của nó: CLI con mà dew lồng đó giao việc nhận các biến này khi lời gọi
   lồng dựng server mới cho dự án hoặc chạy in-process. Dự án đã có server thì CLI con theo env gốc
   của server đó.
-- Server dựng sau khi lệnh đã vào `--cwd` (hiện là `agent-cli loop --cwd <dir>` ở chế độ server)
+- Server dựng sau khi lệnh đã vào `--cwd` (hiện là `dew loop --cwd <dir>` ở chế độ server)
   nạp `.env` của `<dir>`, không nạp `.env` của thư mục bạn đứng khi gõ lệnh.
 
-Các biến trên phải có trong môi trường của tiến trình agent-cli (export ở shell, ví dụ
-`~/.bashrc`), KHÔNG đặt trong `~/.config/agent-cli/env`: tệp đó chỉ được crushrc `source`
+Các biến trên phải có trong môi trường của tiến trình dew (export ở shell, ví dụ
+`~/.bashrc`), KHÔNG đặt trong `~/.config/dew/env`: tệp đó chỉ được crushrc `source`
 trong trình thông dịch riêng. Chúng là biến tin cậy, env của TIẾN TRÌNH server, lấy từ client
 đã dựng server đó: mở workspace mới không nạp lại, và client mở sau với giá trị khác bị từ chối
 (lỗi nêu tên biến). Đổi xong phải để server cũ tắt (khoảng 60 giây sau khi client cuối thoát, lâu
-hơn nếu còn run chạy nền; xem `agent-cli ps`) hoặc dừng nó như mục "Sửa env khi agent-cli đang
+hơn nếu còn run chạy nền; xem `dew ps`) hoặc dừng nó như mục "Sửa env khi dew đang
 chạy", rồi mở lại từ shell đã có biến mới.
 Codex đi kèm app ChatGPT desktop thường không nằm trong `PATH` (ví dụ
-`/usr/lib/chatgpt/resources/codex`): đặt `AGENT_CLI_CODEX_BIN` hoặc tạo symlink vào `~/.local/bin`.
+`/usr/lib/chatgpt/resources/codex`): đặt `DEW_CODEX_BIN` hoặc tạo symlink vào `~/.local/bin`.
 Không muốn dùng: `permissions deny claude_code codex` trong crushrc.
 
 ## Mode Shift+Tab và "accept edits"
@@ -681,7 +681,7 @@ sang plan, lúc có session đang chạy thì chỉ tắt (về code). Shift+Tab
   đúng đường dẫn thô, kernel đi theo symlink trước rồi mới xử lý `..`, nên `<dự án>/link/../x` (với `link` trỏ ra
   ngoài) ghi ra cạnh đích của `link`, dù gộp chữ thì ra `<dự án>/x`. Đường dẫn tương đối thì tool tự gộp `..` với thư
   mục dự án trước (`filepath.Join`) và ghi đúng đường đã gộp, nên được xét theo đường đã gộp (`../x` vẫn hỏi).
-- **Luôn hỏi**, kể cả trong dự án: file config của agent-cli (`crush.json`, `.crush.json`, `crushrc`, `.crushrc`, ở
+- **Luôn hỏi**, kể cả trong dự án: file config của dew (`crush.json`, `.crush.json`, `crushrc`, `.crushrc`, ở
   thư mục nào cũng vậy, kể cả `.crush/crush.json`), vì config khai báo hook và MCP server, tức là chạy được lệnh;
   mọi thứ dưới `.git` (hook, `core.hooksPath`, `core.fsmonitor` cũng chạy lệnh); và mọi file/thư mục tên `HEAD`
   (`x/HEAD` + `x/config` dựng thành một repo bare lồng, lệnh git chỉ-đọc được tự duyệt sẽ đọc config đó). So tên không
@@ -708,18 +708,18 @@ Lệnh chỉ-đọc trong danh sách an toàn chạy không hỏi, kể cả khi
   `--cờ=/đường/dẫn`, `-fPATH`, `git diff --no-index`) hoặc chạy với `working_dir` ngoài workspace thì HỎI quyền;
   `printenv`, `ps` (cờ `e` in env) và mọi `git config` không còn trong danh sách an toàn. Giới hạn còn lại: đường dẫn tương đối đi qua symlink
   trong dự án trỏ ra ngoài không bị nhận ra ở bước này.
-- `date -s ...` và `hostname <tên>` đổi giờ/tên máy nếu agent-cli chạy bằng root.
+- `date -s ...` và `hostname <tên>` đổi giờ/tên máy nếu dew chạy bằng root.
 
 ## Loop và Routine
 
 Hai lệnh dùng chung một engine: chạy agent, chạy lệnh verify, sửa tiếp cho tới khi verify thoát 0. "Xong" là mã
 thoát của lệnh verify, không phải lời của agent.
 
-**`agent-cli loop` (có người trông):**
+**`dew loop` (có người trông):**
 
 ```bash
-agent-cli loop --verify "go test ./..." "Sửa TestParse đang đỏ"
-agent-cli loop --verify "npm test" --max-duration 2h --json "Làm cho endpoint mới qua test"
+dew loop --verify "go test ./..." "Sửa TestParse đang đỏ"
+dew loop --verify "npm test" --max-duration 2h --json "Làm cho endpoint mới qua test"
 ```
 
 Mỗi lượt là một session mới (prompt gồm đề bài + đuôi output verify vừa đo). Dừng khi `GREEN`, verify xanh từ trước
@@ -733,14 +733,14 @@ Cờ khác: `--max-repairs` (mặc định 2), `--run-timeout` (45m mỗi lượ
 journal), `-m`, `--reasoning-effort`. `--json` in `reason`, `detail`, `attempts`, `session_ids`, `verify_status`,
 `verify_exit_code`, `journal`.
 
-**`agent-cli routine` (chạy lặp lại, kể cả theo lịch):**
+**`dew routine` (chạy lặp lại, kể cả theo lịch):**
 
 ```bash
-agent-cli routine new tidy --mode maintenance --repo ~/code/proj \
+dew routine new tidy --mode maintenance --repo ~/code/proj \
   --goal "Xoá các test không thể fail" --verify "go test ./..."
-agent-cli routine run tidy          # chạy tay một lần
-agent-cli routine list
-agent-cli routine show tidy         # định nghĩa, sha256, nơi lưu khoá và báo cáo
+dew routine run tidy          # chạy tay một lần
+dew routine list
+dew routine show tidy         # định nghĩa, sha256, nơi lưu khoá và báo cáo
 ```
 
 Mỗi lượt chạy làm việc trong worktree riêng (nhánh `routine/tidy-<thời điểm>`, nằm ngoài repo), giữ khoá (lượt thứ
@@ -749,7 +749,7 @@ báo cáo ra ngoài worktree. Mã thoát: 0 khi `GREEN`, và khi `NO_CHANGE` ở
 `NO_CHANGE` ở routine `goal` và mọi lý do khác thoát 1. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, rồi dọn bằng lệnh được in.
 
 Lên lịch: thêm `"schedule": {"on_calendar": "Mon..Fri 09:00", "timezone": "Asia/Ho_Chi_Minh"}` (hoặc `"cron"`) vào
-tệp định nghĩa của routine `maintenance`, rồi `agent-cli routine schedule tidy --print`. Lệnh chỉ IN unit systemd
+tệp định nghĩa của routine `maintenance`, rồi `dew routine schedule tidy --print`. Lệnh chỉ IN unit systemd
 `--user` và/hoặc dòng crontab; bạn tự cài. Lịch ghim sha256 của định nghĩa: sửa tệp xong phải in và cài lại. Muốn
 timer chạy khi đã đăng xuất cần `loginctl enable-linger $USER` (chưa kiểm trên máy này). Việc có đích (`goal`) không
 lên lịch được. Lịch in ra mang theo biến của launcher (mục kế).
@@ -783,9 +783,9 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
 
 - Lúc khởi động hoặc nạp lại cấu hình, provider của model đang chọn không dùng được (provider dựng sẵn thiếu API key,
   provider không còn trong cấu hình hay bị tắt): lựa chọn giữ nguyên, và bước dựng agent dừng với lỗi
-  `… provider "<id>", model "<id>" is unavailable and agent-cli does not switch to another provider; …` ở `run`,
+  `… provider "<id>", model "<id>" is unavailable and dew does not switch to another provider; …` ở `run`,
   `loop`, `routine` (lỗi chặn trước khi `-m` được áp, nên `-m` không vượt qua được).
-- App vẫn khởi động, chỉ chưa có agent (như lúc chưa cấu hình provider nào): `agent-cli login <nền tảng>`, `session`,
+- App vẫn khởi động, chỉ chưa có agent (như lúc chưa cấu hình provider nào): `dew login <nền tảng>`, `session`,
   `jobs`… chạy được; TUI mở thẳng màn chọn model, chọn model dùng được thì agent mới được dựng. Lúc TUI đang chạy (nạp
   lại cấu hình) thì chọn model khác bằng `alt+m`.
 - Cách gỡ khác: đặt key (export ở shell cho provider dựng sẵn không phải provider chính), hoặc xoá `models` trong
@@ -794,22 +794,22 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
   đầu), log ghi `Selected large model is unavailable; using a fallback for this process only (not saved)`, không ghi
   xuống đĩa.
 - Kiểm: `scripts/eval/faults.sh <thư-mục-mới> <binary>`, ca `selected-no-key` (cổng thoát 1 khi có request nào lọt,
-  khi `run` không dừng, hoặc khi `agent-cli login` không khởi động được).
+  khi `run` không dừng, hoặc khi `dew login` không khởi động được).
 
-**Sổ ghi LLM (`AGENT_CLI_LLM_LEDGER`, opt-in).**
+**Sổ ghi LLM (`DEW_LLM_LEDGER`, opt-in).**
 
-- `AGENT_CLI_LLM_LEDGER=<tệp>`: mỗi lời gọi LLM, kể cả mỗi lần thử lại, nối một dòng JSON vào tệp (tạo mode 600):
+- `DEW_LLM_LEDGER=<tệp>`: mỗi lời gọi LLM, kể cả mỗi lần thử lại, nối một dòng JSON vào tệp (tạo mode 600):
   `time`, `duration_ms`, `role` (`main`, `title`, `summary`, `subagent`, `agentic_fetch`), `session_id`, `provider`,
   `model` (đúng model đã gọi), `stream`, `messages`, `system_bytes`, `system_sha` (12 ký tự hex), `tools`,
   `tool_names`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `finish`, `error` (chỉ loại lỗi và mã HTTP).
 - Không chép nội dung prompt, câu trả lời hay văn bản lỗi.
 - Biến tin cậy: đọc từ env gốc chụp đầu tiến trình, nên `.env` của repo không bật hay chuyển được sổ; cũng không đọc từ
-  `~/.config/agent-cli/env`. Export ở shell (hoặc đặt trước lệnh) trước khi server của dự án khởi động; server đang
+  `~/.config/dew/env`. Export ở shell (hoặc đặt trước lệnh) trước khi server của dự án khởi động; server đang
   chạy thì dừng hẳn rồi mở lại.
 - Đếm theo provider và vai trò: `jq -r '.provider + " " + .role' <tệp> | sort | uniq -c`.
 - Ghi sổ lỗi (đĩa đầy, `/dev/full`): lượt vẫn chạy và thoát 0, nhưng sổ thiếu dòng. Mỗi prompt bị ảnh hưởng (gồm các
   lượt tự làm tiếp sau tự tóm tắt hay khi trả lời bị cắt) có một dòng log WARN `Failed to write the LLM ledger…`
-  (`agent-cli logs`; khi đĩa đầy thật, log cũng có thể không ghi được). `run --json` và `send --wait --json` có
+  (`dew logs`; khi đĩa đầy thật, log cũng có thể không ghi được). `run --json` và `send --wait --json` có
   `ledger_error`. Có trường này thì đừng dùng sổ làm bằng chứng cho lượt đó. Không có trường này vẫn chưa chắc sổ đủ:
   - `ledger_error` chỉ tính lời gọi gắn chính session của lượt. Lỗi ghi riêng ở agent con, hay ở lời gọi đặt tiêu đề
     (không gắn session; mỗi lần một dòng WARN), chỉ có trong log.
@@ -861,27 +861,27 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
 
 - `routine schedule <tên> --print` ghi thêm biến (`Environment=` trong unit systemd, gán biến trên dòng crontab):
   `CRUSH_GLOBAL_CONFIG`, `CRUSH_GLOBAL_DATA`, `CRUSH_CACHE_DIR`, `CRUSH_DISABLE_METRICS`,
-  `CRUSH_DISABLE_PROVIDER_AUTO_UPDATE`, `CRUSH_DISABLE_UPDATE_CHECK`, `AGENT_CLI_ENV_FILE`; biến nào rỗng thì bỏ. Trước đây lịch thiếu chúng nên mỗi lần chạy theo lịch tìm định nghĩa ở `~/.config/crush` và thoát 2.
-- Giá trị lấy từ env gốc của lệnh (trước khi `.env` của thư mục hiện tại được nạp): chạy lệnh qua launcher `agent-cli`.
+  `CRUSH_DISABLE_PROVIDER_AUTO_UPDATE`, `CRUSH_DISABLE_UPDATE_CHECK`, `DEW_ENV_FILE`; biến nào rỗng thì bỏ. Trước đây lịch thiếu chúng nên mỗi lần chạy theo lịch tìm định nghĩa ở `~/.config/crush` và thoát 2.
+- Giá trị lấy từ env gốc của lệnh (trước khi `.env` của thư mục hiện tại được nạp): chạy lệnh qua launcher `dew`.
   Giá trị có ký tự ngoài `A-Za-z0-9/._:+,-` thì lệnh từ chối, mã 2.
-- `AGENT_CLI_ALLOWED_MODELS` KHÔNG được chép vào lịch: lượt theo lịch đọc allowlist từ tệp env (`AGENT_CLI_ENV_FILE`
-  hoặc `~/.config/agent-cli/env`), nên siết allowlist trong tệp env có hiệu lực ngay cho lịch đã cài (biến export ở
+- `DEW_ALLOWED_MODELS` KHÔNG được chép vào lịch: lượt theo lịch đọc allowlist từ tệp env (`DEW_ENV_FILE`
+  hoặc `~/.config/dew/env`), nên siết allowlist trong tệp env có hiệu lực ngay cho lịch đã cài (biến export ở
   lịch sẽ thắng tệp env và che việc siết đó). Allowlist chỉ đặt ở shell thì `schedule --print` in cảnh báo ra stderr:
   chuyển nó vào tệp env.
 
 **Chế độ không người trực: phần thêm.**
 
 - Tool ghi tệp (`write`, `edit`, `multiedit`, `download`, `lsp_replace_symbol`, `lsp_rename`) bị từ chối cứng khi đích
-  nằm ngoài thư mục làm việc, trước cả YOLO và `allowed_tools`. Ví dụ: không ghi được `~/.config/agent-cli/crushrc`,
+  nằm ngoài thư mục làm việc, trước cả YOLO và `allowed_tools`. Ví dụ: không ghi được `~/.config/dew/crushrc`,
   thứ chạy như Bash ở lần mở sau. Bash (chuyển hướng `>`, `cp`, `tee`) KHÔNG qua kiểm tra này.
 - `git -C <dir>`, `--git-dir`, `--work-tree` trỏ ra ngoài workspace (đường dẫn tuyệt đối, `~`, `$VAR`, `..`) bị chặn.
 - Option dài viết tắt được so như git: `--har` là `--hard`, `--delet` là `--delete`.
 - Luật theo chữ: lệnh nào có chữ nhắc tới biến trỏ git sang repo khác hoặc nạp cấu hình (`GIT_DIR`, `GIT_WORK_TREE`,
   `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`, `GIT_NAMESPACE`, `GIT_EXEC_PATH`, `GIT_CONFIG_*`) đều bị
   chặn, bất kể lệnh gì và giá trị gì, kể cả trong `sh -c`, `env -S`, `eval`. Biến kế thừa nguyên giá trị từ env của
-  chính agent-cli (vd chạy trong git hook) được bỏ qua. Cố ý nghiêng về chặn: biến shell thường trùng tên, hay chỉ
+  chính dew (vd chạy trong git hook) được bỏ qua. Cố ý nghiêng về chặn: biến shell thường trùng tên, hay chỉ
   nhắc tên trong một chuỗi, cũng bị chặn (`env GIT_DIR=/o ls` bị chặn; `MY_GIT_DIR=x git status` vẫn qua).
-- Lệnh bị chặn (lớp này hoặc lớp bảo vệ tiến trình agent-cli): output gửi model có thêm dòng `Blocked: <lý do>`
+- Lệnh bị chặn (lớp này hoặc lớp bảo vệ tiến trình dew): output gửi model có thêm dòng `Blocked: <lý do>`
   (tối đa 5 lý do, mỗi lý do 300 ký tự, phần còn lại ghi "and N more blocked commands").
 - Vẫn KHÔNG phủ: ghi tệp qua bash, thư mục symlink (`ln -s /khác r; git -C r …`), `cd` ra ngoài trước lệnh, tên biến
   ghép lúc chạy (`"GIT_""DIR"`), script đọc từ tệp hoặc stdin, `python`/`node`, `find -delete`. Đây là danh sách đen,
@@ -889,8 +889,8 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
 
 ## Tổ hợp phím
 
-Xem mọi action và phím hiện tại: `agent-cli keys` (bảng `ACTION  KEYS  HELP`) hoặc `agent-cli keys --json`.
-Đổi phím bằng file `keybindings.json` nằm cạnh thư mục `themes/` (mặc định `~/.config/agent-cli/keybindings.json`,
+Xem mọi action và phím hiện tại: `dew keys` (bảng `ACTION  KEYS  HELP`) hoặc `dew keys --json`.
+Đổi phím bằng file `keybindings.json` nằm cạnh thư mục `themes/` (mặc định `~/.config/dew/keybindings.json`,
 theo `CRUSH_GLOBAL_CONFIG` nếu có). Dạng `{"<action>": ["phím", ...]}`; mảng rỗng là tắt phím đó. Ví dụ cho dev:
 
 ```json
@@ -907,18 +907,18 @@ theo `CRUSH_GLOBAL_CONFIG` nếu có). Dạng `{"<action>": ["phím", ...]}`; m�
 - Action sai tên, hoặc hai action đang bật trong cùng nhóm (`chat.*`, `editor.*`) dùng chung một phím
   (chỉ xét khi có action bị bạn đổi): vẫn áp dụng, nhưng hiện toast cảnh báo lúc khởi động và ghi log.
   JSON hỏng: dùng phím mặc định kèm một cảnh báo.
-- `chat.up_down` và `chat.up_down_one_item` chỉ để hiện gợi ý ở thanh help (`agent-cli keys` ghi "display only"); gán phím cho chúng không có tác dụng. Đổi `chat.down`/`chat.up` thay thế.
+- `chat.up_down` và `chat.up_down_one_item` chỉ để hiện gợi ý ở thanh help (`dew keys` ghi "display only"); gán phím cho chúng không có tác dụng. Đổi `chat.down`/`chat.up` thay thế.
 - Bảng lệnh (command palette) vẫn hiện gợi ý phím mặc định sau khi đổi, vì chuỗi này viết cứng trong `dialog/commands.go`; phím thật vẫn là phím bạn đã đổi.
 - File chỉ đọc lúc khởi động; sửa xong phải mở lại TUI.
 - Phím chính (thanh footer ở chat): `Alt+W` workspace (`workspaces`, thoát về Home để chọn workspace/session khác, xem mục Home) · `Alt+S` sessions · `Alt+N` session mới (`chat.new_session`) · `Alt+.` / `Alt+,` sang session kế / trước, vòng trong đúng các session panel Sessions đang hiện (bấm nhanh hai lần là tiến hai bước; không còn session khác thì báo "No other session") (`chat.next_session`, `chat.prev_session`) · `Alt+P` provider (`providers`) · `Alt+M` model **của provider đang dùng** (`models`) · `Alt+E` mức effort của model (`effort`, chỉ khi model có các mức); `Ctrl+P` vẫn là Commands (lệnh "Switch Model" ở đó vẫn là danh sách đầy đủ; có thêm "Home" và "Switch Provider", gợi ý phím ghi đúng `alt+n`/`alt+s`/`alt+m`/`alt+p`/`alt+e`/`alt+w`). Phím cũ `Ctrl+S` / `Ctrl+N` / `Ctrl+L` vẫn dùng được.
-- `Alt+J` mở **Jobs** (`jobs`; trong `Ctrl+P` là mục "Jobs", gõ `activity` cũng ra): các lệnh bash agent chạy trong dự án, đang chạy trước, kèm thời gian chạy, kết quả (`exit N`, `killed`, `bg` cho job chạy nền) và session sở hữu; tự làm tươi mỗi giây. Enter xem output (bám đuôi như `tail -f`, cuộn lên thì dừng bám, `End` bám lại), Esc quay lại. `Ctrl+K` dừng job: luôn hỏi lại, mặc định **No**, chỉ ←/→ đổi nút rồi Enter. Cùng dữ liệu với lệnh `agent-cli jobs`. Không nằm ở footer (footer giữ bốn phím core); có trong help đầy đủ (`Ctrl+G`).
+- `Alt+J` mở **Jobs** (`jobs`; trong `Ctrl+P` là mục "Jobs", gõ `activity` cũng ra): các lệnh bash agent chạy trong dự án, đang chạy trước, kèm thời gian chạy, kết quả (`exit N`, `killed`, `bg` cho job chạy nền) và session sở hữu; tự làm tươi mỗi giây. Enter xem output (bám đuôi như `tail -f`, cuộn lên thì dừng bám, `End` bám lại), Esc quay lại. `Ctrl+K` dừng job: luôn hỏi lại, mặc định **No**, chỉ ←/→ đổi nút rồi Enter. Cùng dữ liệu với lệnh `dew jobs`. Không nằm ở footer (footer giữ bốn phím core); có trong help đầy đủ (`Ctrl+G`).
 - `Alt+Tab` không dùng được trong TUI: trình quản lý cửa sổ (Cinnamon, GNOME, KDE...) giữ nó để đổi cửa sổ, terminal không bao giờ nhận. Vì vậy chuyển session là `Alt+.` / `Alt+,`.
-- Danh sách provider ở `Alt+P` lấy theo `option visible-provider` trong crushrc (đúng thứ tự), không khai thì là các provider đã cấu hình. Mỗi dòng ghi trạng thái: `current`, `ready`, `agent-cli login openai` (ChatGPT chưa đăng nhập), `needs API key`. Trong bảng model, `Alt+P` quay lại bảng provider.
+- Danh sách provider ở `Alt+P` lấy theo `option visible-provider` trong crushrc (đúng thứ tự), không khai thì là các provider đã cấu hình. Mỗi dòng ghi trạng thái: `current`, `ready`, `dew login openai` (ChatGPT chưa đăng nhập), `needs API key`. Trong bảng model, `Alt+P` quay lại bảng provider.
 - Hộp thoại xin quyền mặc định chọn **Deny**: Enter lỡ tay là từ chối. Cho phép một lần là `Ctrl+A`, cho phép cả session là `Ctrl+S` (hoặc chọn nút bằng ←/→ rồi Enter). **Không chữ cái nào cấp quyền**: `a`, `s`, `h`, `l`, Tab... gõ dở rơi vào hộp thoại không làm gì (chỉ `d`/Esc là từ chối), vì hộp thoại chỉ nuốt phím trong tối đa 1,5 giây đầu. Hộp thoại "khởi tạo dự án" mặc định **Nope**; không còn phím `y` tắt: muốn khởi tạo thì chọn Yep bằng ←/→ (hoặc Tab) rồi Enter, hoặc `Ctrl+P` → Initialize Project.
 - `chat.jump_session` **không có phím mặc định** (chọn session theo tên, không theo số), nên panel Sessions không
   đánh số dòng. Muốn dùng thì gán trong `keybindings.json` như ví dụ trên; mô tả dưới đây áp khi đã gán.
 - `chat.jump_session` (ví dụ gán `alt+1`..`alt+9`) nhảy thẳng tới session đánh số 1..9 trong panel Sessions (đúng thứ tự panel đang hiện), không đụng chữ đang gõ ở editor; số vượt quá danh sách hoặc trúng session đang xem thì không làm gì, session ghim ngoài top 9 không có số. Phím thứ i trong mảng ứng với session thứ i: đổi phím thì liệt kê theo thứ tự (ví dụ trên chỉ nhảy được tới session 1-3, nên panel chỉ đánh số 1-3, các dòng khác hiện `·`).
-- Phím `alt+...` cần terminal gửi Alt/Meta đúng (kiểm bằng `agent-cli keys` rồi thử trong TUI).
+- Phím `alt+...` cần terminal gửi Alt/Meta đúng (kiểm bằng `dew keys` rồi thử trong TUI).
 
 ### Chữ đang gõ không mất khi đổi session
 
@@ -933,7 +933,7 @@ sidebar và logo trầm. Không cần cấu hình gì: TUI, Home, hộp thoại,
 help của CLI đều dùng bảng màu này (mọi provider, kể cả hyper).
 
 Theme cũ `charmtone-panther` (và `gruvbox-dark`) không bị sửa và vẫn chọn được: `Ctrl+P` → **Themes** (↑/↓ xem thử,
-Enter chọn, Esc quay lại), hoặc đặt trong `~/.config/agent-cli/crush.json`:
+Enter chọn, Esc quay lại), hoặc đặt trong `~/.config/dew/crush.json`:
 
 ```json
 {"options": {"tui": {"active_theme": "charmtone-panther"}}}
@@ -941,7 +941,7 @@ Enter chọn, Esc quay lại), hoặc đặt trong `~/.config/agent-cli/crush.js
 
 Bỏ trống hoặc xoá `active_theme` thì về `luannt-theme-everforest-dark`. Thứ tự ưu tiên khi nhiều nơi cùng đặt (đã thử):
 `crush.json`/`crushrc` trong thư mục dự án thắng `<data dir>/crush.json` (hộp thoại Themes ghi vào đây, mặc định
-`~/.local/share/agent-cli/crush.json`), và nó thắng `~/.config/agent-cli/crush.json`. Đã từng chọn theme trong TUI
+`~/.local/share/dew/crush.json`), và nó thắng `~/.config/dew/crush.json`. Đã từng chọn theme trong TUI
 thì giá trị đó còn trong `<data dir>/crush.json`: chọn lại `luannt-theme-everforest-dark` trong Themes để dùng mặc định mới.
 
 Giới hạn đã biết: đường kẻ bảng markdown do glamour vẽ theo màu mặc định của terminal; màu cú pháp trong khối code
@@ -966,22 +966,22 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
   ai sửa được cấu hình, kể cả `crush.json` của một repo lạ, thì trỏ được cùng tên sang endpoint khác.
 - **Nhãn provider của `run --json` không phải bằng chứng.** `provider`/`model` lấy từ tin đã lưu, có cả khi request
   chưa tới provider. Báo cáo routine không ghi provider/model; cần bằng chứng thì bật sổ ghi LLM (lịch không tự mang
-  `AGENT_CLI_LLM_LEDGER`: thêm vào unit/crontab nếu cần).
+  `DEW_LLM_LEDGER`: thêm vào unit/crontab nếu cần).
 - **`routine list`/`show` có thể làm mất một lượt theo lịch.** Khi lượt mới nhất chưa có báo cáo hoặc báo cáo còn
   `RUNNING`, hai lệnh này thử khoá của routine rồi nhả ngay (cửa sổ rất ngắn, chưa đo); lượt theo lịch bắt đầu đúng lúc đó thấy khoá
   đang giữ, thoát 75 và không chạy lại.
-- **Đăng nhập ChatGPT/Grok có kết nối ra ngoài kể cả khi dùng provider khác.** Đã `agent-cli login openai`/`xai` mà
+- **Đăng nhập ChatGPT/Grok có kết nối ra ngoài kể cả khi dùng provider khác.** Đã `dew login openai`/`xai` mà
   chưa có danh sách model của gói (lấy lúc login bị lỗi, hoặc đăng nhập từ bản cũ), thì mỗi lần dựng lại model
-  agent-cli thử lấy lại danh sách đó (có thể làm mới token), kể cả trong phiên chỉ dùng Qwen local. Không phải lời gọi
+  dew thử lấy lại danh sách đó (có thể làm mới token), kể cả trong phiên chỉ dùng Qwen local. Không phải lời gọi
   LLM và không gửi prompt; lấy được một lần thì thôi.
 - **Skill viết cho công cụ khác vẫn được liệt kê.** Skill trong các gốc skill (vd skill đồng bộ từ ứng dụng Claude dùng
-  computer-use hay trình duyệt) vào system prompt dù agent-cli không có tool mà nó cần. Tắt bằng `option disable-skill
+  computer-use hay trình duyệt) vào system prompt dù dew không có tool mà nó cần. Tắt bằng `option disable-skill
   <tên>`.
 - **Mở repo lạ.** `crushrc`/`.crushrc` của repo chạy như Bash, `crush.json` của repo có thể nới quyền tool; không có
   bước hỏi tin cậy. Đọc cấu hình của repo trước khi mở.
 - **MCP chết sau App cuối (PRB-84, chế độ server).** App cuối của server đóng thì MCP client bị đóng và không mở lại được
   trong cùng tiến trình; client quay lại trong 60 giây chờ tắt nhận MCP chết. Dừng hẳn server của dự án (mục "Sửa env
-  khi agent-cli đang chạy") để có tiến trình mới. Có từ trước; bản sửa job nền theo workspace làm hẹp lại.
+  khi dew đang chạy") để có tiến trình mới. Có từ trước; bản sửa job nền theo workspace làm hẹp lại.
 - **Job của App mới có thể bị giết (PRB-85).** Dừng job theo gốc workspace: trong lúc App cũ của một dự án đang dừng, App
   mới cùng gốc (mở lại ngay dự án vừa đóng) có thể mất job nền của nó. Cửa sổ hẹp; sửa đúng cần chủ job theo App.
 - **MCP: chữ đi kèm ảnh/media và `read_mcp_resource` chưa có trần; ảnh kèm `isError=true` lưu `is_error=false`.**
@@ -1002,20 +1002,20 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
 ```bash
 git pull --ff-only
 bash scripts/install-dew.sh   # cuối lần chạy in gợi ý diff -u nếu crushrc/env của bạn khác mẫu mới
-agent-cli --version
-agent-cli models                    # kiểm cấu hình nạp được, không gọi model
+dew --version
+dew models                    # kiểm cấu hình nạp được, không gọi model
 bash scripts/test-dew-wrapper.sh   # tuỳ chọn: kiểm launcher + installer trong thư mục tạm, in PASS
 ```
 
 (`git diff --check` chỉ dùng để soát khoảng trắng trong thay đổi CỦA BẠN trước khi commit; sau
 `git pull --ff-only` cây sạch nên nó luôn rỗng và không kiểm được gì về bản vừa cập nhật.)
 
-Installer sao lưu binary và wrapper đang cài vào `~/.local/lib/agent-cli/backup-<thời điểm>/`
+Installer sao lưu binary và wrapper đang cài vào `~/.local/lib/dew/backup-<thời điểm>/`
 (giữ 3 bản mới nhất), build ra tệp tạm rồi mới thay (build lỗi thì bản cũ còn nguyên), và in
-lệnh `cp -p` để quay lại. `agent-cli-tmux` là bản chép nên cũng được thay bằng bản mới ở mỗi lần cài (không
+lệnh `cp -p` để quay lại. `dew-tmux` là bản chép nên cũng được thay bằng bản mới ở mỗi lần cài (không
 nằm trong bản sao lưu).
 
 Đã kiểm chứng: nạp `crushrc` + env với biến giả (provider `main`, model lớn/nhỏ, key rỗng
 và key có giá trị, thiếu biến thì dừng kèm thông báo). Chưa kiểm chứng với endpoint mới (tool
 calling và streaming cần thử thật trên model bạn chọn), server nhà, phiên dài/compact, API key
-thật của provider, OAuth native (`agent-cli login openai`). Login subscription không đồng nghĩa API key.
+thật của provider, OAuth native (`dew login openai`). Login subscription không đồng nghĩa API key.
