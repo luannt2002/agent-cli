@@ -113,7 +113,7 @@ func TestConfigureProviders_SelectedCustomProviderWithEndpointLoads(t *testing.T
 	require.True(t, ok)
 }
 
-// Provider dựng sẵn chưa có thông tin đăng nhập (chưa `agent-cli login`) không
+// Provider dựng sẵn chưa có thông tin đăng nhập (chưa `dew login`) không
 // phải lỗi gõ sai: khởi động phải thành công, nếu không thì không thể chạy lệnh
 // login để có thông tin đó.
 func TestConfigureProviders_SelectedKnownProviderWithoutCredentialsStillStarts(t *testing.T) {

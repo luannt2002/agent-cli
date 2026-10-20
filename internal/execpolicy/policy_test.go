@@ -126,6 +126,7 @@ func TestExternalAgentCommand(t *testing.T) {
 		{"find", ".", "-exec", "claude", "-p", "{}", ";"},
 		{"bash", "-c", "cd x && claude -p hi"},
 		{"sh", "-c", "A=1 codex exec x"},
+		{"dew", "run", "--yolo", "x"},
 		{"agent-cli", "run", "--yolo", "x"},
 		{"crush", "server", "--host", "unix:///tmp/s"},
 	}
@@ -136,10 +137,11 @@ func TestExternalAgentCommand(t *testing.T) {
 	misses := [][]string{
 		{"git", "status"},
 		{"go", "test", "./..."},
+		{"dew", "jobs"},
 		{"agent-cli", "jobs"},
 		{"crush", "--version"},
 		{"goose", "-dir", "migrations", "postgres", "up"},
-		{"agent-cli", "ps", "--all"},
+		{"dew", "ps", "--all"},
 		{"bash", "-c", "echo claude"},
 		{"find", ".", "-name", "*.go"},
 		{"npm", "exec", "prettier"},
@@ -155,7 +157,7 @@ func TestExternalAgentCommand(t *testing.T) {
 	}
 }
 
-// Chính sách đọc từ tệp env của agent-cli (chỉ hai khoá, bỏ qua dòng khác kể
+// Chính sách đọc từ tệp env của dew (chỉ hai khoá, bỏ qua dòng khác kể
 // cả khoá API) và từ env đã export (thắng tệp).
 func TestLoadReadsEnvFileAndProcessEnv(t *testing.T) {
 	t.Parallel()

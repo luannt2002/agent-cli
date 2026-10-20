@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Lệnh `!` người dùng gõ (chế độ local) có thể là `agent-cli run …`: biến tin cậy
+// Lệnh `!` người dùng gõ (chế độ local) có thể là `dew run …`: biến tin cậy
 // của nó phải theo ảnh chụp env gốc, không theo `.env` của repo mà main đã nạp.
 // Biến thường của `.env` vẫn tới lệnh. Chỉ in TÊN biến mang giá trị canary. Chạy ở
 // tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.

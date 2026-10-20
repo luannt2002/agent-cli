@@ -102,7 +102,7 @@ func TestBuildAgentReadinessSurvivesCallerCancellation(t *testing.T) {
 
 // TestRunWaitIsSafeAgainstConcurrentAgentBuild là test hồi quy cho panic
 // "sync: WaitGroup is reused before previous Wait has returned" ở
-// coordinator.run khi ~10 `agent-cli run` cùng vào một server.
+// coordinator.run khi ~10 `dew run` cùng vào một server.
 //
 // run chờ việc dựng agent (system prompt, bộ tool) xong rồi mới chạy lượt.
 // Việc dựng do buildAgent khởi, mà buildAgent chạy cả từ UpdateModels (mỗi

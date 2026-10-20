@@ -29,7 +29,7 @@ const workspaceShutdownTimeout = 15 * time.Second
 
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "Start the agent-cli server",
+	Short: "Start the dew server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		dataDir, err := cmd.Flags().GetString("data-dir")
 		if err != nil {
@@ -60,7 +60,7 @@ var serverCmd = &cobra.Command{
 
 		srv := server.NewServer(cfg, hostURL.Scheme, hostURL.Host)
 		srv.SetLogger(slog.Default())
-		slog.Info("Starting agent-cli server...", "addr", serverHost)
+		slog.Info("Starting dew server...", "addr", serverHost)
 
 		errch := make(chan error, 1)
 		sigch := make(chan os.Signal, 1)

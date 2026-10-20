@@ -364,7 +364,7 @@ func (b *Backend) RunShellCommand(ctx context.Context, workspaceID string, req p
 	}
 
 	// ws.Env là env client chụp sau khi nạp `.env` của repo: biến tin cậy theo ảnh chụp
-	// env gốc của server, để `!agent-cli run …` không nhận chúng từ `.env`.
+	// env gốc của server, để `!dew run …` không nhận chúng từ `.env`.
 	result, err := shell.RunAndPersist(ctx, shell.RunOptions{
 		Command:   req.Command,
 		Cwd:       ws.Path,

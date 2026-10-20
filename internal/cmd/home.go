@@ -36,12 +36,12 @@ import (
 const (
 	// homeExitCode is the exit status of a workspace TUI that asks to go
 	// back to Home (Alt+W). Home shows again; any other status ends
-	// agent-cli.
+	// dew.
 	homeExitCode = 10
 	// homeChildEnv marks a workspace TUI started by Home: on Alt+W it exits
 	// with homeExitCode instead of starting a new Home.
 	homeChildEnv = "AGENT_CLI_HOME_CHILD"
-	// launcherEnv holds the path of the agent-cli launcher, which sets it.
+	// launcherEnv holds the path of the dew launcher, which sets it.
 	// Workspaces are started through it so each gets the launcher's
 	// per-project --host.
 	launcherEnv = "AGENT_CLI_LAUNCHER"
@@ -91,7 +91,7 @@ func runHome(cmd *cobra.Command) error {
 }
 
 // homeLoop picks with Home and runs each choice, showing Home again while the
-// workspace exits with homeExitCode. It returns the status agent-cli ends
+// workspace exits with homeExitCode. It returns the status dew ends
 // with.
 func homeLoop(pick func() (home.Choice, error), run func(home.Choice) (int, error)) (int, error) {
 	for {
@@ -107,7 +107,7 @@ func homeLoop(pick func() (home.Choice, error), run func(home.Choice) (int, erro
 }
 
 // homeLauncher is what Home starts workspaces with: the launcher when
-// agent-cli was started through it, else this binary.
+// dew was started through it, else this binary.
 func homeLauncher() (string, error) {
 	// Env gốc: `.env` của repo (main nạp sau ảnh chụp) không được chọn chương trình Home chạy.
 	if exe := execpolicy.OriginalEnv(launcherEnv); exe != "" {
@@ -132,7 +132,7 @@ func homeChildCmd(exe string, c home.Choice, debug bool) *exec.Cmd {
 	return cmd
 }
 
-// homeEnv là env cho tiến trình agent-cli mà Home dựng (workspace, Home khi quay
+// homeEnv là env cho tiến trình dew mà Home dựng (workspace, Home khi quay
 // lại): env GỐC, không biến nào của `.env` mà main đã nạp. Con chụp env này làm env
 // gốc của nó (biến tin cậy, launcher, và env mà CLI con giao việc nhận); nó chạy cùng
 // cwd nên tự nạp lại đúng `.env` đó.
@@ -151,7 +151,7 @@ func runChild(c *exec.Cmd) (int, error) {
 	return 0, nil
 }
 
-// execHome replaces this process with Home, from dir (where agent-cli was
+// execHome replaces this process with Home, from dir (where dew was
 // started; the TUI changed into its workspace).
 func execHome(dir string) error {
 	if dir != "" {

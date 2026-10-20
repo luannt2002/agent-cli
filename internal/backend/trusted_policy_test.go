@@ -105,7 +105,7 @@ func TestCreateWorkspace_TrustPolicyMismatch(t *testing.T) {
 			require.ErrorIs(t, err, ErrPolicyMismatch)
 			require.Nil(t, wsB)
 			require.Contains(t, err.Error(), tc.wantKey)
-			require.Contains(t, err.Error(), "exit every agent-cli client of this project")
+			require.Contains(t, err.Error(), "exit every dew client of this project")
 			require.NotContains(t, err.Error(), "qwen:m-qwen", "names only, never values")
 			require.NotContains(t, err.Error(), "INJECTED", "never echo key names the client made up")
 			wsA.clientsMu.Lock()

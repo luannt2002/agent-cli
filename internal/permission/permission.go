@@ -350,7 +350,7 @@ func (s *permissionService) AutoApproveSession(sessionID string) {
 var acceptEditsTools = []string{"edit", "multiedit", "write"}
 
 // protectedNames always ask under accept-edits, even inside the working
-// dir: agent-cli's config files (config.lookupConfigs) define hooks and MCP
+// dir: dew's config files (config.lookupConfigs) define hooks and MCP
 // servers, and .git holds hooks and core.hooksPath/fsmonitor; all run
 // commands. HEAD is what makes a directory a git dir without .git: a
 // planted bare repo (x/HEAD + x/config) lets an auto-approved read-only git

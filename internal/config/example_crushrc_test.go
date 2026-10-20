@@ -17,7 +17,7 @@ import (
 
 // Các test dưới đây chạy chính agent-cli.crushrc.example qua config.Load, với
 // cấu trúc thư mục như bản cài thật: crushrc nằm ở thư mục cấu hình toàn cục,
-// còn token đăng nhập (agent-cli login) nằm ở crush.json trong thư mục dữ liệu
+// còn token đăng nhập (dew login) nằm ở crush.json trong thư mục dữ liệu
 // toàn cục, được gộp SAU crushrc.
 
 const loginToken = "login-access-token"
@@ -135,7 +135,7 @@ func TestExampleCrushrc_MainProviderStillLoads(t *testing.T) {
 	require.EqualValues(t, 8192, small.Config().Models[SelectedModelTypeLarge].MaxTokens, "a small context keeps room for the input")
 }
 
-// Đã `agent-cli login` thì để trống AGENT_CLI_API_KEY: provider vẫn lên, token
+// Đã `dew login` thì để trống AGENT_CLI_API_KEY: provider vẫn lên, token
 // đăng nhập còn nguyên (crushrc không phát key rỗng đè lên nó).
 func TestExampleCrushrc_LoginProviderKeepsStoredToken(t *testing.T) {
 	model := firstEmbeddedModel(t, "xai")
@@ -157,7 +157,7 @@ func TestExampleCrushrc_LoginProviderKeepsStoredToken(t *testing.T) {
 
 // Thứ tự nạp: crush.json trong thư mục dữ liệu (nơi login ghi token) nằm SAU
 // crushrc, nên khi đã đăng nhập thì token thắng AGENT_CLI_API_KEY. Muốn dùng
-// khoá thì `agent-cli logout` trước; docs ghi đúng điều này.
+// khoá thì `dew logout` trước; docs ghi đúng điều này.
 func TestExampleCrushrc_StoredLoginBeatsEnvKey(t *testing.T) {
 	store, err := loadExampleCrushrc(t, map[string]string{
 		"AGENT_CLI_PROVIDER_ID": "xai",
@@ -172,7 +172,7 @@ func TestExampleCrushrc_StoredLoginBeatsEnvKey(t *testing.T) {
 }
 
 // Chưa đăng nhập, chưa có key: khởi động vẫn phải thành công (provider chỉ
-// chưa được cấu hình). Nếu không, `agent-cli login openai` cũng không chạy nổi.
+// chưa được cấu hình). Nếu không, `dew login openai` cũng không chạy nổi.
 func TestExampleCrushrc_LoginProviderNotLoggedInStillStarts(t *testing.T) {
 	store, err := loadExampleCrushrc(t, map[string]string{
 		"AGENT_CLI_PROVIDER_ID": "openai",

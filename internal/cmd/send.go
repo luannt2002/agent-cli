@@ -29,15 +29,15 @@ returns once the server has accepted and recorded the prompt in the session
 (the run may not have started yet); with --wait it blocks until that run
 finishes and prints the final text.
 
-Needs CRUSH_CLIENT_SERVER=1 (the agent-cli launcher sets it).
+Needs CRUSH_CLIENT_SERVER=1 (the dew launcher sets it).
 Exit codes: 0 success, 1 runtime error (--json still prints the object with
 "error" set), 2 bad usage.`,
 	Example: `
 # Continue a session (full ID or the prefix shown by 'session list')
-agent-cli send --session 3f2a "Now add tests"
+dew send --session 3f2a "Now add tests"
 
 # Start a new session in another project and wait for the answer
-agent-cli send -c ~/code/web --new --title review --wait --json "Review the last commit"
+dew send -c ~/code/web --new --title review --wait --json "Review the last commit"
 `,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -54,7 +54,7 @@ agent-cli send -c ~/code/web --new --title review --wait --json "Review the last
 			return &usageError{err}
 		}
 		if !useClientServer() {
-			return &usageError{errors.New("send needs the project server: run it through the agent-cli launcher or set CRUSH_CLIENT_SERVER=1")}
+			return &usageError{errors.New("send needs the project server: run it through the dew launcher or set CRUSH_CLIENT_SERVER=1")}
 		}
 
 		// SIGHUP (terminal đóng, SSH rớt) cũng chỉ thôi chờ, như Ctrl+C.
@@ -80,7 +80,7 @@ agent-cli send -c ~/code/web --new --title review --wait --json "Review the last
 		}
 		defer cleanup()
 		if !ws.Config.IsConfigured() {
-			return fmt.Errorf("no providers configured - please run 'agent-cli' to set up a provider interactively")
+			return fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
 		}
 		if err := ensureAgent(ctx, c, ws.ID); err != nil {
 			return err

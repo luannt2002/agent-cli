@@ -283,10 +283,10 @@ func (p *Providers) setItems(known []catwalk.Provider) {
 // loginCommands là lệnh đăng nhập của các provider dùng tài khoản (OAuth)
 // thay cho API key.
 var loginCommands = map[catwalk.InferenceProvider]string{
-	catwalk.InferenceProviderOpenAI:  "agent-cli login openai",
-	catwalk.InferenceProviderXAI:     "agent-cli login grok",
-	catwalk.InferenceProviderCopilot: "agent-cli login copilot",
-	"hyper":                          "agent-cli login",
+	catwalk.InferenceProviderOpenAI:  "dew login openai",
+	catwalk.InferenceProviderXAI:     "dew login grok",
+	catwalk.InferenceProviderCopilot: "dew login copilot",
+	"hyper":                          "dew login",
 }
 
 // providerStatus cho biết provider dùng được ngay hay còn thiếu gì.

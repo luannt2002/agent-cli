@@ -16,7 +16,7 @@ import (
 const CodexToolName = "codex"
 
 // Biến env cấu hình tool codex; như tool claude_code, phải có trong môi
-// trường của tiến trình agent-cli (export ở shell).
+// trường của tiến trình dew (export ở shell).
 const (
 	codexBinEnv     = "AGENT_CLI_CODEX_BIN"
 	codexSandboxEnv = "AGENT_CLI_CODEX_SANDBOX"

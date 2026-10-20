@@ -10,7 +10,7 @@ import (
 )
 
 // Giới hạn duyệt tệp (ls depth/items) áp khi THƯ MỤC WORKSPACE không nằm trong
-// một git work tree, không phụ thuộc cwd của tiến trình. Server agent-cli thừa
+// một git work tree, không phụ thuộc cwd của tiến trình. Server dew thừa
 // hưởng cwd của client đầu tiên (vd $HOME), nên đọc cwd làm sai mọi repo mở sau.
 // Test chạy với cwd = thư mục gói (nằm trong repo git) để lộ lỗi đó.
 func TestLoad_FileWalkLimitsFollowWorkspaceNotProcessCwd(t *testing.T) {

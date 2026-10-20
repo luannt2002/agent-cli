@@ -61,7 +61,7 @@ func TestInitializePromptDefaultsToNo(t *testing.T) {
 	require.Equal(t, uiLanding, m.state)
 }
 
-// Model chính đã chọn mà provider không dùng được (thiếu key, không còn): agent-cli
+// Model chính đã chọn mà provider không dùng được (thiếu key, không còn): dew
 // không đổi provider, nên TUI mở màn chọn model như lúc chưa cấu hình; chọn xong mới
 // dựng agent. Model dùng được thì không vào onboarding.
 func TestUnavailableSelectedModelOpensOnboarding(t *testing.T) {

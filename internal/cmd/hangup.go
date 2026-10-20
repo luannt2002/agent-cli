@@ -9,7 +9,7 @@ import (
 // stopSignals trả các tín hiệu mà run/send coi là "dừng": Ctrl+C, SIGTERM,
 // và SIGHUP (terminal đóng, SSH rớt) trừ khi tiến trình đang bỏ qua nó.
 // Đăng ký SIGHUP khi nó đang bị bỏ qua (chạy dưới nohup) sẽ bật lại nó, và
-// `nohup agent-cli run ... &` bị huỷ lúc đăng xuất.
+// `nohup dew run ... &` bị huỷ lúc đăng xuất.
 func stopSignals() []os.Signal {
 	sigs := []os.Signal{os.Interrupt, syscall.SIGTERM}
 	if !signal.Ignored(syscall.SIGHUP) {
@@ -19,7 +19,7 @@ func stopSignals() []os.Signal {
 }
 
 // withoutIgnoredHangup bỏ SIGHUP khỏi sigs khi tiến trình đang bỏ qua nó
-// (vd `nohup agent-cli server &`): đăng ký sẽ bật lại nó và server tắt lúc
+// (vd `nohup dew server &`): đăng ký sẽ bật lại nó và server tắt lúc
 // đăng xuất.
 func withoutIgnoredHangup(sigs []os.Signal) []os.Signal {
 	if !signal.Ignored(syscall.SIGHUP) {

@@ -38,7 +38,7 @@ const (
 )
 
 // Schedule là lịch của routine maintenance. Khai on_calendar (systemd) và/hoặc
-// cron (5 trường). agent-cli chỉ IN văn bản lịch, không tự cài.
+// cron (5 trường). dew chỉ IN văn bản lịch, không tự cài.
 type Schedule struct {
 	OnCalendar string `json:"on_calendar,omitempty"`
 	Cron       string `json:"cron,omitempty"`
@@ -163,8 +163,8 @@ func (d Definition) Limits() (maxRepairs int, maxDuration, runTimeout, verifyTim
 	return maxRepairs, maxDuration, runTimeout, verifyTimeout, nil
 }
 
-// ScheduleText sinh văn bản lịch để NGƯỜI DÙNG tự cài (agent-cli không bao giờ
-// tự sửa crontab hay timer: agent bị cấm lệnh đó). bin là đường dẫn agent-cli,
+// ScheduleText sinh văn bản lịch để NGƯỜI DÙNG tự cài (dew không bao giờ
+// tự sửa crontab hay timer: agent bị cấm lệnh đó). bin là đường dẫn dew,
 // sum là sha256 của định nghĩa (lượt chạy từ chối khi tệp đã đổi), path là PATH
 // tường minh (cron/systemd có env gần như rỗng).
 func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, error) {
@@ -191,13 +191,13 @@ func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, e
 	cmdline := fmt.Sprintf("%s routine run %s --scheduled --expect-sha %s", quoteExec(bin), d.Name, sum)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Routine %q (mode %s). agent-cli only PRINTS this; install it yourself.\n", d.Name, d.Mode)
+	fmt.Fprintf(&b, "# Routine %q (mode %s). dew only PRINTS this; install it yourself.\n", d.Name, d.Mode)
 	fmt.Fprintf(&b, "# The run refuses to start if the definition file changed (sha256 %s).\n", sum)
 	fmt.Fprintf(&b, "# It works in its own git worktree on a routine/* branch, never pushes or merges,\n")
 	fmt.Fprintf(&b, "# and takes a lock, so a second run while one is active exits 75 (EX_TEMPFAIL).\n\n")
 	if s.OnCalendar != "" {
 		fmt.Fprintf(&b, "# --- systemd user units: ~/.config/systemd/user/agent-cli-routine-%s.service\n", d.Name)
-		fmt.Fprintf(&b, "[Unit]\nDescription=agent-cli routine %s\n\n[Service]\nType=oneshot\n", d.Name)
+		fmt.Fprintf(&b, "[Unit]\nDescription=dew routine %s\n\n[Service]\nType=oneshot\n", d.Name)
 		fmt.Fprintf(&b, "Environment=HOME=%%h\nEnvironment=PATH=%s\n", path)
 		for _, kv := range env {
 			fmt.Fprintf(&b, "Environment=%s\n", kv)
@@ -207,7 +207,7 @@ func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, e
 		}
 		fmt.Fprintf(&b, "ExecStart=%s\nTimeoutStartSec=%s\n\n", cmdline, strconv.Itoa(int(timeout.Seconds())))
 		fmt.Fprintf(&b, "# --- ~/.config/systemd/user/agent-cli-routine-%s.timer\n", d.Name)
-		fmt.Fprintf(&b, "[Unit]\nDescription=agent-cli routine %s schedule\n\n[Timer]\nOnCalendar=%s\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n\n", d.Name, s.OnCalendar)
+		fmt.Fprintf(&b, "[Unit]\nDescription=dew routine %s schedule\n\n[Timer]\nOnCalendar=%s\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n\n", d.Name, s.OnCalendar)
 		fmt.Fprintf(&b, "# --- install (run these yourself)\n")
 		fmt.Fprintf(&b, "#   systemd-analyze --user verify agent-cli-routine-%s.service agent-cli-routine-%s.timer\n", d.Name, d.Name)
 		fmt.Fprintf(&b, "#   systemctl --user daemon-reload && systemctl --user enable --now agent-cli-routine-%s.timer\n", d.Name)

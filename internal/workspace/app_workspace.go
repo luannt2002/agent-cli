@@ -156,7 +156,7 @@ func (w *AppWorkspace) AgentRunShellCommand(ctx context.Context, sessionID, comm
 		}
 	}
 
-	// Lệnh `!` có thể là `agent-cli run …`: biến tin cậy theo env gốc, không theo `.env` của repo.
+	// Lệnh `!` có thể là `dew run …`: biến tin cậy theo env gốc, không theo `.env` của repo.
 	opts := shell.RunOptions{
 		Command:   command,
 		Cwd:       w.store.WorkingDir(),

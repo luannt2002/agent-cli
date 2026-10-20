@@ -12,12 +12,12 @@ import (
 
 // Lớp bảo vệ tiến trình điều khiển: chặn CỨNG trong trình thực thi shell (như
 // mọi BlockFunc, chạy trước cả YOLO và quyền đã cấp cho session) các lệnh dừng
-// chính tiến trình agent-cli đang giữ phiên, hay tắt/khởi động lại cả máy.
+// chính tiến trình dew đang giữ phiên, hay tắt/khởi động lại cả máy.
 //
-// Sự cố 15/10: agent coi client/server agent-cli là "mồ côi" rồi chạy
+// Sự cố 15/10: agent coi client/server dew là "mồ côi" rồi chạy
 // `/bin/kill -9 <client> <server>`, giết đúng tiến trình đang chạy việc. Cùng
 // UID / cùng tên / bị coi là mồ côi không đủ để được giết; mục tiêu là chính
-// cây tiến trình agent-cli thì chặn, không hỏi.
+// cây tiến trình dew thì chặn, không hỏi.
 
 // processLaunchers là các lệnh bọc; lệnh thật nằm sau cờ của chúng. Trình
 // thực thi shell đã tách sẵn argv từng lệnh, nên chỉ cần bóc vài lớp phổ biến.
@@ -272,14 +272,14 @@ func killListsSignals(args []string) bool {
 	return false
 }
 
-// ProcessGuard quyết định một PID hay tên tiến trình có được agent-cli bảo vệ
+// ProcessGuard quyết định một PID hay tên tiến trình có được dew bảo vệ
 // (không được tự giết). Tách ra để test thay bằng đồ giả.
 type ProcessGuard struct {
-	// ProtectedPID cho biết pid thuộc cây tiến trình agent-cli (chính nó,
+	// ProtectedPID cho biết pid thuộc cây tiến trình dew (chính nó,
 	// tổ tiên, hoặc tiến trình khác chạy cùng binary).
 	ProtectedPID func(pid int) bool
 	// ProtectedName cho biết tên/pattern của pkill/killall khớp tiến trình
-	// agent-cli.
+	// dew.
 	ProtectedName func(name string) bool
 	// Deny (tuỳ chọn) được gọi với argv của MỌI lệnh đơn sau khi bóc lớp bọc,
 	// kể cả lệnh nằm trong script của `sh -c`; trả (lý do, true) để chặn.
@@ -322,7 +322,7 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 		// Không có PID tường minh thì PID đến từ nơi khác (xargs, stdin): không
 		// kiểm được, nên chặn. `kill -l` chỉ liệt kê tín hiệu.
 		if len(pids) == 0 && !killListsSignals(args) {
-			return "kill without an explicit PID (fed by xargs or stdin) could hit agent-cli's own process", true
+			return "kill without an explicit PID (fed by xargs or stdin) could hit dew's own process", true
 		}
 		for _, pid := range pids {
 			// `kill -9 -1` / pid 1: nhắm mọi tiến trình hoặc init.
@@ -330,13 +330,13 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 				return "kill -1 (every process) or pid 1 (init) is never allowed", true
 			}
 			if g.ProtectedPID != nil && g.ProtectedPID(pid) {
-				return "refusing to kill agent-cli's own process (pid " + strconv.Itoa(pid) + "): it is running this session", true
+				return "refusing to kill dew's own process (pid " + strconv.Itoa(pid) + "): it is running this session", true
 			}
 		}
 	case killByName[cmd]:
 		for _, name := range killNames(args) {
 			if g.ProtectedName != nil && g.ProtectedName(name) {
-				return "refusing to " + cmd + " a process matching agent-cli (" + name + "): it would kill this session's own server or client", true
+				return "refusing to " + cmd + " a process matching dew (" + name + "): it would kill this session's own server or client", true
 			}
 		}
 	}
@@ -381,7 +381,7 @@ func (g ProcessGuard) blockedScript(script string, positional []string, depth in
 	return "", false
 }
 
-// selfExe là đường dẫn binary agent-cli đã giải symlink; selfTree là các PID
+// selfExe là đường dẫn binary dew đã giải symlink; selfTree là các PID
 // trong cây tiến trình của chính nó (nó + tổ tiên tới init). Tính một lần.
 var (
 	selfExe  = resolveSelfExe()
@@ -432,7 +432,7 @@ func parentPID(pid int) int {
 	return 0
 }
 
-// pidRunsSelfExe cho biết tiến trình pid đang chạy cùng binary với agent-cli
+// pidRunsSelfExe cho biết tiến trình pid đang chạy cùng binary với dew
 // (client, server, launcher đều là cùng một binary crush).
 func pidRunsSelfExe(pid int) bool {
 	if selfExe == "" {
@@ -474,7 +474,9 @@ var defaultProcessGuard = ProcessGuard{
 		return selfTree[pid] || pidRunsSelfExe(pid)
 	},
 	ProtectedName: func(pattern string) bool {
-		names := []string{"crush", "agent-cli"}
+		// "agent-cli" là tên cũ (trước 20/10/2026): giữ để còn bảo vệ server cũ
+		// đang chạy trên máy chưa chuyển.
+		names := []string{"crush", "dew", "agent-cli"}
 		if selfExe != "" {
 			names = append(names, baseName(selfExe))
 		}
@@ -482,7 +484,7 @@ var defaultProcessGuard = ProcessGuard{
 	},
 }
 
-// ProtectControlProcess là BlockFunc chặn lệnh giết tiến trình agent-cli hay
+// ProtectControlProcess là BlockFunc chặn lệnh giết tiến trình dew hay
 // tắt máy. onBlock (có thể nil) nhận lý do để ghi audit log.
 func ProtectControlProcess(onBlock func(reason string, args []string)) BlockFunc {
 	return func(args []string) bool {

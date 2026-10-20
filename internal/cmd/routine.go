@@ -53,7 +53,7 @@ var routineCmd = &cobra.Command{
 	Short: "Define, run and schedule routines (loops with a fixed goal and verify command)",
 	Long: `A routine is a saved definition of a recurring job: a goal, the verify command that
 defines "done", a repository, limits, and optionally a schedule. Running it uses the
-same engine as "agent-cli loop".
+same engine as "dew loop".
 
 Definitions live in your own config directory (never inside a repository, so a
 repository cannot add a scheduled job). Two modes:
@@ -68,7 +68,7 @@ writes a report outside the worktree. It never commits unless the definition say
 "commit": true, never pushes, never merges: reviewing and merging stay yours.
 
 Scheduling is print-only: "routine schedule NAME --print" shows systemd user units
-or a crontab line for you to install. agent-cli never edits your crontab or timers.`,
+or a crontab line for you to install. dew never edits your crontab or timers.`,
 }
 
 func init() {
@@ -100,9 +100,9 @@ func init() {
 			if err != nil {
 				return &usageError{err}
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\nrun it by hand:  agent-cli routine run %s\n", path, d.Name)
+			fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\nrun it by hand:  dew routine run %s\n", path, d.Name)
 			if d.Mode == routine.ModeMaintenance {
-				fmt.Fprintf(cmd.OutOrStdout(), "to schedule it, add a \"schedule\" object to the file, then: agent-cli routine schedule %s --print\n", d.Name)
+				fmt.Fprintf(cmd.OutOrStdout(), "to schedule it, add a \"schedule\" object to the file, then: dew routine schedule %s --print\n", d.Name)
 			}
 			return nil
 		},
@@ -180,7 +180,7 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if print, _ := cmd.Flags().GetBool("print"); !print {
-				return &usageError{errors.New("agent-cli only prints the schedule for you to install; add --print")}
+				return &usageError{errors.New("dew only prints the schedule for you to install; add --print")}
 			}
 			d, sum, err := loadRoutine(routineDefsDir(), args[0])
 			if err != nil {
@@ -199,7 +199,7 @@ func init() {
 			return err
 		},
 	}
-	scheduleCmd.Flags().Bool("print", false, "Print the schedule text (required: agent-cli never edits timers or crontab)")
+	scheduleCmd.Flags().Bool("print", false, "Print the schedule text (required: dew never edits timers or crontab)")
 
 	runCmd := &cobra.Command{
 		Use:   "run NAME|FILE",
@@ -262,7 +262,7 @@ func routineExitErr(mode string, r loop.Stop) error {
 // env, sẽ lấn việc siết allowlist sau này), nên nhắc người dùng chuyển nó vào tệp env.
 func warnAllowlistNotScheduled(w io.Writer) {
 	if execpolicy.OriginalEnv(execpolicy.AllowedModelsEnv) != "" {
-		fmt.Fprintf(w, "warning: %s is set in your shell but is not copied into the schedule; put the allowlist in your agent-cli env file (%s) so scheduled runs use it\n",
+		fmt.Fprintf(w, "warning: %s is set in your shell but is not copied into the schedule; put the allowlist in your dew env file (%s) so scheduled runs use it\n",
 			execpolicy.AllowedModelsEnv, execpolicy.EnvFileEnv+" or ~/.config/agent-cli/env")
 	}
 }
@@ -327,7 +327,7 @@ func schedulePATH() string {
 	return "/usr/local/bin:/usr/bin:/bin"
 }
 
-// scheduleEnv là các biến mà launcher `agent-cli` đặt để chỉ chỗ cấu hình/dữ liệu,
+// scheduleEnv là các biến mà launcher `dew` đặt để chỉ chỗ cấu hình/dữ liệu,
 // cộng tệp env của người dùng: allowlist model đọc từ tệp đó, không chép vào lịch
 // (biến export thắng tệp env, siết allowlist sau này sẽ bị bỏ qua). cron và systemd
 // chạy với env gần rỗng: thiếu CRUSH_GLOBAL_CONFIG thì lần chạy theo lịch tìm định
@@ -355,7 +355,7 @@ func loadRoutine(defsDir, nameOrPath string) (routine.Definition, string, error)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return routine.Definition{}, "", fmt.Errorf("no routine %q (looked for %s); create one with: agent-cli routine new", nameOrPath, path)
+			return routine.Definition{}, "", fmt.Errorf("no routine %q (looked for %s); create one with: dew routine new", nameOrPath, path)
 		}
 		return routine.Definition{}, "", err
 	}

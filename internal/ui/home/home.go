@@ -1,4 +1,4 @@
-// Package home is the agent-cli start screen, in the spirit of "Open
+// Package home is the dew start screen, in the spirit of "Open
 // Recent": pick a workspace, then a session, and the caller runs the
 // workspace TUI for that choice. Home never starts a server or opens a
 // workspace database to draw its list: everything outside the process goes
@@ -43,7 +43,7 @@ type Workspace struct {
 	// từ thư mục nào trong đó cũng vậy.
 	DataDir string
 	// Legacy là các .crush cũ ở thư mục con (bản trước tạo) còn session mà
-	// agent-cli không mở nữa; Home báo một dòng, không gộp.
+	// dew không mở nữa; Home báo một dòng, không gộp.
 	Legacy       []string
 	LastAccessed time.Time
 	Pinned       bool

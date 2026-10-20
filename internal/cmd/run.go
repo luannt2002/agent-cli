@@ -43,39 +43,39 @@ var runCmd = &cobra.Command{
 The prompt can be provided as arguments or piped from stdin.`,
 	Example: `
 # Run a simple prompt
-agent-cli run "Guess my 5 favorite Pokémon"
+dew run "Guess my 5 favorite Pokémon"
 
 # Pipe input from stdin
-curl https://charm.land | agent-cli run "Summarize this website"
+curl https://charm.land | dew run "Summarize this website"
 
 # Read from a file
-agent-cli run "What is this code doing?" <<< prrr.go
+dew run "What is this code doing?" <<< prrr.go
 
 # Redirect output to a file
-agent-cli run "Generate a hot README for this project" > MY_HOT_README.md
+dew run "Generate a hot README for this project" > MY_HOT_README.md
 
 # Run in quiet mode (hide the spinner)
-agent-cli run --quiet "Generate a README for this project"
+dew run --quiet "Generate a README for this project"
 
 # Run in verbose mode (show logs)
-agent-cli run --verbose "Generate a README for this project"
+dew run --verbose "Generate a README for this project"
 
 # Use a specific reasoning effort
 # Levels depend on the model, unsupported values are rejected
 # with the accepted values listed
-agent-cli run --reasoning-effort high "What is the meaning of life?"
+dew run --reasoning-effort high "What is the meaning of life?"
 
 # Continue a previous session
-agent-cli run --session {session-id} "Follow up on your last response"
+dew run --session {session-id} "Follow up on your last response"
 
 # Continue the most recent session
-agent-cli run --continue "Follow up on your last response"
+dew run --continue "Follow up on your last response"
 
 # Machine-readable result: one JSON object on stdout with session_id,
 # text, error, prompt_tokens, completion_tokens, cost, provider, model and
 # ledger_error (only when AGENT_CLI_LLM_LEDGER is set and a call of this
 # turn could not be written to it; the run still exits 0)
-agent-cli run --json "Summarize this repo"
+dew run --json "Summarize this repo"
 
 # run auto-approves every tool permission request of its own session, both
 # locally and via the server. It has no question tool: nobody could answer.
@@ -170,7 +170,7 @@ agent-cli run --json "Summarize this repo"
 			event.AppInitialized()
 
 			if !ws.Config.IsConfigured() {
-				return fmt.Errorf("no providers configured - please run 'agent-cli' to set up a provider interactively")
+				return fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
 			}
 
 			// Re-initialising a ready agent replaces the server's
@@ -219,7 +219,7 @@ agent-cli run --json "Summarize this repo"
 		event.AppInitialized()
 
 		if !ws.Config().IsConfigured() {
-			return fmt.Errorf("no providers configured - please run 'agent-cli' to set up a provider interactively")
+			return fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
 		}
 
 		if verbose {

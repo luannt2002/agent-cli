@@ -30,7 +30,7 @@ type JobOwner struct {
 	Root string
 }
 
-// JobInfo là ảnh chụp một job cho bảng Activity, `agent-cli jobs` và API.
+// JobInfo là ảnh chụp một job cho bảng Activity, `dew jobs` và API.
 type JobInfo struct {
 	ID          string    `json:"id"`
 	SessionID   string    `json:"session_id,omitempty"`

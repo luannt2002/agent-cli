@@ -166,7 +166,7 @@ type AgentMessage struct {
 	// claim trên server (thoát, bị kill, mất kết nối quá grace) thì server
 	// huỷ lượt (theo RunID). Rỗng: lượt sống tiếp khi client rời đi.
 	BindToClient string `json:"bind_to_client,omitempty"`
-	// NonInteractive: không ai ngồi trả lời lượt này (agent-cli run): lượt
+	// NonInteractive: không ai ngồi trả lời lượt này (dew run): lượt
 	// không có tool question và chờ MCP khởi động xong trước khi chạy.
 	NonInteractive bool `json:"non_interactive,omitempty"`
 }

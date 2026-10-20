@@ -260,7 +260,7 @@ func (d *Jobs) columns(rowWidth int) jobsColumns {
 	return c
 }
 
-// jobRow dựng một dòng: biểu tượng trạng thái, ID (khớp với `agent-cli jobs`
+// jobRow dựng một dòng: biểu tượng trạng thái, ID (khớp với `dew jobs`
 // và dòng "Job ... PID" trong chat), thời gian chạy (tính lúc vẽ), nhãn, mô
 // tả và session chủ. Dòng đang chọn đi qua style chọn bằng chữ trơn:
 // chữ có màu riêng sẽ chèn mã reset làm mất nền chọn ở phần còn lại của dòng.

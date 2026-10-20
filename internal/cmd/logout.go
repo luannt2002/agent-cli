@@ -26,23 +26,23 @@ var providerDisplayNames = map[string]string{
 var logoutCmd = &cobra.Command{
 	Aliases: []string{"signout"},
 	Use:     "logout [platform]",
-	Short:   "Logout agent-cli from a platform",
-	Long: `Logout agent-cli from a specified platform, removing stored credentials.
+	Short:   "Logout dew from a platform",
+	Long: `Logout dew from a specified platform, removing stored credentials.
 The platform should be provided as an argument.
 If no argument is given, a list of logged-in platforms will be shown.
 Available platforms are: hyper, copilot, openai (chatgpt), grok (xai).`,
 	Example: `
 # Sign out from Charm Hyper
-agent-cli logout hyper
+dew logout hyper
 
 # Sign out from GitHub Copilot
-agent-cli logout copilot
+dew logout copilot
 
 # Sign out from your ChatGPT (OpenAI) account
-agent-cli logout openai
+dew logout openai
 
 # Sign out from your Grok (xAI) account
-agent-cli logout grok
+dew logout grok
   `,
 	ValidArgs: []cobra.Completion{
 		"hyper",

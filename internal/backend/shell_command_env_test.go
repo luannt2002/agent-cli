@@ -18,7 +18,7 @@ import (
 
 // Lệnh `!` ở chế độ server chạy với env của server cộng env client gửi lên
 // (ws.Env, client chụp SAU khi nạp `.env` của repo): biến tin cậy của lệnh phải
-// theo ảnh chụp env gốc của server, để `!agent-cli run …` không nhận giao việc hay
+// theo ảnh chụp env gốc của server, để `!dew run …` không nhận giao việc hay
 // allowlist từ `.env`. Biến thường vẫn tới lệnh. Chỉ in TÊN biến mang giá trị
 // canary. Chạy ở tiến trình con vì ảnh chụp là toàn cục, chỉ chụp một lần.
 func TestRunShellCommandIgnoresProjectDotenvTrustedKeys(t *testing.T) {

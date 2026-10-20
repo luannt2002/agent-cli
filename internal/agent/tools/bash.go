@@ -227,10 +227,10 @@ func blockFuncsWithNotes(notes *blockNotes) []shell.BlockFunc {
 		blockExternalAgents,
 
 		// Bảo vệ tiến trình điều khiển: không cho agent giết chính client/
-		// server/launcher agent-cli đang giữ phiên, hay tắt/khởi động lại máy.
+		// server/launcher dew đang giữ phiên, hay tắt/khởi động lại máy.
 		// Chặn ở lớp thực thi nên YOLO và quyền đã cấp cho session không bỏ qua.
 		shell.ProtectControlProcess(func(reason string, args []string) {
-			slog.Warn("Blocked a command that targets agent-cli's own process or the machine",
+			slog.Warn("Blocked a command that targets dew's own process or the machine",
 				"reason", reason, "command", args[0])
 			notes.add(reason)
 		}),

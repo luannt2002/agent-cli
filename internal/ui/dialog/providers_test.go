@@ -96,7 +96,7 @@ func TestProvidersDialogListsVisibleProviders(t *testing.T) {
 	}
 	require.Equal(t, [][2]string{
 		{"main", "current"},
-		{"openai", "agent-cli login openai"},
+		{"openai", "dew login openai"},
 		{"anthropic", "needs API key"},
 	}, got)
 	require.Equal(t, []string{"GLM", "OpenAI", "Anthropic"}, []string{items[0].name, items[1].name, items[2].name})

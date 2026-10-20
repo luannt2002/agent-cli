@@ -449,7 +449,7 @@ func TestSessionOpensInItsWorkspaceDir(t *testing.T) {
 	require.Equal(t, Choice{Dir: "/w/a", SessionID: "s2"}, m.Choice())
 }
 
-// Workspace còn .crush cũ (bản trước tạo ở thư mục con) mà agent-cli không mở
+// Workspace còn .crush cũ (bản trước tạo ở thư mục con) mà dew không mở
 // nữa: danh sách session có một dòng báo kèm lệnh mở lại; workspace khác thì
 // không. Một lỗi thật thì vẫn được hiện thay cho dòng này.
 func TestLegacyDataDirNote(t *testing.T) {
@@ -461,7 +461,7 @@ func TestLegacyDataDirNote(t *testing.T) {
 	require.NotContains(t, screenText(m), "Not listed")
 	selectRow(t, m, isPath("/w/a"))
 	press(m, keyEnter)
-	require.Contains(t, screenText(m), "Not listed: older sessions in /w/a/sub/.crush · open: CRUSH_CLIENT_SERVER=0 agent-cli -c /w/a/sub -D /w/a/sub/.crush")
+	require.Contains(t, screenText(m), "Not listed: older sessions in /w/a/sub/.crush · open: CRUSH_CLIENT_SERVER=0 dew -c /w/a/sub -D /w/a/sub/.crush")
 
 	press(m, keyEsc)
 	selectRow(t, m, isPath("/w/b"))

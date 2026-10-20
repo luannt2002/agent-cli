@@ -29,7 +29,7 @@ const (
 	// psServerTimeout bounds the whole query of one server so a hung server
 	// cannot hang ps.
 	psServerTimeout = 3 * time.Second
-	psNoServerMsg   = "No agent-cli server running (open projects with agent-cli-tmux)"
+	psNoServerMsg   = "No dew server running (open projects with agent-cli-tmux)"
 )
 
 // psSource is the part of [client.Client] that ps needs.
@@ -65,7 +65,7 @@ func (r psRow) status() string {
 var psCmd = &cobra.Command{
 	Use:   "ps",
 	Short: "List open projects and their sessions with BUSY/WAITING/IDLE status",
-	Long: `List every project and session on the running agent-cli servers.
+	Long: `List every project and session on the running dew servers.
 Without --host, scans all per-project server sockets. Never starts a server.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -89,7 +89,7 @@ func init() {
 }
 
 // discoverPSHosts finds per-project server sockets in the same directories
-// the agent-cli launcher chooses from.
+// the dew launcher chooses from.
 func discoverPSHosts() []string {
 	var dirs []string
 	rt := os.Getenv("AGENT_CLI_RUNTIME_DIR")

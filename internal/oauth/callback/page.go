@@ -124,7 +124,7 @@ func Write(w io.Writer, r Result) error {
 	data.Favicon = template.URL("data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(art))
 
 	if r.ContinueURL != "" {
-		data.Title = "Authorize — agent-cli"
+		data.Title = "Authorize — DEW"
 		data.Kind = "continue"
 		data.Heading = "One more click"
 		data.Detail = "Continue to the authorization page for"
@@ -133,23 +133,23 @@ func Write(w io.Writer, r Result) error {
 		}
 		data.Status = "The authorization page will close itself when you’re done."
 	} else if r.Failed() {
-		data.Title = "Authorization failed — agent-cli"
+		data.Title = "Authorization failed — DEW"
 		data.Kind = "failed"
 		data.Heading = "Authorization failed"
-		data.Detail = "agent-cli was not granted access to"
+		data.Detail = "DEW was not granted access to"
 		if r.Subject == "" {
-			data.Detail = "agent-cli was not granted access."
+			data.Detail = "DEW was not granted access."
 		}
 		// A failed page keeps itself open: the reader needs the reason,
 		// and closing the tab out from under them would take it away.
-		data.Status = "Close this tab and try again from agent-cli."
+		data.Status = "Close this tab and try again from dew."
 	} else {
-		data.Title = "Authorized — agent-cli"
+		data.Title = "Authorized — DEW"
 		data.Kind = "ok"
 		data.Heading = "You’re all set"
-		data.Detail = "agent-cli is now connected to"
+		data.Detail = "DEW is now connected to"
 		if r.Subject == "" {
-			data.Detail = "agent-cli is now connected."
+			data.Detail = "DEW is now connected."
 		}
 		// Replaced by the countdown as soon as the script runs, so this
 		// text is what a reader without JavaScript is left with.

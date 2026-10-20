@@ -52,7 +52,7 @@ func runCommand(ctx context.Context, dir, name string, args ...string) ([]byte, 
 const waitDelay = 5 * time.Second
 
 // sessionLinkEnv là các biến Claude Code đặt cho tiến trình con của MỘT phiên
-// của nó (đánh dấu lồng phiên, socket/token nhắn tin, ID phiên). agent-cli mở
+// của nó (đánh dấu lồng phiên, socket/token nhắn tin, ID phiên). dew mở
 // từ trong một phiên Claude Code sẽ thừa kế chúng; CLI con được giao việc phải
 // chạy như mở ở terminal thường, không gắn vào phiên kia. Biến cấu hình của
 // người dùng (khoá, provider, model...) được giữ nguyên.
@@ -70,9 +70,9 @@ var sessionLinkEnv = []string{
 	"CLAUDE_AGENT_SDK_VERSION",
 }
 
-// childEnv trả env cho CLI con: env của agent-cli bỏ đi sessionLinkEnv và các
+// childEnv trả env cho CLI con: env của dew bỏ đi sessionLinkEnv và các
 // biến HERDR_* (CLI con tự báo trạng thái bằng hook của nó sẽ đè trạng thái
-// của agent-cli trong cùng pane herdr).
+// của dew trong cùng pane herdr).
 func childEnv(env []string) []string {
 	return slices.DeleteFunc(herdr.StripEnv(env), func(kv string) bool {
 		name, _, _ := strings.Cut(kv, "=")

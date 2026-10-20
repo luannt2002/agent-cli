@@ -57,7 +57,7 @@ func TestRegisterAfterHostnameChangeReusesEntry(t *testing.T) {
 	require.Equal(t, currentHost(), list.Projects[0].Host)
 }
 
-// Khoá registry bị giữ (một agent-cli bị Ctrl+Z đúng lúc ghi): Register báo
+// Khoá registry bị giữ (một dew bị Ctrl+Z đúng lúc ghi): Register báo
 // lỗi sau lockTimeout thay vì treo mọi lần mở sau.
 func TestRegisterGivesUpOnHeldLock(t *testing.T) {
 	tmp := t.TempDir()
@@ -75,6 +75,6 @@ func TestRegisterGivesUpOnHeldLock(t *testing.T) {
 
 	start := time.Now()
 	err = Register("/home/user/p1", "/home/user/p1/.crush")
-	require.ErrorContains(t, err, "locked by another agent-cli process")
+	require.ErrorContains(t, err, "locked by another dew process")
 	require.Less(t, time.Since(start), 3*time.Second)
 }

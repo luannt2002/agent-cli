@@ -190,7 +190,7 @@ func TestUnattendedGitEnvGuardUnit(t *testing.T) {
 	require.False(t, off([]string{"env", "GIT_DIR=/o", "git", "rm", "f"}), "attended mode unchanged")
 }
 
-// Biến git có sẵn trong môi trường của chính agent-cli (vd chạy trong git hook)
+// Biến git có sẵn trong môi trường của chính dew (vd chạy trong git hook)
 // là của người khởi chạy, không phải do lệnh đặt: không chặn. Lệnh đổi giá trị thì
 // vẫn chặn. Không Parallel vì t.Setenv.
 func TestUnattendedGitAllowsInheritedEnv(t *testing.T) {

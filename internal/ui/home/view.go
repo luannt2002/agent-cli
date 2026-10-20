@@ -24,7 +24,7 @@ func (m *Model) View() tea.View {
 	v := tea.NewView(m.frame)
 	v.AltScreen = true
 	v.BackgroundColor = m.sty.Background
-	v.WindowTitle = "agent-cli"
+	v.WindowTitle = "DEW"
 	if m.cursorPos != nil {
 		c := *m.cursorPos
 		v.Cursor = &c
@@ -43,7 +43,7 @@ func (m *Model) render() (string, *tea.Cursor) {
 	w := max(20, m.width)
 	var b strings.Builder
 
-	title := "agent-cli · Home"
+	title := "DEW · Home"
 	switch m.screen {
 	case screenSessions:
 		title = filepath.Base(m.ws.Path) + "  " + homedir.Short(m.ws.Path) + "  · " + m.serverNote()
@@ -84,7 +84,7 @@ func (m *Model) legacyNote() string {
 		return ""
 	}
 	d := m.ws.Legacy[0]
-	return fmt.Sprintf("Not listed: older sessions in %s · open: CRUSH_CLIENT_SERVER=0 agent-cli -c %s -D %s",
+	return fmt.Sprintf("Not listed: older sessions in %s · open: CRUSH_CLIENT_SERVER=0 dew -c %s -D %s",
 		homedir.Short(d), filepath.Dir(d), d)
 }
 

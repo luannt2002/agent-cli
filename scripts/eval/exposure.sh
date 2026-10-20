@@ -738,7 +738,7 @@ def trial(t):
     err = open(os.path.join(d[0], "stderr.log")).read() if d else ""
     panic = next((l for l in err.splitlines() if l.startswith("panic:")), "")
     where = next((l.strip() for l in err.splitlines() if "coordinator.go" in l), "")
-    return rcs.count("0"), log.count("Starting agent-cli server"), panic, where
+    return rcs.count("0"), log.count("Starting dew server"), panic, where
 rows, exposed = [], False
 bad = []
 trials = sorted({f.split("-rc-")[0].rsplit("/", 1)[-1] for f in glob.glob(os.path.join(P, "c*-rc-1"))}, key=lambda t: int(t[1:]))

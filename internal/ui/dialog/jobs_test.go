@@ -224,7 +224,7 @@ func TestJobsListRendersEachJob(t *testing.T) {
 
 	running := lineWith(t, text, "Dev server") // Description beats the command.
 	require.Contains(t, running, "●")
-	require.Contains(t, running, "003", "the job ID, as in `agent-cli jobs` and the chat's Job header")
+	require.Contains(t, running, "003", "the job ID, as in `dew jobs` and the chat's Job header")
 	require.Contains(t, running, "1m35s", "elapsed = now - StartedAt")
 	require.Contains(t, running, "bg", "a background job is marked")
 	require.Contains(t, running, "Fix login bug", "the owning session's title")

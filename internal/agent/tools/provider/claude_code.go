@@ -15,7 +15,7 @@ import (
 const ClaudeCodeToolName = "claude_code"
 
 // Biến env cấu hình tool claude_code. Phải có trong môi trường của tiến
-// trình agent-cli (export ở shell); biến chỉ khai trong crushrc/tệp env
+// trình dew (export ở shell); biến chỉ khai trong crushrc/tệp env
 // không tới được đây vì crushrc chạy trong trình thông dịch riêng.
 const (
 	claudeBinEnv  = "AGENT_CLI_CLAUDE_BIN"

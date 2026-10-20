@@ -107,7 +107,7 @@ func (p Project) OnThisMachine() bool {
 	return p.Host == currentHost()
 }
 
-// lockTimeout giới hạn thời gian chờ khoá registry: một agent-cli bị dừng
+// lockTimeout giới hạn thời gian chờ khoá registry: một dew bị dừng
 // (Ctrl+Z) đúng lúc giữ khoá không được làm đứng mọi lần mở sau.
 var lockTimeout = 5 * time.Second
 
@@ -237,7 +237,7 @@ func update(fn func(*ProjectList) error) error {
 	defer cancel()
 	unlock, err := lock.File(ctx, filepath.Join(filepath.Dir(projectsFilePath()), lockFileName))
 	if err != nil {
-		return fmt.Errorf("project registry is locked by another agent-cli process: %w", err)
+		return fmt.Errorf("project registry is locked by another dew process: %w", err)
 	}
 	defer unlock()
 	list, err := read()

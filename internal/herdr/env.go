@@ -13,7 +13,7 @@ var envVars = []string{"HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "HERDR
 // (client TUI đã báo thay qua luồng sự kiện; server cũng báo thì hai nguồn
 // tranh nhau một pane và seq của nguồn khởi động sau làm báo cáo của nguồn kia
 // bị coi là cũ) và CLI con của tool giao việc (claude/codex tự báo bằng hook
-// của chúng, đè trạng thái của agent-cli).
+// của chúng, đè trạng thái của dew).
 func StripEnv(env []string) []string {
 	return slices.DeleteFunc(slices.Clone(env), func(kv string) bool {
 		name, _, _ := strings.Cut(kv, "=")

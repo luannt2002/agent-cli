@@ -15,12 +15,12 @@ import (
 var dirsCmd = &cobra.Command{
 	Use:   "dirs",
 	Short: "Show config and data directories",
-	Long: `Show where agent-cli stores its configuration and data,
+	Long: `Show where dew stores its configuration and data,
 including any project-level config files discovered
 from the current directory up to the project root.`,
 	Example: `
 # Show all directories
-agent-cli dirs
+dew dirs
   `,
 	Run: func(cmd *cobra.Command, args []string) {
 		entries := collectDirs(cmd)

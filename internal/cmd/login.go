@@ -18,25 +18,25 @@ import (
 var loginCmd = &cobra.Command{
 	Aliases: []string{"auth"},
 	Use:     "login [platform]",
-	Short:   "Login agent-cli to a platform",
-	Long: `Login agent-cli to a specified platform.
+	Short:   "Login dew to a platform",
+	Long: `Login dew to a specified platform.
 	The platform should be provided as an argument.
 	Available platforms are: hyper, copilot, openai (chatgpt), grok (xai).`,
 	Example: `
 	# Authenticate with Charm Hyper
-	agent-cli login
+	dew login
 
 	# Authenticate with GitHub Copilot
-	agent-cli login copilot
+	dew login copilot
 
 	# Authenticate with a ChatGPT (OpenAI) account
-	agent-cli login openai
+	dew login openai
 
 	# Authenticate with a Grok (xAI) account
-	agent-cli login grok
+	dew login grok
 
 	# Force re-authentication even if already logged in
-	agent-cli login -f copilot
+	dew login -f copilot
 	`,
 	ValidArgs: []cobra.Completion{
 		"hyper",

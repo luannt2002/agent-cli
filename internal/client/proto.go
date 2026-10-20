@@ -890,7 +890,7 @@ func (c *Client) RenameSession(ctx context.Context, id, sessionID, title string)
 }
 
 // ErrJobsUnsupported: server cũ chưa có API job.
-var ErrJobsUnsupported = errors.New("this agent-cli server is too old to list jobs; restart it with the new version")
+var ErrJobsUnsupported = errors.New("this dew server is too old to list jobs; restart it with the new version")
 
 // ListJobs trả các job (lệnh bash do agent chạy) của workspace.
 func (c *Client) ListJobs(ctx context.Context, id string) ([]shell.JobInfo, error) {
@@ -1015,7 +1015,7 @@ type bindRunKey struct{}
 
 // WithRunBoundToClient đánh dấu ctx để SendMessage gắn lượt vào đời của
 // client này: client mất claim trên server (thoát, bị kill -9, mất kết nối
-// quá grace) thì server huỷ lượt. Dành cho `agent-cli run`, lệnh đồng bộ:
+// quá grace) thì server huỷ lượt. Dành cho `dew run`, lệnh đồng bộ:
 // lượt của nó không được chạy tiếp mà không ai giám sát. Server cũ bỏ qua.
 func WithRunBoundToClient(ctx context.Context) context.Context {
 	return context.WithValue(ctx, bindRunKey{}, true)
@@ -1024,7 +1024,7 @@ func WithRunBoundToClient(ctx context.Context) context.Context {
 type nonInteractiveKey struct{}
 
 // WithNonInteractiveRun đánh dấu ctx để SendMessage gửi lượt dạng phi tương
-// tác (agent-cli run): không có tool question, chờ MCP sẵn sàng. Server cũ
+// tác (dew run): không có tool question, chờ MCP sẵn sàng. Server cũ
 // bỏ qua.
 func WithNonInteractiveRun(ctx context.Context) context.Context {
 	return context.WithValue(ctx, nonInteractiveKey{}, true)

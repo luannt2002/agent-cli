@@ -46,7 +46,7 @@ func boundBackend(t *testing.T) (*Backend, *Workspace, *runCancelRecorder, strin
 	return b, ws, rec, cid
 }
 
-// `agent-cli run` thoát (kể cả Ctrl+C rồi retire): lượt nó gắn bị huỷ theo
+// `dew run` thoát (kể cả Ctrl+C rồi retire): lượt nó gắn bị huỷ theo
 // RunID; huỷ thừa một lượt đã xong là vô hại.
 func TestBoundRun_CancelledWhenClientRetires(t *testing.T) {
 	t.Parallel()
@@ -57,7 +57,7 @@ func TestBoundRun_CancelledWhenClientRetires(t *testing.T) {
 	require.Equal(t, []string{"s1/r1"}, rec.seen())
 }
 
-// `agent-cli run` bị kill -9: SSE đứt, hết thời gian chờ nối lại thì claim
+// `dew run` bị kill -9: SSE đứt, hết thời gian chờ nối lại thì claim
 // mất và lượt bị huỷ, thay vì chạy tiếp tới trần mồ côi không ai giám sát.
 func TestBoundRun_CancelledWhenClientVanishes(t *testing.T) {
 	t.Parallel()

@@ -87,7 +87,7 @@ func TestClientServerWarnsAboutDataDirs(t *testing.T) {
 	require.NoError(t, err)
 	cleanup()
 	require.Contains(t, stderr.String(), "warning: "+legacy+" is not used")
-	require.Contains(t, stderr.String(), "CRUSH_CLIENT_SERVER=0 agent-cli -c "+filepath.Dir(legacy)+" -D "+legacy)
+	require.Contains(t, stderr.String(), "CRUSH_CLIENT_SERVER=0 dew -c "+filepath.Dir(legacy)+" -D "+legacy)
 	require.NotContains(t, stderr.String(), "--data-dir")
 
 	cmd, stderr = dataDirCmd(t, filepath.Dir(legacy), "x")
@@ -96,7 +96,7 @@ func TestClientServerWarnsAboutDataDirs(t *testing.T) {
 	cleanup()
 	require.Contains(t, stderr.String(), "--data-dir "+filepath.Join(filepath.Dir(legacy), "x")+" was ignored")
 
-	// Mở từ sub KHÔNG có -c (cd sub && agent-cli): tiến trình phải sang gốc,
+	// Mở từ sub KHÔNG có -c (cd sub && dew): tiến trình phải sang gốc,
 	// nơi workspace trên server làm việc.
 	t.Chdir(filepath.Dir(legacy))
 	cmd, _ = dataDirCmd(t, "", "")

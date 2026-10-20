@@ -70,7 +70,7 @@ const (
 	smallContextWindowRatio     = 0.2
 )
 
-var userAgent = fmt.Sprintf("agent-cli/%s", version.Version)
+var userAgent = fmt.Sprintf("dew/%s", version.Version)
 
 //go:embed templates/title.md
 var titlePrompt []byte
@@ -152,7 +152,7 @@ type SessionAgentCall struct {
 	// pinnedModel là model lượt này dùng từ đầu tới cuối: model lúc prompt
 	// được gửi, cũng là model mà ProviderOptions/MaxOutputTokens ở trên
 	// được tính cho. Model là trạng thái chung của workspace (session khác,
-	// `agent-cli run --model`, hay chính việc gửi prompt ở session khác đều
+	// `dew run --model`, hay chính việc gửi prompt ở session khác đều
 	// dựng lại nó), nên lượt chạy, kể cả lượt xếp hàng chạy sau, không được
 	// đọc lại model hiện tại. Nil thì lấy model hiện tại lúc lượt bắt đầu.
 	pinnedModel *Model
@@ -1666,7 +1666,7 @@ func (a *sessionAgent) Run(ctx context.Context, call SessionAgentCall) (result *
 			// request timeout imposed is never reported as a provider error.
 			currentAssistant.AddFinish(message.FinishReasonError, "Request timed out", requestTimedOutErr.userMessage())
 		} else if isHyper && errors.As(err, &providerErr) && providerErr.StatusCode == http.StatusUnauthorized {
-			currentAssistant.AddFinish(message.FinishReasonError, "Unauthorized", `Please re-authenticate with Hyper. You can also run "agent-cli login" to re-authenticate.`)
+			currentAssistant.AddFinish(message.FinishReasonError, "Unauthorized", `Please re-authenticate with Hyper. You can also run "dew login" to re-authenticate.`)
 		} else if errors.As(err, &providerErr) {
 			if providerErr.Message == "The requested model is not supported." {
 				url := "https://github.com/settings/copilot/features"

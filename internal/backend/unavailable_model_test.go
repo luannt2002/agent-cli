@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Model đang chọn ở provider dựng sẵn mà thiếu key: agent-cli không đổi provider
-// (fail closed), nhưng workspace vẫn phải lên để `agent-cli login`, `session`… chạy
+// Model đang chọn ở provider dựng sẵn mà thiếu key: dew không đổi provider
+// (fail closed), nhưng workspace vẫn phải lên để `dew login`, `session`… chạy
 // được và TUI mở màn chọn model. Lượt nào cần agent vẫn gặp đúng lỗi nêu provider.
 func TestCreateWorkspaceStartsWhenSelectedModelIsUnavailable(t *testing.T) {
 	hostHome := t.TempDir()

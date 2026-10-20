@@ -85,7 +85,7 @@ func TestExampleCrushrc_MissingRequired(t *testing.T) {
 	require.Error(t, err, "a catalog provider still needs an API key")
 }
 
-// Provider đăng nhập bằng tài khoản (agent-cli login ...): không có
+// Provider đăng nhập bằng tài khoản (dew login ...): không có
 // AGENT_CLI_API_KEY vẫn nạp được, và crushrc KHÔNG phát ra trường api_key (một
 // key rỗng không được phép đè lên token đăng nhập đã lưu).
 func TestExampleCrushrc_LoginProviderWithoutKey(t *testing.T) {

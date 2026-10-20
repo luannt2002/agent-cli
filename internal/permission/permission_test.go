@@ -858,7 +858,7 @@ func TestAcceptEditsOnlyInsideWorkingDir(t *testing.T) {
 	}
 }
 
-// TestAcceptEditsAsksForAgentConfigAndGit: agent-cli's own config (hooks,
+// TestAcceptEditsAsksForAgentConfigAndGit: dew's own config (hooks,
 // MCP servers, permissions) and git internals (hooks) can run commands, so
 // writing them always asks, matched case-insensitively for macOS.
 func TestAcceptEditsAsksForAgentConfigAndGit(t *testing.T) {

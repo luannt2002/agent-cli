@@ -113,7 +113,7 @@ func TestPSNoServerDoesNotSpawn(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "agent-cli-deadbeef.sock")
 	var buf bytes.Buffer
 	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, false, 9))
-	require.Equal(t, "No agent-cli server running (open projects with agent-cli-tmux)\n", buf.String())
+	require.Equal(t, "No dew server running (open projects with agent-cli-tmux)\n", buf.String())
 	// A spawned server would have created its socket.
 	require.NoFileExists(t, sock)
 
@@ -206,7 +206,7 @@ func TestPSLiveServerFailureIsNotNoServer(t *testing.T) {
 	var out, errOut bytes.Buffer
 	host := "unix://" + sock
 	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, false, 9))
-	require.NotContains(t, out.String(), "No agent-cli server running")
+	require.NotContains(t, out.String(), "No dew server running")
 	require.Contains(t, out.String(), "PROJECT")
 	require.Contains(t, errOut.String(), "Skipping "+host+": ")
 }
@@ -264,7 +264,7 @@ func TestPSHungServerIsNotedNotNoServer(t *testing.T) {
 	var out, errOut bytes.Buffer
 	host := "unix://" + sock
 	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, false, 9))
-	require.NotContains(t, out.String(), "No agent-cli server running")
+	require.NotContains(t, out.String(), "No dew server running")
 	require.Contains(t, errOut.String(), "Skipping "+host+": not responding (")
 }
 
@@ -283,7 +283,7 @@ func TestPSDeadServersStaySilent(t *testing.T) {
 	hosts := []string{"unix://" + stale, "unix://" + filepath.Join(dir, "missing.sock")}
 	require.NoError(t, runPS(t.Context(), &out, &errOut, hosts, false, 9))
 	require.Empty(t, errOut.String())
-	require.Contains(t, out.String(), "No agent-cli server running")
+	require.Contains(t, out.String(), "No dew server running")
 }
 
 // Sessions whose status cannot be read are counted on stderr ("not counted

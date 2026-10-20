@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"math/rand/v2"
-	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -42,7 +41,7 @@ type Opts struct {
 // or wider for the main pane.
 //
 // Fork: không vẽ hàng nhãn và phiên bản phía trên chữ lớn (người dùng bỏ
-// 15/10; xem phiên bản bằng `agent-cli --version`). version giữ trong chữ ký
+// 15/10; xem phiên bản bằng `dew --version`). version giữ trong chữ ký
 // để khỏi sửa nơi gọi.
 func Render(base lipgloss.Style, version string, compact bool, o Opts) string {
 	_ = version
@@ -63,9 +62,7 @@ func Render(base lipgloss.Style, version string, compact bool, o Opts) string {
 			LetterR,
 		}
 	}
-	agentLetterforms := []letterform{LetterA, LetterG, LetterE, LetterN, LetterT}
-	cliLetterforms := []letterform{LetterC, LetterL, LetterI}
-	crushLetterforms := append(append(slices.Clone(agentLetterforms), LetterDash), cliLetterforms...)
+	crushLetterforms := []letterform{LetterD, LetterE, LetterW}
 	if o.Hyper && !compact {
 		crushLetterforms = append(hyperLetterforms, crushLetterforms...)
 	}
@@ -79,10 +76,6 @@ func Render(base lipgloss.Style, version string, compact bool, o Opts) string {
 		stretchIndex = rand.IntN(len(crushLetterforms))
 	}
 	crush := renderWord(spacing, stretchIndex, crushLetterforms...)
-	if compact && !o.Hyper {
-		// The sidebar is too narrow for the whole wordmark, so stack it.
-		crush = renderWord(spacing, -1, agentLetterforms...) + "\n" + renderWord(spacing, -1, cliLetterforms...)
-	}
 	if o.Hyper && compact {
 		crush = renderWord(spacing, stretchIndex, hyperLetterforms...) + "\n" + crush
 	}
@@ -140,7 +133,7 @@ func Render(base lipgloss.Style, version string, compact bool, o Opts) string {
 // SmallRender renders a smaller version of the Crush logo, suitable for
 // smaller windows or sidebar usage.
 func SmallRender(t *styles.Styles, width int, o Opts) string {
-	name := "agent-cli"
+	name := "DEW"
 	if o.Hyper {
 		name = "HYPERCRUSH"
 	}

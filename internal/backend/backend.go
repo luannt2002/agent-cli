@@ -53,7 +53,7 @@ var (
 	// ErrPolicyMismatch: chính sách tin cậy của client (biến execpolicy đọc,
 	// --yolo lúc dựng workspace) khác cái server/workspace đang áp. Server nạp chính sách một lần
 	// mỗi tiến trình, nên cho qua là chạy client theo chính sách của client khác.
-	ErrPolicyMismatch = errors.New("trust policy differs from the running agent-cli server")
+	ErrPolicyMismatch = errors.New("trust policy differs from the running dew server")
 )
 
 // DefaultCreateGrace is the window in which a client must open an SSE
@@ -215,7 +215,7 @@ type clientState struct {
 	boundRuns []boundRun
 }
 
-// boundRun là một lượt gắn với đời của client đã gửi nó (agent-cli run).
+// boundRun là một lượt gắn với đời của client đã gửi nó (dew run).
 type boundRun struct{ sessionID, runID string }
 
 // cancelBoundRuns huỷ các lượt gắn với một client vừa mất claim. Gọi sau
@@ -1449,7 +1449,7 @@ func checkTrustedEnv(args proto.Workspace) error {
 		return nil
 	}
 	if args.TrustedEnv == nil {
-		return policyMismatch("trust policy not sent (an older agent-cli client; use the same agent-cli build as the server)")
+		return policyMismatch("trust policy not sent (an older dew client; use the same dew build as the server)")
 	}
 	serverEnv, err := execpolicy.Inputs()
 	if err != nil {
@@ -1488,7 +1488,7 @@ func yoloMismatch(open bool) string {
 
 // policyMismatch nêu cái gì lệch (tên, không giá trị) và cách sửa.
 func policyMismatch(what string) error {
-	return fmt.Errorf("%w: %s; a running server keeps the policy it started with: exit every agent-cli client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see agent-cli ps)", ErrPolicyMismatch, what)
+	return fmt.Errorf("%w: %s; a running server keeps the policy it started with: exit every dew client of this project (TUI, run, loop) and reopen once its server has exited (about a minute later, see dew ps)", ErrPolicyMismatch, what)
 }
 
 // envKeysDiffer trả tên (đã sắp xếp) các biến có giá trị khác nhau hoặc chỉ có ở

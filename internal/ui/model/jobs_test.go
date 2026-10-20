@@ -344,7 +344,7 @@ func TestJobsKeyBinding(t *testing.T) {
 			require.False(t, e.DisplayOnly)
 		}
 	}
-	require.True(t, found, "`agent-cli keys` lists it")
+	require.True(t, found, "`dew keys` lists it")
 
 	// Không phím mặc định nào khác dùng alt+j, ở bất kỳ nhóm nào.
 	for name, b := range reg {

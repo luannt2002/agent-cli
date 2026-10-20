@@ -1,4 +1,4 @@
-// Package execpolicy là ranh giới provider/model của agent-cli: model nào
+// Package execpolicy là ranh giới provider/model của dew: model nào
 // được chạy cho session chính (và sub-agent của nó), và có được giao việc sang
 // CLI agent của provider khác (Claude Code, Codex) hay không.
 //
@@ -93,7 +93,7 @@ func (d *Denied) Error() string {
 	return msg
 }
 
-// EnvFileEnv đặt đường dẫn tệp env của agent-cli (mặc định
+// EnvFileEnv đặt đường dẫn tệp env của dew (mặc định
 // ~/.config/agent-cli/env), như crushrc mẫu.
 const EnvFileEnv = "AGENT_CLI_ENV_FILE"
 
@@ -169,7 +169,7 @@ func TrustedEnv(key string) string {
 	return os.Getenv(key)
 }
 
-// ChildEnv sửa env cho tiến trình con có thể chạy agent-cli (Home, verify của loop,
+// ChildEnv sửa env cho tiến trình con có thể chạy dew (Home, verify của loop,
 // lệnh `!`): các biến tin cậy lấy theo ảnh chụp, không theo env đã bị `.env`/cấu hình
 // dự án đổi. Riêng công tắc không người trực theo trạng thái HIỆN HÀNH khi tiến trình
 // đang trong lượt không người trực (SetUnattended, như exportUnattendedEnv xuất).
@@ -207,7 +207,7 @@ func ChildEnv(env []string) []string {
 
 // Current trả chính sách của tiến trình, nạp một lần từ hai nguồn của người
 // dùng: env gốc đã export ở shell (ảnh chụp đầu main), rồi tệp env của
-// agent-cli (EnvFileEnv, mặc định ~/.config/agent-cli/env). Không đọc cấu
+// dew (EnvFileEnv, mặc định ~/.config/agent-cli/env). Không đọc cấu
 // hình, `.env` hay `env` của dự án: một repo lạ không nới được ranh giới.
 // Đổi giá trị thì mở lại server của dự án.
 func Current() (Policy, error) {
@@ -275,7 +275,7 @@ func inputsOf(getenv func(string) string) []string {
 	return out
 }
 
-// envFilePath là đường dẫn tệp env của agent-cli, như crushrc mẫu tính.
+// envFilePath là đường dẫn tệp env của dew, như crushrc mẫu tính.
 func envFilePath(getenv func(string) string) string {
 	if p := getenv(EnvFileEnv); p != "" {
 		return p
@@ -468,12 +468,13 @@ var externalAgents = map[string]bool{
 // externalAgentPackages là gói npm của các CLI đó.
 var externalAgentPackages = []string{"claude-code", "@openai/codex", "@google/gemini-cli", "@qwen-code/"}
 
-// selfNames là chính agent-cli: chạy lồng (run/send/server) thì tiến trình
+// selfNames là chính dew: chạy lồng (run/send/server) thì tiến trình
 // con tự chọn chính sách qua env của lệnh, nên cũng bị chặn; jobs/ps/logs thì
-// không.
-var selfNames = map[string]bool{"agent-cli": true, "crush": true}
+// không. "agent-cli" là tên cũ (trước 20/10/2026): giữ để chặn cả wrapper cũ
+// còn sót trên PATH của máy chưa chuyển.
+var selfNames = map[string]bool{"dew": true, "agent-cli": true, "crush": true}
 
-// selfAgentSubcommands là lệnh con của agent-cli chạy agent.
+// selfAgentSubcommands là lệnh con của dew chạy agent.
 var selfAgentSubcommands = map[string]bool{"run": true, "send": true, "server": true, "loop": true, "routine": true}
 
 // launchers chạy lệnh khác làm tiến trình con; lệnh thật nằm sau các cờ,
@@ -514,7 +515,7 @@ func normalizeName(arg string) string {
 
 // ExternalAgentCommand nhận lệnh bash gọi CLI agent bên ngoài (kể cả qua đường
 // dẫn, env/nohup/timeout/sudo/doas/xargs, npx/npm exec/bunx, find -exec,
-// `bash -c "..."`, `env -S "..."`) hoặc agent-cli lồng (run/send/server), và
+// `bash -c "..."`, `env -S "..."`) hoặc dew lồng (run/send/server), và
 // trả tên của nó. Là lớp chặn thứ hai: ranh giới chính là tool giao việc chỉ
 // có khi được phép. Theo tên nên không bắt được bản chép mang tên khác; các
 // lệnh đó vẫn phải qua hộp thoại xin quyền của bash.

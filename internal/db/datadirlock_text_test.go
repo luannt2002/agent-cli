@@ -10,8 +10,8 @@ import (
 )
 
 // Thông báo khi thư mục dữ liệu đang bị tiến trình khác giữ phải gọi sản phẩm là
-// agent-cli (người dùng thấy câu này khi mở hai bản cùng một thư mục).
-func TestErrDataDirLocked_MessageNamesAgentCLI(t *testing.T) {
+// dew (người dùng thấy câu này khi mở hai bản cùng một thư mục).
+func TestErrDataDirLocked_MessageNamesDew(t *testing.T) {
 	t.Cleanup(ResetPool)
 
 	dataDir := t.TempDir()
@@ -21,6 +21,6 @@ func TestErrDataDirLocked_MessageNamesAgentCLI(t *testing.T) {
 
 	_, err = Connect(context.Background(), dataDir, WithDataDirLock(true))
 	require.ErrorIs(t, err, ErrDataDirLocked)
-	require.Contains(t, err.Error(), "another agent-cli process")
+	require.Contains(t, err.Error(), "another dew process")
 	require.NotContains(t, err.Error(), "another crush process")
 }

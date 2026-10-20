@@ -61,10 +61,10 @@ work you start and watch. It never commits, pushes or merges.
 Exit codes: 0 GREEN, 1 any other stop reason, 2 bad usage.`,
 	Example: `
 # Make the tests pass, at most 2 repair turns
-agent-cli loop --verify "go test ./..." "Fix the failing TestParse"
+dew loop --verify "go test ./..." "Fix the failing TestParse"
 
 # Bound the whole run to 2 hours and print one JSON object at the end
-agent-cli loop --verify "npm test" --max-duration 2h --json "Make the new endpoint pass its tests"`,
+dew loop --verify "npm test" --max-duration 2h --json "Make the new endpoint pass its tests"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		f := cmd.Flags()
 		p := loopParams{}
@@ -284,7 +284,7 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
 		var buf tailBuffer
 		start := time.Now()
 		// pipefail: đuôi `| cat`/`| tee log` không được che mã lỗi của lệnh trước nó.
-		// ChildEnv: verify có thể chạy agent-cli; biến tin cậy không được lấy từ `.env` của repo.
+		// ChildEnv: verify có thể chạy dew; biến tin cậy không được lấy từ `.env` của repo.
 		err := shell.Run(vctx, shell.RunOptions{Command: "set -o pipefail\n" + cmd, Cwd: cwd, Env: execpolicy.ChildEnv(os.Environ()), Stdout: &buf, Stderr: &buf})
 		res := loop.VerifyResult{Output: string(buf.b), Duration: time.Since(start)}
 		switch exit, isExit := errors.AsType[interp.ExitStatus](err); {
@@ -409,7 +409,7 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
 		event.AppInitialized()
 		if !ws.Config.IsConfigured() {
 			cleanup()
-			return nil, nil, fmt.Errorf("no providers configured - please run 'agent-cli' to set up a provider interactively")
+			return nil, nil, fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
 		}
 		if err := ensureAgent(ctx, c, ws.ID); err != nil {
 			cleanup()
@@ -442,7 +442,7 @@ func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(co
 	event.AppInitialized()
 	if !ws.Config().IsConfigured() {
 		cleanup()
-		return nil, nil, fmt.Errorf("no providers configured - please run 'agent-cli' to set up a provider interactively")
+		return nil, nil, fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
 	}
 	appWs := ws.(*workspace.AppWorkspace)
 	return func(ctx context.Context, prompt string) (loop.RunInfo, error) {

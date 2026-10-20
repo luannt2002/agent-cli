@@ -46,7 +46,7 @@ func newHeader(com *common.Common) *header {
 func (h *header) refresh() {
 	t := h.com.Styles
 	isHyper := h.com.IsHyper()
-	name := "AGENT-CLI"
+	name := "DEW"
 	if isHyper {
 		name = "HYPERCRUSH"
 	}

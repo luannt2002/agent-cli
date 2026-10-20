@@ -373,7 +373,7 @@ func blockedByGitEnv(ctx context.Context, blockFuncs []BlockFunc, args []string)
 
 // gitRedirectEnv trả các biến export mà lệnh tự đặt và nhắc tới biến git trong
 // gitEnvName, ở tên hay ở giá trị (`X='GIT_DIR=…' sh -c 'eval "$X"'`). Biến có cùng
-// giá trị trong môi trường của chính agent-cli là của người khởi chạy (vd chạy
+// giá trị trong môi trường của chính dew là của người khởi chạy (vd chạy
 // trong git hook), không phải của lệnh, nên bỏ qua.
 func gitRedirectEnv(env expand.Environ) []string {
 	var out []string

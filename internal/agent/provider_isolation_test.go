@@ -50,7 +50,7 @@ func TestBuildAgentModelsKeepsSmallOnTheMainProvider(t *testing.T) {
 }
 
 // F1: model large chọn ở provider dựng sẵn (openai) nhưng chưa có khoá, còn một
-// provider khác (qwen) dùng được. Nạp cấu hình vẫn được (để còn `agent-cli login`),
+// provider khác (qwen) dùng được. Nạp cấu hình vẫn được (để còn `dew login`),
 // lựa chọn giữ ở openai, và dựng agent thất bại nêu tên provider, không lặng lẽ
 // chạy trên qwen.
 func TestBuildAgentModelsFailsClosedWhenSelectedProviderHasNoKey(t *testing.T) {
@@ -68,7 +68,7 @@ func TestBuildAgentModelsFailsClosedWhenSelectedProviderHasNoKey(t *testing.T) {
 }`
 	require.NoError(t, os.WriteFile(filepath.Join(env.workingDir, "crush.json"), []byte(crushJSON), 0o644))
 	cfg, err := config.Init(env.workingDir, "", false)
-	require.NoError(t, err, "loading must succeed so agent-cli login keeps working")
+	require.NoError(t, err, "loading must succeed so dew login keeps working")
 	large := cfg.Config().Models[config.SelectedModelTypeLarge]
 	require.Equal(t, "openai", large.Provider, "no silent switch to another provider")
 	require.Equal(t, "gpt-4o", large.Model)
@@ -81,7 +81,7 @@ func TestBuildAgentModelsFailsClosedWhenSelectedProviderHasNoKey(t *testing.T) {
 	require.Contains(t, err.Error(), `"openai"`)
 	require.Contains(t, err.Error(), `"gpt-4o"`)
 	require.Contains(t, err.Error(), "does not switch to another provider")
-	require.Contains(t, err.Error(), "agent-cli login")
+	require.Contains(t, err.Error(), "dew login")
 }
 
 // Provider bị tắt (`Disable`) mà model vẫn còn: người dùng tắt để không gửi code tới đó,

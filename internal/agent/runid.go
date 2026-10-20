@@ -33,7 +33,7 @@ func RunIDFromContext(ctx context.Context) string {
 }
 
 // nonInteractiveContextKey đánh dấu một lượt không có người ngồi trả lời
-// (agent-cli run): đi từ backend.SendMessage xuống coordinator.Run như RunID.
+// (dew run): đi từ backend.SendMessage xuống coordinator.Run như RunID.
 type nonInteractiveContextKey struct{}
 
 // WithNonInteractive đánh dấu ctx là lượt phi tương tác: lượt đó không có

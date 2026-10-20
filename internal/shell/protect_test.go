@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// guard giả: PID trong protectedPIDs được bảo vệ; tên "crush"/"agent-cli" và
+// guard giả: PID trong protectedPIDs được bảo vệ; tên "crush"/"dew" và
 // "mycli" được bảo vệ.
 func testGuard(protectedPIDs ...int) ProcessGuard {
 	set := map[int]bool{}
@@ -17,12 +17,12 @@ func testGuard(protectedPIDs ...int) ProcessGuard {
 	return ProcessGuard{
 		ProtectedPID: func(pid int) bool { return set[pid] },
 		ProtectedName: func(pattern string) bool {
-			return patternHitsProtected(pattern, []string{"crush", "agent-cli", "mycli"})
+			return patternHitsProtected(pattern, []string{"crush", "dew", "mycli"})
 		},
 	}
 }
 
-// Lệnh giết tiến trình agent-cli (client 954803 + server 946242) bị chặn, kể
+// Lệnh giết tiến trình dew (client 954803 + server 946242) bị chặn, kể
 // cả qua /bin/kill và qua lớp bọc; đúng sự cố 15/10.
 func TestProtect_BlocksKillingOwnProcess(t *testing.T) {
 	t.Parallel()
@@ -44,7 +44,7 @@ func TestProtect_BlocksKillingOwnProcess(t *testing.T) {
 	}
 }
 
-// Giết một PID không thuộc agent-cli thì KHÔNG bị lớp này chặn (vẫn qua cổng
+// Giết một PID không thuộc dew thì KHÔNG bị lớp này chặn (vẫn qua cổng
 // quyền bình thường); lệnh thường cũng không bị chặn.
 func TestProtect_AllowsOtherPIDsAndNormalCommands(t *testing.T) {
 	t.Parallel()
@@ -62,13 +62,13 @@ func TestProtect_AllowsOtherPIDsAndNormalCommands(t *testing.T) {
 	}
 }
 
-// pkill/killall khớp tên tiến trình agent-cli bị chặn; tên khác thì không.
+// pkill/killall khớp tên tiến trình dew bị chặn; tên khác thì không.
 func TestProtect_BlocksKillByName(t *testing.T) {
 	t.Parallel()
 	g := testGuard()
 	for _, args := range [][]string{
 		{"pkill", "crush"},
-		{"pkill", "-9", "-f", "agent-cli"},
+		{"pkill", "-9", "-f", "dew"},
 		{"killall", "crush"},
 		{"killall", "-9", "mycli"},
 	} {
@@ -111,7 +111,7 @@ func TestProtect_BlocksKillByPatternMatch(t *testing.T) {
 		{"pkill", "-f", "crush server"},
 		{"pkill", "crus"},
 		{"killall", "-r", "cru.*"},
-		{"pkill", "-f", "agent-cli"},
+		{"pkill", "-f", "dew"},
 	} {
 		_, ok := g.Blocked(args)
 		require.Truef(t, ok, "%v", args)
@@ -165,7 +165,21 @@ func TestDefaultGuard_ProtectsSelf(t *testing.T) {
 	}
 	require.NotZero(t, self)
 	_, ok := defaultProcessGuard.Blocked([]string{"/bin/kill", "-9", strconv.Itoa(self)})
-	require.True(t, ok, "killing a pid in agent-cli's own process tree must be blocked")
+	require.True(t, ok, "killing a pid in dew's own process tree must be blocked")
+}
+
+// Bộ bảo vệ thật chặn giết theo tên cả tên mới (dew) lẫn tên cũ (agent-cli,
+// server cũ còn chạy trên máy chưa chuyển) và crush.
+func TestProtect_DefaultGuardNames(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{
+		{"pkill", "dew"},
+		{"pkill", "-f", "agent-cli"},
+		{"killall", "crush"},
+	} {
+		_, ok := defaultProcessGuard.Blocked(args)
+		require.Truef(t, ok, "%v", args)
+	}
 }
 
 // Các đường vòng đã tái lập ở audit 16/10: kill không PID tường minh (PID đến từ
@@ -196,7 +210,7 @@ func TestProtect_BlocksPidlessKillShellWrappedAndKillAll(t *testing.T) {
 }
 
 // Siết lớp trên không được chặn oan lệnh thường: shell chạy script/lệnh vô hại,
-// kill liệt kê tín hiệu, kill PID không thuộc agent-cli.
+// kill liệt kê tín hiệu, kill PID không thuộc dew.
 func TestProtect_ShellWrappingDoesNotBlockNormalCommands(t *testing.T) {
 	t.Parallel()
 	g := testGuard(946242)

@@ -140,7 +140,7 @@ func TestRestartIfStale_RefusesModelCommandOnBusyStaleServer(t *testing.T) {
 			require.ErrorIs(t, err, errStaleServerBusy)
 			require.False(t, restarted)
 			require.Contains(t, err.Error(), "not-"+version.Version, "names the old server's version")
-			require.Contains(t, err.Error(), "agent-cli ps")
+			require.Contains(t, err.Error(), "dew ps")
 			require.Equal(t, []string{proto.ServerControlShutdownIfIdle}, log.all())
 		})
 	}

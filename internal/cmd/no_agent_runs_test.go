@@ -30,7 +30,7 @@ func TestRunsNoAgentExactCommandSet(t *testing.T) {
 	}
 	walk(rootCmd)
 	require.ElementsMatch(t, []string{
-		"agent-cli jobs", "agent-cli jobs output", "agent-cli jobs kill", "agent-cli login", "agent-cli logout",
+		"dew jobs", "dew jobs output", "dew jobs kill", "dew login", "dew logout",
 	}, got)
 	for _, c := range []*cobra.Command{rootCmd, runCmd, sendCmd, loopCmd} {
 		require.False(t, runsNoAgent(c), c.CommandPath())

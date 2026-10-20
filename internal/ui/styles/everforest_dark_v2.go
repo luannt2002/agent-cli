@@ -204,7 +204,7 @@ func everforestDarkV2Overrides(s Styles) Styles {
 	s.WorkingTimerColor = t.fgMuted
 
 	// --- Header và logo: bớt nổi, không gradient tím/xanh --------------------------
-	// Tên "AGENT-CLI" một màu fg.primary, dải chéo chỉ còn là hoạ tiết nền (màu
+	// Tên "DEW" một màu fg.primary, dải chéo chỉ còn là hoạ tiết nền (màu
 	// border). Nhãn và phiên bản không còn được vẽ (bỏ 15/10); style của chúng
 	// giữ cho theme người dùng kế thừa.
 	s.Header.Charm = s.Header.Charm.Foreground(t.fgSubtle)

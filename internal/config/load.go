@@ -178,7 +178,7 @@ func Load(workingDir, dataDir string, debug bool) (*ConfigStore, error) {
 			"configured", configuredSmall.Provider+"/"+configuredSmall.Model, "using", resolved.Small.Provider+"/"+resolved.Small.Model)
 	}
 	if resolved.LargeUnresolved || resolved.SmallUnresolved {
-		slog.Warn("Selected model's provider is unavailable (not configured or disabled); agent-cli does not switch to another provider",
+		slog.Warn("Selected model's provider is unavailable (not configured or disabled); dew does not switch to another provider",
 			"large", resolved.Large.Provider+"/"+resolved.Large.Model, "large_unresolved", resolved.LargeUnresolved,
 			"small", resolved.Small.Provider+"/"+resolved.Small.Model, "small_unresolved", resolved.SmallUnresolved)
 	}
@@ -461,7 +461,7 @@ func (c *Config) configureProviders(ctx context.Context, store *ConfigStore, env
 			continue
 		}
 		if id == message.PendingReplyProvider {
-			return fmt.Errorf("provider ID %q is reserved by agent-cli for prompts that have not run; rename the provider", id)
+			return fmt.Errorf("provider ID %q is reserved by dew for prompts that have not run; rename the provider", id)
 		}
 
 		// Make sure the provider ID is set.
@@ -1475,7 +1475,7 @@ func InitProject(root, dir, dataDir string, debug bool) (*ConfigStore, error) {
 	return Init(root, dataDir, debug)
 }
 
-// LegacyDataDirs liệt kê các data dir cũ của dự án ở root mà agent-cli không
+// LegacyDataDirs liệt kê các data dir cũ của dự án ở root mà dew không
 // mở nữa: .crush của một thư mục con (bản cũ dùng .crush gần nhất khi mở từ
 // đó), lấy từ known (sổ dự án) và từ các .crush trên đường từ dir lên root.
 // Chỉ tính cái khác dataDir và còn crush.db. Không quét cả cây, không gộp.

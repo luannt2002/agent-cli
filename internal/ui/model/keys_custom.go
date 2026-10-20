@@ -23,7 +23,7 @@ func KeybindingsPath() string {
 	return filepath.Join(filepath.Dir(config.GlobalConfig()), "keybindings.json")
 }
 
-// KeyEntry describes one bindable action for `agent-cli keys`.
+// KeyEntry describes one bindable action for `dew keys`.
 type KeyEntry struct {
 	Action  string   `json:"action"`
 	Keys    []string `json:"keys"`
@@ -87,7 +87,7 @@ func applyKeyOverrides(km *KeyMap, overrides map[string][]string) []string {
 	for _, name := range slices.Sorted(maps.Keys(overrides)) {
 		b, ok := reg[name]
 		if !ok {
-			warns = append(warns, fmt.Sprintf("keybindings: unknown action %q (see `agent-cli keys`)", name))
+			warns = append(warns, fmt.Sprintf("keybindings: unknown action %q (see `dew keys`)", name))
 			continue
 		}
 		if displayOnly[name] {

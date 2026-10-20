@@ -1344,7 +1344,7 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		if cmd := m.sendNotification(notification.Notification{
-			Title:   "agent-cli is waiting...",
+			Title:   "DEW is waiting...",
 			Message: fmt.Sprintf("Permission required to execute \"%s\"", msg.Payload.ToolName),
 		}); cmd != nil {
 			cmds = append(cmds, cmd)
@@ -1362,7 +1362,7 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		if cmd := m.sendNotification(notification.Notification{
-			Title:   "agent-cli is waiting...",
+			Title:   "DEW is waiting...",
 			Message: fmt.Sprintf("%d questions need your input", len(msg.Payload.Questions)),
 		}); cmd != nil {
 			cmds = append(cmds, cmd)
@@ -1764,9 +1764,9 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, clearInfoMsgCmd(ttl))
 	case app.UpdateAvailableMsg:
-		text := fmt.Sprintf("agent-cli update available: v%s → v%s.", msg.CurrentVersion, msg.LatestVersion)
+		text := fmt.Sprintf("DEW update available: v%s → v%s.", msg.CurrentVersion, msg.LatestVersion)
 		if msg.IsDevelopment {
-			text = fmt.Sprintf("This is a development version of agent-cli. The latest version is v%s.", msg.LatestVersion)
+			text = fmt.Sprintf("This is a development version of DEW. The latest version is v%s.", msg.LatestVersion)
 		}
 		ttl := 10 * time.Second
 		m.status.SetInfoMsg(util.InfoMsg{
@@ -1955,7 +1955,7 @@ func (m *UI) setSessionMessages(msgs []message.Message) tea.Cmd {
 func (m *UI) handleConnectionEvent(msg workspace.ConnectionEvent) []tea.Cmd {
 	info := util.InfoMsg{
 		Type: util.InfoTypeWarn,
-		Msg:  "Lost connection to the agent-cli server — reconnecting…",
+		Msg:  "Lost connection to the dew server — reconnecting…",
 		TTL:  30 * time.Second,
 	}
 	switch msg.State {
@@ -1963,13 +1963,13 @@ func (m *UI) handleConnectionEvent(msg workspace.ConnectionEvent) []tea.Cmd {
 		slog.Warn("Server connection degraded", "error", msg.Err, "stuck", msg.Stuck)
 		if msg.Stuck {
 			info.Type = util.InfoTypeError
-			info.Msg = "Can't restore the connection to the agent-cli server. Restart agent-cli to recover."
+			info.Msg = "Can't restore the connection to the dew server. Restart dew to recover."
 			info.TTL = time.Minute
 		}
 	case workspace.ConnectionRecovered:
 		info = util.InfoMsg{
 			Type: util.InfoTypeSuccess,
-			Msg:  "Reconnected to the agent-cli server.",
+			Msg:  "Reconnected to the dew server.",
 			TTL:  DefaultStatusTTL,
 		}
 	}
@@ -4036,7 +4036,7 @@ func (m *UI) View() tea.View {
 	}
 	v.MouseMode = mouseMode(m.mouseEnabled, m.activeInline != nil || m.dialog.HandlesHover())
 	v.ReportFocus = m.caps.ReportFocusEvents
-	v.WindowTitle = "agent-cli " + home.Short(m.com.Workspace.WorkingDir())
+	v.WindowTitle = "DEW " + home.Short(m.com.Workspace.WorkingDir())
 
 	key, cacheable := m.currentFrameKey()
 	if cacheable {
@@ -5046,7 +5046,7 @@ func (m *UI) switchPlanToYolo() tea.Cmd {
 const (
 	// Plan mode và YOLO là của cả workspace, không riêng session đang xem
 	// (chỉ accept-edits là của riêng một session): lời báo nói rõ điều đó.
-	planModeBannerMsg = "Plan mode (all sessions in this workspace): plan with agent-cli before generating any code."
+	planModeBannerMsg = "Plan mode (all sessions in this workspace): plan with dew before generating any code."
 	yoloModeBannerMsg = "YOLO mode (all sessions in this workspace): skip permission prompts. System level commands will be blocked."
 	yoloModeOffMsg    = "Yolo mode disabled (all sessions in this workspace)"
 	// acceptEditsBannerMsg is shown when Shift+Tab turns accept-edits on.
@@ -6422,7 +6422,7 @@ func (m *UI) handleAgentNotification(n notify.Notification) tea.Cmd {
 	case notify.TypeAgentFinished:
 		m.turnOutcome = tea.ProgramStateDone
 		cmds = append(cmds, m.sendNotification(notification.Notification{
-			Title:   "agent-cli is waiting...",
+			Title:   "DEW is waiting...",
 			Message: fmt.Sprintf("Agent's turn completed in \"%s\"", n.SessionTitle),
 		}))
 		// Show what the stored balance says right away, and fetch again:

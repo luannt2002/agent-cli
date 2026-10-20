@@ -21,7 +21,7 @@ var steeringEnv = []string{
 	"ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "OPENAI_BASE_URL", "OPENAI_API_KEY", "CLAUDE_CONFIG_DIR", "CODEX_HOME",
 }
 
-// CLI con được giao việc (claude/codex) nhận env GỐC của agent-cli: biến lái endpoint,
+// CLI con được giao việc (claude/codex) nhận env GỐC của dew: biến lái endpoint,
 // khoá hay thư mục cấu hình của nó mà `.env` của repo (main nạp sau ảnh chụp) hoặc
 // `env` của cấu hình dự án đặt thì không tới CLI con; giá trị người dùng export thì giữ.
 // CLI giả chỉ in TÊN biến kèm nguồn, không in giá trị. Chạy ở tiến trình con vì ảnh

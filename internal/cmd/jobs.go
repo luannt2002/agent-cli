@@ -30,17 +30,17 @@ var jobsCmd = &cobra.Command{
 	Short: "List the bash jobs the agent ran in this project (running and recently finished)",
 	Long: `List the bash commands the agent ran in this project's server: running first,
 then recently finished, with the owning session, elapsed time and result.
-Needs the project server (run through the agent-cli launcher).`,
+Needs the project server (run through the dew launcher).`,
 	Example: `
 # Jobs of the project in the current directory
-agent-cli jobs
+dew jobs
 
 # One JSON array on stdout
-agent-cli jobs --json
+dew jobs --json
 
 # Output of one job (head and tail when huge), and stopping one
-agent-cli jobs output 01A
-agent-cli jobs kill 01A
+dew jobs output 01A
+dew jobs kill 01A
 `,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -94,7 +94,7 @@ func init() {
 // riêng, không thấy job của TUI.
 func withJobsClient(cmd *cobra.Command, fn func(ctx context.Context, c jobsClient, wsID string) error) error {
 	if !useClientServer() {
-		return &usageError{errors.New("jobs needs the project server: run it through the agent-cli launcher or set CRUSH_CLIENT_SERVER=1")}
+		return &usageError{errors.New("jobs needs the project server: run it through the dew launcher or set CRUSH_CLIENT_SERVER=1")}
 	}
 	c, ws, cleanup, err := connectToServer(cmd)
 	if err != nil {

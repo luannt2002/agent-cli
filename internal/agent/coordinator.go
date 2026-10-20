@@ -382,7 +382,7 @@ func (c *coordinator) run(ctx context.Context, accept *AcceptedRun, sessionID st
 	// mid-handshake cannot stall a headless run for minutes. Past the
 	// budget the turn proceeds without the stragglers; their tools simply
 	// stay absent from this run.
-	// Lượt phi tương tác qua server (agent-cli run, đánh dấu ở ctx) cũng chỉ
+	// Lượt phi tương tác qua server (dew run, đánh dấu ở ctx) cũng chỉ
 	// có một lần dựng bộ tool, nên cũng chờ như coordinator phi tương tác.
 	nonInteractive := !c.interactive || NonInteractiveFromContext(ctx)
 	if nonInteractive {
@@ -1053,7 +1053,7 @@ func (c *coordinator) buildTools(ctx context.Context, agent config.Agent, isSubA
 }
 
 // execPolicy là ranh giới provider/model (env gốc của người dùng và tệp env
-// của agent-cli, không theo cấu hình hay `.env` của dự án).
+// của dew, không theo cấu hình hay `.env` của dự án).
 func (c *coordinator) execPolicy() (execpolicy.Policy, error) {
 	return execpolicy.Current()
 }
@@ -1092,11 +1092,11 @@ func sameProviderSmall(large, small config.SelectedModel) config.SelectedModel {
 	return large
 }
 
-// noFallbackError nêu đúng provider/model đã cấu hình và cách sửa: agent-cli cố
+// noFallbackError nêu đúng provider/model đã cấu hình và cách sửa: dew cố
 // ý không mượn provider khác (fail closed), nên người dùng phải biết vì sao dừng.
 // Lỗi này chặn trước khi `run -m` được áp, nên không gợi ý `-m`.
 func noFallbackError(sentinel error, m config.SelectedModel) error {
-	return fmt.Errorf("%w: provider %q, model %q is unavailable (missing key or login, disabled, or unknown model) and agent-cli does not switch to another provider; fix that provider (API key, `agent-cli login <platform>`, or re-enable it), or select another model (alt+m in the TUI, or the models section of your config)",
+	return fmt.Errorf("%w: provider %q, model %q is unavailable (missing key or login, disabled, or unknown model) and dew does not switch to another provider; fix that provider (API key, `dew login <platform>`, or re-enable it), or select another model (alt+m in the TUI, or the models section of your config)",
 		sentinel, m.Provider, m.Model)
 }
 

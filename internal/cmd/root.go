@@ -61,9 +61,9 @@ var clientHost string
 
 func init() {
 	rootCmd.PersistentFlags().StringP("cwd", "c", "", "Current working directory")
-	rootCmd.PersistentFlags().StringP("data-dir", "D", "", "Custom agent-cli data directory")
+	rootCmd.PersistentFlags().StringP("data-dir", "D", "", "Custom dew data directory")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
-	rootCmd.PersistentFlags().StringVarP(&clientHost, "host", "H", server.DefaultHost(), "Connect to a specific agent-cli server host (for advanced users)")
+	rootCmd.PersistentFlags().StringVarP(&clientHost, "host", "H", server.DefaultHost(), "Connect to a specific dew server host (for advanced users)")
 	rootCmd.Flags().BoolP("help", "h", false, "Help")
 	addYOLOFlag(rootCmd)
 	rootCmd.PersistentFlags().StringSlice("channels", nil, "MCP servers to enable as channels (repeatable), e.g. --channels server:webhook")
@@ -87,33 +87,33 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "agent-cli",
+	Use:   "dew",
 	Short: "A terminal-first AI assistant for software development",
 	Long:  "A glamorous, terminal-first AI assistant for software development and adjacent tasks",
 	Example: `
 # Run in interactive mode
-agent-cli
+dew
 
 # Run non-interactively
-agent-cli run "Guess my 5 favorite Pokémon"
+dew run "Guess my 5 favorite Pokémon"
 
 # Run a non-interactively with pipes and redirection
-cat README.md | agent-cli run "make this more glamorous" > GLAMOROUS_README.md
+cat README.md | dew run "make this more glamorous" > GLAMOROUS_README.md
 
 # Run with debug logging in a specific directory
-agent-cli --debug --cwd /path/to/project
+dew --debug --cwd /path/to/project
 
 # Run in yolo mode (auto-accept all permissions; use with care)
-agent-cli --yolo
+dew --yolo
 
 # Run with custom data directory
-agent-cli --data-dir /path/to/custom/.crush
+dew --data-dir /path/to/custom/.crush
 
 # Continue a previous session
-agent-cli --session {session-id}
+dew --session {session-id}
 
 # Continue the most recent session
-agent-cli --continue
+dew --continue
   `,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		// Drop the marker so servers and tools started from here do not
@@ -183,7 +183,7 @@ agent-cli --continue
 		if err := runErr; err != nil {
 			event.Error(err)
 			slog.Error("TUI run error", "error", err)
-			return errors.New("agent-cli crashed. To report it, copy the stacktrace above; recent logs are shown by `agent-cli logs`.") //nolint:staticcheck
+			return errors.New("DEW crashed. To report it, copy the stacktrace above; recent logs are shown by `dew logs`.") //nolint:staticcheck
 		}
 		if model.BackToHome() {
 			backHome = true
@@ -276,9 +276,9 @@ func addYOLOFlag(cmd *cobra.Command) {
 func yoloMismatchWarning(requested, actual bool) string {
 	switch {
 	case actual && !requested:
-		return "warning: this project's agent-cli server is already in YOLO mode (started by an earlier client): tool permission prompts are skipped. Close every agent-cli of this project to restart it without --yolo."
+		return "warning: this project's dew server is already in YOLO mode (started by an earlier client): tool permission prompts are skipped. Close every dew of this project to restart it without --yolo."
 	case requested && !actual:
-		return "warning: --yolo was ignored: this project's agent-cli server is already running without it. Close every agent-cli of this project to restart it with --yolo."
+		return "warning: --yolo was ignored: this project's dew server is already running without it. Close every dew of this project to restart it with --yolo."
 	}
 	return ""
 }
@@ -291,20 +291,20 @@ func yoloMismatchWarning(requested, actual bool) string {
 func dataDirMismatchWarning(requested, actual string, actualFromFlag bool) string {
 	switch {
 	case requested == "" && actualFromFlag:
-		return fmt.Sprintf("warning: this project's agent-cli server uses the data directory %s, chosen with --data-dir by an earlier client: sessions go there, not to the project's own. Close every agent-cli of this project to restart it without --data-dir.", actual)
+		return fmt.Sprintf("warning: this project's dew server uses the data directory %s, chosen with --data-dir by an earlier client: sessions go there, not to the project's own. Close every dew of this project to restart it without --data-dir.", actual)
 	case requested != "" && filepath.Clean(requested) != filepath.Clean(actual):
-		return fmt.Sprintf("warning: --data-dir %s was ignored: this project's agent-cli server already uses %s (chosen by an earlier client). Close every agent-cli of this project to restart it with --data-dir.", requested, actual)
+		return fmt.Sprintf("warning: --data-dir %s was ignored: this project's dew server already uses %s (chosen by an earlier client). Close every dew of this project to restart it with --data-dir.", requested, actual)
 	}
 	return ""
 }
 
 // warnLegacyDataDirs báo các .crush cũ của dự án (sổ dự án biết, hoặc nằm
-// trên đường từ cwd lên gốc) mà agent-cli không mở nữa: nay cả dự án dùng
+// trên đường từ cwd lên gốc) mà dew không mở nữa: nay cả dự án dùng
 // dataDir. Không tự gộp, không xoá.
 func warnLegacyDataDirs(cmd *cobra.Command, cwd, dataDir string) {
 	root := config.ProjectRoot(cwd)
 	for _, d := range config.LegacyDataDirs(cwd, root, dataDir, knownDataDirs(root)) {
-		warnUser(cmd, fmt.Sprintf("warning: %s is not used: agent-cli now keeps one data directory per project, %s. Nothing was merged or deleted. To read the sessions stored there: CRUSH_CLIENT_SERVER=0 agent-cli -c %s -D %s. That opens them at the project root, while relative paths in them meant %s, so continuing them can edit the wrong file; merging them into the project is up to you.",
+		warnUser(cmd, fmt.Sprintf("warning: %s is not used: dew now keeps one data directory per project, %s. Nothing was merged or deleted. To read the sessions stored there: CRUSH_CLIENT_SERVER=0 dew -c %s -D %s. That opens them at the project root, while relative paths in them meant %s, so continuing them can edit the wrong file; merging them into the project is up to you.",
 			d, dataDir, filepath.Dir(d), d, filepath.Dir(d)))
 	}
 }
@@ -604,7 +604,7 @@ func setupClientServerWorkspace(cmd *cobra.Command) (workspace.Workspace, func()
 
 // errStaleServerBusy: server của dự án khác bản/build mà đang bận nên không thay
 // được.
-var errStaleServerBusy = errors.New("this project's agent-cli server is another build and is busy")
+var errStaleServerBusy = errors.New("this project's dew server is another build and is busy")
 
 // staleServerBusy quyết khi server khác bản/build không chịu tắt (đang bận):
 // lệnh không gửi prompt vẫn dùng nó; lệnh chạy model thì bị từ chối, vì server
@@ -613,13 +613,13 @@ func staleServerBusy(cmd *cobra.Command, vi *proto.VersionInfo) error {
 	if runsNoAgent(cmd) {
 		return nil
 	}
-	return fmt.Errorf("%w: the server is %s (build %s), this agent-cli is %s (build %s), and an agent run is never sent to a server of another build: exit every agent-cli client of this project, wait for its server to exit (about a minute later, see agent-cli ps), then reopen",
+	return fmt.Errorf("%w: the server is %s (build %s), this dew is %s (build %s), and an agent run is never sent to a server of another build: exit every dew client of this project, wait for its server to exit (about a minute later, see dew ps), then reopen",
 		errStaleServerBusy, vi.Version, vi.BuildID, version.Version, version.BuildID)
 }
 
 // noAgentRunsAnnotation đánh dấu lệnh không gửi prompt nào (xem/dừng job, đăng
 // nhập/xuất): server không so chính sách tin cậy và --yolo với client của nó.
-const noAgentRunsAnnotation = "agent-cli.no-agent-runs"
+const noAgentRunsAnnotation = "dew.no-agent-runs"
 
 // runsNoAgent cho biết cmd (hoặc lệnh cha của nó) mang noAgentRunsAnnotation.
 func runsNoAgent(cmd *cobra.Command) bool {
@@ -756,7 +756,7 @@ func replaceExitingServer(cmd *cobra.Command, hostURL *url.URL) error {
 		}
 	}
 	if err := spawnAndWaitReady(cmd, hostURL); err != nil {
-		return fmt.Errorf("failed to initialize agent-cli server: %v", err)
+		return fmt.Errorf("failed to initialize dew server: %v", err)
 	}
 	return nil
 }
@@ -823,13 +823,13 @@ func ensureServer(cmd *cobra.Command, hostURL *url.URL) error {
 
 		if needsStart {
 			if err := spawnAndWaitReady(cmd, hostURL); err != nil {
-				return fmt.Errorf("failed to initialize agent-cli server: %v", err)
+				return fmt.Errorf("failed to initialize dew server: %v", err)
 			}
 			return nil
 		}
 
 		if err := waitForServerReady(cmd.Context(), hostURL); err != nil {
-			return fmt.Errorf("failed to initialize agent-cli server: %v", err)
+			return fmt.Errorf("failed to initialize dew server: %v", err)
 		}
 	}
 
@@ -1179,11 +1179,11 @@ func startDetachedServer(cmd *cobra.Command, hostURL *url.URL) error {
 	c.Stderr = stderr
 
 	if err := c.Start(); err != nil {
-		return fmt.Errorf("failed to start agent-cli server: %v", err)
+		return fmt.Errorf("failed to start dew server: %v", err)
 	}
 
 	if err := c.Process.Release(); err != nil {
-		return fmt.Errorf("failed to detach agent-cli server process: %v", err)
+		return fmt.Errorf("failed to detach dew server process: %v", err)
 	}
 
 	return nil

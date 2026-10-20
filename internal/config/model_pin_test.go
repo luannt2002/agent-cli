@@ -98,7 +98,7 @@ func TestModelSelectionYieldsToDiskWhenUnchosen(t *testing.T) {
 }
 
 // G-01 / PRB-04: model đang chọn nằm ở provider có sẵn bị thiếu khoá lúc khởi động.
-// Khởi động vẫn phải thành công (để còn chạy `agent-cli login`), nhưng không đổi
+// Khởi động vẫn phải thành công (để còn chạy `dew login`), nhưng không đổi
 // sang provider khác, kể cả trong RAM; và không ghi gì xuống đĩa: có khoá lại
 // thì lần mở sau phải dùng đúng model đã cấu hình. Trước đây fallback được ghi đè
 // vào tệp, nên một lần thiếu khoá thành đổi provider vĩnh viễn (và với allowlist

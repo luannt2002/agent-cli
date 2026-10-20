@@ -174,7 +174,7 @@ func (m *BackgroundShellManager) Start(ctx context.Context, workingDir string, b
 }
 
 // StartFor như Start, gắn chủ của job (session, tool call) để bảng Activity
-// và `agent-cli jobs` biết job thuộc việc nào.
+// và `dew jobs` biết job thuộc việc nào.
 func (m *BackgroundShellManager) StartFor(ctx context.Context, owner JobOwner, workingDir string, blockFuncs []BlockFunc, command string, description string) (*BackgroundShell, error) {
 	// Chỉ job đang chạy chiếm chỗ (port upstream 0ac04e4f): job nền đã xong
 	// nằm trong bảng tới 8 giờ, trước đây đủ 50 cái là mọi lệnh bash hỏng.

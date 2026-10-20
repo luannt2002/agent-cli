@@ -32,7 +32,7 @@ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println("HOMECHILD\n" + strings.Join(homeChildCmd("agent-cli", home.Choice{Dir: "."}, false).Env, "\n"))
+		fmt.Println("HOMECHILD\n" + strings.Join(homeChildCmd("dew", home.Choice{Dir: "."}, false).Env, "\n"))
 		fmt.Println("HOMEEXEC\n" + strings.Join(homeEnv(), "\n"))
 		fmt.Println("SERVER\n" + strings.Join(serverEnv(), "\n"))
 		fmt.Println("VERIFY\n" + res.Output)

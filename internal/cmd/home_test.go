@@ -112,7 +112,7 @@ func TestHomeLoopExitCodes(t *testing.T) {
 	}
 	a, b := home.Choice{Dir: "/a"}, home.Choice{Dir: "/b", SessionID: "s1"}
 
-	// Back to Home twice, then a normal exit ends agent-cli.
+	// Back to Home twice, then a normal exit ends dew.
 	p, picks := pick(a, b, a)
 	r, ran := run(homeExitCode, homeExitCode, 0)
 	code, err := homeLoop(p, r)
@@ -121,7 +121,7 @@ func TestHomeLoopExitCodes(t *testing.T) {
 	require.Equal(t, 3, *picks, "Home is shown again after each exit code 10")
 	require.Equal(t, []home.Choice{a, b, a}, *ran)
 
-	// Any other status ends agent-cli with that status.
+	// Any other status ends dew with that status.
 	p, picks = pick(a, a)
 	r, _ = run(3)
 	code, err = homeLoop(p, r)
@@ -137,7 +137,7 @@ func TestHomeLoopExitCodes(t *testing.T) {
 	require.Zero(t, code)
 	require.Empty(t, *ran)
 
-	// A failure to start the workspace ends agent-cli with that error.
+	// A failure to start the workspace ends dew with that error.
 	boom := errors.New("boom")
 	p, _ = pick(a)
 	code, err = homeLoop(p, func(home.Choice) (int, error) { return 1, boom })

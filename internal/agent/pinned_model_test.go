@@ -124,7 +124,7 @@ func waitEntered(t *testing.T, ch <-chan struct{}) {
 }
 
 // Đổi model chung khi một lượt đang chạy (session khác chọn model khác, hay
-// `agent-cli run --model`) không được chuyển các bước còn lại của lượt đó
+// `dew run --model`) không được chuyển các bước còn lại của lượt đó
 // sang provider mới.
 func TestRun_ModelSwitchMidRunKeepsRunModel(t *testing.T) {
 	t.Parallel()
@@ -283,7 +283,7 @@ func TestDrainQueueForStep_KeepsPromptsPinnedToAnotherModel(t *testing.T) {
 	require.Equal(t, "other", kept[0].Prompt)
 }
 
-// Lượt phi tương tác (agent-cli run) không có tool question: không ai trả
+// Lượt phi tương tác (dew run) không có tool question: không ai trả
 // lời được, model phải làm tiếp thay vì dừng chờ.
 func TestRun_NonInteractiveDropsQuestionTool(t *testing.T) {
 	t.Parallel()

@@ -14,13 +14,13 @@ import (
 var projectsCmd = &cobra.Command{
 	Use:   "projects",
 	Short: "List project directories",
-	Long:  "List directories where agent-cli project data is known to exist",
+	Long:  "List directories where dew project data is known to exist",
 	Example: `
 # List all projects in a table
-agent-cli projects
+dew projects
 
 # Output projects data as JSON
-agent-cli projects --json
+dew projects --json
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		jsonOutput, _ := cmd.Flags().GetBool("json")
