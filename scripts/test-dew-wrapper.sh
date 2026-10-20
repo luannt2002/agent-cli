@@ -332,11 +332,36 @@ snap() { (cd "$mh" && find . -path ./.local/share/dew/routines -prune -o -printf
 before="$(snap)"; rc=0; msg_m2="$(install_mig)" || rc=$?
 check "chạy lại lần 2: rc 0, không chuyển/đổi gì, cây cấu hình y nguyên" "$([[ $rc == 0 && "$(snap)" == "$before" ]] && ! grep -q 'Đã chuyển\|Đã đổi\|Đã gỡ\|Quay về agent-cli' <<<"$msg_m2"; echo $?)"
 # Lệnh quay lại in ở lần 1 phải đưa máy về bố cục cũ chạy được (binary cũ, wrapper cũ, env tên cũ).
-undo="$(awk '/Quay lại bằng:/ {on = 1; next} on && /^Lần cài này đã chuyển/ {next} on && /^  / {print; next} on {exit}' <<<"$msg_m1")"
-rc=0; HOME="$mh" bash -ec "$undo" >"$t/undo.log" 2>&1 || { rc=$?; sed "s/^/  undo: /" "$t/undo.log"; }
+check "lệnh quay lại in ra = $bk/undo.sh" "$(grep -qF "bash $bk/undo.sh" <<<"$msg_m1" && [[ "$(sed -n '/tức là:$/,$p' <<<"$msg_m1" | sed -n 's/^  //p' | head -n "$(($(wc -l <"$bk/undo.sh") - 2))")" == "$(tail -n +3 "$bk/undo.sh")" ]]; echo $?)"
+rc=0; HOME="$mh" bash "$bk/undo.sh" >"$t/undo.log" 2>&1 || { rc=$?; sed "s/^/  undo: /" "$t/undo.log"; }
 check "lệnh quay lại chạy được, trả lại bố cục cũ" "$([[ $rc == 0 && -f "$m/inst/bin/agent-cli" && ! -e "$m/inst/bin/dew" && -d "$old_cfg" && ! -e "$cfgn" && -f "$m/inst/lib/agent-cli/crush" ]] && cmp -s "$old_cfg/env" "$m/env.orig"; echo $?)"
 out="$(cd "$m/repo" && HOME="$mh" "$m/inst/bin/agent-cli" run x 2>&1)" || true
 check "sau quay lại: wrapper cũ chạy binary ở lib/agent-cli" "$(grep -qx 'ARG=run' <<<"$out"; echo $?)"
+
+# Bố cục cũ dựng bằng trình cài cũ, dùng cho các ca dừng giữa chừng.
+mk_old() { # mk_old <thư mục>
+  mkdir -p "$1/home" "$1/inst/lib/agent-cli"
+  cp "$t/inst/lib/dew/crush" "$1/inst/lib/agent-cli/crush"
+  HOME="$1/home" AGENT_CLI_INSTALL_DIR="$1/inst" AGENT_CLI_SKIP_BUILD=1 bash "$m/fake/scripts/install-agent-cli.sh" >/dev/null 2>&1
+}
+tree_of() { (cd "$1" && find . -printf '%p %m\n' | sort); }
+# go build lỗi trên máy còn bố cục cũ: build chạy TRƯỚC mọi chuyển đổi nên không đổi gì.
+g="$t/gofail"; mk_old "$g"; before="$(tree_of "$g")"
+mkdir -p "$t/gofailbin"; printf '#!/bin/sh\necho "build broke" >&2\nexit 1\n' > "$t/gofailbin/go"; chmod 755 "$t/gofailbin/go"
+rc=0; msg_g="$(HOME="$g/home" PATH="$t/gofailbin:$PATH" DEW_INSTALL_DIR="$g/inst" bash "$t/fake/scripts/install-dew.sh" 2>&1)" || rc=$?
+check "go build lỗi trên bố cục cũ: rc!=0, cây y nguyên (không chuyển, không để thư mục build tạm)" "$([[ $rc != 0 && "$(tree_of "$g")" == "$before" ]] && grep -q 'chưa đổi gì' <<<"$msg_g"; echo $?)"
+# Dừng giữa chuyển đổi (env không đọc được): rc!=0, in lệnh quay lại, undo.sh trả bố cục cũ.
+if [[ "$(id -u)" != 0 ]]; then
+  z="$t/env000"; mk_old "$z"; chmod 000 "$z/home/.config/agent-cli/env"
+  rc=0; msg_z="$(HOME="$z/home" DEW_INSTALL_DIR="$z/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1)" || rc=$?
+  undo_z="$(ls "$z"/home/.config/dew/pre-dew-*/undo.sh 2>/dev/null | head -1)"
+  check "env mode 000: rc!=0, báo dừng giữa chừng kèm undo.sh" "$([[ $rc != 0 && -f "$undo_z" ]] && grep -q 'Cài DỪNG giữa chừng' <<<"$msg_z" && grep -qF "$undo_z" <<<"$msg_z"; echo $?)"
+  rc=0; HOME="$z/home" bash "$undo_z" >"$t/undo-z.log" 2>&1 || { rc=$?; sed "s/^/  undo: /" "$t/undo-z.log"; }
+  check "env mode 000: undo.sh trả bố cục cũ" "$([[ $rc == 0 && -d "$z/home/.config/agent-cli" && ! -e "$z/home/.config/dew" && -f "$z/inst/lib/agent-cli/crush" && ! -e "$z/inst/lib/dew" && -f "$z/inst/bin/agent-cli" ]]; echo $?)"
+  chmod 600 "$z/home/.config/agent-cli/env"
+else
+  echo "skip ca env mode 000: chạy bằng root"
+fi
 
 # Cả hai thư mục cùng có: KHÔNG gộp, giữ nguyên cả hai, dùng dew. Wrapper agent-cli không do trình cài tạo: giữ.
 b="$t/both"; mkdir -p "$b/home/.config/agent-cli" "$b/home/.config/dew" "$b/inst/lib/dew" "$b/inst/bin"

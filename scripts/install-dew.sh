@@ -21,22 +21,73 @@ fi
 old_lib="$install_dir/lib/agent-cli"
 stamp="$(date +%Y%m%d-%H%M%S)"
 mig_backup=""     # $config_dir/pre-dew-<thời điểm> (700), tạo khi có thứ cần sao lưu
-undo_files=()     # lệnh quay lại cho tệp (chạy trước, khi thư mục còn ở chỗ mới)
-undo_dirs=()      # lệnh quay lại cho thư mục
+undo_bin=()       # lệnh quay lại binary/wrapper dew (chạy đầu tiên)
+undo_files=()     # lệnh quay lại cho tệp (khi thư mục còn ở chỗ mới)
+undo_dirs=()      # lệnh quay lại cho thư mục (chạy ngược thứ tự)
+moved_share=
+build_dir=""
+
+# undo_lines in mọi lệnh quay lại về agent-cli theo đúng thứ tự chạy.
+undo_lines() {
+  local i
+  for i in "${undo_bin[@]}" "${undo_files[@]}"; do printf '%s\n' "$i"; done
+  for ((i = ${#undo_dirs[@]} - 1; i >= 0; i--)); do printf '%s\n' "${undo_dirs[i]}"; done
+  if [[ -n "$moved_share" ]]; then
+    echo 'for wt in ~/.local/share/agent-cli/routines/*/wt/*; do [ -f "$wt/.git" ] && git -C "$wt" worktree repair; done'
+  fi
+}
+migrated() { ((${#undo_files[@]} + ${#undo_dirs[@]} > 0)); }
+# Ghi lệnh quay lại ra đĩa sau MỖI bước đổi: tiến trình bị giết (OOM, SIGKILL) vẫn còn đường quay lại.
+write_undo() {
+  migrated || return 0
+  mig_backup_dir
+  { echo '#!/usr/bin/env bash'; echo 'set -e'; undo_lines; } >"$mig_backup/undo.sh"
+}
+on_exit() {
+  local rc=$?
+  [[ -n "$build_dir" ]] && rm -rf -- "$build_dir"
+  if ((rc != 0)) && migrated; then
+    {
+      echo "Cài DỪNG giữa chừng (mã $rc) sau khi đã chuyển một phần từ agent-cli. Chạy lại scripts/install-dew.sh để làm tiếp, hoặc quay về agent-cli bằng: bash $(printf %q "$mig_backup/undo.sh"), tức là:"
+      undo_lines | sed 's/^/  /'
+    } >&2
+  fi
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 mig_backup_dir() {
   if [[ -z "$mig_backup" ]]; then
     mig_backup="$config_dir/pre-dew-$stamp"
     [[ -d "$config_dir" ]] || install -d -m 700 "$config_dir" # có sẵn thì không đổi quyền (xem dưới)
     install -d -m 700 "$mig_backup"
+    echo "Lệnh quay lại về agent-cli được ghi dần vào $mig_backup/undo.sh"
   fi
 }
+
+# Build TRƯỚC mọi chuyển đổi, ra thư mục tạm cạnh lib (cùng hệ tệp để mv nguyên tử): build lỗi hay
+# Ctrl+C ở đây thì máy chưa bị đổi gì. DEW_SKIP_BUILD=1: dùng binary có sẵn (test đặt stub vào đó).
+if [[ "${DEW_SKIP_BUILD:-}" == 1 ]]; then
+  echo "Bỏ qua go build (DEW_SKIP_BUILD=1); dùng binary có sẵn."
+else
+  mkdir -p "$install_dir/lib"
+  build_dir="$(mktemp -d "$install_dir/lib/.dew-build.XXXXXX")"
+  # Biến build như bản chính thức (.goreleaser.yml, Taskfile.yaml): CGO_ENABLED=0 và
+  # GOEXPERIMENT=greenteagc. Đã kiểm với go1.27.0: tên experiment này được nhận (tên lạ bị báo
+  # `unknown GOEXPERIMENT`). Phiên bản hiển thị lấy từ VCS stamping của go build, không cần -ldflags.
+  if ! (cd "$repo_dir" && CGO_ENABLED=0 GOEXPERIMENT=greenteagc GOMAXPROCS=2 go build -p 2 -o "$build_dir/crush" .); then
+    rm -rf -- "$build_dir"
+    echo "go build lỗi: chưa đổi gì trên máy." >&2
+    exit 1
+  fi
+fi
 # Đổi tên biến và đường cũ trong một tệp cấu hình, tại chỗ (ghi xuyên symlink, giữ quyền), sau khi chép
 # bản sao lưu 600. old_re khớp cả tiền tố biến lẫn đường ~/.config|.local/share|.cache|.local/lib/agent-cli.
 old_re='(^|[^A-Za-z0-9_])AGENT_CLI_|\.(config|cache)/agent-cli([^A-Za-z0-9_.-]|$)|\.local/(share|lib)/agent-cli([^A-Za-z0-9_.-]|$)'
 rewrite_old_names() { # rewrite_old_names <tệp>
   local f="$1" n tmp
   [[ -f "$f" ]] || return 0
-  n=$({ grep -oE -- "$old_re" "$f" || [[ $? == 1 ]]; } | wc -l) # grep lỗi (không phải "không khớp") thì dừng
+  n=$({ grep -aoE -- "$old_re" "$f" || [[ $? == 1 ]]; } | wc -l) # grep lỗi (không phải "không khớp") thì dừng
   ((n > 0)) || return 0
   mig_backup_dir
   cp -- "$f" "$mig_backup/${f##*/}"
@@ -49,6 +100,7 @@ rewrite_old_names() { # rewrite_old_names <tệp>
   rm -f -- "$tmp"
   echo "Đã đổi $n chỗ tên cũ (AGENT_CLI_ -> DEW_, đường .../agent-cli -> .../dew) trong $f; bản cũ: $mig_backup/${f##*/}"
   undo_files+=("$(printf 'cp -- %q %q' "$mig_backup/${f##*/}" "$f")")
+  write_undo
 }
 move_old_dir() { # move_old_dir <cũ> <mới>: không gộp khi cả hai cùng có
   local from="$1" to="$2"
@@ -61,6 +113,7 @@ move_old_dir() { # move_old_dir <cũ> <mới>: không gộp khi cả hai cùng c
     mv -- "$from" "$to" # thư mục giữ nguyên quyền; symlink thì chuyển chính symlink, đích không đổi
     echo "Đã chuyển $from -> $to"
     undo_dirs+=("$(printf 'mv -- %q %q' "$to" "$from")")
+    write_undo
   fi
 }
 old_dirs=("$HOME/.config/agent-cli" "$HOME/.local/share/agent-cli" "$HOME/.cache/agent-cli" "$old_lib")
@@ -76,11 +129,10 @@ if [[ -n "$have_old" && -d "$old_lib" ]]; then
     exit 1
   fi
 fi
-moved_share=
 for i in "${!old_dirs[@]}"; do
   before=${#undo_dirs[@]}
   move_old_dir "${old_dirs[i]}" "${new_dirs[i]}"
-  [[ $i == 1 && ${#undo_dirs[@]} -gt $before ]] && moved_share=1
+  [[ $i == 1 && ${#undo_dirs[@]} -gt $before ]] && moved_share=1 && write_undo
 done
 for f in env crushrc crush.json; do rewrite_old_names "$config_dir/$f"; done
 rewrite_old_names "$HOME/.local/share/dew/projects.json" # registry: đường worktree của routine
@@ -114,6 +166,7 @@ for name in agent-cli agent-cli-tmux; do # chỉ gỡ bản do trình cài tạo
   rm -f -- "$p"
   echo "Đã gỡ $p (bản cài tên cũ; thay bằng ${name/agent-cli/dew})"
   undo_files+=("$(printf 'rm -f -- %q' "$install_dir/bin/${name/agent-cli/dew}")")
+  write_undo
 done
 # Chỉ in TÊN biến, không in giá trị.
 mapfile -t old_vars < <(compgen -e | grep '^AGENT_CLI_' || true)
@@ -179,17 +232,6 @@ else
   if [[ -e "$config_dir/crush.json" || -L "$config_dir/crush.json" ]]; then
     echo "Có $config_dir/crush.json cũ: giữ nguyên (không khai provider). Cấu hình model nay nằm ở crushrc + env."
   fi
-fi
-# DEW_SKIP_BUILD=1: dùng binary có sẵn (test launcher đặt stub vào đó).
-if [[ "${DEW_SKIP_BUILD:-}" == 1 ]]; then
-  echo "Bỏ qua go build (DEW_SKIP_BUILD=1); dùng binary có sẵn."
-else
-  # Build ra tệp tạm: build lỗi thì dừng ở đây, bản đang chạy và các bản sao lưu còn nguyên.
-  # Biến build như bản chính thức (.goreleaser.yml, Taskfile.yaml): CGO_ENABLED=0 và
-  # GOEXPERIMENT=greenteagc. Đã kiểm với go1.27.0: tên experiment này được nhận (tên lạ bị báo
-  # `unknown GOEXPERIMENT`). Phiên bản hiển thị lấy từ VCS stamping của go build, không cần -ldflags.
-  (cd "$repo_dir" && CGO_ENABLED=0 GOEXPERIMENT=greenteagc GOMAXPROCS=2 go build -p 2 -o "$bin_path.new" .)
-  built=1
 fi
 # Wrapper: mọi tiến trình dew trong cùng thư mục gốc dự án dùng chung một server.
 wrapper_tpl=$(cat <<'EOF'
@@ -265,13 +307,24 @@ backup_dir=
 if [[ -e "$bin_path" || -e "$wrapper_path" ]]; then
   backup_dir="$lib_dir/backup-$(date +%Y%m%d-%H%M%S)"
   mkdir -p "$backup_dir"
-  [[ -e "$bin_path" ]] && cp -p -- "$bin_path" "$backup_dir/crush"
-  [[ -e "$wrapper_path" ]] && cp -p -- "$wrapper_path" "$backup_dir/dew"
+  if [[ -e "$bin_path" ]]; then
+    cp -p -- "$bin_path" "$backup_dir/crush"
+    undo_bin+=("$(printf 'cp -p %q %q && mv -f %q %q' "$backup_dir/crush" "$bin_path.new" "$bin_path.new" "$bin_path")")
+  fi
+  if [[ -e "$wrapper_path" ]]; then
+    cp -p -- "$wrapper_path" "$backup_dir/dew"
+    undo_bin+=("$(printf 'cp -p %q %q && mv -f %q %q' "$backup_dir/dew" "$wrapper_path.tmp" "$wrapper_path.tmp" "$wrapper_path")")
+  fi
+  write_undo
   mapfile -t old_backups < <(ls -1dt -- "$lib_dir"/backup-* 2>/dev/null | tail -n +4)
   for d in "${old_backups[@]}"; do rm -rf -- "$d"; done
 fi
 # mv thay được cả binary đang chạy (cp thẳng lên nó báo "Text file busy").
-[[ -n "${built:-}" ]] && mv -f -- "$bin_path.new" "$bin_path"
+if [[ -n "$build_dir" ]]; then
+  mv -f -- "$build_dir/crush" "$bin_path"
+  rm -rf -- "$build_dir"
+  build_dir=""
+fi
 # Ghi tệp tạm rồi mv: nguyên tử, và thay chính symlink chứ không ghi xuyên qua nó.
 printf '%s\n' "${wrapper_tpl//__CRUSH_BIN__/"$bin_path"}" > "$wrapper_path.tmp"
 chmod 755 "$wrapper_path.tmp"
@@ -284,16 +337,11 @@ mv -f -- "$install_dir/bin/dew-tmux.tmp" "$install_dir/bin/dew-tmux"
 # In lệnh quay lại TRƯỚC khi chạy thử: bản mới hỏng ngay ở --version mới là lúc cần nó.
 if [[ -n "$backup_dir" ]]; then
   echo "Bản cũ đã sao lưu ở $backup_dir. Quay lại bằng:"
-  [[ -e "$backup_dir/crush" ]] && printf '  cp -p %q %q && mv -f %q %q\n' "$backup_dir/crush" "$bin_path.new" "$bin_path.new" "$bin_path"
-  [[ -e "$backup_dir/dew" ]] && printf '  cp -p %q %q && mv -f %q %q\n' "$backup_dir/dew" "$wrapper_path.tmp" "$wrapper_path.tmp" "$wrapper_path"
+  printf '  %s\n' "${undo_bin[@]}"
 fi
-if ((${#undo_files[@]} + ${#undo_dirs[@]} > 0)); then
-  echo "Lần cài này đã chuyển từ agent-cli. Quay về agent-cli: chạy các lệnh quay lại ở trên (binary cũ), rồi theo thứ tự:"
-  printf '  %s\n' "${undo_files[@]}"
-  for ((i = ${#undo_dirs[@]} - 1; i >= 0; i--)); do printf '  %s\n' "${undo_dirs[i]}"; done
-  if [[ -n "$moved_share" ]]; then
-    echo '  for wt in ~/.local/share/agent-cli/routines/*/wt/*; do [ -f "$wt/.git" ] && git -C "$wt" worktree repair; done'
-  fi
+if migrated; then
+  echo "Lần cài này đã chuyển từ agent-cli. Quay về agent-cli: bash $(printf %q "$mig_backup/undo.sh"), tức là:"
+  undo_lines | sed 's/^/  /'
 fi
 "$wrapper_path" --version
 echo "Thêm $install_dir/bin vào PATH nếu terminal chưa nhận dew."
