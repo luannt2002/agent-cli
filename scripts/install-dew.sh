@@ -86,6 +86,12 @@ fi
 old_re='(^|[^A-Za-z0-9_])AGENT_CLI_|\.(config|cache)/agent-cli([^A-Za-z0-9_.-]|$)|\.local/(share|lib)/agent-cli([^A-Za-z0-9_.-]|$)'
 rewrite_old_names() { # rewrite_old_names <tệp>
   local f="$1" n tmp
+  # Symlink gãy (vd thư mục chứa tệp đích đã dời): không đổi được tên cũ bên trong, và nội dung đó (provider khai ở
+  # crush.json) mất lặng lẽ -> báo, không im lặng bỏ qua.
+  if [[ -L "$f" && ! -e "$f" ]]; then
+    echo "Cảnh báo: $f là symlink gãy (-> $(readlink -- "$f")); nội dung trong đó (vd provider khai ở crush.json) sẽ không có. Trỏ lại: ln -sfn <tệp đúng> $f, rồi đổi AGENT_CLI_/.../agent-cli bên trong thành DEW_/.../dew." >&2
+    return 0
+  fi
   [[ -f "$f" ]] || return 0
   n=$({ grep -aoE -- "$old_re" "$f" || [[ $? == 1 ]]; } | wc -l) # grep lỗi (không phải "không khớp") thì dừng
   ((n > 0)) || return 0

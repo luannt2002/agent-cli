@@ -365,6 +365,12 @@ else
   echo "skip ca env mode 000: chạy bằng root"
 fi
 
+# crush.json chung là symlink GÃY (vd đã dời/đổi tên thư mục chứa tệp đích): trình cài không đổi được tên cũ bên
+# trong, provider khai ở đó mất lặng lẽ -> phải cảnh báo, nêu symlink và đích.
+y="$t/brokenlink"; mk_old "$y"; ln -sfn "$y/nowhere/.crush.json" "$y/home/.config/agent-cli/crush.json"
+msg_y="$(HOME="$y/home" DEW_INSTALL_DIR="$y/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1)" || true
+check "crush.json là symlink gãy -> cảnh báo nêu symlink và đích" "$(grep -q 'symlink gãy' <<<"$msg_y" && grep -qF "$y/nowhere/.crush.json" <<<"$msg_y"; echo $?)"
+
 # Có thư mục dữ liệu cũ nhưng không có worktree routine (ca thường gặp): undo.sh vẫn thoát 0.
 u="$t/noroutine"; mk_old "$u"; mkdir -p "$u/home/.local/share/agent-cli"; echo '{"projects":[]}' > "$u/home/.local/share/agent-cli/projects.json"
 HOME="$u/home" DEW_INSTALL_DIR="$u/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1
