@@ -209,6 +209,26 @@ func TestLegacyTrustedNamesRefused(t *testing.T) {
 	require.ErrorContains(t, err, envFile+":2: AGENT_CLI_ALLOWED_MODELS is the old name of DEW_ALLOWED_MODELS")
 }
 
+// Không đặt DEW_ENV_FILE mà tệp env tên cũ ~/.config/agent-cli/env còn đó (máy chưa
+// chuyển, hoặc trình cài thấy cả hai thư mục nên không gộp): allowlist trong đó sẽ bị bỏ
+// lặng lẽ, nên dừng và nêu đường dẫn. Chọn DEW_ENV_FILE tường minh thì không xét.
+func TestLoadRefusesLeftoverOldEnvFile(t *testing.T) {
+	t.Parallel()
+	home := t.TempDir()
+	old := filepath.Join(home, ".config", "agent-cli", "env")
+	require.NoError(t, os.MkdirAll(filepath.Dir(old), 0o700))
+	require.NoError(t, os.WriteFile(old, []byte("DEW_ALLOWED_MODELS=zai:glm-5.3\n"), 0o600))
+
+	_, err := load(env(map[string]string{"HOME": home}))
+	require.ErrorContains(t, err, old)
+	require.ErrorContains(t, err, filepath.Join(home, ".config", "dew", "env"))
+
+	newFile := filepath.Join(t.TempDir(), "env")
+	require.NoError(t, os.WriteFile(newFile, []byte("DEW_DELEGATION=on\n"), 0o600))
+	_, err = load(env(map[string]string{"HOME": home, EnvFileEnv: newFile}))
+	require.NoError(t, err)
+}
+
 func TestShellValue(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{

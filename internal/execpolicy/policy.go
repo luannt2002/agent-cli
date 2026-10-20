@@ -274,6 +274,9 @@ func load(getenv func(string) string) (Policy, error) {
 
 // loadAll đọc tệp env một lần cho cả chính sách lẫn Inputs, để hai thứ khớp nhau.
 func loadAll(getenv func(string) string) (loaded, error) {
+	if err := legacyEnvFile(getenv); err != nil {
+		return loaded{}, err
+	}
 	file, err := readEnvFile(envFilePath(getenv))
 	if err != nil {
 		return loaded{}, err
@@ -298,6 +301,21 @@ func inputsOf(getenv func(string) string) []string {
 		out = append(out, k+"="+getenv(k))
 	}
 	return out
+}
+
+// legacyEnvFile từ chối khi không đặt EnvFileEnv mà tệp env tên cũ (~/.config/agent-cli/env)
+// vẫn còn: allowlist và giao việc trong đó sẽ bị bỏ lặng lẽ (máy chưa chuyển, hoặc trình cài
+// thấy cả hai thư mục nên không gộp). Không xét được (lỗi khác "không có") cũng từ chối.
+func legacyEnvFile(getenv func(string) string) error {
+	home := getenv("HOME")
+	if getenv(EnvFileEnv) != "" || home == "" {
+		return nil
+	}
+	old := filepath.Join(home, ".config", "agent-cli", "env")
+	if _, err := os.Lstat(old); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return fmt.Errorf("%s still exists but dew reads %s since the rename (20/10/2026): run scripts/install-dew.sh to move it, or move what you need into the new file and delete the old one", old, envFilePath(getenv))
 }
 
 // envFilePath là đường dẫn tệp env của dew, như crushrc mẫu tính.
@@ -336,7 +354,7 @@ func readEnvFile(path string) (map[string]string, error) {
 		}
 		for _, k := range []string{AllowedModelsEnv, DelegationEnv} {
 			if old := legacyName(k); strings.Contains(line, old) {
-				return nil, fmt.Errorf("%s:%d: %s is the old name of %s (renamed on 20/10/2026): rename it, or run scripts/install-dew.sh which does it", path, n, old, k)
+				return nil, fmt.Errorf("%s:%d: %s is the old name of %s (renamed on 20/10/2026): rename it by hand (scripts/install-dew.sh renames it only in ~/.config/dew/env)", path, n, old, k)
 			}
 		}
 		mentions := strings.Contains(line, AllowedModelsEnv) || strings.Contains(line, DelegationEnv)
