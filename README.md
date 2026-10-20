@@ -1,6 +1,10 @@
-# agent-cli
+# DEW — Daily Engineering Workspace
 
-**agent-cli là nơi bạn làm việc; provider là thứ thực thi.**
+**DEW là nơi bạn làm việc; provider là thứ thực thi.**
+
+Tên cũ: agent-cli. Repo đổi thành `luannt2002/dew`; **lệnh, thư mục cấu hình và biến môi trường vẫn là `agent-cli`,
+`~/.config/agent-cli/`, `AGENT_CLI_*`** cho tới khi đổi tên sản phẩm ([kế hoạch](reports/documentation/RENAME_PLAN.md)).
+Lấy code và đồng bộ giữa các máy: [docs/dew-sync.md](docs/dew-sync.md).
 
 Trợ lý lập trình AI chạy trong terminal, bản fork cá nhân của [Crush](https://github.com/charmbracelet/crush) (Charm).
 Fork tồn tại để một người làm FE/BE/devops chạy nhiều dự án và nhiều việc song song trong một terminal, với model local
@@ -12,7 +16,7 @@ Hướng dẫn đầy đủ (cấu hình, server, loop/routine, giới hạn): [
 ## Cài
 
 ```bash
-git clone https://github.com/luannt2002/agent-cli.git && cd agent-cli
+git clone https://github.com/luannt2002/dew.git && cd dew
 bash scripts/install-agent-cli.sh          # build vào ~/.local, tạo crushrc + env mẫu nếu chưa có
 export PATH="$HOME/.local/bin:$PATH"       # thêm dòng này vào ~/.bashrc hoặc ~/.zshrc
 agent-cli --version                        # bản vừa cài

@@ -55,7 +55,7 @@
   - Tên hiển thị là agent-cli. Module path, `crush.json`, biến `CRUSH_*` và system prompt giữ chữ Crush, để merge upstream rẻ.
   - Không làm IO trong `Update`/`View` của TUI (ghi đầu `internal/ui/model/workspace_cache.go`).
   - Sửa SKILL.md builtin, template prompt hoặc mô tả tool là đổi system prompt, và sẽ làm đỏ cassette VCR của `TestCoderAgent`.
-- **Mã:** cây chính `/home/luannt/application/opensource/agent-cli`, nhánh `main`. Worktree `agent-cli-wt/` cũ không còn.
+- **Mã:** cây chính `/home/luannt/application/opensource/dew` (repo `luannt2002/dew`, tên cũ agent-cli; đổi tên 20/10, kế hoạch ở `reports/documentation/RENAME_PLAN.md`), nhánh `main`. Lệnh, cấu hình, `AGENT_CLI_*` vẫn tên cũ.
 
 ### P4. Luồng chính
 
