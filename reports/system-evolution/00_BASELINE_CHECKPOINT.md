@@ -23,7 +23,7 @@ Cách quay về (chỉ khi cần, phá thay đổi sau mốc): `git diff evo/bas
 
 | Mặt | Trạng thái |
 |---|---|
-| Binary đã cài | `~/.local/lib/agent-cli/crush` build từ `335709e4` (trước v0.2.0), wrapper `~/.local/bin/agent-cli`. **Đang được một phiên testweb-ai dùng → không cài đè** |
+| Binary đã cài | `~/.local/lib/agent-cli/crush` build từ `335709e4` (trước v0.2.0), wrapper `~/.local/bin/agent-cli`. **Đang được một phiên khác dùng → không cài đè** |
 | `~/.config/agent-cli/` | `crush.json` = symlink → `<repo>/.crush.json`; `crushrc` (khoá: `model`, `small_model`, `base_url`, `context_window`, `max_tokens`, `env_file`); `env` (0600, secret, KHÔNG đọc); `themes/`; `credentials/` (KHÔNG đọc) |
 | `~/.local/share/agent-cli/` | 24K: `crush.db`, `projects.json`, `config-backups/` |
 | Dữ liệu từng dự án | `<dự án>/.crush/` (SQLite riêng mỗi dự án) |

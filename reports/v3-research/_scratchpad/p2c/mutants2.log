@@ -26,9 +26,9 @@ FAIL	github.com/charmbracelet/crush/internal/backend	2.013s
 FAIL
 == R4 NormalizeWorkspace không dùng ProjectRoot (trả đường vật lý)
 --- FAIL: TestSubdirSharesEntryWithRepoRoot (0.03s)
-        	Error:      	"[{/tmp/TestSubdirSharesEntryWithRepoRoot4108434405/001/repo/a/b d1 2026-10-20 02:14:38.157392319 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false []} {/tmp/TestSubdirSharesEntryWithRepoRoot4108434405/001/repo d1 2026-10-20 02:14:38.150247009 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false []}]" should have 1 item(s), but has 2
+        	Error:      	"[{/tmp/TestSubdirSharesEntryWithRepoRoot4108434405/001/repo/a/b d1 2026-10-20 02:14:38.157392319 +0000 UTC máy dev a5aec1df3da34f6983113301e2e87480 false []} {/tmp/TestSubdirSharesEntryWithRepoRoot4108434405/001/repo d1 2026-10-20 02:14:38.150247009 +0000 UTC máy dev a5aec1df3da34f6983113301e2e87480 false []}]" should have 1 item(s), but has 2
 --- FAIL: TestRegisterKeepsKnownDataDirs (0.01s)
-        	Error:      	"[{/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/.crush 2026-10-20 02:14:38.171540626 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false []} {/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub/.crush 2026-01-02 03:04:05 +0000 UTC luannt-pc a5aec1df3da34f6983113301e2e87480 false [{/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub/.crush 2026-01-02 03:04:05 +0000 UTC}]}]" should have 1 item(s), but has 2
+        	Error:      	"[{/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/.crush 2026-10-20 02:14:38.171540626 +0000 UTC máy dev a5aec1df3da34f6983113301e2e87480 false []} {/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub/.crush 2026-01-02 03:04:05 +0000 UTC máy dev a5aec1df3da34f6983113301e2e87480 false [{/tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub /tmp/TestRegisterKeepsKnownDataDirs2371302044/001/repo/sub/.crush 2026-01-02 03:04:05 +0000 UTC}]}]" should have 1 item(s), but has 2
 FAIL
 FAIL	github.com/charmbracelet/crush/internal/projects	0.057s
 FAIL

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Kiểm cơ học toàn bộ cho một commit ứng viên V3, trong worktree RIÊNG (không đụng worktree ứng viên).
 # Dùng: bash verify-final.sh <commit> <out-dir-mới>
-# Biến môi trường (mặc định theo bố cục máy luannt-pc):
+# Biến môi trường (mặc định theo bố cục máy dev):
 #   SRC  = worktree bất kỳ của repo agent-cli (để `git worktree add`)
 #   WT   = đường worktree riêng cho lượt kiểm (tạo nếu chưa có)
 #   TOOLS= thư mục chứa cmp.py (mặc định: thư mục của script này)

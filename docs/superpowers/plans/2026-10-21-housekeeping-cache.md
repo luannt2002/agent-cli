@@ -3,7 +3,7 @@
 > Người thi hành: Opus, effort high, **được quyền phản biện plan**. Plan do điều phối viết từ số đo ngày 21/10; chỗ nào sai thì nói.
 > Cấm: viết số chưa chạy ra · nở phạm vi ngoài plan · commit/push · xoá ngoài các đích nêu dưới.
 
-## Vì sao (đã đo trên luannt-pc, 21/10/2026)
+## Vì sao (đã đo trên máy dev, 21/10/2026)
 
 - Đĩa từng lên 91% (20 GB trống). `~/.cache/go-build` chiếm **68 GB**. Theo tuổi tệp: 10,8 GB tạo trong 24 giờ qua, 37 GB trong 1–3 ngày, 22,9 GB trong 3–7 ngày, 0 GB cũ hơn 7 ngày.
 - Go chỉ tự dọn **theo tuổi**: mỗi ngày một lần, bỏ mục không dùng quá 5 ngày (`cmd/go/internal/cache/cache.go`, `trimLimit`). **Không có trần dung lượng.**

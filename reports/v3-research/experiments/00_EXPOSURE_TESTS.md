@@ -21,7 +21,7 @@
   - Mỗi ca có HOME, XDG, `CRUSH_GLOBAL_*` và `AGENT_CLI_RUNTIME_DIR` riêng, socket riêng, và tmux riêng (T4).
   - Launcher thật cài vào `<run>/_launcher` (`AGENT_CLI_SKIP_BUILD=1`, shim gọi binary).
   - LLM giả `scripts/eval/fakellm.py`, kèm stub MCP stdio. Không gọi LLM thật. Không đụng `~/.config/agent-cli` thật.
-- **Ngày đo:** 19/10/2026, máy luannt-pc.
+- **Ngày đo:** 19/10/2026, máy dev.
 
 ## Thư mục chạy bền và lệnh tái lập
 
