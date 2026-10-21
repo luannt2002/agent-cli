@@ -11,12 +11,14 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/crush/internal/routine"
 	"github.com/charmbracelet/crush/internal/ui/styles"
 )
 
@@ -27,6 +29,8 @@ const (
 	RecentLimit = 5
 	// SessionLimit caps the sessions listed for one workspace.
 	SessionLimit = 50
+	// RoutineLimit is how many routines the Routines section shows.
+	RoutineLimit = 5
 	// probeBudget bounds one probe of all servers, one session listing and one
 	// load of the workspace registry.
 	probeBudget = 3 * time.Second
@@ -129,6 +133,7 @@ const (
 	rowShowAll
 	rowNewSession
 	rowSession
+	rowRoutine
 )
 
 type row struct {
@@ -136,17 +141,20 @@ type row struct {
 	text string // rowHeader only.
 	ws   Workspace
 	sess Session
+	run  routine.RunSummary
 }
 
 func (r row) selectable() bool { return r.kind != rowHeader }
 
-// isItem reports whether r is a workspace or session, as opposed to an action
+// isItem reports whether r is a workspace, session or routine run, as opposed to an action
 // row: only items are worth following across rebuilds.
-func (r row) isItem() bool { return r.kind == rowWorkspace || r.kind == rowSession }
+func (r row) isItem() bool {
+	return r.kind == rowWorkspace || r.kind == rowSession || r.kind == rowRoutine
+}
 
 // same reports whether a and b show the same thing, across rebuilds.
 func (r row) same(o row) bool {
-	return r.kind == o.kind && r.ws.Path == o.ws.Path && r.sess.ID == o.sess.ID
+	return r.kind == o.kind && r.ws.Path == o.ws.Path && r.sess.ID == o.sess.ID && r.run.Routine == o.run.Routine
 }
 
 type (
@@ -154,7 +162,10 @@ type (
 		list []Workspace
 		err  error
 	}
-	liveMsg     struct{ live map[string]Live }
+	liveMsg struct {
+		live     map[string]Live
+		routines []routine.RunSummary // Only read when routinesDir is set.
+	}
 	sessionsMsg struct {
 		path string
 		list []Session
@@ -194,6 +205,11 @@ type Model struct {
 	budget     time.Duration   // Bound of one registry load.
 	live       map[string]Live // nil until the probe returns.
 
+	// routinesDir is where routines keep their runs; "" shows no routines.
+	routinesDir string
+	routines    []routine.RunSummary
+	fromRoutine string // The routine whose worktree's sessions are listed, if any.
+
 	ws             Workspace // The workspace whose sessions are listed.
 	sessions       []Session
 	sessionsLoaded bool
@@ -220,9 +236,11 @@ func New(src Source, sty *styles.Styles, cwd string) *Model {
 	return m
 }
 
-// Run shows Home until the user picks something or quits.
-func Run(ctx context.Context, src Source, sty *styles.Styles, cwd string) (Choice, error) {
+// Run shows Home until the user picks something or quits. routinesDir is where
+// routines keep their runs; "" shows no Routines section.
+func Run(ctx context.Context, src Source, sty *styles.Styles, cwd, routinesDir string) (Choice, error) {
 	m := New(src, sty, cwd)
+	m.routinesDir = routinesDir
 	if _, err := tea.NewProgram(m, tea.WithContext(ctx)).Run(); err != nil {
 		return Choice{}, err
 	}
@@ -260,6 +278,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.live == nil {
 			m.live = map[string]Live{}
 		}
+		m.routines = msg.routines
 		cmd = m.armProbeTick()
 	case probeTickMsg:
 		// Nothing to redraw by itself: a probe's answer redraws when it lands.
@@ -352,7 +371,14 @@ func (m *Model) back() tea.Cmd {
 		from := m.ws.Path
 		m.setScreen(screenWorkspaces)
 		m.rows = m.buildRows()
-		m.cursor = slices.IndexFunc(m.rows, func(r row) bool { return r.kind == rowWorkspace && r.ws.Path == from })
+		routineName := m.fromRoutine
+		m.fromRoutine = ""
+		m.cursor = slices.IndexFunc(m.rows, func(r row) bool {
+			if routineName != "" {
+				return r.kind == rowRoutine && r.run.Routine == routineName
+			}
+			return r.kind == rowWorkspace && r.ws.Path == from
+		})
 		m.anchored = m.cursor >= 0
 	case m.input.Value() != "" || m.showAll:
 		m.input.Reset()
@@ -389,10 +415,32 @@ func (m *Model) activate() tea.Cmd {
 	case rowShowAll:
 		m.showAll = true
 		m.anchored = false
+	case rowRoutine:
+		return m.openRoutine(r.run)
 	case rowNewSession:
 		return m.quit(Choice{Dir: m.ws.Path})
 	case rowSession:
 		return m.quit(Choice{Dir: cmp.Or(r.sess.Dir, m.ws.Path), SessionID: r.sess.ID})
+	}
+	return nil
+}
+
+// openRoutine shows the sessions of a finished routine run's worktree. It
+// never touches a live run: the worktree belongs to the running process.
+func (m *Model) openRoutine(run routine.RunSummary) tea.Cmd {
+	switch {
+	case run.Running:
+		m.note = run.Routine + " is still running (pid " + strconv.Itoa(run.PID) + "): its worktree is in use"
+	case run.Unknown:
+		m.note = run.Routine + ": cannot tell whether the run is still alive, so its worktree is not opened"
+	case run.Worktree == "":
+		m.note = run.Routine + ": the last run has no worktree to open"
+	case !run.WorktreeExists:
+		m.note = run.Routine + ": worktree no longer exists: " + run.Worktree
+	default:
+		cmd := m.openWorkspace(Workspace{Path: run.Worktree, Branch: run.Branch})
+		m.fromRoutine = run.Routine
+		return cmd
 	}
 	return nil
 }
@@ -424,6 +472,7 @@ func (m *Model) setScreen(s screen) {
 // openWorkspace shows the session list of ws.
 func (m *Model) openWorkspace(ws Workspace) tea.Cmd {
 	m.setScreen(screenSessions)
+	m.fromRoutine = ""
 	m.ws, m.sessions, m.sessionsLoaded = ws, nil, false
 	src := m.src
 	return func() tea.Msg {
@@ -464,11 +513,17 @@ func (m *Model) probe(list []Workspace) tea.Cmd {
 	for i, w := range list {
 		paths[i] = w.Path
 	}
-	src := m.src
+	src, routinesDir := m.src, m.routinesDir
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), probeBudget)
 		defer cancel()
-		return liveMsg{src.Probe(ctx, paths)}
+		msg := liveMsg{live: src.Probe(ctx, paths)}
+		if routinesDir != "" {
+			// shortcut: a local directory read with no deadline; bound it like
+			// loadWorkspaces if the data dir ever lives on a mount that can hang.
+			msg.routines = routine.LatestRuns(routinesDir, time.Now())
+		}
+		return msg
 	}
 }
 
@@ -624,6 +679,13 @@ func (m *Model) workspaceRows() []row {
 	rows = append(rows, row{kind: rowOpenCwd}, row{kind: rowOpenPath})
 	if q == "" && !m.showAll {
 		rows = append(rows, row{kind: rowShowAll})
+		// After the actions, so a long list never pushes them off screen.
+		if m.loaded && len(m.routines) > 0 {
+			rows = append(rows, row{kind: rowHeader, text: "Routines"})
+			for _, r := range m.routines[:min(len(m.routines), RoutineLimit)] {
+				rows = append(rows, row{kind: rowRoutine, run: r})
+			}
+		}
 	}
 	return rows
 }

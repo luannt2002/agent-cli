@@ -81,7 +81,7 @@ func runHome(cmd *cobra.Command) error {
 	debug, _ := cmd.Flags().GetBool("debug")
 	sty := common.LoadThemeStyles("")
 	code, err := homeLoop(
-		func() (home.Choice, error) { return home.Run(cmd.Context(), homeSource{}, &sty, cwd) },
+		func() (home.Choice, error) { return home.Run(cmd.Context(), homeSource{}, &sty, cwd, routineDataDir()) },
 		func(c home.Choice) (int, error) { return runChild(homeChildCmd(exe, c, debug)) },
 	)
 	if err == nil && code != 0 {

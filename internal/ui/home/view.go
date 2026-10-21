@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -12,6 +13,7 @@ import (
 	"github.com/dustin/go-humanize"
 
 	homedir "github.com/charmbracelet/crush/internal/home"
+	"github.com/charmbracelet/crush/internal/routine"
 )
 
 // View returns the cached frame; it is only re-rendered after Update
@@ -148,6 +150,8 @@ func (m *Model) rowSegments(r row) []segment {
 		return []segment{{fmt.Sprintf("→ Show all / search (%d)", len(m.workspaces)), base}}
 	case rowNewSession:
 		return []segment{{"→ New session", base}}
+	case rowRoutine:
+		return m.routineSegments(r.run, base, muted)
 	case rowSession:
 		title := r.sess.Title
 		if title == "" {
@@ -203,4 +207,66 @@ func (m *Model) statusStyle(s SessionStatus) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(t.Status.WarnIndicator.GetBackground())
 	}
 	return t.Header.WorkingDir
+}
+
+// routineSegments is one routine's newest run: status, duration, verify,
+// changed files and attempts.
+func (m *Model) routineSegments(r routine.RunSummary, base, muted lipgloss.Style) []segment {
+	segs := []segment{{"  " + r.Routine, base}}
+	if r.Unreadable {
+		return append(segs, segment{"  report unreadable", m.errStyle()})
+	}
+	segs = append(segs, segment{"  " + strings.ToLower(strings.ReplaceAll(r.Reason, "_", " ")), m.routineStyle(r)})
+	if r.Duration > 0 {
+		segs = append(segs, segment{"  " + shortDuration(r.Duration), muted})
+	}
+	// An unfinished report has no attempts or changed files yet.
+	unfinished := r.Running || r.Unknown || r.Reason == "ABANDONED"
+	verify, vs := "verify not run", muted
+	switch r.Verify {
+	case "PASS":
+		verify, vs = "verify PASS", m.okStyle()
+	case "FAIL":
+		verify, vs = "verify FAIL", m.errStyle()
+	case routine.VerifyPassNotGreen:
+		verify, vs = "verify PASS (run not green — review)", m.statusStyle(StatusWaiting)
+	}
+	segs = append(segs, segment{"  " + verify, vs})
+	if unfinished {
+		return segs
+	}
+	return append(segs, segment{fmt.Sprintf("  %d files", r.Changed), muted},
+		segment{fmt.Sprintf("  %d attempts", r.Attempts), muted})
+}
+
+func (m *Model) routineStyle(r routine.RunSummary) lipgloss.Style {
+	switch {
+	case r.Running:
+		return m.statusStyle(StatusRunning)
+	case r.Unknown:
+		return m.statusStyle(StatusWaiting) // Warn: it may be alive.
+	case r.Reason == "GREEN" || r.Reason == "NO_CHANGE":
+		return m.okStyle()
+	}
+	return m.errStyle() // Every other end, and an unknown one, is not a success.
+}
+
+func (m *Model) okStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(m.sty.Tool.JobIconSuccess.GetForeground())
+}
+
+func (m *Model) errStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(m.sty.Tool.JobIconError.GetForeground())
+}
+
+// shortDuration is d as 45s, 10m03s or 2h05m.
+func shortDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%02dm", int(d.Hours()), int(d.Minutes())%60)
 }

@@ -1,6 +1,7 @@
 package routine
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,8 @@ func TestValidate(t *testing.T) {
 		"negative duration":        {mod(func(d *Definition) { d.RunTimeout = "-5m" }), "run_timeout"},
 		"negative repairs":         {mod(func(d *Definition) { n := -1; d.MaxRepairs = &n }), "max_repairs"},
 		"too many repairs":         {mod(func(d *Definition) { n := 6; d.MaxRepairs = &n }), "max_repairs"},
+		"negative stream retries":  {mod(func(d *Definition) { n := -1; d.StreamRetries = &n }), "stream_retries"},
+		"too many stream retries":  {mod(func(d *Definition) { n := 6; d.StreamRetries = &n }), "stream_retries"},
 		"bad timezone":             {mod(func(d *Definition) { d.Schedule.Timezone = "Mars/Base" }), "timezone"},
 		"cron wrong field count":   {mod(func(d *Definition) { d.Schedule = &Schedule{Cron: "0 9 * *"} }), "cron"},
 		"unsafe char in on_cal":    {mod(func(d *Definition) { d.Schedule.OnCalendar = "daily\nExecStartPre=/bin/sh" }), "on_calendar"},
@@ -136,4 +139,22 @@ func TestScheduleText_RefusesWhatCannotBeScheduled(t *testing.T) {
 	require.NoError(t, err)
 	out, _ := d.ScheduleText("/bin/agent cli", sum, "/bin", nil)
 	require.Contains(t, out, `ExecStart="/bin/agent cli" routine run`, "đường dẫn có khoảng trắng phải được bọc nháy")
+}
+
+// F1: stream_retries (0–5, mặc định 2; 0 = không chạy lại) đọc từ tệp định nghĩa.
+func TestStreamRetries(t *testing.T) {
+	t.Parallel()
+	d, _, err := Parse([]byte(goodDef))
+	require.NoError(t, err)
+	n, err := d.StreamRetryLimit()
+	require.NoError(t, err)
+	require.Equal(t, 2, n, "mặc định")
+	for _, v := range []int{0, 5} {
+		d, _, err := Parse([]byte(strings.Replace(goodDef, `"verify"`, fmt.Sprintf(`"stream_retries": %d, "verify"`, v), 1)))
+		require.NoError(t, err)
+		require.NoError(t, d.Validate())
+		n, err := d.StreamRetryLimit()
+		require.NoError(t, err)
+		require.Equal(t, v, n)
+	}
 }

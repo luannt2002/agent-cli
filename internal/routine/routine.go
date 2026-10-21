@@ -33,8 +33,11 @@ const (
 	DefaultMaxRepairs    = 2
 	DefaultRunTimeout    = 45 * time.Minute
 	DefaultVerifyTimeout = 30 * time.Minute
+	DefaultStreamRetries = 2
 	// maxRepairsCap: hai vòng là hết; cho phép tới 5 nhưng không hơn.
 	maxRepairsCap = 5
+	// MaxStreamRetries là trần của stream_retries và `dew loop --stream-retries`.
+	MaxStreamRetries = 5
 )
 
 // Schedule là lịch của routine maintenance. Khai on_calendar (systemd) và/hoặc
@@ -54,6 +57,7 @@ type Definition struct {
 	Goal          string    `json:"goal"`
 	Verify        string    `json:"verify"`
 	MaxRepairs    *int      `json:"max_repairs,omitempty"`
+	StreamRetries *int      `json:"stream_retries,omitempty"` // lần chạy lại liên tiếp sau lỗi tạm thời (0–5, mặc định 2)
 	MaxDuration   string    `json:"max_duration,omitempty"`
 	RunTimeout    string    `json:"run_timeout,omitempty"`
 	VerifyTimeout string    `json:"verify_timeout,omitempty"`
@@ -106,6 +110,9 @@ func (d Definition) Validate() error {
 	if _, _, _, _, err := d.Limits(); err != nil {
 		return err
 	}
+	if _, err := d.StreamRetryLimit(); err != nil {
+		return err
+	}
 	if d.Schedule == nil {
 		return nil
 	}
@@ -130,6 +137,17 @@ func (d Definition) Validate() error {
 		}
 	}
 	return nil
+}
+
+// StreamRetryLimit trả stream_retries đã giải (mặc định khi không khai).
+func (d Definition) StreamRetryLimit() (int, error) {
+	if d.StreamRetries == nil {
+		return DefaultStreamRetries, nil
+	}
+	if n := *d.StreamRetries; n < 0 || n > MaxStreamRetries {
+		return 0, fmt.Errorf("stream_retries must be between 0 and %d (got %d)", MaxStreamRetries, n)
+	}
+	return *d.StreamRetries, nil
 }
 
 // Limits trả các giới hạn đã giải (mặc định khi không khai).
