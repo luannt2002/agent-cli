@@ -185,6 +185,13 @@ func (m *Model) rowSegments(r row) []segment {
 	case !ws.LastAccessed.IsZero():
 		segs = append(segs, segment{"  " + humanize.Time(ws.LastAccessed), muted})
 	}
+	if n := m.repoRunning[ws.Path]; n > 0 {
+		word := "routines"
+		if n == 1 {
+			word = "routine"
+		}
+		segs = append(segs, segment{fmt.Sprintf("  · %d %s running", n, word), m.routineStyle(routine.RunSummary{Running: true})})
+	}
 	return append(segs, segment{"  " + homedir.Short(ws.Path), muted})
 }
 
@@ -216,7 +223,14 @@ func (m *Model) routineSegments(r routine.RunSummary, base, muted lipgloss.Style
 	if r.Unreadable {
 		return append(segs, segment{"  report unreadable", m.errStyle()})
 	}
-	segs = append(segs, segment{"  " + strings.ToLower(strings.ReplaceAll(r.Reason, "_", " ")), m.routineStyle(r)})
+	status := strings.ToLower(strings.ReplaceAll(r.Reason, "_", " "))
+	if r.Running {
+		status = "● " + status // A shape cue besides the colour: themes put "busy" and "success" close together.
+	}
+	segs = append(segs, segment{"  " + status, m.routineStyle(r)})
+	if r.Model != "" { // provider/model; cut so a long id cannot push the verify column off screen.
+		segs = append(segs, segment{"  " + ansi.Truncate(r.Model, 30, "…"), muted})
+	}
 	if r.Duration > 0 {
 		segs = append(segs, segment{"  " + shortDuration(r.Duration), muted})
 	}
@@ -242,7 +256,8 @@ func (m *Model) routineSegments(r routine.RunSummary, base, muted lipgloss.Style
 func (m *Model) routineStyle(r routine.RunSummary) lipgloss.Style {
 	switch {
 	case r.Running:
-		return m.statusStyle(StatusRunning)
+		// The warning colour, not Resource.BusyIcon: in themes like Everforest that is a green next to the "ok" one.
+		return m.statusStyle(StatusWaiting)
 	case r.Unknown:
 		return m.statusStyle(StatusWaiting) // Warn: it may be alive.
 	case r.Reason == "GREEN" || r.Reason == "NO_CHANGE":

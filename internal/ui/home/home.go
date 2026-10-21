@@ -165,6 +165,8 @@ type (
 	liveMsg struct {
 		live     map[string]Live
 		routines []routine.RunSummary // Only read when routinesDir is set.
+		// repoRunning counts the provably running routine runs per canonical repo path.
+		repoRunning map[string]int
 	}
 	sessionsMsg struct {
 		path string
@@ -208,7 +210,8 @@ type Model struct {
 	// routinesDir is where routines keep their runs; "" shows no routines.
 	routinesDir string
 	routines    []routine.RunSummary
-	fromRoutine string // The routine whose worktree's sessions are listed, if any.
+	repoRunning map[string]int // Provably running routine runs by canonical repo path.
+	fromRoutine string         // The routine whose worktree's sessions are listed, if any.
 
 	ws             Workspace // The workspace whose sessions are listed.
 	sessions       []Session
@@ -278,7 +281,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.live == nil {
 			m.live = map[string]Live{}
 		}
-		m.routines = msg.routines
+		m.routines, m.repoRunning = msg.routines, msg.repoRunning
 		cmd = m.armProbeTick()
 	case probeTickMsg:
 		// Nothing to redraw by itself: a probe's answer redraws when it lands.
@@ -522,9 +525,29 @@ func (m *Model) probe(list []Workspace) tea.Cmd {
 			// shortcut: a local directory read with no deadline; bound it like
 			// loadWorkspaces if the data dir ever lives on a mount that can hang.
 			msg.routines = routine.LatestRuns(routinesDir, time.Now())
+			msg.repoRunning = runningByRepo(msg.routines)
 		}
 		return msg
 	}
+}
+
+// runningByRepo counts the runs that are provably alive (not merely unknown) per
+// repo, keyed by the symlink-resolved path so it matches a registered workspace.
+// shortcut: no repo-root lookup (it would exec the VCS), so a routine whose repo is
+// a subdirectory of the workspace root is not matched; upgrade if routines ever do that.
+func runningByRepo(runs []routine.RunSummary) map[string]int {
+	out := map[string]int{}
+	for _, r := range runs {
+		if !r.Running || r.Unknown || r.Repo == "" {
+			continue
+		}
+		key, err := filepath.EvalSymlinks(r.Repo)
+		if err != nil {
+			key = r.Repo
+		}
+		out[filepath.Clean(key)]++
+	}
+	return out
 }
 
 // armProbeTick schedules the next probe, unless probing is off or a timer is
@@ -681,7 +704,11 @@ func (m *Model) workspaceRows() []row {
 		rows = append(rows, row{kind: rowShowAll})
 		// After the actions, so a long list never pushes them off screen.
 		if m.loaded && len(m.routines) > 0 {
-			rows = append(rows, row{kind: rowHeader, text: "Routines"})
+			title := "Routines"
+			if len(m.routines) > RoutineLimit { // The rest are in `dew routine list`.
+				title = fmt.Sprintf("Routines (%d/%d)", RoutineLimit, len(m.routines))
+			}
+			rows = append(rows, row{kind: rowHeader, text: title})
 			for _, r := range m.routines[:min(len(m.routines), RoutineLimit)] {
 				rows = append(rows, row{kind: rowRoutine, run: r})
 			}

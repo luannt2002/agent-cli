@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/charmbracelet/crush/internal/routine"
+	"github.com/charmbracelet/crush/internal/ui/styles"
 )
 
 // TestHelperSleep is not a test: startRoutineProc re-executes the test binary
@@ -113,30 +114,127 @@ func TestRoutinesSection(t *testing.T) {
 	require.Len(t, got, 5, "live dead green rerr bad; notroutine skipped")
 	require.Equal(t, "bad  report unreadable", got[1], "unreadable is ordered by its stamp (newest here)")
 	// The clock is real: 10m00s to 10m05s depending on how slow the test is.
-	require.Regexp(t, `^live  running  10m0[0-5]s  verify not run$`, got[0], "running first; no files/attempts columns while running")
+	require.Regexp(t, `^live  ● running  10m0[0-5]s  verify not run$`, got[0], "running first; no files/attempts columns while running")
 
 	text := strings.Join(got, "\n")
 	require.Contains(t, text, "green  green  1m35s  verify PASS  2 files  1 attempts")
 	require.Contains(t, text, "rerr  run error  1m35s  verify not run", "RUN_ERROR never looks like a pass")
 	require.NotContains(t, text, "rerr  run error  1m35s  verify PASS")
 	require.Contains(t, text, "dead  abandoned  verify not run\n", "RUNNING with a dead pid is not running")
-	require.NotContains(t, text, "dead  running")
+	require.NotContains(t, text, "dead  ● running")
 	require.NotContains(t, text, "notroutine")
 }
 
 func TestRoutinesColoredByStatus(t *testing.T) {
 	dir, _ := routinesFixture(t)
 	m, _ := routineModel(t, dir)
-	fg := func(name string) string {
-		i := slices.IndexFunc(m.rows, func(r row) bool { return r.kind == rowRoutine && r.run.Routine == name })
-		require.GreaterOrEqual(t, i, 0, name)
-		return fmt.Sprint(m.rowSegments(m.rows[i])[1].style.GetForeground()) // The status segment.
+	// Both themes: in the default one (Everforest) Resource.BusyIcon and Tool.JobIconSuccess are two greens.
+	for name, sty := range map[string]styles.Styles{"default": styles.DefaultTheme(), "charmtone": styles.CharmtonePantera()} {
+		m.sty = &sty
+		fg := func(name string) string {
+			i := slices.IndexFunc(m.rows, func(r row) bool { return r.kind == rowRoutine && r.run.Routine == name })
+			require.GreaterOrEqual(t, i, 0, name)
+			return fmt.Sprint(m.rowSegments(m.rows[i])[1].style.GetForeground()) // The status segment.
+		}
+		ok, bad, run, dead := fg("green"), fg("rerr"), fg("live"), fg("dead")
+		require.NotEqual(t, ok, bad, "%s: ok and error differ", name)
+		require.NotEqual(t, run, bad, name)
+		require.NotEqual(t, run, ok, "%s: running must not look like green", name)
+		require.Equal(t, bad, dead, "%s: abandoned is error-coloured", name)
+		require.Equal(t, fmt.Sprint(sty.Status.WarnIndicator.GetBackground()), run, "%s: running is the warning colour, not Resource.BusyIcon", name)
+		require.NotEqual(t, fmt.Sprint(sty.Resource.BusyIcon.GetForeground()), run, name)
 	}
-	ok, bad, run, dead := fg("green"), fg("rerr"), fg("live"), fg("dead")
-	require.NotEqual(t, ok, bad, "ok and error differ")
-	require.NotEqual(t, run, bad)
-	require.NotEqual(t, run, ok)
-	require.Equal(t, bad, dead, "abandoned is error-coloured")
+	text := func(name string) string {
+		i := slices.IndexFunc(m.rows, func(r row) bool { return r.kind == rowRoutine && r.run.Routine == name })
+		return m.rowSegments(m.rows[i])[1].text
+	}
+	require.Equal(t, "  ● running", text("live"), "a shape cue as well, for themes whose colours sit close")
+	require.Equal(t, "  green", text("green"))
+	require.NotContains(t, text("dead"), "●")
+}
+
+func TestRoutinesHeaderSaysHowManyExist(t *testing.T) {
+	dir := t.TempDir()
+	for i := range RoutineLimit + 3 {
+		writeReport(t, dir, fmt.Sprintf("r%d", i), map[string]any{"started": time.Now().Add(-time.Duration(i) * time.Hour).UTC().Format(time.RFC3339), "reason": "GREEN"})
+	}
+	m, _ := routineModel(t, dir)
+	require.Contains(t, screenText(m), fmt.Sprintf("Routines (%d/%d)", RoutineLimit, RoutineLimit+3), "capped: shows shown/total")
+	require.Len(t, routineLines(m), RoutineLimit)
+
+	exact := t.TempDir() // Exactly the limit: nothing hidden, plain header.
+	for i := range RoutineLimit {
+		writeReport(t, exact, fmt.Sprintf("r%d", i), map[string]any{"started": time.Now().UTC().Format(time.RFC3339), "reason": "GREEN"})
+	}
+	m2, _ := routineModel(t, exact)
+	txt := screenText(m2)
+	require.Contains(t, txt, "Routines")
+	require.NotContains(t, txt, "Routines (")
+}
+
+func TestRoutineRowShowsModel(t *testing.T) {
+	dir := t.TempDir()
+	started := time.Now().Add(-10 * time.Minute).UTC().Format(time.RFC3339)
+	done := time.Now().Add(-10*time.Minute + 95*time.Second).UTC().Format(time.RFC3339)
+	writeReport(t, dir, "with", map[string]any{"started": started, "finished": done, "reason": "GREEN", "verify_status": "PASS", "attempts": 1, "model": "zai/glm-5.3"})
+	writeReport(t, dir, "long", map[string]any{"started": started, "finished": done, "reason": "GREEN", "model": "openrouter/" + strings.Repeat("x", 60)})
+	writeReport(t, dir, "none", map[string]any{"started": started, "finished": done, "reason": "GREEN"})
+	m, _ := routineModel(t, dir)
+	text := strings.Join(routineLines(m), "\n")
+	require.Contains(t, text, "with  green  zai/glm-5.3  1m35s  verify PASS  0 files  1 attempts", "model right after the status")
+	require.Regexp(t, `long  green  openrouter/x+…  1m35s`, text, "a long id is cut")
+	require.Contains(t, text, "none  green  1m35s  verify not run", "no model in the report: no column")
+}
+
+// wsLine is the text of the workspace row for path.
+func wsLine(m *Model, path string) string {
+	for _, r := range m.rows {
+		if r.kind == rowWorkspace && r.ws.Path == path {
+			var b strings.Builder
+			for _, s := range m.rowSegments(r) {
+				b.WriteString(s.text)
+			}
+			return b.String()
+		}
+	}
+	return ""
+}
+
+func TestWorkspaceShowsRunningRoutines(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	repo, other := filepath.Join(root, "repo"), filepath.Join(root, "other")
+	require.NoError(t, os.Mkdir(repo, 0o755))
+	require.NoError(t, os.Mkdir(other, 0o755))
+	link := filepath.Join(root, "link")
+	require.NoError(t, os.Symlink(repo, link))
+
+	dir := t.TempDir()
+	started := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+	run := func(name, repoPath string, extra map[string]any) {
+		rep := map[string]any{"started": started, "reason": "RUNNING", "repo": repoPath, "model": "zai/glm-5.3"}
+		for k, v := range extra {
+			rep[k] = v
+		}
+		writeReport(t, dir, name, rep)
+	}
+	run("a", repo, map[string]any{"pid": startRoutineProc(t, "a")})
+	run("b", link, map[string]any{"pid": startRoutineProc(t, "b")}) // Same repo through a symlink.
+	run("dead", repo, map[string]any{"pid": deadPID(t)})            // Abandoned: not running.
+	run("old", repo, nil)                                           // No pid: unknown, not provably running.
+	run("c", other, map[string]any{"pid": startRoutineProc(t, "c")})
+	writeReport(t, dir, "done", map[string]any{"started": started, "finished": started, "reason": "GREEN", "repo": other})
+
+	src := &fakeSource{workspaces: []Workspace{{Path: repo}, {Path: other}, {Path: "/w/none"}}}
+	m := newTestModel(src)
+	m.routinesDir = dir
+	drive(m, m.Init())
+
+	require.Contains(t, wsLine(m, repo), "· 2 routines running", "a and b only: dead, unknown and finished runs do not count")
+	require.Contains(t, wsLine(m, other), "· 1 routine running")
+	require.NotContains(t, wsLine(m, other), "routines running")
+	require.NotContains(t, wsLine(m, "/w/none"), "running")
+	t.Log("\n" + screenText(m))
 }
 
 func TestRoutinesDoNotBreakOrStealCursor(t *testing.T) {

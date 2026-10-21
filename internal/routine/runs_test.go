@@ -159,6 +159,21 @@ func TestRunAlive(t *testing.T) {
 	require.False(t, RunAlive(deadPID(t), "x"))
 }
 
+// Model và Repo đọc từ report.json (provider/model đã phân giải, repo của lượt); vắng thì rỗng.
+func TestLatestRunsModelAndRepo(t *testing.T) {
+	dir := t.TempDir()
+	writeRun(t, dir, "with", "20261021-100000", map[string]any{"started": ts(0), "finished": ts(time.Minute), "reason": "GREEN", "model": "zai/glm-5.3", "repo": "/r/dew"})
+	writeRun(t, dir, "without", "20261021-100000", map[string]any{"started": ts(0), "finished": ts(time.Minute), "reason": "GREEN"})
+	by := map[string]RunSummary{}
+	for _, r := range LatestRuns(dir, t0) {
+		by[r.Routine] = r
+	}
+	require.Equal(t, "zai/glm-5.3", by["with"].Model)
+	require.Equal(t, "/r/dew", by["with"].Repo)
+	require.Empty(t, by["without"].Model)
+	require.Empty(t, by["without"].Repo)
+}
+
 func TestLatestRunsUnreadableNotHiddenByOrder(t *testing.T) {
 	dir := t.TempDir()
 	for i := range 7 {

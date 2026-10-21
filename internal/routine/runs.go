@@ -38,6 +38,8 @@ type RunSummary struct {
 	Attempts   int
 	Changed    int
 	PID        int
+	Model      string // provider/model đã phân giải của lượt; rỗng khi báo cáo không ghi (bản cũ).
+	Repo       string // Repo git mà routine làm việc (đường tuyệt đối như trong định nghĩa).
 }
 
 type runReport struct {
@@ -50,6 +52,8 @@ type runReport struct {
 	Branch       string    `json:"branch"`
 	Worktree     string    `json:"worktree"`
 	PID          int       `json:"pid"`
+	Model        string    `json:"model"`
+	Repo         string    `json:"repo"`
 }
 
 // LatestRuns trả lượt mới nhất của mỗi routine dưới dataDir (dataDir/<tên>/runs/
@@ -113,6 +117,7 @@ func readRun(dir, name, stamp string, now time.Time) RunSummary {
 		return s
 	}
 	s.Reason, s.Worktree, s.Branch, s.PID = rep.Reason, rep.Worktree, rep.Branch, rep.PID
+	s.Model, s.Repo = rep.Model, rep.Repo
 	s.Started, s.Attempts, s.Changed = rep.Started, rep.Attempts, len(rep.ChangedFiles)
 	if rep.Reason == "RUNNING" {
 		switch {
@@ -148,7 +153,7 @@ func readRun(dir, name, stamp string, now time.Time) RunSummary {
 // RunAlive báo tiến trình pid còn sống VÀ đang là `routine run <name>`: pid bị
 // tái dùng cho tiến trình khác không tính. Nơi có /proc thì đọc cmdline; nơi
 // không có (macOS) chỉ còn Signal(0). Windows: coi như không sống.
-// internal/cmd có một phép kiểm tương đương; điều phối sẽ gộp về đây sau.
+// Đây là phép kiểm duy nhất: ps, routine list, gc và Home đều gọi hàm này.
 // shortcut: macOS không kiểm cmdline, pid tái dùng có thể báo nhầm "đang chạy".
 func RunAlive(pid int, name string) bool {
 	if pid <= 0 || runtime.GOOS == "windows" {
