@@ -746,7 +746,9 @@ dew routine show tidy         # định nghĩa, sha256, nơi lưu khoá và báo
 
 Model: lượt chạy model ghim trong định nghĩa (`--model provider/model` hoặc trường `"model"`). `routine new` không có
 `--model` ghi sẵn model large mặc định lúc tạo vào định nghĩa; muốn đổi thì sửa trường `model`. Đầu mỗi lượt stderr in
-model đang dùng. `stream_retries` (0–5, mặc định 2): số lần chạy lại liên tiếp khi lượt bị lỗi tạm thời cắt ngang (5xx,
+model đang dùng. Xem patch của một lượt: `dew routine export NAME [-o FILE]`; độ trễ và lỗi từng request LLM:
+`dew routine stats [NAME] [--since 24h]`. `DEW_ROUTINE_MIN_MEM_MB` (mặc định 0 = tắt): RAM trống dưới ngưỡng thì lượt
+thoát 75. `stream_retries` (0–5, mặc định 2): số lần chạy lại liên tiếp khi lượt bị lỗi tạm thời cắt ngang (5xx,
 429 không phải hạn mức, stream im, mất kết nối). Lý do dừng có thêm `STREAM_STALL` và `QUOTA`; `TIMEOUT` gồm cả lượt quá
 `run_timeout`. Run bị cắt vẫn chạy verify một lần nhưng không bao giờ GREEN.
 
@@ -762,7 +764,7 @@ cùng worktree), có tệp bị giấu khỏi `git status` (assume-unchanged, ho
 được ghi sau `finished` + 1 phút (có người mở lại), báo cáo trỏ sai worktree hay nhánh, hoặc lần dọn trước lỗi
 (`gc_error`). Nhánh mà lần trước `branch -D` hỏng được thử lại ở mỗi lượt dọn, chỉ khi không có commit ngoài base. `crush.db`, `-wal`, `-shm` và `.crush/logs` được chuyển
 ra cạnh `report.json` trước khi gỡ. Dọn tay: `dew routine gc [NAME] [--dry-run] [--include-ignored]`; `--dry-run` in
-từng worktree sẽ gỡ hay giữ, kèm lý do và dung lượng (chỉ `gc` đo dung lượng; lượt tự động không đo). `DEW_ROUTINE_SLOTS` (mặc định 3, `0` là không giới hạn) giới hạn
+từng worktree sẽ gỡ hay giữ, kèm lý do và dung lượng (chỉ `gc` đo dung lượng; lượt tự động không đo). `DEW_ROUTINE_SLOTS` (mặc định 2, `0` là không giới hạn) giới hạn
 tổng số routine chạy cùng lúc; đặt ở shell hoặc trong tệp env của dew (lượt theo lịch đọc được), `.env` của repo không
 đổi được nó.
 

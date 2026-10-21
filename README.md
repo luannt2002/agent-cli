@@ -234,7 +234,9 @@ dew loop --verify "go test ./..." "Sửa TestParse đang đỏ"
 dew routine new vet --mode maintenance --repo ~/code/proj \
   --goal "Sửa mọi cảnh báo của go vet" --verify "go vet ./..."   # thêm --commit nếu cho phép commit
 dew routine run vet                                        # chạy tay một lần
-dew routine list                                           # lượt cuối của từng routine
+dew routine list                                           # lượt cuối: trạng thái, model, thời lượng, verify
+dew routine stats --since 24h                              # độ trễ/lỗi/token từng request LLM
+dew routine export tidy -o tidy.patch                      # patch của lượt cuối, kèm tệp mới
 ```
 
 - `loop`: chạy agent, chạy verify, sửa tiếp tới khi verify thoát 0 hoặc gặp điều kiện dừng (mặc định 2 lượt sửa); mỗi
