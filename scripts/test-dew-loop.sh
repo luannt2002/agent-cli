@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # E2E cho `dew loop` với server OpenAI-compat giả, cả đường local lẫn
 # client/server. Chứng minh: xanh khi lệnh verify thoát 0, STALLED / MAX_REPAIRS /
-# UNMEASURED / CANCELLED đúng lý do và đúng số lượt agent, thiếu --verify thoát 2.
+# UNMEASURED / CANCELLED đúng lý do và đúng số lượt agent, thiếu --verify thoát 2;
+# đường local ghi mỗi request LLM thành dòng llm_request mà `routine stats` tổng hợp được.
 # Mọi thứ nằm trong thư mục tạm; không đụng repo hay cấu hình thật.
 # Dùng: scripts/test-dew-loop.sh   (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
@@ -71,6 +72,8 @@ class H(http.server.BaseHTTPRequestHandler):
         c = lambda d, **k: {"id": "1", "object": "chat.completion.chunk", "model": "m", **k}
         if body.get('stream'):
             self.send_response(200); self.send_header('content-type', 'text/event-stream'); self.end_headers()
+            # DELAY: độ trễ biết trước tới byte đầu, 600ms cho request sau kết quả tool, 300ms còn lại.
+            if 'DELAY' in last: time.sleep(0.6 if msgs and msgs[-1].get('role') == 'tool' else 0.3)
             ev = lambda d: self.wfile.write(("data: " + json.dumps(d) + "\n\n").encode())
             if 'TOOLCALL' in last and msgs[-1].get('role') != 'tool':
                 call = {"index": 0, "id": "call_1", "type": "function", "function": {"name": "bash", "arguments": json.dumps({"command": "touch e2e-probe", "description": "probe"})}}
@@ -167,6 +170,36 @@ run_suite() { # run_suite <tên> [cờ toàn cục...]
 
 unset CRUSH_CLIENT_SERVER
 run_suite local
+
+# H (local): mỗi request LLM của lượt là một dòng llm_request hợp lệ trong journal, và
+# `routine stats` đọc journal đó ra TTFT p50/p95 khớp độ trễ biết trước của server giả: 300ms
+# (request gọi tool, tiêu đề nếu có) và 600ms (request sau kết quả tool); dung sai +400ms. Báo
+# cáo routine viết tay, trỏ vào journal thật của lần chạy loop này.
+d="$(mkrepo local-delay)"
+(cd "$d" && "$bin" loop --json --name e2e-delay --verify 'test -f e2e-probe' 'TOOLCALL DELAY create the probe file') >"$t/h.json" 2>"$t/h.err"; rc=$?
+jp="$(jget "$t/h.json" journal)"
+python3 - "$jp" >"$t/h.check" 2>&1 <<'PY'
+import json, sys
+reqs = [e for e in map(json.loads, open(sys.argv[1])) if e["kind"] == "llm_request"]
+assert len(reqs) >= 2, reqs
+assert all(e["status"] == "ok" and e["attempt"] == 1 and e.get("prompt_tokens") == 11 and e.get("completion_tokens") == 7 for e in reqs), reqs
+print(len(reqs), "requests")
+PY
+rc_j=$?
+hcheck="$(tail -1 "$t/h.check")"
+[ "$rc" -eq 0 ] && [ "$rc_j" -eq 0 ]; check "local: journal JSONL hợp lệ, mỗi request LLM một dòng llm_request ok + token (rc=$rc; $hcheck)" $?
+run="$t/home/d/crush/routines/e2e-delay/runs/20261021-000000"; mkdir -p "$run"
+python3 - "$jp" "$run/report.json" <<'PY'
+import json, sys
+ev = [json.loads(l) for l in open(sys.argv[1])]
+json.dump({"routine": "e2e-delay", "started": ev[0]["time"], "finished": ev[-1]["time"], "reason": "GREEN", "journal": sys.argv[1]}, open(sys.argv[2], "w"))
+PY
+"$bin" routine stats e2e-delay --json >"$t/h-stats.json" 2>"$t/h-stats.err"; rc=$?
+stats="$(python3 -c 'import json,sys; s=json.load(open(sys.argv[1]))[0]; print(s["requests"], s["ttft_p50_ms"], s["ttft_p95_ms"], s["total_p50_ms"], s["total_p95_ms"])' "$t/h-stats.json" 2>&1)"
+read -r n p50 p95 tp50 tp95 <<<"$stats"
+[ "$rc" -eq 0 ] && [ "${n:-0}" -ge 2 ] && [ "${p50:-0}" -ge 300 ] && [ "$p50" -lt 700 ] && [ "${p95:-0}" -ge 600 ] && [ "$p95" -lt 1000 ] && [ "${tp95:-0}" -ge "$p95" ]
+check "local: routine stats ra TTFT p50 ∈ [300,700) ms, p95 ∈ [600,1000) ms từ độ trễ đã biết (rc=$rc: requests ttft_p50 ttft_p95 total_p50 total_p95 = $stats)" $?
+"$bin" routine stats >"$t/h-stats.txt" 2>&1; cat "$t/h-stats.txt"
 export CRUSH_CLIENT_SERVER=1
 run_suite clientserver --host "unix://$t/s.sock"
 

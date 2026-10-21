@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -255,7 +256,9 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		if resume != "" {
 			actx = context.WithValue(ctx, resumeKey{}, resume)
 		}
+		actx, endTurn := e.observeRequests(actx, attempt, retries)
 		info, runErr := e.Agent(actx, prompt)
+		endTurn()
 		res.Attempts++
 		if info.SessionID != "" && (len(res.SessionIDs) == 0 || res.SessionIDs[len(res.SessionIDs)-1] != info.SessionID) {
 			res.SessionIDs = append(res.SessionIDs, info.SessionID)
@@ -367,6 +370,27 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		turn = repairPrompt(e.Spec, v, attempt)
 		prompt = turn
 		attempt++
+	}
+}
+
+// observeRequests gắn vào ctx bộ ghi llm_request của một lượt; endTurn ngừng ghi khi lượt trả
+// về. Request còn chạy sau đó (tiêu đề sinh nền) bị bỏ, để mọi dòng của lượt nằm trước
+// agent_end của nó. Mất một dòng số đo không được làm hỏng lượt: lỗi ghi bị bỏ qua.
+func (e *Engine) observeRequests(ctx context.Context, attempt, retry int) (context.Context, func()) {
+	var mu sync.Mutex
+	open := e.Journal != nil
+	observe := func(ev Event) {
+		mu.Lock()
+		defer mu.Unlock()
+		if open {
+			ev.Kind, ev.Attempt, ev.Retry = "llm_request", attempt, retry
+			_ = e.Journal.Append(ev)
+		}
+	}
+	return WithRequestObserver(ctx, observe), func() {
+		mu.Lock()
+		defer mu.Unlock()
+		open = false
 	}
 }
 

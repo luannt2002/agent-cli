@@ -1,6 +1,7 @@
 package loop
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,7 +14,7 @@ import (
 // chừng thì lần sau vẫn biết đã tới đâu và verify cuối ra sao.
 type Event struct {
 	Time        time.Time `json:"time"`
-	Kind        string    `json:"kind"`              // start, baseline, attempt_begin, agent_end, verify, stop
+	Kind        string    `json:"kind"`              // start, baseline, attempt_begin, llm_request, agent_end, verify, stop
 	Attempt     int       `json:"attempt,omitempty"` // lượt chạy lại giữ số lượt bị cắt; ở stop: tổng số lượt agent, kể cả lượt chạy lại
 	SessionID   string    `json:"session_id,omitempty"`
 	Status      string    `json:"status,omitempty"`
@@ -27,6 +28,34 @@ type Event struct {
 	// người đọc thấy vì sao lần chạy thử lại; HTTPStatus 0 khi không biết mã.
 	ErrorClass string `json:"error_class,omitempty"`
 	HTTPStatus int    `json:"http_status,omitempty"`
+	// llm_request: một request LLM streaming của lượt (Time = lúc gửi; Status = "ok", "cancelled"
+	// hoặc lớp lỗi của agent.TransientError, "other" khi không tạm thời). TTFTMS vắng khi không
+	// phần nào tới. PromptTokens gồm cả phần prompt đọc từ cache: là cỡ context thật đã gửi.
+	// Retry là lần chạy lại thứ mấy của dew (0 = lần đầu của lượt). fantasy tự thử lại một bước
+	// bằng cách gọi lại Stream, nên mỗi lần thử của nó cũng là một dòng, cùng Retry.
+	TTFTMS           *int64 `json:"ttft_ms,omitempty"`
+	TotalMS          int64  `json:"total_ms,omitempty"`
+	PromptTokens     int64  `json:"prompt_tokens,omitempty"`
+	CompletionTokens int64  `json:"completion_tokens,omitempty"`
+	Retry            int    `json:"retry,omitempty"`
+}
+
+type requestObserverKey struct{}
+
+// WithRequestObserver gắn vào ctx hàm nhận số đo của mỗi request LLM streaming mà lượt agent
+// chạy trong ctx gửi đi (agent điền Event, engine thêm Kind/Attempt/Retry). Engine gắn nó cho
+// mỗi lượt; hàm có thể bị gọi từ goroutine khác (agent con, tiêu đề).
+// shortcut: chỉ đường in-process (routine, `dew loop` không CRUSH_CLIENT_SERVER) mang được ctx tới
+// request; qua client/server request chạy trong tiến trình server nên journal không có llm_request.
+// Khi cần số đo ở đường đó, server gửi chúng theo sự kiện của lượt.
+func WithRequestObserver(ctx context.Context, observe func(Event)) context.Context {
+	return context.WithValue(ctx, requestObserverKey{}, observe)
+}
+
+// RequestObserver là hàm gắn bằng WithRequestObserver; nil khi ctx không thuộc lượt nào của loop.
+func RequestObserver(ctx context.Context) func(Event) {
+	observe, _ := ctx.Value(requestObserverKey{}).(func(Event))
+	return observe
 }
 
 // Journal nhận sự kiện theo thứ tự.

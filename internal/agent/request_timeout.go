@@ -1,12 +1,14 @@
 package agent
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	"charm.land/fantasy"
+	"github.com/charmbracelet/crush/internal/loop"
 )
 
 // requestTimeoutError reports that an LLM request exhausted its configured
@@ -94,7 +96,9 @@ func wrapTimedOut(ctx context.Context, timeoutErr *requestTimeoutError, err erro
 	if err == nil || context.Cause(ctx) != timeoutErr {
 		return err
 	}
-	if errors.Is(err, context.Canceled) {
+	// net/http trả thẳng context.Cause(ctx), tức chính timeoutErr (hoặc lỗi bọc nó): làm cause
+	// thì vòng Unwrap khiến errors.Is/As chạy mãi.
+	if errors.Is(err, context.Canceled) || errors.Is(err, timeoutErr) {
 		timeoutErr.cause = context.DeadlineExceeded
 	} else {
 		timeoutErr.cause = err
@@ -121,9 +125,13 @@ func (m requestTimeoutModel) Generate(ctx context.Context, call fantasy.Call) (*
 // and is released when iteration ends, whether the stream finishes, breaks,
 // or the idle timeout aborts it. Both the initial connection and gaps
 // between parts share the same budget.
+//
+// Inside a loop turn (loop.RequestObserver) each stream is also measured for the
+// journal's llm_request event; see requestRecord.
 func (m requestTimeoutModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
 	timeout := m.budget(ctx)
 	timeoutErr := &requestTimeoutError{timeout: timeout, idle: true}
+	rec := newRequestRecord(ctx)
 	ctx, cancel := context.WithCancelCause(ctx)
 	timer := time.AfterFunc(timeout, func() { cancel(timeoutErr) })
 
@@ -131,15 +139,90 @@ func (m requestTimeoutModel) Stream(ctx context.Context, call fantasy.Call) (fan
 	if err != nil {
 		timer.Stop()
 		cancel(nil)
-		return nil, wrapTimedOut(ctx, timeoutErr, err)
+		err = wrapTimedOut(ctx, timeoutErr, err)
+		rec.done(err)
+		return nil, err
 	}
 	return func(yield func(fantasy.StreamPart) bool) {
 		defer timer.Stop()
 		defer cancel(nil)
+		defer rec.done(nil)
 		inner(func(part fantasy.StreamPart) bool {
 			timer.Reset(timeout)
 			part.Error = wrapTimedOut(ctx, timeoutErr, part.Error)
+			rec.part(part)
 			return yield(part)
 		})
 	}, nil
+}
+
+// requestRecord đo một request streaming cho journal của vòng lặp: thời gian tới phần đầu
+// tiên (TTFT), tổng thời gian, usage và lớp lỗi. nil khi ctx không có observer (TUI, run):
+// không tốn gì.
+// shortcut: đo trong wrapper của request_timeout nên request_timeout 0 (không có wrapper) thì
+// không có llm_request; khi cần đo cả lúc đó, tách requestRecord thành wrapper luôn bật.
+type requestRecord struct {
+	observe func(loop.Event)
+	parent  context.Context // ctx của người gọi: nó huỷ là "cancelled", không phải lỗi provider
+	start   time.Time
+	ev      loop.Event
+	err     error // lỗi đầu tiên giữa stream
+}
+
+func newRequestRecord(ctx context.Context) *requestRecord {
+	observe := loop.RequestObserver(ctx)
+	if observe == nil {
+		return nil
+	}
+	now := time.Now()
+	return &requestRecord{observe: observe, parent: ctx, start: now, ev: loop.Event{Time: now}}
+}
+
+func (r *requestRecord) part(p fantasy.StreamPart) {
+	if r == nil {
+		return
+	}
+	// Phần Warnings do fantasy tự sinh trước khi đọc mạng; phần lỗi không phải dữ liệu.
+	if r.ev.TTFTMS == nil && p.Type != fantasy.StreamPartTypeWarnings && p.Error == nil {
+		ttft := time.Since(r.start).Milliseconds()
+		r.ev.TTFTMS = &ttft
+	}
+	if p.Type == fantasy.StreamPartTypeFinish {
+		u := p.Usage
+		// openai tách phần đọc cache khỏi InputTokens, anthropic tách cả phần ghi cache: cộng
+		// lại mới là cỡ prompt đã gửi.
+		r.ev.PromptTokens = u.InputTokens + u.CacheReadTokens + u.CacheCreationTokens
+		r.ev.CompletionTokens = u.OutputTokens
+	}
+	if p.Error != nil && r.err == nil {
+		r.err = p.Error
+	}
+}
+
+// done ghi số đo; err là lỗi mở stream (nil thì dùng lỗi đầu tiên giữa stream).
+func (r *requestRecord) done(err error) {
+	if r == nil {
+		return
+	}
+	r.ev.TotalMS = time.Since(r.start).Milliseconds()
+	r.ev.Status, r.ev.HTTPStatus = requestStatus(r.parent, cmp.Or(err, r.err))
+	r.observe(r.ev)
+}
+
+// requestStatus: "cancelled" khi chính người gọi huỷ (Ctrl+C, hạn mỗi lượt), xét trước: người
+// gọi thôi đọc vì huỷ thì không có phần lỗi nào nhưng request không xong; rồi "ok"; lớp của
+// TransientError; hoặc "other". Mã HTTP khi provider trả về.
+func requestStatus(parent context.Context, err error) (string, int) {
+	code := 0
+	if pe, ok := errors.AsType[*fantasy.ProviderError](err); ok {
+		code = pe.StatusCode
+	}
+	switch {
+	case parent.Err() != nil:
+		return "cancelled", code
+	case err == nil:
+		return "ok", 0
+	}
+	class, _ := TransientError(err)
+	return cmp.Or(class, "other"), code
 }
