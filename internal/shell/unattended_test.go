@@ -312,3 +312,47 @@ func TestUnattendedRmTargetsMustStayInTheWorkspaceEvenWithoutRecursion(t *testin
 		require.Falsef(t, ok, "%q ở trong workspace, không được chặn", args)
 	}
 }
+
+// Thứ mà build offline hay dữ liệu cần, không dựng lại được: module cache của Go và volume
+// của Docker. Cache build (`go clean -cache`) và lệnh đọc của docker vẫn qua.
+func TestUnattendedDeniesDeletingWhatCannotBeRebuilt(t *testing.T) {
+	t.Parallel()
+	g := unattendedGuardForTest(false)
+	for _, args := range [][]string{
+		{"go", "clean", "-modcache"},
+		{"go", "clean", "--modcache"},
+		{"go", "clean", "-modcache=true"},
+		{"/usr/local/go/bin/go", "clean", "-x", "-modcache"},
+		{"go", "-C", "sub", "clean", "-modcache"},
+		{"docker", "volume", "rm", "pgdata"},
+		{"docker", "volume", "remove", "pgdata"},
+		{"docker", "volume", "prune", "-f"},
+		{"docker", "--context", "x", "volume", "prune"},
+		{"docker", "system", "prune"},
+		{"docker", "system", "prune", "-a", "--volumes"},
+		{"docker", "compose", "down", "-v"},
+		{"docker", "compose", "-f", "dev.yml", "down", "--volumes"},
+		{"docker-compose", "down", "-v"},
+		{"docker-compose", "down", "--volumes", "--remove-orphans"},
+		{"sh", "-c", "docker compose down -v && docker compose up -d"},
+	} {
+		reason, ok := g.Blocked(args)
+		require.Truef(t, ok, "%q phải bị chặn", args)
+		require.Contains(t, reason, "cannot be rebuilt", args)
+	}
+	for _, args := range [][]string{
+		{"go", "clean", "-cache"},
+		{"go", "clean", "-testcache"},
+		{"go", "build", "./..."},
+		{"docker", "ps"},
+		{"docker", "volume", "ls"},
+		{"docker", "system", "df"},
+		{"docker", "compose", "down"},
+		{"docker", "compose", "up", "-d"},
+		{"docker-compose", "down", "--remove-orphans"},
+		{"docker", "image", "prune", "-f"},
+	} {
+		reason, ok := g.Blocked(args)
+		require.Falsef(t, ok, "%q không được chặn (%s)", args, reason)
+	}
+}

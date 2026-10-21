@@ -351,9 +351,9 @@ func blockHandler(blockFuncs []BlockFunc) execMiddleware {
 	}
 }
 
-// blockedByGitEnv: biến git (`GIT_DIR=x git rm`, `export GIT_DIR=x`) nằm trong env
-// chứ không trong argv, nên soi thêm một lượt với tiền tố `env NAME=...` mà
-// BlockFunc nào cũng đọc được. Lượt soát argv thô giữ nguyên quyết định cũ.
+// blockedByGitEnv: biến git (`GIT_DIR=x git rm`, `export GIT_DIR=x`) và GOFLAGS mang
+// -modcache nằm trong env chứ không trong argv, nên soi thêm một lượt với tiền tố
+// `env NAME=...` mà BlockFunc nào cũng đọc được. Lượt soát argv thô giữ nguyên quyết định cũ.
 func blockedByGitEnv(ctx context.Context, blockFuncs []BlockFunc, args []string) bool {
 	if len(blockFuncs) == 0 {
 		return false
@@ -372,13 +372,15 @@ func blockedByGitEnv(ctx context.Context, blockFuncs []BlockFunc, args []string)
 }
 
 // gitRedirectEnv trả các biến export mà lệnh tự đặt và nhắc tới biến git trong
-// gitEnvName, ở tên hay ở giá trị (`X='GIT_DIR=…' sh -c 'eval "$X"'`). Biến có cùng
+// gitEnvName, ở tên hay ở giá trị (`X='GIT_DIR=…' sh -c 'eval "$X"'`), hoặc đặt GOFLAGS
+// kèm -modcache (goflagsModcache). Biến có cùng
 // giá trị trong môi trường của chính dew là của người khởi chạy (vd chạy
 // trong git hook), không phải của lệnh, nên bỏ qua.
 func gitRedirectEnv(env expand.Environ) []string {
 	var out []string
 	env.Each(func(name string, vr expand.Variable) bool {
-		if !vr.Exported || !vr.IsSet() || !gitEnvName.MatchString(name+"="+vr.String()) {
+		kv := name + "=" + vr.String()
+		if _, modcache := goflagsModcache([]string{kv}); !vr.Exported || !vr.IsSet() || !gitEnvName.MatchString(kv) && !modcache {
 			return true
 		}
 		if v, ok := os.LookupEnv(name); ok && v == vr.String() {

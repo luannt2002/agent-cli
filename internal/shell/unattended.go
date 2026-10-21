@@ -2,6 +2,7 @@ package shell
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -35,6 +36,9 @@ func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason strin
 		// eval, và tiền tố `env NAME=…` mà blockHandler thêm cho biến đã export.
 		reason, blocked := gitEnvMentioned(args)
 		if !blocked {
+			reason, blocked = goflagsModcache(args)
+		}
+		if !blocked {
 			reason, blocked = g.Blocked(args)
 		}
 		if blocked && onBlock != nil {
@@ -61,8 +65,84 @@ func unattendedDenied(args []string, allowCommit bool) (string, bool) {
 		return name + " copies to or from other machines, not allowed while unattended", true
 	case outboundTools[name]:
 		return name + " talks to remote services, not allowed while unattended", true
+	case name == "go":
+		return goDenied(args[1:])
+	case name == "docker" || name == "docker-compose":
+		return dockerDenied(name, args[1:])
 	}
 	return "", false
+}
+
+// modcacheFlag khớp cờ -modcache/--modcache (kể cả =giá-trị) đứng riêng trong một chuỗi cờ như
+// giá trị của GOFLAGS; không khớp -modcacherw.
+var modcacheFlag = regexp.MustCompile(`(^|[\s'"=])--?modcache(=[^\s'"]*)?($|[\s'"])`)
+
+// goflagsModcache chặn MỌI lệnh mà chữ của nó đặt GOFLAGS kèm -modcache: gán đầu lệnh hay env,
+// trong script của sh -c, `go env -w` (ghi vĩnh viễn), và biến đã export mà blockHandler thêm
+// thành tiền tố `env`. GOFLAGS đi theo tiến trình con, nên `go clean` nào chạy sau cũng xoá module cache.
+func goflagsModcache(args []string) (string, bool) {
+	for _, a := range args {
+		if i := strings.Index(a, "GOFLAGS="); i >= 0 && modcacheFlag.MatchString(a[i+len("GOFLAGS"):]) {
+			return "GOFLAGS with -modcache makes go clean delete the module cache, which offline builds need and which cannot be rebuilt without network; not allowed while unattended", true
+		}
+	}
+	return "", false
+}
+
+// goDenied chặn `go clean -modcache`: build offline (GOPROXY=off) cần module cache, không
+// tải lại được khi không có mạng. `go clean -cache` (cache build) vẫn qua. Không phủ: cờ đến
+// từ xargs/stdin (`echo -modcache | xargs go clean`) hay tệp GOENV ghi bằng chuyển hướng
+// (danh sách đen, không phải sandbox).
+func goDenied(args []string) (string, bool) {
+	if !slices.Contains(args, "clean") {
+		return "", false
+	}
+	for _, a := range args {
+		if flag, _, _ := strings.Cut(strings.TrimLeft(a, "-"), "="); strings.HasPrefix(a, "-") && flag == "modcache" {
+			return "go clean -modcache: offline builds need the module cache, and it cannot be rebuilt without network; not allowed while unattended", true
+		}
+	}
+	return "", false
+}
+
+// dockerDenied chặn xoá dữ liệu của Docker: volume (`volume rm|prune`, `compose down -v`, volume
+// vô danh qua `rm -v` của container hay compose) và `system prune` (container đã dừng cùng dữ liệu). Soi các từ theo thứ tự,
+// không phân tích cờ toàn cục (`docker --context x volume prune`): nghiêng về chặn.
+func dockerDenied(name string, args []string) (string, bool) {
+	if name == "docker-compose" {
+		args = append([]string{"compose"}, args...)
+	}
+	const why = " deletes data (databases, uploads) that cannot be rebuilt; not allowed while unattended"
+	switch {
+	case inOrder(args, "volume", "rm") || inOrder(args, "volume", "remove") || inOrder(args, "volume", "prune"):
+		return "docker volume rm/prune" + why, true
+	case inOrder(args, "system", "prune"):
+		return "docker system prune (stopped containers, and volumes with --volumes)" + why, true
+	case hasFlagLetters(after(args, "rm"), "v", "--volumes"):
+		return name + " rm -v/--volumes (the container's anonymous volumes)" + why, true
+	case inOrder(args, "compose", "down") && hasFlagLetters(args, "v", "--volumes"):
+		return name + " down -v/--volumes" + why, true
+	}
+	return "", false
+}
+
+// after trả các từ sau lần xuất hiện đầu của word (nil khi không có): cờ của lệnh con đó, không
+// lẫn cờ đứng trước (`docker run --rm -v x img rm -rf build`).
+func after(args []string, word string) []string {
+	if i := slices.Index(args, word); i >= 0 {
+		return args[i+1:]
+	}
+	return nil
+}
+
+// inOrder: các từ có mặt trong args theo đúng thứ tự (không cần liền nhau).
+func inOrder(args []string, words ...string) bool {
+	for _, a := range args {
+		if len(words) > 0 && a == words[0] {
+			words = words[1:]
+		}
+	}
+	return len(words) == 0
 }
 
 // gitEnvName khớp biến môi trường trỏ git sang repo/chỉ mục/kho đối tượng khác hoặc
