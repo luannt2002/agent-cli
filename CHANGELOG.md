@@ -9,6 +9,49 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-21
+
+Đợt tiếp theo sau một ngày dùng v0.3.0 với routine chạy song song: thấy rõ hơn, đo được độ trễ, xuất patch để soát.
+
+### Thêm
+
+- **`dew routine stats [NAME] [--since D] [--json]`:** đọc journal các lượt và in theo từng routine: số lượt, số request
+  LLM, thời gian tới byte đầu (TTFT) và tổng thời gian p50/p95, số lần stream im/chạy lại/hết hạn mức, lỗi khác, token
+  vào/ra, và số routine khác chạy cùng lúc với mỗi request (p50/max).
+  - Journal có sự kiện mới `llm_request` cho mỗi request LLM streaming: `ttft_ms`, `total_ms`, `prompt_tokens` (gồm
+    phần cache), `completion_tokens`, `retry`, `status`, `http_status`.
+  - Chỉ đo được ở đường in-process (routine luôn chạy đường này) và khi `request_timeout` > 0. Journal trước v0.3.1
+    không có số đo.
+- **`dew routine export NAME [--run STAMP] [-o FILE] [--include-ignored]`:** một patch so với `base_sha`, gồm commit,
+  thay đổi chưa commit, tệp mới chưa theo dõi và tệp nhị phân. `git apply` được vào checkout sạch của base; in danh
+  sách tệp và sha256. Không đụng index hay object store của repo. Từ chối khi worktree đã bị gỡ (chỉ chỗ `crush.db`).
+- **`DEW_ROUTINE_MIN_MEM_MB`** (mặc định 0 = tắt): RAM trống (MemAvailable) dưới ngưỡng thì `routine run` thoát 75.
+  Chỉ đo trên Linux.
+- **`routine list` đầy đủ** (text và `--json`, chỉ thêm trường): `state` (RUNNING chỉ khi tiến trình còn sống; ABANDONED,
+  UNKNOWN, UNREADABLE), `model`, `duration_seconds`, `verify` (PASS chỉ khi GREEN/NO_CHANGE; PASS_NOT_GREEN; FAIL;
+  NOT_RUN), `changed_count`, `attempts`, `pid`. `dew ps` hiện model của routine.
+- **Home:**
+  - Routine đang chạy hiện "● running" bằng màu cảnh báo, không còn trùng sắc xanh với green.
+  - Tiêu đề "Routines (5/39)" khi còn routine bị ẩn; xem tất cả bằng `dew routine list`.
+  - Dòng routine có model. Dòng dự án hiện "· N routines running" khi repo đó có lượt đang chạy.
+
+### Thay đổi
+
+- **`DEW_ROUTINE_SLOTS` mặc định 2** (trước là 3). Đo ngày 21/10: chạy từ 4 lượt song song trở lên thì 0/14 GREEN.
+- **`routine run` tự đóng lượt "ma" của routine khác:** lượt mới nhất còn ghi RUNNING mà pid đã chết thì chuyển thành
+  ABANDONED (chỉ trên Linux; báo cáo không có pid để lại cho `dew routine gc`).
+- **Báo cáo RUNNING có `model` ngay từ lần ghi đầu**, và cập nhật thành provider/model sau lượt agent đầu.
+- **Chỉ còn một phép kiểm tiến trình sống** (`internal/routine.RunAlive`) cho `ps`, `routine list`, GC và Home.
+
+### Sửa lỗi
+
+- **Stream im sau byte đầu không còn làm treo phân loại lỗi.** `net/http` trả về chính lỗi hết hạn chờ làm cause, khiến
+  lỗi tự trỏ vào chính nó và `errors.Is/As` chạy mãi. Nay cause là `context.DeadlineExceeded`. Có thể đây là lý do một
+  phần các lượt "agent turn timed out after 45m0s" (mới nghi).
+- **Installer: repo đổi tên agent-cli sang dew không còn biến mất khỏi Home.** Mục `projects.json` của máy này trỏ đường
+  `.../agent-cli` (đã không còn) được viết lại sang `.../dew` (path, data_dir, locations), có sao lưu
+  `projects.before-repo-rename.json` và lệnh quay lại. Mục của máy khác trong registry dùng chung được giữ nguyên.
+
 ## [0.3.0] - 2026-10-21
 
 Bản đầu tiên mang tên **DEW** (Daily Engineering Workspace, trước là agent-cli), kèm đợt sửa sau một ngày dùng thật với
