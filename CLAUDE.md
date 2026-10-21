@@ -55,6 +55,7 @@
   - Tên hiển thị là DEW, lệnh `dew`. Module path, `crush.json`, biến `CRUSH_*` và system prompt giữ chữ Crush, để merge upstream rẻ.
   - Không làm IO trong `Update`/`View` của TUI (ghi đầu `internal/ui/model/workspace_cache.go`).
   - Sửa SKILL.md builtin, template prompt hoặc mô tả tool là đổi system prompt, và sẽ làm đỏ cassette VCR của `TestCoderAgent`.
+  - User-Agent `crush/1.0` của tool `fetch`/`download`/`sourcegraph` cũng nằm trong cassette (khớp theo header): đổi là đỏ `TestCoderAgent` (đo 21/10).
 - **Mã:** cây chính `/home/luannt/application/opensource/dew` (repo `luannt2002/dew`, tên cũ agent-cli; đổi tên 20/10, kế hoạch ở `reports/documentation/RENAME_PLAN.md`), nhánh `main`. Lệnh `dew`, cấu hình `~/.config/dew/`, biến `DEW_*` (đổi từ `agent-cli`/`AGENT_CLI_*` ở nhánh `dew-rename`; trình cài tự chuyển máy cũ).
 
 ### P4. Luồng chính
@@ -77,7 +78,7 @@
 | Race | `GOMAXPROCS=2 go test -race -count=1 -p 2 ./internal/backend/... ./internal/agent/... ./internal/cmd/... ./internal/ui/... ./internal/workspace/... ./internal/projects/... ./internal/permission/... ./internal/server/...` | ĐÃ CHẠY 20/10 (`300c8dd1`) | 0 data race, 31 package (danh sách lệnh + mọi package V3 chạm: `reports/v3-research/experiments/final-verify/r3/race-pkgs.txt`) |
 | Cassette agent | `GOMAXPROCS=2 go test ./internal/agent -run TestCoderAgent -count=1` | ĐÃ CHẠY 20/10 (trong lần chạy toàn kho) | Xanh. Từ v0.2.0 test tự ghim giới hạn ls (không còn phụ thuộc cwd có phải cây git) |
 | E2E run/send | `bash scripts/test-dew-run-json.sh` | ĐÃ CHẠY 20/10 | Binary + server thật với LLM giả |
-| E2E loop / routine | `DEW_BIN=<binary> bash scripts/test-dew-loop.sh`, `… scripts/test-dew-routine.sh` | ĐÃ CHẠY 20/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả |
+| E2E loop / routine | `DEW_BIN=<binary> bash scripts/test-dew-loop.sh`, `… scripts/test-dew-routine.sh` | ĐÃ CHẠY 20/10 | Binary thật với LLM giả; routine có ca SIGKILL giữa lượt → `ABANDONED`, khoá nhả; bước dọn đầu lượt (trim cache Go giả, 1 lần/giờ, đĩa thiếu → 75) và `dew clean` (E2E đặt `GOCACHE` tạm, không đụng cache thật) |
 | Model khi tiếp session cũ | `bash scripts/eval/session-model.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 20/10 | Local và server: `run -s` session cũ chạy model của workspace, không ghi `crush.json`; thoát 1 khi hỏng |
 | Cô lập provider, tiêm lỗi | `bash scripts/eval/faults.sh <thư-mục-mới> <binary>`, `bash scripts/eval/qwen-only.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 20/10 | LLM giả đếm request theo provider. Thoát 1 khi: request lọt sang provider khác, model đang chọn thiếu key mà không dừng, `text` lẫn bản tóm tắt, loop có cổng xanh sẵn mà không ra `NO_CHANGE` |
 | Sổ ghi LLM lỗi ghi | `bash scripts/eval/ledger.sh <thư-mục-mới> <binary>` | ĐÃ CHẠY 20/10 | Sổ trỏ `/dev/full`: `run --json` có `ledger_error`, WARN mỗi lượt, rc 0; local và server; thoát 1 khi hỏng |
@@ -94,6 +95,7 @@
 - **CI:** `.github/workflows/` có build, lint, security… của upstream; CHƯA XÁC MINH là có chạy cho fork này.
 - **Cổng local:** không commit/push khi chưa được phép. Code an ninh và vòng đời qua một lượt soát độc lập, người soát không có quyền Edit.
 - **Phiên bản:** SemVer, tag git có chú thích `vX.Y.Z` trên `main`; `dew --version` hiện số đó khi build từ commit được gắn tag (Go gắn version từ tag, không cần `-ldflags`). Mỗi bản: sửa `CHANGELOG.md` (chuyển mục `[Unreleased]` thành `[X.Y.Z] - ngày`), commit `chore(release): vX.Y.Z`, `git tag -a vX.Y.Z -m "…"`, push `main` rồi push tag, rồi mới cài.
+- **Đĩa và cache (bài học 21/10):** cache build Go lên 68 GB và đĩa 91% vì agent sửa/test liên tục với nhiều cấu hình build, trong khi Go chỉ dọn mục cũ hơn 5 ngày. `dew clean` và bước dọn đầu `routine run` giữ trần. Không `go clean -modcache` (build offline). Tệp do Docker chạy root tạo ra phải `sudo`/`chown` mới xoá được.
 - **Phát hành = cài local:**
   - Binary ở `~/.local/lib/dew/crush`, wrapper ở `~/.local/bin/dew`.
   - Smoke sau khi cài: `dew --version`, rồi một prompt thật (không in secret).

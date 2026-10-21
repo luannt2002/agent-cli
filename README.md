@@ -319,7 +319,7 @@ tiêu đề do model sinh ghi đè. Terminal chiếm `f2` thì dùng `alt+s` r�
 
 ## Quan sát sâu
 
-- `dew ps [--json]`: mọi session của các dự án có server đang chạy, trạng thái `BUSY` / `WAITING` (chờ bạn duyệt hay trả
+- `dew ps [--json]`: các lượt `routine run` đang chạy (hàng `ROUTINE`, path là worktree) và mọi session của các dự án có server đang chạy, trạng thái `BUSY` / `WAITING` (chờ bạn duyệt hay trả
   lời) / `IDLE`. Mặc định 9 session mới nhất mỗi dự án; `--all` bỏ trần đó. Không khởi động server nào.
 - `dew jobs`, `jobs output <id>`, `jobs kill <id>`: lệnh bash agent đã chạy, kèm session sở hữu và mã thoát.
 - `dew logs -f` (bám đuôi), `-t <N>` (N dòng cuối). `dew session list|show|last --json`: session dạng máy đọc.

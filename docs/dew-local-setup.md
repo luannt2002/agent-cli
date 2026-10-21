@@ -725,13 +725,14 @@ dew loop --verify "npm test" --max-duration 2h --json "Làm cho endpoint mới q
 Mỗi lượt là một session mới (prompt gồm đề bài + đuôi output verify vừa đo). Dừng khi `GREEN`, verify xanh từ trước
 mọi thay đổi và cây không đổi (`NO_CHANGE`, thoát 1: không có gì chứng minh việc đã làm), hết 2 lượt sửa
 (`MAX_REPAIRS`), cùng lỗi và cây không đổi (`STALLED`), quá `--max-duration` (`TIMEOUT`), lượt agent lỗi
-(`RUN_ERROR`), Ctrl+C (`CANCELLED`) hoặc verify không chạy được (`UNMEASURED`). Journal JSONL nằm ở
+(`RUN_ERROR`; lỗi tạm thời của provider như 5xx, 429, hết hạn chờ stream được chạy lại tối đa 2 lần trong cùng session,
+chờ 30 s rồi 60 s), Ctrl+C (`CANCELLED`) hoặc verify không chạy được (`UNMEASURED`). Journal JSONL nằm ở
 `<data>/loops/` (đường dẫn in ra đầu lượt). Bản thân `loop` không commit hay push; quyền như `run` (tự duyệt tool),
 nên model vẫn có thể chạy `git commit`/`git push`. Muốn chặn thì dùng môi trường không có quyền push hoặc dùng routine;
 lớp chặn của routine cũng chỉ theo mẫu lệnh, không phải sandbox.
 Cờ khác: `--max-repairs` (mặc định 2), `--run-timeout` (45m mỗi lượt agent), `--verify-timeout` (30m), `--name` (tên
-journal), `-m`, `--reasoning-effort`. `--json` in `reason`, `detail`, `attempts`, `session_ids`, `verify_status`,
-`verify_exit_code`, `journal`.
+journal), `-m`, `--reasoning-effort`. `--json` in `reason`, `detail`, `attempts` (đếm cả lượt chạy lại), `session_ids`,
+`verify_status`, `verify_exit_code` (chỉ có khi verify đã chạy sau một lượt agent), `journal`.
 
 **`dew routine` (chạy lặp lại, kể cả theo lịch):**
 
@@ -743,10 +744,44 @@ dew routine list
 dew routine show tidy         # định nghĩa, sha256, nơi lưu khoá và báo cáo
 ```
 
+Model: lượt chạy model ghim trong định nghĩa (`--model provider/model` hoặc trường `"model"`). `routine new` không có
+`--model` ghi sẵn model large mặc định lúc tạo vào định nghĩa; muốn đổi thì sửa trường `model`. Đầu mỗi lượt stderr in
+model đang dùng. `stream_retries` (0–5, mặc định 2): số lần chạy lại liên tiếp khi lượt bị lỗi tạm thời cắt ngang (5xx,
+429 không phải hạn mức, stream im, mất kết nối). Lý do dừng có thêm `STREAM_STALL` và `QUOTA`; `TIMEOUT` gồm cả lượt quá
+`run_timeout`. Run bị cắt vẫn chạy verify một lần nhưng không bao giờ GREEN.
+
 Mỗi lượt chạy làm việc trong worktree riêng (nhánh `routine/tidy-<thời điểm>`, nằm ngoài repo), giữ khoá (lượt thứ
-hai thoát 75), chạy với chế độ không người trực (không push/merge/reset --hard/xoá đệ quy ngoài workspace) và ghi
+hai, hoặc khi đã có `DEW_ROUTINE_SLOTS` lượt routine đang chạy, thoát 75), chạy với chế độ không người trực (không push/merge/reset --hard/xoá đệ quy ngoài workspace) và ghi
 báo cáo ra ngoài worktree. Mã thoát: 0 khi `GREEN`, và khi `NO_CHANGE` ở routine `maintenance` (hôm nay không có việc);
-`NO_CHANGE` ở routine `goal` và mọi lý do khác thoát 1. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, rồi dọn bằng lệnh được in.
+`NO_CHANGE` ở routine `goal` và mọi lý do khác thoát 1. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, lượt sau tự dọn worktree của các lượt cũ không còn việc.
+
+Dọn worktree: mỗi `routine run` gỡ worktree và nhánh của các lượt cũ đã xong, giữ lượt mới nhất. Không gỡ khi còn
+thay đổi chưa commit hay tệp chưa theo dõi (bất kể `status.showUntrackedFiles`), có commit ngoài base (kể cả HEAD tách
+rời), có tệp bị gitignore ngoài `.crush/` (trừ thư mục dựng lại được, ở bất kỳ cấp nào: `node_modules`, `dist`, `build`, `coverage`, `.venv`, `venv`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `target`, `.next`, `.nuxt`, `.turbo`, `.gradle`, `.parcel-cache`; chúng bị xoá
+cùng worktree), có tệp bị giấu khỏi `git status` (assume-unchanged, hoặc skip-worktree mà tệp có trên đĩa), `crush.db*`
+được ghi sau `finished` + 1 phút (có người mở lại), báo cáo trỏ sai worktree hay nhánh, hoặc lần dọn trước lỗi
+(`gc_error`). Nhánh mà lần trước `branch -D` hỏng được thử lại ở mỗi lượt dọn, chỉ khi không có commit ngoài base. `crush.db`, `-wal`, `-shm` và `.crush/logs` được chuyển
+ra cạnh `report.json` trước khi gỡ. Dọn tay: `dew routine gc [NAME] [--dry-run] [--include-ignored]`; `--dry-run` in
+từng worktree sẽ gỡ hay giữ, kèm lý do và dung lượng (chỉ `gc` đo dung lượng; lượt tự động không đo). `DEW_ROUTINE_SLOTS` (mặc định 3, `0` là không giới hạn) giới hạn
+tổng số routine chạy cùng lúc; đặt ở shell hoặc trong tệp env của dew (lượt theo lịch đọc được), `.env` của repo không
+đổi được nó.
+
+Dọn rác và cache (`dew clean`). Dew chia thứ build để lại thành ba hạng:
+
+| Hạng | Gồm | Dew làm gì |
+|---|---|---|
+| SAFE | Cache build Go vượt trần; worktree routine không còn việc | Tự trim đầu `routine run`; `dew clean --apply` |
+| ASK | Cache npm, kho pnpm, cache pip, Docker image/build cache | Chỉ in dung lượng và lệnh; bạn tự chạy |
+| NEVER | Module cache Go, Docker volume, tệp thuộc user khác | Chỉ báo; agent không người trực bị chặn xoá |
+
+- Cache build Go: vượt `DEW_GOCACHE_MAX` GB (mặc định 20, `0` = không trần) thì trim về 80% trần, mục dùng lâu nhất
+  trước, tối đa mỗi giờ một lần. Một ngày làm nặng sinh 10–20 GB; chỉnh trần nếu cần.
+- Gác đĩa: đĩa chứa dữ liệu dew còn ít hơn `DEW_MIN_FREE_GB` (mặc định 10) thì `routine run` thoát 75. `dew clean` in chỗ
+  trống hiện có và gợi ý lệnh dọn.
+- Đặt hai biến ở shell hoặc trong tệp env của dew.
+- Không chạy `go clean -modcache` trên máy build offline (`GOPROXY=off`): mất module cache là không build được nữa.
+- Build trong Docker chạy bằng root để lại tệp mà user không xoá được. Chạy container với `--user "$(id -u):$(id -g)"`,
+  hoặc `sudo chown` trước khi dọn.
 
 Lên lịch: thêm `"schedule": {"on_calendar": "Mon..Fri 09:00", "timezone": "Asia/Ho_Chi_Minh"}` (hoặc `"cron"`) vào
 tệp định nghĩa của routine `maintenance`, rồi `dew routine schedule tidy --print`. Lệnh chỉ IN unit systemd
@@ -849,12 +884,15 @@ Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
 - Báo cáo `RUNNING` được ghi ngay khi có thư mục lượt, trước khi tạo worktree, rồi thay bằng kết quả cuối (ghi qua tệp
   tạm rồi đổi tên).
 - `routine list`/`show`: lượt mới nhất luôn thắng, không lùi về một lượt GREEN cũ. Lượt chết giữa chừng (kill, OOM, máy
-  khởi động lại): `ABANDONED`, worktree và nhánh được giữ. Lượt mới nhất chưa có báo cáo mà khoá đang giữ: `RUNNING`.
+  khởi động lại): `ABANDONED` (lượt sau hoặc `routine gc` ghi lại báo cáo trên đĩa,
+  trừ khi pid trong báo cáo vẫn là `routine run <tên>` còn sống); worktree và nhánh được giữ tới khi được dọn. Lượt mới nhất chưa có báo cáo mà khoá đang giữ: `RUNNING`.
   Lỗi trước khi agent chạy (vd không tạo được worktree): `ERROR` kèm nguyên nhân. `show` có thêm `runs` (mọi lượt, mới
   nhất trước).
 - Báo cáo có thêm `changed_files` (tệp khác base, gồm tệp chưa theo dõi), `touched_tests` (có tệp test theo quy ước
   Go/JS/TS/Python), `touched_gate` (có script mà lệnh verify gọi, hoặc `Makefile` khi verify bắt đầu bằng `make`),
-  `baseline_pass`, `unchanged_tree`. GREEN mà có `touched_tests`/`touched_gate` thì stderr in cảnh báo: duyệt các tệp
+  `baseline_pass`, `unchanged_tree`, `pid`, `model` (provider/model đã phân giải, có ngay từ báo cáo `RUNNING`), và sau khi dọn: `worktree_removed`, `session_db`, `session_logs`, `gc_error`.
+  `finished` vắng khi `RUNNING`; `verify_exit_code` chỉ có khi verify chạy sau một lượt agent; `detail` của
+  `RUN_ERROR` do provider kèm `(HTTP nnn)`; lượt `CANCELLED` vẫn có `changed_files`. GREEN mà có `touched_tests`/`touched_gate` thì stderr in cảnh báo: duyệt các tệp
   đó trước khi tin kết quả.
 
 **Lịch routine mang biến của launcher.**
@@ -965,11 +1003,13 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
 - **Allowlist chỉ so nhãn (PRB-30).** `provider:model` không ràng buộc `base_url`/`extra_body` (mục "Ranh giới provider/model"):
   ai sửa được cấu hình, kể cả `crush.json` của một repo lạ, thì trỏ được cùng tên sang endpoint khác.
 - **Nhãn provider của `run --json` không phải bằng chứng.** `provider`/`model` lấy từ tin đã lưu, có cả khi request
-  chưa tới provider. Báo cáo routine không ghi provider/model; cần bằng chứng thì bật sổ ghi LLM (lịch không tự mang
+  chưa tới provider. Báo cáo routine ghi `model` (provider/model large mà lượt dùng), nhưng
+  không chứng minh từng request; cần bằng chứng thì bật sổ ghi LLM (lịch không tự mang
   `DEW_LLM_LEDGER`: thêm vào unit/crontab nếu cần).
 - **`routine list`/`show` có thể làm mất một lượt theo lịch.** Khi lượt mới nhất chưa có báo cáo hoặc báo cáo còn
   `RUNNING`, hai lệnh này thử khoá của routine rồi nhả ngay (cửa sổ rất ngắn, chưa đo); lượt theo lịch bắt đầu đúng lúc đó thấy khoá
-  đang giữ, thoát 75 và không chạy lại.
+  đang giữ, thoát 75 và không chạy lại. `routine gc` (kể cả `--dry-run`) giữ khoá từng routine lâu hơn (chạy git và đo dung lượng).
+  `dew ps` không thử khoá với báo cáo có `pid`.
 - **Đăng nhập ChatGPT/Grok có kết nối ra ngoài kể cả khi dùng provider khác.** Đã `dew login openai`/`xai` mà
   chưa có danh sách model của gói (lấy lúc login bị lỗi, hoặc đăng nhập từ bản cũ), thì mỗi lần dựng lại model
   dew thử lấy lại danh sách đó (có thể làm mới token), kể cả trong phiên chỉ dùng Qwen local. Không phải lời gọi
@@ -995,7 +1035,8 @@ Giới hạn riêng của từng mục (detach grace, accept edits, theme…) n�
   đang xếp hàng (chế độ client/server) không còn mất không dấu vết: nó vẫn ở trong session và hiện là "Interrupted"
   khi mở lại; không tự chạy lại và không vào lịch sử gửi model.
 - **Routine chạy mã cấu hình của repo (PRB-68).** `crushrc`, `$(...)` và hook của repo chạy ngoài lớp chặn không người
-  trực: chỉ chạy routine trên repo bạn tin. Worktree và nhánh của các lượt tích luỹ cho tới khi bạn dọn.
+  trực: chỉ chạy routine trên repo bạn tin. Chỉ worktree còn việc (thay đổi, commit, tệp bị gitignore, phiên mở lại) mới tích luỹ; xem bằng
+  `dew routine gc --dry-run`.
 
 ## Cập nhật và kiểm chứng
 
