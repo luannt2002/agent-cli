@@ -146,6 +146,51 @@ for i in "${!old_dirs[@]}"; do
 done
 for f in env crushrc crush.json; do rewrite_old_names "$config_dir/$f"; done
 rewrite_old_names "$HOME/.local/share/dew/projects.json" # registry: đường worktree của routine
+# Thư mục repo cũng đổi tên agent-cli -> dew: mục registry trỏ <cha>/agent-cli (không còn) mà <cha>/dew có thì
+# viết lại sang <cha>/dew (path, data_dir, locations), để repo chính khỏi biến mất khỏi Home. Chỉ mục của máy
+# này (cùng quy tắc OnThisMachine của Go); đích đã có mục riêng thì không gộp, giữ mục cũ.
+rename_registry_repos() {
+  local f="$HOME/.local/share/dew/projects.json" p map host mid tmp idf mine
+  [[ -f "$f" ]] || return 0
+  grep -qF '/agent-cli"' -- "$f" || return 0 # không có đường agent-cli nào: không việc gì, cũng không cần jq
+  if ! command -v jq >/dev/null; then
+    echo "Cảnh báo: thiếu jq, không kiểm được registry $f (mục repo agent-cli đã đổi tên thành dew nếu có sẽ hiện missing trong Home; ctrl+x gỡ rồi mở lại repo dew)." >&2
+    return 0
+  fi
+  # machine-id: cùng thứ tự với Go (projects.go currentMachineID); DEW_MACHINE_ID_FILES chỉ để test thay.
+  host="$(uname -n)" mid=""
+  for idf in ${DEW_MACHINE_ID_FILES:-/etc/machine-id /var/lib/dbus/machine-id}; do
+    mid="$({ tr -d '[:space:]' <"$idf"; } 2>/dev/null)" || mid=""
+    [[ -n "$mid" ]] && break
+  done
+  # "mine" dùng cho CẢ chọn mục lẫn viết lại: registry dùng chung giữa các máy có thể có cùng đường của máy khác.
+  mine='def mine: if $mid != "" and ((.machine_id // "") != "") then .machine_id == $mid else ((.host // "") == "" or .host == $host) end;'
+  map='{}'
+  while IFS= read -r p; do
+    [[ "${p##*/}" == agent-cli && ! -e "$p" && -d "${p%/*}/dew" ]] && map="$(jq -c --arg k "$p" --arg v "${p%/*}/dew" '.[$k]=$v' <<<"$map")"
+  done < <(jq -r --arg host "$host" --arg mid "$mid" "$mine"'
+    [(.projects // [])[].path] as $paths
+    | (.projects // [])[]
+    | select(mine)
+    | .path | select(type == "string" and endswith("/agent-cli") and (sub("agent-cli$"; "dew") as $n | $paths | index($n) == null))' "$f" 2>/dev/null)
+  [[ "$map" != '{}' ]] || return 0
+  mig_backup_dir
+  cp -- "$f" "$mig_backup/projects.before-repo-rename.json"
+  chmod 600 "$mig_backup/projects.before-repo-rename.json"
+  tmp="$mig_backup/projects.json.new"
+  (umask 077 && jq --argjson m "$map" --arg host "$host" --arg mid "$mid" "$mine"'
+    def sw: . as $v | ([$m | to_entries[] | select(. as $kv | $v == $kv.key or ($v | startswith($kv.key + "/")))] | first) as $e
+      | if $e == null then $v else $e.value + $v[($e.key | length):] end;
+    def fix($k): if (.[$k] | type) == "string" then .[$k] |= sw else . end;
+    (.projects[]? | select(mine and (.path as $p | $m[$p] != null))) |= (fix("path") | fix("data_dir") | (.locations[]? |= (fix("cwd") | fix("data_dir"))))' "$f" >"$tmp")
+  # Lệnh quay lại đặt TRƯỚC lệnh quay lại của rewrite_old_names (cùng tệp): phải chạy trước, trả về bản trung gian.
+  undo_files=("$(printf 'cp -- %q %q' "$mig_backup/projects.before-repo-rename.json" "$f")" "${undo_files[@]}")
+  write_undo
+  cat -- "$tmp" >"$f"
+  rm -f -- "$tmp"
+  echo "Đã đổi đường repo agent-cli -> dew trong registry $f ($(jq 'length' <<<"$map") mục); bản cũ: $mig_backup/projects.before-repo-rename.json"
+}
+rename_registry_repos
 if [[ -n "$moved_share" ]] && command -v git >/dev/null; then
   # Worktree của routine nằm trong thư mục dữ liệu: báo cho repo gốc đường mới của chúng.
   for wt in "$HOME/.local/share/dew"/routines/*/wt/*; do

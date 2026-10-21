@@ -399,4 +399,62 @@ check "tiến trình cũ đang chạy: rc 1, nêu pid, không chuyển gì" "$([
 rc=0; HOME="$t/home" AGENT_CLI_INSTALL_DIR="$t/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1 || rc=$?
 check "AGENT_CLI_INSTALL_DIR không có DEW_INSTALL_DIR: dừng mã 1" "$([[ $rc == 1 ]]; echo $?)"
 
+# Repo đổi tên thư mục agent-cli -> dew: mục registry trỏ đường không còn mà anh em tên dew có thì được viết lại
+# (path, data_dir, locations); mục khác giữ nguyên; có sao lưu + undo; chạy lại không đổi gì.
+rn="$t/reporename"; rnh="$rn/home"; rnj="$rnh/.local/share/dew/projects.json"
+mkdir -p "$rnh/.local/share/dew" "$rn/inst/lib/dew" "$rn/ws/dew/.crush" "$rn/ws/other/dew" "$rn/ws/agent-cli-x" "$rn/ws/keep/agent-cli" "$rn/ws/keep/dew"
+cp "$t/inst/lib/dew/crush" "$rn/inst/lib/dew/crush"
+cat > "$rnj" <<JSON
+{"projects":[
+{"path":"$rn/ws/agent-cli","data_dir":"$rn/ws/agent-cli/.crush","host":"$(uname -n)","pinned":true,"last_accessed":"2026-10-01T00:00:00Z","locations":[{"cwd":"$rn/ws/agent-cli/sub","data_dir":"$rn/ws/agent-cli/sub/.crush","last_accessed":"2026-10-01T00:00:00Z"},{"cwd":"$rn/ws/agent-cli-tools/x","data_dir":"$rn/ws/agent-cli-tools/.crush"}]},
+{"path":"$rn/gone/agent-cli","data_dir":"$rn/gone/agent-cli/.crush","host":"$(uname -n)"},
+{"path":"$rn/ws/other/agent-cli","data_dir":"$rn/ws/other/agent-cli/.crush","host":"other-host","machine_id":"other-machine"},
+{"path":"$rn/ws/agent-cli-x","data_dir":"$rn/ws/agent-cli-x/.crush","host":"$(uname -n)"},
+{"path":"$rn/ws/keep/agent-cli","data_dir":"$rn/ws/keep/agent-cli/.crush","host":"$(uname -n)"},
+{"path":"$rnh/.local/share/agent-cli/routines/r/wt/x","data_dir":"x"},
+{"path":"$rn/ws/agent-cli","data_dir":"$rn/ws/agent-cli/.crush","host":"other-host","machine_id":"other-machine"}
+]}
+JSON
+rn_orig="$(cat "$rnj")"
+rn_install() { HOME="$rnh" DEW_INSTALL_DIR="$rn/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1; }
+msg_rn1="$(rn_install)"
+check "đổi tên repo: path/data_dir/locations của mục có anh em dew được viết lại" "$([[ "$(jq -r '.projects[0] | [.path, .data_dir, .locations[0].cwd, .locations[0].data_dir] | join("|")' "$rnj")" == "$rn/ws/dew|$rn/ws/dew/.crush|$rn/ws/dew/sub|$rn/ws/dew/sub/.crush" ]]; echo $?)"
+check "đổi tên repo: trường khác (pinned, host, thời gian) giữ nguyên" "$([[ "$(jq -c '.projects[0] | [.pinned, .host, .last_accessed, .locations[0].last_accessed]' "$rnj")" == "[true,\"$(uname -n)\",\"2026-10-01T00:00:00Z\",\"2026-10-01T00:00:00Z\"]" ]]; echo $?)"
+check "đổi tên repo: mục thiếu anh em dew, của máy khác, tên gần giống, đường còn tồn tại: giữ nguyên" "$([[ "$(jq -c '.projects[1:5]' "$rnj")" == "$(jq -c '.projects[1:5]' <<<"$rn_orig")" ]]; echo $?)"
+check "đổi tên repo: cùng đường agent-cli nhưng của máy khác (registry dùng chung): giữ nguyên" "$([[ "$(jq -c '.projects[6]' "$rnj")" == "$(jq -c '.projects[6]' <<<"$rn_orig")" ]]; echo $?)"
+check "đổi tên repo: location tên gần giống (agent-cli-tools) trong mục được viết lại: giữ nguyên, không cắt nửa tên" "$([[ "$(jq -c '.projects[0].locations[1]' "$rnj")" == "$(jq -c '.projects[0].locations[1]' <<<"$rn_orig")" ]]; echo $?)"
+check "đổi tên repo: cùng lượt, đường dữ liệu agent-cli vẫn do bước đổi tên cũ xử lý (hai bước cùng một tệp)" "$([[ "$(jq -r '.projects[5].path' "$rnj")" == "$rnh/.local/share/dew/routines/r/wt/x" ]]; echo $?)"
+check "đổi tên repo: có thông báo, đúng 1 mục (mục của máy khác không bị tính)" "$(grep -qF "Đã đổi đường repo agent-cli -> dew" <<<"$msg_rn1" && grep -qF "(1 mục)" <<<"$msg_rn1"; echo $?)"
+rnbk="$(ls -d "$rnh"/.config/dew/pre-dew-* 2>/dev/null | head -1)"
+check "đổi tên repo: sao lưu mode 600; bản gốc (projects.json) đúng nội dung cũ, bản trung gian còn đường repo agent-cli" "$([[ -n "$rnbk" && "$(stat -c %a "$rnbk/projects.before-repo-rename.json")" == 600 && "$(cat "$rnbk/projects.json")" == "$rn_orig" && "$(jq -r '.projects[0].path' "$rnbk/projects.before-repo-rename.json")" == "$rn/ws/agent-cli" ]]; echo $?)"
+rn_snap="$(cat "$rnj")"; msg_rn2="$(rn_install)"
+check "đổi tên repo: chạy lại lần 2 không đổi registry, không thông báo" "$([[ "$(cat "$rnj")" == "$rn_snap" ]] && ! grep -q "Đã đổi đường repo" <<<"$msg_rn2"; echo $?)"
+rc=0; HOME="$rnh" bash "$rnbk/undo.sh" >"$t/undo-rn.log" 2>&1 || rc=$?
+check "đổi tên repo: undo.sh trả registry y nguyên bản cũ" "$([[ $rc == 0 && "$(cat "$rnj")" == "$rn_orig" ]]; echo $?)"
+# Anh em dew đã có mục riêng: không tạo hai mục trùng đường (Home báo mục agent-cli là missing, ctrl+x gỡ).
+rd="$t/repodup"; mkdir -p "$rd/home/.local/share/dew" "$rd/inst/lib/dew" "$rd/ws/dew"; cp "$t/inst/lib/dew/crush" "$rd/inst/lib/dew/crush"
+printf '{"projects":[{"path":"%s/ws/agent-cli","data_dir":"x"},{"path":"%s/ws/dew","data_dir":"y"}]}\n' "$rd" "$rd" > "$rd/home/.local/share/dew/projects.json"
+HOME="$rd/home" DEW_INSTALL_DIR="$rd/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1
+check "đổi tên repo: đích đã đăng ký -> không gộp, không trùng đường" "$([[ "$(jq -r '[.projects[].path] | sort | join(",")' "$rd/home/.local/share/dew/projects.json")" == "$rd/ws/agent-cli,$rd/ws/dew" ]]; echo $?)"
+
+# Không có /etc/machine-id lẫn /var/lib/dbus/machine-id: không rác stderr, vẫn so theo host và viết lại.
+rm_="$t/repomid"; mkdir -p "$rm_/home/.local/share/dew" "$rm_/inst/lib/dew" "$rm_/ws/dew"; cp "$t/inst/lib/dew/crush" "$rm_/inst/lib/dew/crush"
+printf '{"projects":[{"path":"%s/ws/agent-cli","data_dir":"x","host":"%s"}]}\n' "$rm_" "$(uname -n)" > "$rm_/home/.local/share/dew/projects.json"
+HOME="$rm_/home" DEW_INSTALL_DIR="$rm_/inst" DEW_SKIP_BUILD=1 DEW_MACHINE_ID_FILES="$rm_/no1 $rm_/no2" bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>"$rm_/err" || true
+check "đổi tên repo: không có tệp machine-id -> stderr không có 'No such file'" "$(! grep -q 'No such file' "$rm_/err"; echo $?)"
+check "đổi tên repo: không có tệp machine-id -> so theo host, vẫn viết lại" "$([[ "$(jq -r '.projects[0].path' "$rm_/home/.local/share/dew/projects.json")" == "$rm_/ws/dew" ]]; echo $?)"
+# machine-id lấy từ tệp thứ hai khi tệp đầu không có (như /var/lib/dbus/machine-id sau /etc/machine-id): mục khác host nhưng cùng machine-id vẫn là của máy này.
+echo "MID-TEST" > "$rm_/id2"
+printf '{"projects":[{"path":"%s/ws/agent-cli","data_dir":"x","host":"other-host","machine_id":"MID-TEST"}]}\n' "$rm_" > "$rm_/home/.local/share/dew/projects.json"
+HOME="$rm_/home" DEW_INSTALL_DIR="$rm_/inst" DEW_SKIP_BUILD=1 DEW_MACHINE_ID_FILES="$rm_/no1 $rm_/id2" bash "$t/fake/scripts/install-dew.sh" >/dev/null 2>&1 || true
+check "đổi tên repo: machine-id từ tệp dự phòng (tệp đầu không có) -> mục cùng machine-id được viết lại" "$([[ "$(jq -r '.projects[0].path' "$rm_/home/.local/share/dew/projects.json")" == "$rm_/ws/dew" ]]; echo $?)"
+# Registry không có đường agent-cli: bước im lặng hẳn, kể cả khi thiếu jq; có đường agent-cli mà thiếu jq: cảnh báo.
+rj="$t/repojq"; mkdir -p "$rj/home/.local/share/dew" "$rj/inst/lib/dew"; cp "$t/inst/lib/dew/crush" "$rj/inst/lib/dew/crush"
+echo '{"projects":[{"path":"/w/x","data_dir":"/w/x/.crush"}]}' > "$rj/home/.local/share/dew/projects.json"
+msg_rj="$(HOME="$rj/home" PATH="$t/nojq" DEW_INSTALL_DIR="$rj/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1)" || true
+check "registry không có đường agent-cli + thiếu jq: không cảnh báo thiếu jq" "$(! grep -q 'thiếu jq, không kiểm được registry' <<<"$msg_rj"; echo $?)"
+echo '{"projects":[{"path":"/w/agent-cli","data_dir":"/w/agent-cli/.crush"}]}' > "$rj/home/.local/share/dew/projects.json"
+msg_rj="$(HOME="$rj/home" PATH="$t/nojq" DEW_INSTALL_DIR="$rj/inst" DEW_SKIP_BUILD=1 bash "$t/fake/scripts/install-dew.sh" 2>&1)" || true
+check "registry có đường agent-cli + thiếu jq: cảnh báo thiếu jq" "$(grep -q 'thiếu jq, không kiểm được registry' <<<"$msg_rj"; echo $?)"
+
 if [[ $fail == 0 ]]; then echo PASS; else echo "FAILED"; exit 1; fi
