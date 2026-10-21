@@ -13,8 +13,8 @@ import (
 // chừng thì lần sau vẫn biết đã tới đâu và verify cuối ra sao.
 type Event struct {
 	Time        time.Time `json:"time"`
-	Kind        string    `json:"kind"` // start, baseline, attempt_begin, agent_end, verify, stop
-	Attempt     int       `json:"attempt,omitempty"`
+	Kind        string    `json:"kind"`              // start, baseline, attempt_begin, agent_end, verify, stop
+	Attempt     int       `json:"attempt,omitempty"` // lượt chạy lại giữ số lượt bị cắt; ở stop: tổng số lượt agent, kể cả lượt chạy lại
 	SessionID   string    `json:"session_id,omitempty"`
 	Status      string    `json:"status,omitempty"`
 	ExitCode    int       `json:"exit_code,omitempty"`
@@ -23,6 +23,10 @@ type Event struct {
 	PromptLen   int       `json:"prompt_len,omitempty"`
 	Reason      string    `json:"reason,omitempty"`
 	Note        string    `json:"note,omitempty"`
+	// ErrorClass, HTTPStatus: lượt agent hỏng vì lỗi tạm thời (Engine.Transient), để
+	// người đọc thấy vì sao lần chạy thử lại; HTTPStatus 0 khi không biết mã.
+	ErrorClass string `json:"error_class,omitempty"`
+	HTTPStatus int    `json:"http_status,omitempty"`
 }
 
 // Journal nhận sự kiện theo thứ tự.
