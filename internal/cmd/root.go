@@ -88,17 +88,17 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   "dew",
-	Short: "A terminal-first AI assistant for software development",
-	Long:  "A glamorous, terminal-first AI assistant for software development and adjacent tasks",
+	Short: "DEW, the Daily Engineering Workspace: an AI coding agent in your terminal",
+	Long:  "DEW (Daily Engineering Workspace) keeps your daily engineering in one terminal: sessions and projects side by side, unattended loops and routines, with local or API models",
 	Example: `
 # Run in interactive mode
 dew
 
 # Run non-interactively
-dew run "Guess my 5 favorite Pokémon"
+dew run "Explain how this project is built and tested"
 
-# Run a non-interactively with pipes and redirection
-cat README.md | dew run "make this more glamorous" > GLAMOROUS_README.md
+# Run non-interactively with pipes and redirection
+git diff | dew run "Review this diff" > REVIEW.md
 
 # Run with debug logging in a specific directory
 dew --debug --cwd /path/to/project

@@ -43,16 +43,16 @@ var runCmd = &cobra.Command{
 The prompt can be provided as arguments or piped from stdin.`,
 	Example: `
 # Run a simple prompt
-dew run "Guess my 5 favorite Pokémon"
+dew run "Explain how this project is built and tested"
 
 # Pipe input from stdin
-curl https://charm.land | dew run "Summarize this website"
+git log --oneline -20 | dew run "Summarize these changes"
 
 # Read from a file
-dew run "What is this code doing?" <<< prrr.go
+dew run "What is this code doing?" < main.go
 
 # Redirect output to a file
-dew run "Generate a hot README for this project" > MY_HOT_README.md
+dew run "Generate a README for this project" > README.draft.md
 
 # Run in quiet mode (hide the spinner)
 dew run --quiet "Generate a README for this project"

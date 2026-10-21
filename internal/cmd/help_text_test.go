@@ -29,3 +29,16 @@ func TestHelpTextNamesDew(t *testing.T) {
 	require.Contains(t, schemaCmd.Long, "dew configuration file")
 	require.Contains(t, statsCmd.Flags().Lookup("crawl-dir").Usage, "dew projects")
 }
+
+// Help của lệnh gốc và `run` là thứ đầu tiên người dùng đọc: phải nói DEW là gì,
+// không còn câu giới thiệu và ví dụ của upstream.
+func TestRootAndRunHelpDescribeDEW(t *testing.T) {
+	require.Contains(t, rootCmd.Short, "Daily Engineering Workspace")
+	require.Contains(t, rootCmd.Long, "Daily Engineering Workspace")
+	for _, c := range []*cobra.Command{rootCmd, runCmd} {
+		text := strings.ToLower(strings.Join([]string{c.Short, c.Long, c.Example}, "\n"))
+		for _, s := range []string{"glamorous", "pokémon", "charm.land", "hot readme"} {
+			require.NotContains(t, text, s, "help of `%s` still has upstream text", c.Name())
+		}
+	}
+}
