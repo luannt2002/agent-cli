@@ -274,6 +274,9 @@ func Save(list *ProjectList) error {
 // nguyên, data dir trước đó (mục kiểu cũ chưa có Locations) được giữ lại ở đó.
 func Register(workingDir, dataDir string) error {
 	path := canonical(workingDir)
+	if inRoutines(path) || inRoutines(workingDir) {
+		return nil
+	}
 	host, mid := currentHost(), currentMachineID()
 	return update(func(list *ProjectList) error {
 		// The list is kept most-recent-first by moving each registration to
@@ -347,11 +350,32 @@ func Remove(path string) error {
 	})
 }
 
-// List returns all tracked projects, most recently registered first.
+// inRoutines cho biết path nằm dưới <data dir>/routines, chỗ `dew routine run`
+// tạo worktree cho mỗi lượt. Đó là chỗ làm việc tạm của máy, không phải dự án
+// của người dùng: vào sổ thì đẩy dự án thật khỏi Home. Thư mục này cạnh sổ
+// (cùng dirname GlobalConfigData với routineDataDir ở internal/cmd).
+func inRoutines(path string) bool {
+	dir := filepath.Join(filepath.Dir(projectsFilePath()), "routines")
+	dirs := []string{dir}
+	// Data dir có thể là symlink: canonical đã resolve path, nên so cả dạng resolve của dir.
+	if real, err := filepath.EvalSymlinks(dir); err == nil && real != dir {
+		dirs = append(dirs, real)
+	}
+	for _, d := range dirs {
+		if rel, err := filepath.Rel(d, path); err == nil && rel != "." && filepath.IsLocal(rel) {
+			return true
+		}
+	}
+	return false
+}
+
+// List returns all tracked projects, most recently registered first. Worktrees
+// of routine runs (see inRoutines) are left out, also those that older builds
+// already wrote into the file; the file itself is not rewritten.
 func List() ([]Project, error) {
 	list, err := Load()
 	if err != nil {
 		return nil, err
 	}
-	return list.Projects, nil
+	return slices.DeleteFunc(list.Projects, func(p Project) bool { return inRoutines(p.Path) }), nil
 }

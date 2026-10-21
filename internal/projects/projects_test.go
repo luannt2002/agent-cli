@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -209,5 +210,63 @@ func TestRegisterOrdersByRecency(t *testing.T) {
 	want := []string{"/p1", "/p3", "/p2"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("Expected order %v, got %v", want, got)
+	}
+}
+
+// Worktree của `dew routine run` nằm dưới <data dir>/routines: không được vào
+// sổ dự án (đẩy dự án thật khỏi Home), và các mục đã lọt vào từ trước phải
+// bị ẩn khi liệt kê.
+func TestRoutineWorktreesAreNotProjects(t *testing.T) {
+	tmpDir := realDir(t, t.TempDir()) // macOS: /var là symlink, sổ lưu dạng đã resolve
+	t.Setenv("XDG_DATA_HOME", tmpDir)
+	t.Setenv("CRUSH_GLOBAL_DATA", filepath.Join(tmpDir, "crush"))
+
+	wt := filepath.Join(tmpDir, "crush", "routines", "nightly", "wt", "20261021T010203")
+	real := filepath.Join(tmpDir, "work", "app")
+	// Thư mục anh em có tiền tố giống "routines" vẫn là dự án thường.
+	sibling := filepath.Join(tmpDir, "crush", "routines-notes")
+	for _, d := range []string{wt, real, sibling} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Register bỏ qua worktree routine.
+	for _, d := range []string{wt, real, sibling} {
+		if err := Register(d, filepath.Join(d, ".crush")); err != nil {
+			t.Fatalf("Register(%s): %v", d, err)
+		}
+	}
+	got, err := List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, p := range got {
+		paths = append(paths, p.Path)
+	}
+	if want := []string{sibling, real}; !slices.Equal(paths, want) {
+		t.Fatalf("after Register: got %v, want %v", paths, want)
+	}
+
+	// Register không ghi gì vào file (List một mình cũng ẩn được, nên nhìn thẳng file).
+	if raw, err := Load(); err != nil || len(raw.Projects) != 2 {
+		t.Fatalf("registry file after Register: %+v, err %v; want 2 entries", raw, err)
+	}
+
+	// Mục có sẵn trong projects.json (từ bản cũ) bị ẩn khi List.
+	seeded := &ProjectList{Projects: []Project{
+		{Path: wt, DataDir: wt + "/.crush", Host: currentHost()},
+		{Path: real, DataDir: real + "/.crush", Host: currentHost()},
+	}}
+	if err := Save(seeded); err != nil {
+		t.Fatal(err)
+	}
+	got, err = List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != real {
+		t.Fatalf("after seeded file: got %+v, want only %s", got, real)
 	}
 }
