@@ -8,7 +8,11 @@
 # --include-ignored; node_modules bị ignore thì dựng lại được, không giữ), mã HTTP của
 # provider và model đã phân giải vào báo cáo (routine new không --model đóng băng model mặc
 # định vào định nghĩa), giới hạn DEW_ROUTINE_SLOTS đọc từ tệp env, và
-# bước dọn đầu lượt (trim cache Go giả tối đa 1 lần/giờ, đĩa thiếu -> 75) cùng `dew clean`.
+# bước dọn đầu lượt (trim cache Go giả tối đa 1 lần/giờ, đĩa thiếu -> 75) cùng `dew clean`,
+# `routine list`/`ps` nêu trạng thái theo pid sống (ABANDONED khi đã chết), model, verify;
+# DEW_ROUTINE_MIN_MEM_MB (RAM thiếu -> 75); 3 lượt khởi động cùng lúc với DEW_ROUTINE_SLOTS=2
+# -> đúng 1 lượt 75; lượt kế của routine khác đóng run ma (pid đã chết) thành ABANDONED; và
+# `routine export` ra patch git apply được vào clone sạch ở base.
 # Mọi thứ nằm trong thư mục tạm. Dùng: scripts/test-dew-routine.sh
 # (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
@@ -146,6 +150,15 @@ rmode="$(stat -c %a "$(dirname "$(jget "$t/show1.json" last_run.journal)")/repor
 [ "$rmode" = 600 ]; check "báo cáo chỉ chủ đọc, nằm ngoài worktree (mode $rmode)" $?
 "$bin" routine list >"$t/list1.out" 2>&1
 grep -q 'green.*GREEN' "$t/list1.out"; check "routine list hiện lần chạy cuối GREEN" $?
+list1="$(grep '^green ' "$t/list1.out")"
+"$bin" routine list --json >"$t/list1.json" 2>&1
+lj="$(python3 - "$t/list1.json" <<'PY'
+import json, sys
+e = [r for r in json.load(open(sys.argv[1])) if r["name"] == "green"][0]
+print(e.get("state"), e.get("model"), e.get("verify"), e.get("changed_count"), e.get("attempts"), e.get("last_reason"))
+PY
+)"
+[[ "$list1" == *"last: GREEN "*"  model fake/m  "*"  verify PASS  changed 1  attempts 1" ]] && [ "$lj" = "GREEN fake/m PASS 1 1 GREEN" ]; check "routine list (+--json): trạng thái, model, thời lượng, verify, số tệp đổi, số lượt ('$list1' json='$lj')" $?
 
 # ---- 3: chặn git push khi không người trực; đối chứng bằng `run` --------------
 repo2="$(mkrepo pusher)"
@@ -242,11 +255,14 @@ fin="$(jget "$run7/report.json" finished)"; rpid="$(jget "$run7/report.json" pid
 seen="$(python3 - "$t/ps.json" "$ps_" <<'PY'
 import json, sys
 rows = json.load(open(sys.argv[1]))
-print(sum(1 for r in rows if r.get("routine") == "slow" and r.get("pid") == int(sys.argv[2]) and r.get("busy") and "/routines/slow/wt/" in r.get("path", "")))
+print(sum(1 for r in rows if r.get("routine") == "slow" and r.get("pid") == int(sys.argv[2]) and r.get("busy") and "/routines/slow/wt/" in r.get("path", "") and r.get("model") == "fake/m"))
 PY
 )"
 ps_txt="$(cat "$t/ps.txt")"
-[ "$rc" -eq 0 ] && [ "$seen" = 1 ] && [[ "$ps_txt" == *ROUTINE*slow* ]]; check "ps thấy routine đang chạy: một hàng ROUTINE, path là worktree, pid đúng (rc=$rc rows=$seen)" $?
+[ "$rc" -eq 0 ] && [ "$seen" = 1 ] && [[ "$ps_txt" == *ROUTINE*slow*"model fake/m"* ]]; check "ps thấy routine đang chạy: một hàng ROUTINE, path là worktree, pid đúng, model (rc=$rc rows=$seen)" $?
+"$bin" routine list >"$t/list7.out" 2>&1
+list7="$(grep '^slow ' "$t/list7.out")"
+[[ "$list7" == *"last: RUNNING (pid $ps_)  model fake/m  running "* ]]; check "routine list: lượt đang chạy là RUNNING kèm pid, model, thời lượng tới giờ ('$list7')" $?
 kill -TERM "$ps_" 2>/dev/null
 ( sleep 25; kill -9 "$ps_" 2>/dev/null ) & wd=$!
 wait "$ps_"; rc=$?
@@ -268,6 +284,9 @@ wait "$ps_" 2>/dev/null
 "$bin" routine show slow >"$t/show5.json" 2>/dev/null
 reason="$(jget "$t/show5.json" last_run.reason)"
 [ "$reason" = ABANDONED ]; check "SIGKILL giữa lượt -> lượt cuối ABANDONED, không hiện báo cáo CANCELLED cũ ($reason)" $?
+"$bin" routine list >"$t/list8.out" 2>&1
+list8="$(grep '^slow ' "$t/list8.out")"
+[[ "$list8" == *"last: ABANDONED "*"verify not run"* ]]; check "routine list: lượt bị SIGKILL (pid đã chết) là ABANDONED, không phải RUNNING ('$list8')" $?
 # Tiến trình thay thế (khác danh tính) nhận lại được: khoá đã nhả khi tiến trình chết.
 flock -n "$data/slow/slow.lock" true; rc=$?
 [ "$rc" -eq 0 ]; check "sau SIGKILL khoá đã nhả, lượt khác chạy được (flock rc=$rc)" $?
@@ -371,6 +390,102 @@ clean2_out="$(cat "$t/clean2.out")"; left="$(entries)"
 [ "$rc" -eq 0 ] && [ "$left" = 1 ] && [[ "$clean2_out" == *"Go build cache: removed 1 old entries"* ]]; check "dew clean --apply trim cache Go về 80% trần (rc=$rc còn $left mục)" $?
 (cd "$t" && PATH="$t/gitonly" DEW_GOCACHE_MAX=x "$bin" clean) >/dev/null 2>&1; rc=$?
 [ "$rc" -eq 2 ]; check "dew clean với DEW_GOCACHE_MAX sai -> rc=2 (rc=$rc)" $?
+
+# ---- 12: RAM tối thiểu; trần song song khi 3 lượt khởi động cùng lúc; run ma của routine khác ----
+rm -f "$t/home/.config/dew/env" # bỏ DEW_ROUTINE_SLOTS=1 của ca 10
+branches_before="$(git -C "$repo" branch --list "routine/green-*" | wc -l)"
+(cd "$t" && DEW_ROUTINE_MIN_MEM_MB=99999999 "$bin" routine run green) >/dev/null 2>"$t/mem.err"; rc=$?
+mem_err="$(tr -s '[:space:]' ' ' <"$t/mem.err")"; branches_after="$(git -C "$repo" branch --list "routine/green-*" | wc -l)"
+[ "$rc" -eq 75 ] && [[ "$mem_err" == *"MB of memory available (MemAvailable), DEW_ROUTINE_MIN_MEM_MB=99999999"* ]] && [ "$branches_before" = "$branches_after" ]; check "RAM trống ít hơn DEW_ROUTINE_MIN_MEM_MB -> rc=75, nêu số đo và tên biến, không tạo nhánh (rc=$rc)" $?
+(cd "$t" && DEW_ROUTINE_MIN_MEM_MB=3GB "$bin" routine run green) >/dev/null 2>"$t/mem2.err"; rc=$?
+mem2_err="$(cat "$t/mem2.err")"
+[ "$rc" -eq 2 ] && [[ "$mem2_err" == *DEW_ROUTINE_MIN_MEM_MB* ]]; check "DEW_ROUTINE_MIN_MEM_MB sai -> rc=2 (rc=$rc)" $?
+
+declare -A par
+for n in par1 par2 par3; do
+  r="$(mkrepo "$n")"
+  "$bin" routine new "$n" --mode goal --repo "$r" --goal "SLOW wait" --verify 'test -f never' --max-repairs 0 >/dev/null 2>&1
+done
+for n in par1 par2 par3; do
+  (cd "$t" && DEW_ROUTINE_SLOTS=2 exec "$bin" routine run "$n") >/dev/null 2>"$t/$n.err" &
+  par[$n]=$!
+done
+refused=""
+for _ in $(seq 150); do
+  for n in par1 par2 par3; do kill -0 "${par[$n]}" 2>/dev/null || refused="$n"; done
+  [ -n "$refused" ] && break
+  sleep 0.1
+done
+live=()
+for n in par1 par2 par3; do [ "$n" != "$refused" ] && live+=("$n"); done
+rc=-1; [ -n "$refused" ] && { wait "${par[$refused]}"; rc=$?; }
+# fang ngắt dòng thông báo lỗi dài (và viết hoa chữ đầu): gộp khoảng trắng trước khi so.
+refused_err="$(tr -s '[:space:]' ' ' <"$t/${refused:-none}.err" 2>/dev/null)"
+alive=0; for n in "${live[@]}"; do kill -0 "${par[$n]}" 2>/dev/null && alive=$((alive + 1)); done
+[ "$rc" -eq 75 ] && [[ "$refused_err" == *"2 routine slots are in use (DEW_ROUTINE_SLOTS=2"* ]] && [ "$alive" = 2 ]; check "3 lượt khởi động cùng lúc, DEW_ROUTINE_SLOTS=2 -> đúng 1 lượt thoát 75, 2 lượt chạy (refused=$refused rc=$rc alive=$alive err='$refused_err')" $?
+
+# Lượt ma: SIGKILL một lượt đang chạy; lượt `routine run` kế tiếp của routine KHÁC đóng nó thành
+# ABANDONED, lượt còn sống thì không đụng.
+ghost="${live[0]}"; keep="${live[1]}"
+for _ in $(seq 100); do
+  ok=0
+  for n in "$ghost" "$keep"; do
+    f="$(ls -d "$data/$n/runs/"* 2>/dev/null | tail -n1)/report.json"
+    [ -f "$f" ] && [ "$(jget "$f" pid)" = "${par[$n]}" ] && ok=$((ok + 1))
+  done
+  [ "$ok" = 2 ] && break
+  sleep 0.1
+done
+ghost_report="$(ls -d "$data/$ghost/runs/"* | tail -n1)/report.json"; keep_report="$(ls -d "$data/$keep/runs/"* | tail -n1)/report.json"
+kill -9 "${par[$ghost]}"; wait "${par[$ghost]}" 2>/dev/null
+before_ghost="$(jget "$ghost_report" reason)"
+(cd "$t" && DEW_ROUTINE_SLOTS=2 "$bin" routine run green) >/dev/null 2>"$t/ghost.err"; rc=$?
+ghost_err="$(cat "$t/ghost.err")"; after_ghost="$(jget "$ghost_report" reason)"; fin_ghost="$(jget "$ghost_report" finished)"; after_keep="$(jget "$keep_report" reason)"
+[ "$rc" -eq 0 ] && [ "$before_ghost" = RUNNING ] && [ "$after_ghost" = ABANDONED ] && [ -n "$fin_ghost" ] && [ "$after_keep" = RUNNING ] && [[ "$ghost_err" == *"closed $(dirname "$ghost_report") as ABANDONED"* ]]; check "lượt kế của routine khác đóng run ma thành ABANDONED (có finished), lượt còn sống vẫn RUNNING (rc=$rc $ghost: $before_ghost->$after_ghost, $keep: $after_keep)" $?
+"$bin" routine list >"$t/list12.out" 2>&1
+list_keep="$(grep "^$keep " "$t/list12.out")"; list_ghost="$(grep "^$ghost " "$t/list12.out")"
+[[ "$list_keep" == *"last: RUNNING (pid ${par[$keep]})"* ]] && [[ "$list_ghost" == *"last: ABANDONED "* ]]; check "routine list: lượt sống RUNNING kèm pid, lượt ma ABANDONED" $?
+kill -TERM "${par[$keep]}" 2>/dev/null
+( sleep 25; kill -9 "${par[$keep]}" 2>/dev/null ) & wd=$!
+wait "${par[$keep]}" 2>/dev/null
+kill "$wd" 2>/dev/null; wait "$wd" 2>/dev/null
+
+# ---- 13: routine export: một patch (sửa + tệp mới; tệp bị ignore chỉ khi --include-ignored) ------
+"$bin" routine show green >"$t/show13.json" 2>/dev/null
+wt13="$(jget "$t/show13.json" last_run.worktree)"; base13="$(jget "$t/show13.json" last_run.base_sha)"
+echo '*.secret' >>"$repo/.git/info/exclude"
+echo changed >>"$wt13/crush.json"
+echo token >"$wt13/x.secret"
+st_before="$(git -C "$wt13" status --porcelain)"
+"$bin" routine export green -o "$t/green.patch" >"$t/export.out" 2>"$t/export.err"; rc=$?
+export_out="$(cat "$t/export.out")"; st_after="$(git -C "$wt13" status --porcelain)"
+sum13="$(sha256sum "$t/green.patch" | cut -c1-64)"
+[ "$rc" -eq 0 ] && [[ "$export_out" == *$'M\tcrush.json'* ]] && [[ "$export_out" == *$'A\te2e-probe'* ]] && [[ "$export_out" != *x.secret* ]] && [[ "$export_out" == *"$sum13  $t/green.patch"* ]] && [ "$st_before" = "$st_after" ]; check "routine export -o: liệt kê tệp sửa + tệp mới (không có tệp bị ignore), in sha256 đúng, không đổi status của worktree (rc=$rc)" $?
+treesum() { (cd "$1" && git ls-files -z -co --exclude-standard | xargs -0 -r sha256sum 2>/dev/null | sort); }
+git clone -q "$repo" "$t/clean13" && git -C "$t/clean13" checkout -q --detach "$base13"
+git -C "$t/clean13" apply "$t/green.patch"; arc=$?
+want13="$(treesum "$wt13")"; got13="$(treesum "$t/clean13")"
+[ "$arc" -eq 0 ] && [ -n "$want13" ] && [ "$want13" = "$got13" ] && [ ! -e "$t/clean13/x.secret" ]; check "patch git apply được vào clone sạch ở base, ra đúng cây của worktree, không có tệp bị ignore (apply rc=$arc)" $?
+"$bin" routine export green --include-ignored >"$t/green-ign.patch" 2>"$t/export-ign.err"; rc=$?
+git clone -q "$repo" "$t/clean13b" && git -C "$t/clean13b" checkout -q --detach "$base13"
+git -C "$t/clean13b" apply "$t/green-ign.patch"; arc=$?
+got13b="$(treesum "$t/clean13b" | grep -v ' x.secret$')"; secret="$(cat "$t/clean13b/x.secret" 2>/dev/null)"
+export_ign_err="$(cat "$t/export-ign.err")"
+[ "$rc" -eq 0 ] && [ "$arc" -eq 0 ] && [ "$secret" = token ] && [ "$want13" = "$got13b" ] && [[ "$export_ign_err" == *$'A\tx.secret'* ]] && [ ! -e "$t/clean13b/.crush" ]; check "--include-ignored (patch ra stdout, danh sách ra stderr): có cả tệp bị ignore, không có .crush (rc=$rc apply rc=$arc)" $?
+stamp7="$(basename "$run7")"
+"$bin" routine export slow --run "$stamp7" >/dev/null 2>"$t/export-gone.err"; rc=$?
+gone_err="$(cat "$t/export-gone.err")"
+[ "$rc" -eq 1 ] && [[ "$gone_err" == *"is gone"* ]] && [[ "$gone_err" == *"$run7/crush.db"* ]]; check "export lượt đã bị gc gỡ worktree -> rc=1, nói rõ, chỉ chỗ crush.db còn giữ (rc=$rc)" $?
+# report.json bị sửa: base_sha dạng cờ không bao giờ tới git (git nhận --output và ghi đè tệp).
+run13="$(dirname "$(jget "$t/show13.json" last_run.journal)")"
+python3 - "$run13/report.json" "--output=$t/pwned" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["base_sha"] = sys.argv[2]
+json.dump(d, open(p, "w"), indent=2)
+PY
+"$bin" routine export green -o "$t/tampered.patch" >/dev/null 2>"$t/export-tamper.err"; rc=$?
+tamper_err="$(tr -s '[:space:]' ' ' <"$t/export-tamper.err")"
+[ "$rc" -eq 1 ] && [[ "$tamper_err" == *"base_sha"* ]] && [ ! -e "$t/pwned" ] && [ ! -e "$t/tampered.patch" ]; check "report.json có base_sha dạng cờ -> rc=1, từ chối, không tệp nào bị ghi (rc=$rc)" $?
 
 if [ "$fail" -eq 0 ]; then echo PASS; else echo "FAILED"; fi
 exit "$fail"

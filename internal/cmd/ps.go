@@ -20,6 +20,7 @@ import (
 
 	"github.com/charmbracelet/crush/internal/client"
 	"github.com/charmbracelet/crush/internal/proto"
+	"github.com/charmbracelet/crush/internal/routine"
 	"github.com/charmbracelet/crush/internal/server"
 	"github.com/spf13/cobra"
 )
@@ -55,6 +56,8 @@ type psRow struct {
 	Routine string    `json:"routine,omitempty"`
 	PID     int       `json:"pid,omitempty"`
 	Started time.Time `json:"started,omitzero"`
+	// Model is the provider/model the routine run uses (from its report).
+	Model string `json:"model,omitempty"`
 }
 
 func (r psRow) status() string {
@@ -76,7 +79,8 @@ var psCmd = &cobra.Command{
 	Long: `List every project and session on the running dew servers.
 Without --host, scans all per-project server sockets. Never starts a server.
 Running routines ("dew routine run" works in-process, without a server) are listed
-too, with status ROUTINE, their worktree as the project and "busy": true in --json.
+too, with status ROUTINE, their worktree as the project, the model they run in the
+title ("model" in --json) and "busy": true in --json.
 On Windows they are not listed: whether their process is alive cannot be checked.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -241,7 +245,7 @@ scan:
 
 // routinePS trả một hàng cho mỗi routine có lượt mới nhất đang chạy. `routine run`
 // chạy in-process nên chỉ thấy qua báo cáo. Báo cáo có pid: kiểm tiến trình là `routine
-// run <tên>` còn sống (routineRunAlive; Windows không kiểm được nên không hiện), KHÔNG thử
+// run <tên>` còn sống (routine.RunAlive; Windows không kiểm được nên không hiện), KHÔNG thử
 // khoá (thử khoá làm một lượt khởi động đúng lúc đó thoát 75). Báo cáo cũ không pid:
 // theo listRuns (thử khoá). Lượt chưa kịp ghi báo cáo thì bỏ qua (cũng để khỏi thử khoá).
 func routinePS(dataDir string, now time.Time) []psRow {
@@ -257,14 +261,18 @@ func routinePS(dataDir string, now time.Time) []psRow {
 		switch {
 		case err != nil || rep.Reason != "RUNNING":
 			continue
-		case rep.PID > 0 && !routineRunAlive(rep.PID, name):
+		case rep.PID > 0 && !routine.RunAlive(rep.PID, name):
 			continue
 		case rep.PID == 0 && listRuns(dataDir, name)[0].Reason != "RUNNING":
 			continue
 		}
+		title := fmt.Sprintf("%s, running %s", name, now.Sub(rep.Started).Round(time.Second))
+		if rep.Model != "" {
+			title += ", model " + rep.Model
+		}
 		rows = append(rows, psRow{
 			Path: rep.Worktree, Busy: true, Routine: name, PID: rep.PID, Started: rep.Started,
-			Title: fmt.Sprintf("%s, running %s", name, now.Sub(rep.Started).Round(time.Second)),
+			Model: rep.Model, Title: title,
 		})
 	}
 	return rows

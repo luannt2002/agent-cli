@@ -14,11 +14,11 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"charm.land/fantasy"
@@ -145,7 +145,13 @@ func init() {
 	listCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List routine definitions and their last run",
-		Args:  cobra.NoArgs,
+		Long: `List every routine definition with its newest run: state, the model it ran, how long it
+took (or has run so far), verify, changed files and agent turns. RUNNING means the run's
+process is alive (checked by pid, never read from report.json alone); a run whose process
+died shows ABANDONED, one that cannot be checked (no pid, or Windows) UNKNOWN. verify is
+PASS only when the run ended GREEN or NO_CHANGE; a green verify after any other stop shows
+"PASS (not green)"; "not run" means verify never ran. --json adds the same fields.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			entries := listRoutines(routineDefsDir(), routineDataDir())
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
@@ -155,25 +161,7 @@ func init() {
 				fmt.Fprintf(cmd.OutOrStdout(), "no routines in %s\n", routineDefsDir())
 				return nil
 			}
-			for _, e := range entries {
-				switch {
-				case e.Error != "":
-					fmt.Fprintf(cmd.OutOrStdout(), "%-20s INVALID  %s\n", e.Name, e.Error)
-				default:
-					last := "never run"
-					if e.LastReason != "" {
-						last = e.LastReason
-					}
-					if !e.LastFinished.IsZero() {
-						last += " " + e.LastFinished.Local().Format("2006-01-02 15:04")
-					}
-					sched := "manual"
-					if e.Scheduled {
-						sched = "scheduled"
-					}
-					fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-11s %-9s last: %s\n", e.Name, e.Mode, sched, last)
-				}
-			}
+			printRoutineList(cmd.OutOrStdout(), entries)
 			return nil
 		},
 	}
@@ -237,12 +225,15 @@ func init() {
 nothing to do), 1 any other stop reason or failure, 2 bad usage (including
 --scheduled on a goal routine or a changed definition), 75 another run of this
 routine holds the lock, all routine slots are in use (DEW_ROUTINE_SLOTS runs
-at once across all routines, default 3, 0 = no limit), or the disk holding dew's
-data has less than DEW_MIN_FREE_GB free (default 10, 0 = no check; "dew clean"
-shows what you can delete). Before that check, a Go build cache over
-DEW_GOCACHE_MAX GB (default 20, 0 = no cap) is trimmed to 80% of it, oldest
-entries first, at most once an hour. Set these in your shell or in your dew env
-file.`,
+at once across all routines, default 2, 0 = no limit), less memory is available
+than DEW_ROUTINE_MIN_MEM_MB (MemAvailable in MB; default 0 = no check; measured on
+Linux only, elsewhere a warning), or the disk holding dew's data has less than
+DEW_MIN_FREE_GB free (default 10, 0 = no check; "dew clean" shows what you can
+delete). Before that check, a Go build cache over DEW_GOCACHE_MAX GB (default 20,
+0 = no cap) is trimmed to 80% of it, oldest entries first, at most once an hour.
+Set these in your shell or in your dew env file. At start, the newest run of any
+other routine that is still marked RUNNING but whose process is provably gone
+(Linux) is closed as ABANDONED.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := rejectCwdFlag(cmd); err != nil {
@@ -254,6 +245,9 @@ file.`,
 			}
 			opts := routineOpts{Def: d, Sum: sum, DataDir: routineDataDir()}
 			if opts.Slots, err = routineSlots(); err != nil {
+				return &usageError{err}
+			}
+			if opts.MinMemMB, err = routineMinMemMB(); err != nil {
 				return &usageError{err}
 			}
 			if opts.GoCacheMax, err = envGB(goCacheMaxEnv, 20); err != nil {
@@ -481,6 +475,59 @@ type routineListEntry struct {
 	LastReason   string    `json:"last_reason,omitempty"`
 	LastFinished time.Time `json:"last_finished,omitzero"`
 	Error        string    `json:"error,omitempty"`
+	// Lượt mới nhất, đọc như Home (routine.LatestRuns). State: RUNNING chỉ khi pid còn sống và
+	// đúng là `routine run <tên>`; RUNNING mà tiến trình đã chết là ABANDONED, không kiểm được
+	// (không pid) là UNKNOWN; báo cáo mất hay hỏng là UNREADABLE; còn lại là lý do dừng.
+	State           string `json:"state,omitempty"`
+	Model           string `json:"model,omitempty"`
+	PID             int    `json:"pid,omitempty"`              // chỉ khi State là RUNNING
+	DurationSeconds int64  `json:"duration_seconds,omitempty"` // đang chạy: tới bây giờ
+	// Verify: PASS (run GREEN/NO_CHANGE), PASS_NOT_GREEN (verify xanh mà run không đạt), FAIL, NOT_RUN.
+	Verify       string `json:"verify,omitempty"`
+	ChangedCount int    `json:"changed_count,omitempty"`
+	Attempts     int    `json:"attempts,omitempty"`
+}
+
+// printRoutineList in mỗi routine một dòng: chế độ, lịch, rồi lượt mới nhất (lastRunText).
+func printRoutineList(w io.Writer, entries []routineListEntry) {
+	for _, e := range entries {
+		if e.Error != "" {
+			fmt.Fprintf(w, "%-20s INVALID  %s\n", e.Name, e.Error)
+			continue
+		}
+		sched := "manual"
+		if e.Scheduled {
+			sched = "scheduled"
+		}
+		fmt.Fprintf(w, "%-20s %-11s %-9s last: %s\n", e.Name, e.Mode, sched, lastRunText(e))
+	}
+}
+
+// verifyText là cột verify của `routine list`: chỉ PASS khi run GREEN/NO_CHANGE.
+var verifyText = map[string]string{"PASS": "PASS", routine.VerifyPassNotGreen: "PASS (not green)", "FAIL": "FAIL", "NOT_RUN": "not run"}
+
+// lastRunText: trạng thái lượt mới nhất (kèm pid khi đang chạy, giờ xong khi đã xong), model,
+// thời lượng, verify, số tệp đổi và số lượt agent.
+func lastRunText(e routineListEntry) string {
+	switch e.State {
+	case "":
+		return "never run"
+	case "UNREADABLE":
+		return "UNREADABLE (its report is missing or broken)"
+	}
+	s, dur := e.State, "-"
+	d := (time.Duration(e.DurationSeconds) * time.Second).String()
+	switch {
+	case e.PID > 0:
+		s, dur = fmt.Sprintf("%s (pid %d)", s, e.PID), "running "+d
+	case e.DurationSeconds > 0:
+		dur = "took " + d
+	}
+	if e.PID == 0 && !e.LastFinished.IsZero() {
+		s += " " + e.LastFinished.Local().Format("2006-01-02 15:04")
+	}
+	return fmt.Sprintf("%s  model %s  %s  verify %s  changed %d  attempts %d",
+		s, cmp.Or(e.Model, "unknown"), dur, verifyText[e.Verify], e.ChangedCount, e.Attempts)
 }
 
 // listRoutines liệt kê mọi *.json trong defsDir; tệp hỏng vẫn có một dòng kèm lỗi
@@ -488,6 +535,10 @@ type routineListEntry struct {
 func listRoutines(defsDir, dataDir string) []routineListEntry {
 	files, _ := filepath.Glob(filepath.Join(defsDir, "*.json"))
 	sort.Strings(files)
+	latest := map[string]routine.RunSummary{}
+	for _, s := range routine.LatestRuns(dataDir, time.Now()) {
+		latest[s.Routine] = s
+	}
 	var out []routineListEntry
 	for _, f := range files {
 		name := strings.TrimSuffix(filepath.Base(f), ".json")
@@ -500,7 +551,16 @@ func listRoutines(defsDir, dataDir string) []routineListEntry {
 		}
 		e.Mode, e.Scheduled = d.Mode, d.Schedule != nil
 		if rep, ok := lastReport(dataDir, name); ok {
-			e.LastReason, e.LastFinished = rep.Reason, rep.Finished
+			e.LastReason, e.LastFinished, e.Model = rep.Reason, rep.Finished, rep.Model
+		}
+		if r, ok := latest[name]; ok && r.Unreadable {
+			e.State = "UNREADABLE"
+		} else if ok {
+			e.State, e.Verify, e.ChangedCount, e.Attempts = r.Reason, cmp.Or(r.Verify, "NOT_RUN"), r.Changed, r.Attempts
+			e.DurationSeconds = int64(r.Duration.Round(time.Second) / time.Second)
+			if r.Running {
+				e.PID = r.PID
+			}
 		}
 		out = append(out, e)
 	}
@@ -576,6 +636,8 @@ type routineOpts struct {
 	GoCacheMax int64
 	// MinFree: đĩa chứa DataDir còn ít hơn số byte này thì không chạy (thoát 75); 0 = không kiểm.
 	MinFree int64
+	// MinMemMB: RAM trống ít hơn số MB này thì không chạy (thoát 75); 0 = không kiểm.
+	MinMemMB int
 }
 
 // routineModel là provider/model large mà lượt dùng. Không ghim (want rỗng): model large
@@ -610,23 +672,79 @@ func warnUnpinnedModel(w io.Writer, now, defPath string) {
 	fmt.Fprintf(w, "warning: no --model: every run uses whatever the default large model is when it runs (now %s); pin one with --model provider/model, or a \"model\" field in %s\n", now, defPath)
 }
 
-// routineSlotsEnv là số lượt routine (mọi routine cộng lại) được chạy cùng lúc.
-const routineSlotsEnv = "DEW_ROUTINE_SLOTS"
+const (
+	// routineSlotsEnv là số lượt routine (mọi routine cộng lại) được chạy cùng lúc.
+	routineSlotsEnv = "DEW_ROUTINE_SLOTS"
+	// routineMinMemEnv là RAM trống (MemAvailable, MB) tối thiểu để một lượt bắt đầu.
+	routineMinMemEnv = "DEW_ROUTINE_MIN_MEM_MB"
+)
 
-// routineSlots đọc routineSlotsEnv: biến export, không có thì tệp env của dew; mặc định 3.
+// routineSlots đọc routineSlotsEnv; mặc định 2 (đo 21/10: lượt chạy lúc >=4 routine song song
+// 0/14 GREEN, lúc <=1,5 song song 18/20).
 func routineSlots() (int, error) {
-	v, err := execpolicy.FileEnv(routineSlotsEnv)
+	return envCount(routineSlotsEnv, 2, "the number of routine runs allowed at once (0 = no limit)")
+}
+
+// routineMinMemMB đọc routineMinMemEnv; mặc định 0 (không kiểm).
+func routineMinMemMB() (int, error) {
+	return envCount(routineMinMemEnv, 0, "the MB of available memory a run needs to start (0 = no check)")
+}
+
+// envCount đọc số nguyên không âm key: biến export, không có thì tệp env của dew; rỗng thì def.
+func envCount(key string, def int, use string) (int, error) {
+	v, err := execpolicy.FileEnv(key)
 	if err != nil {
 		return 0, err
 	}
 	if v == "" {
-		return 3, nil
+		return def, nil
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil || n < 0 {
-		return 0, fmt.Errorf("invalid %s=%q: use the number of routine runs allowed at once (0 = no limit)", routineSlotsEnv, v)
+		return 0, fmt.Errorf("invalid %s=%q: use %s", key, v, use)
 	}
 	return n, nil
+}
+
+// checkRoutineMemory: RAM trống dưới minMB thì không chạy (75), như khi hết chỗ. Không đo
+// được (không phải Linux) thì vẫn chạy và cảnh báo một dòng, như bước đo đĩa.
+func checkRoutineMemory(minMB int, read func() (uint64, error), w io.Writer) error {
+	if minMB <= 0 {
+		return nil
+	}
+	if read == nil {
+		read = memAvailableKB
+	}
+	kb, err := read()
+	if err != nil {
+		fmt.Fprintf(w, "[routine] warning: %s=%d is not checked: %v\n", routineMinMemEnv, minMB, err)
+		return nil
+	}
+	if kb < uint64(minMB)*1024 {
+		return &exitCodeError{code: exitCodeBusy, err: fmt.Errorf("only %d MB of memory available (MemAvailable), %s=%d: try again later (0 = no check)", kb/1024, routineMinMemEnv, minMB)}
+	}
+	return nil
+}
+
+// memAvailableKB là MemAvailable (kB) của /proc/meminfo.
+func memAvailableKB() (uint64, error) {
+	if runtime.GOOS != "linux" {
+		return 0, errors.New("available memory is only measured on Linux")
+	}
+	raw, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0, err
+	}
+	return parseMemAvailable(raw)
+}
+
+func parseMemAvailable(raw []byte) (uint64, error) {
+	for line := range strings.Lines(string(raw)) {
+		if v, ok := strings.CutPrefix(line, "MemAvailable:"); ok {
+			return strconv.ParseUint(strings.TrimSuffix(strings.TrimSpace(v), " kB"), 10, 64)
+		}
+	}
+	return 0, errors.New("no MemAvailable line in /proc/meminfo")
 }
 
 // takeRoutineSlot giữ một trong n tệp khoá slots/<i>.lock (n=0: không giới hạn). Hết
@@ -655,6 +773,10 @@ type routineDeps struct {
 	NewAgent func(worktree string) (agent func(context.Context, string) (loop.RunInfo, error), cleanup func(), model func() string, err error)
 	// FreeBytes đo chỗ trống của đĩa chứa một đường dẫn; nil là housekeep.FreeBytes.
 	FreeBytes func(path string) (uint64, error)
+	// MemAvailableKB đo RAM trống (kB); nil là memAvailableKB.
+	MemAvailableKB func() (uint64, error)
+	// RunAlive kiểm lượt của routine khác còn sống (closeGhostRuns); nil là routine.RunAlive.
+	RunAlive func(pid int, name string) bool
 }
 
 // routineReport là báo cáo một lượt chạy, ghi NGOÀI worktree (xoá worktree không
@@ -798,7 +920,11 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	if gcErr != nil {
 		fmt.Fprintf(stderr, "[routine] %s: warning: cleaning old runs: %v\n", def.Name, gcErr)
 	}
+	closeGhostRuns(o.DataDir, def.Name, d.RunAlive, stderr)
 	if err := routineHousekeep(ctx, o, d, now, stderr); err != nil {
+		return routineOutcome{}, err
+	}
+	if err := checkRoutineMemory(o.MinMemMB, d.MemAvailableKB, stderr); err != nil {
 		return routineOutcome{}, err
 	}
 	releaseSlot, err := takeRoutineSlot(o.DataDir, o.Slots)
@@ -840,6 +966,7 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 		Routine: def.Name, Mode: def.Mode, DefinitionSHA256: o.Sum, Scheduled: o.Scheduled,
 		Started: started, Repo: def.Repo, Worktree: worktree, Branch: branch, BaseSHA: base,
 		Commit: def.Commit, Reason: "RUNNING", PID: os.Getpid(),
+		Model: def.Model, // chuỗi ghim; agent dựng xong thì thành model() (routineModel)
 	}
 	// fail ghi đè RUNNING bằng ERROR mang lý do thật; worktree trống vì nó không còn.
 	fail := func(err error) (routineOutcome, error) {
@@ -894,6 +1021,14 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	}, loopDeps{Agent: func(ctx context.Context, prompt string) (loop.RunInfo, error) {
 		info, err := agent(ctx, prompt)
 		agentErr = err
+		// Lượt đầu áp model ghim: báo cáo RUNNING nói provider/model thay vì chuỗi ghim. Lượt
+		// agent chạy đồng bộ, nên lần ghi này luôn trước báo cáo cuối.
+		if m := model(); m != running.Model {
+			running.Model = m
+			if werr := writeReport(runDir, running); werr != nil {
+				fmt.Fprintf(stderr, "[routine] %s: warning: %v\n", def.Name, werr)
+			}
+		}
 		return info, err
 	}, Stderr: stderr, Now: now})
 	usedModel := model() // sau lượt đầu: model ghim đã được áp
@@ -982,28 +1117,42 @@ func sessionModTime(wt string) time.Time {
 	return last
 }
 
-// routineRunAlive: tiến trình pid còn sống và là `routine run <name>` (theo dòng lệnh ở
-// /proc). Không đọc được dòng lệnh (macOS không có /proc) thì chỉ dựa vào tín hiệu 0, nên
-// không nhận ra PID tái dùng. Windows không hỗ trợ tín hiệu 0: luôn false, chỉ còn khoá.
-func routineRunAlive(pid int, name string) bool {
-	if pid <= 0 {
-		return false
+// closeGhostRuns ghi lại thành ABANDONED lượt MỚI NHẤT của mỗi routine khác còn báo RUNNING
+// mà tiến trình chắc chắn đã chết (hoặc pid đã thuộc tiến trình khác), để list/ps/Home không
+// thấy run ma cho tới khi chính routine đó chạy lại. Chỉ trên Linux có /proc: nơi khác pid
+// không chứng minh được là chết. Báo cáo không pid (bản cũ) để lại cho `routine gc`, lệnh giữ
+// khoá của routine đó; không thử khoá ở đây (thử khoá làm một lượt đang khởi động thoát 75).
+func closeGhostRuns(dataDir, self string, alive func(int, string) bool, w io.Writer) {
+	if _, err := os.Stat("/proc/self/cmdline"); runtime.GOOS != "linux" || err != nil {
+		return
 	}
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return false
+	if alive == nil {
+		alive = routine.RunAlive
 	}
-	defer p.Release()
-	if p.Signal(syscall.Signal(0)) != nil {
-		return false
+	runsDirs, _ := filepath.Glob(filepath.Join(dataDir, "*", "runs"))
+	for _, runs := range runsDirs {
+		name := filepath.Base(filepath.Dir(runs))
+		dirs, _ := filepath.Glob(filepath.Join(runs, "*"))
+		if name == self || len(dirs) == 0 {
+			continue
+		}
+		dir := slices.Max(dirs)
+		rep, err := readReport(dir)
+		if err != nil || rep.Reason != "RUNNING" || rep.PID <= 0 || alive(rep.PID, name) {
+			continue
+		}
+		// Đọc lại SAU khi biết tiến trình đã chết: nó có thể đã ghi báo cáo cuối rồi thoát giữa
+		// lần đọc trên và lúc kiểm; tiến trình chết rồi thì không ghi gì nữa.
+		pid := rep.PID
+		if rep, err = readReport(dir); err != nil || rep.Reason != "RUNNING" || rep.PID != pid {
+			continue
+		}
+		if err := writeReport(dir, abandonRun(dir, rep)); err != nil {
+			fmt.Fprintf(w, "[routine] warning: closing the dead run %s: %v\n", dir, err)
+			continue
+		}
+		fmt.Fprintf(w, "[routine] closed %s as ABANDONED: it was still marked RUNNING but its process (pid %d) is gone\n", dir, rep.PID)
 	}
-	raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
-	if err != nil {
-		return true
-	}
-	args := strings.Split(string(raw), "\x00")
-	return slices.Contains(args, "routine") && slices.Contains(args, "run") &&
-		slices.ContainsFunc(args, func(a string) bool { return a == name || filepath.Base(a) == name+".json" })
 }
 
 // gcOpts là tuỳ chọn một lượt dọn. Giá trị rỗng là lượt dọn tự động đầu `routine run`.
@@ -1043,7 +1192,7 @@ func gcRoutine(ctx context.Context, dataDir, name string, o gcOpts, w io.Writer)
 		}
 		if rep.Reason == "RUNNING" {
 			// pid của chính tiến trình này là PID tái dùng: báo cáo của lượt này chưa ghi.
-			if rep.PID != os.Getpid() && routineRunAlive(rep.PID, name) {
+			if rep.PID != os.Getpid() && routine.RunAlive(rep.PID, name) {
 				fmt.Fprintf(w, "skip %s: its run is still alive (pid %d)\n", dir, rep.PID)
 				continue
 			}
@@ -1129,14 +1278,21 @@ func regenerable(p string) bool {
 	return strings.HasSuffix(p, "/") && regenerableDirs[path.Base(strings.TrimSuffix(p, "/"))]
 }
 
+const errRunPaths = "the report's worktree or branch is not where this run puts them"
+
+// runPathsMatch: worktree và nhánh trong báo cáo đúng là chỗ lượt stamp của routine name đặt
+// chúng (report.json sửa được từ bên ngoài, nên không tin đường dẫn trong đó).
+func runPathsMatch(dataDir, name, stamp string, rep routineReport) bool {
+	return filepath.Clean(rep.Worktree) == filepath.Join(dataDir, name, "wt", stamp) && rep.Branch == "routine/"+name+"-"+stamp
+}
+
 // keepReason trả lý do phải giữ worktree của lượt ở dir (rỗng khi gỡ được) và số mục bị
 // gitignore dựng lại được (regenerableDirs) sẽ mất theo. Không đọc được thì giữ.
 func keepReason(ctx context.Context, dataDir, name, dir string, rep routineReport, o gcOpts) (string, int) {
 	// report.json sửa được từ bên ngoài (lớp chặn không phải sandbox): chỉ gỡ đúng
 	// worktree và nhánh mà lượt này tạo ra.
-	stamp := filepath.Base(dir)
-	if filepath.Clean(rep.Worktree) != filepath.Join(dataDir, name, "wt", stamp) || rep.Branch != "routine/"+name+"-"+stamp {
-		return "the report's worktree or branch is not where this run puts them", 0
+	if !runPathsMatch(dataDir, name, filepath.Base(dir), rep) {
+		return errRunPaths, 0
 	}
 	// Lượt đóng crush.db trước khi chốt finished: ghi sau mốc đó là người đã mở worktree bằng dew.
 	// shortcut: lượt của bản cũ đóng DB SAU finished (đo: +6 ms), nên cho một phút; người mở lại
@@ -1352,9 +1508,21 @@ func writeReport(dir string, rep routineReport) error {
 	if err != nil {
 		return err
 	}
-	tmp := filepath.Join(dir, "report.json.tmp")
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+	// Tệp tạm riêng mỗi lần ghi (0600): hai tiến trình có thể ghi cùng một báo cáo (closeGhostRuns
+	// của routine này, gc của routine kia); tên tạm chung thì một bên đổi tên mất tệp của bên kia.
+	f, err := os.CreateTemp(dir, "report.json.*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, filepath.Join(dir, "report.json"))
+	_, err = f.Write(append(data, '\n'))
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), filepath.Join(dir, "report.json"))
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
+	}
+	return err
 }

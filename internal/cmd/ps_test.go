@@ -390,6 +390,30 @@ func TestRoutinePSShowsLiveRunsWithoutProbingTheLock(t *testing.T) {
 	}
 }
 
+// A1: hàng routine của ps nói model thật mà lượt chạy (báo cáo RUNNING ghi nó), cả bảng lẫn JSON.
+func TestRoutinePSShowsTheModel(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs sh and signal 0")
+	}
+	data := t.TempDir()
+	live := exec.Command("sh", "-c", "sleep 30; true", "routine", "run", "alive")
+	require.NoError(t, live.Start())
+	t.Cleanup(func() { _ = live.Process.Kill(); _ = live.Wait() })
+	putRoutineRun(t, data, "alive", "20261021-090000", fmt.Sprintf(`{"reason":"RUNNING","worktree":"/wt/alive","started":"2026-10-21T09:00:00Z","pid":%d,"model":"qwen/qwen3.8"}`, live.Process.Pid))
+
+	rows := routinePS(data, time.Date(2026, 10, 21, 9, 5, 0, 0, time.UTC))
+	require.Len(t, rows, 1)
+	require.Equal(t, "qwen/qwen3.8", rows[0].Model)
+	var buf bytes.Buffer
+	require.NoError(t, writePS(&buf, rows, false))
+	require.Regexp(t, `/wt/alive\s+-\s+ROUTINE\s+alive, running 5m0s, model qwen/qwen3.8`, buf.String())
+	buf.Reset()
+	require.NoError(t, writePS(&buf, rows, true))
+	var got []map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	require.Equal(t, "qwen/qwen3.8", got[0]["model"])
+}
+
 // Không server nào chạy mà có routine đang chạy: in bảng có routine, không phải "No dew
 // server running"; JSON chỉ thêm trường (path/busy giữ nghĩa cho dew-tmux).
 func TestPSShowsRoutinesWithoutAServer(t *testing.T) {
