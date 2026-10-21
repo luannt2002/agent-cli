@@ -170,6 +170,16 @@ run_suite local
 export CRUSH_CLIENT_SERVER=1
 run_suite clientserver --host "unix://$t/s.sock"
 
+# G (client/server): mỗi lượt đóng luồng SSE của nó khi xong, và server gỡ workspace
+# khi client không còn luồng nào quá 10s. Verify chạy 12s giữa hai lượt thì lượt sửa
+# vẫn phải chạy được, không RUN_ERROR "workspace not found". Verify tự đếm số lần
+# chạy: lần 3 (sau lượt sửa) mới xanh.
+d="$(mkrepo clientserver-slowverify)"
+(cd "$d" && "$bin" --host "unix://$t/s.sock" loop --json --max-repairs 1 \
+  --verify 'sleep 12; n=$(( $(cat .vcount 2>/dev/null || echo 0) + 1 )); echo "$n" > .vcount; [ "$n" -ge 3 ]' 'x') >"$t/g.json" 2>"$t/g.err"; rc=$?
+reason="$(jget "$t/g.json" reason)"; attempts="$(jget "$t/g.json" attempts)"; detail="$(jget "$t/g.json" detail)"
+[ "$rc" -eq 0 ] && [ "$reason" = GREEN ] && [ "$attempts" = 2 ]; check "clientserver: verify 12s giữa hai lượt -> lượt sửa vẫn chạy, GREEN sau 2 lượt (rc=$rc $reason $attempts $detail)" $?
+
 for _ in $(seq 30); do [ -z "$(server_pids)" ] && break; sleep 0.5; done
 [ -z "$(server_pids)" ]; check "không còn server process" $?
 

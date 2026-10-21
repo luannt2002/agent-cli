@@ -18,10 +18,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/crush/internal/agent"
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/execpolicy"
 	"github.com/charmbracelet/crush/internal/loop"
+	"github.com/charmbracelet/crush/internal/routine"
 	"github.com/charmbracelet/crush/internal/shell"
 	"github.com/charmbracelet/crush/internal/workspace"
 	"github.com/spf13/cobra"
@@ -36,18 +38,29 @@ exits 0 or a stop condition hits. "Done" is the exit code of --verify, never the
 agent's own claim.
 
 Each turn is a fresh session with a self-contained prompt (the goal plus the last
-verify output), so a failed attempt does not pollute the next one. The loop stops
-with one of:
+verify output), so a failed attempt does not pollute the next one. A turn cut off
+by a temporary provider error (5xx, 429, a stalled stream, a dropped connection)
+is retried in the same session, at most --stream-retries times in a row (default
+2; after 30s, then every 60s), without using up a repair turn; "attempts" in the
+JSON and the journal's stop event count every agent turn, retries included. A
+quota or usage-limit error (HTTP 402, or a 429/403 whose message says usage limit,
+quota or billing) is never retried. When a turn is cut off (--run-timeout, or a
+temporary error after the retries) the verify command still runs once on what the
+agent left, and its status and exit code are reported; such a run is never GREEN,
+even when that verify passes. The loop stops with one of:
 
-  GREEN        the verify command exited 0 after an agent turn
-  NO_CHANGE    the verify command passed before any change and the working tree
-               did not change: nothing proves the agent's work
-  MAX_REPAIRS  still failing after --max-repairs repair turns (default 2)
-  STALLED      the same failure and an unchanged working tree after a repair turn
-  TIMEOUT      --max-duration reached (checked before each agent turn)
-  RUN_ERROR    an agent turn failed or exceeded --run-timeout
-  CANCELLED    Ctrl+C or SIGTERM
-  UNMEASURED   the verify command could not run (not found, syntax error, timed out)
+  GREEN         the verify command exited 0 after an agent turn
+  NO_CHANGE     the verify command passed before any change and the working tree
+                did not change: nothing proves the agent's work
+  MAX_REPAIRS   still failing after --max-repairs repair turns (default 2)
+  STALLED       the same failure and an unchanged working tree after a repair turn
+  TIMEOUT       --max-duration reached (checked before each agent turn), or an
+                agent turn exceeded --run-timeout (the detail says which)
+  STREAM_STALL  the LLM stream sent no data (request_timeout), after the retries
+  QUOTA         the provider reported a quota or usage limit (not retried)
+  RUN_ERROR     an agent turn failed (a temporary error: after the retries)
+  CANCELLED     Ctrl+C or SIGTERM
+  UNMEASURED    the verify command could not run (not found, syntax error, timed out)
 
 Every step is written to a journal (JSON Lines) BEFORE it happens, so a killed loop
 still shows how far it got. The verify command runs in the workspace with your
@@ -71,6 +84,7 @@ dew loop --verify "npm test" --max-duration 2h --json "Make the new endpoint pas
 		p.Verify, _ = f.GetString("verify")
 		p.Name, _ = f.GetString("name")
 		p.MaxRepairs, _ = f.GetInt("max-repairs")
+		p.StreamRetries, _ = f.GetInt("stream-retries")
 		p.MaxDuration, _ = f.GetDuration("max-duration")
 		p.RunTimeout, _ = f.GetDuration("run-timeout")
 		p.VerifyTimeout, _ = f.GetDuration("verify-timeout")
@@ -102,13 +116,13 @@ dew loop --verify "npm test" --max-duration 2h --json "Make the new endpoint pas
 		if p.AsJSON {
 			out = io.Discard
 		}
-		agent, cleanup, err := newLoopAgent(ctx, cmd, p, out)
+		runAgent, cleanup, err := newLoopAgent(ctx, cmd, p, out)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 
-		outcome, err := executeLoop(ctx, p, loopDeps{Agent: agent, Stderr: os.Stderr})
+		outcome, err := executeLoop(ctx, p, loopDeps{Agent: runAgent, Stderr: os.Stderr})
 		if err != nil {
 			return err
 		}
@@ -134,6 +148,7 @@ func init() {
 	f.String("verify", "", "Command that defines \"done\": the loop is green when it exits 0 (required)")
 	f.String("name", "loop", "Name used for the journal file")
 	f.Int("max-repairs", 2, "Repair turns after the first agent turn (0 = a single turn)")
+	f.Int("stream-retries", routine.DefaultStreamRetries, "Retries in a row of a turn cut off by a temporary provider error (0-5, 0 = no retry)")
 	f.Duration("max-duration", 0, "Stop before starting a new agent turn after this long (0 = no limit)")
 	f.Duration("run-timeout", 45*time.Minute, "Maximum time of one agent turn")
 	f.Duration("verify-timeout", 30*time.Minute, "Maximum time of one verify command run")
@@ -148,7 +163,7 @@ func init() {
 // loopParams là mọi tham số của một lần chạy loop.
 type loopParams struct {
 	Goal, Verify, Name        string
-	MaxRepairs                int
+	MaxRepairs, StreamRetries int
 	MaxDuration               time.Duration
 	RunTimeout, VerifyTimeout time.Duration
 	Cwd, JournalDir           string
@@ -177,6 +192,8 @@ func validateLoopParams(p loopParams) error {
 		return &usageError{errors.New("loop needs --verify: the command that defines \"done\" (exit 0 = done)")}
 	case p.MaxRepairs < 0:
 		return &usageError{errors.New("--max-repairs must be 0 or more")}
+	case p.StreamRetries < 0 || p.StreamRetries > routine.MaxStreamRetries:
+		return &usageError{fmt.Errorf("--stream-retries must be between 0 and %d", routine.MaxStreamRetries)}
 	}
 	return nil
 }
@@ -203,7 +220,7 @@ func executeLoop(ctx context.Context, p loopParams, d loopDeps) (loopOutcome, er
 	defer journal.Close()
 	fmt.Fprintf(stderr, "[loop] journal: %s\n", path)
 
-	agent := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+	runTurn := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
 		rctx := ctx
 		if p.RunTimeout > 0 {
 			var cancel context.CancelFunc
@@ -212,7 +229,7 @@ func executeLoop(ctx context.Context, p loopParams, d loopDeps) (loopOutcome, er
 		}
 		info, err := d.Agent(rctx, prompt)
 		if err != nil && ctx.Err() == nil && errors.Is(rctx.Err(), context.DeadlineExceeded) {
-			err = fmt.Errorf("agent turn timed out after %s", p.RunTimeout)
+			err = fmt.Errorf("%w after %s (per-turn run timeout)", loop.ErrTurnTimeout, p.RunTimeout)
 		}
 		return info, err
 	}
@@ -231,13 +248,14 @@ func executeLoop(ctx context.Context, p loopParams, d loopDeps) (loopOutcome, er
 	eng := &loop.Engine{
 		Spec: loop.Spec{
 			Name: p.Name, Goal: p.Goal, Verify: p.Verify, VerifyDir: verifyDir,
-			MaxRepairs: p.MaxRepairs, MaxDuration: p.MaxDuration,
+			MaxRepairs: p.MaxRepairs, MaxDuration: p.MaxDuration, StreamRetries: p.StreamRetries,
 		},
-		Agent:       agent,
+		Agent:       runTurn,
 		Verify:      shellVerify(p.Cwd, p.VerifyTimeout),
 		Fingerprint: gitFingerprint(root),
 		Journal:     progressJournal{inner: journal, w: stderr},
 		Now:         now,
+		Transient:   agent.TransientError,
 	}
 	res, err := eng.Run(ctx)
 	return loopOutcome{Result: res, JournalPath: path}, err
@@ -366,6 +384,14 @@ func (p progressJournal) Append(e loop.Event) error {
 		}
 	case "attempt_begin":
 		fmt.Fprintf(p.w, "[loop] attempt %d: running the agent\n", e.Attempt)
+	case "agent_end":
+		switch e.ErrorClass {
+		case "":
+		case loop.ClassQuota:
+			fmt.Fprintf(p.w, "[loop] attempt %d: provider quota or usage limit, not retried: %s\n", e.Attempt, e.Note)
+		default:
+			fmt.Fprintf(p.w, "[loop] attempt %d: temporary %s %s\n", e.Attempt, e.ErrorClass, e.Note)
+		}
 	case "verify":
 		fmt.Fprintf(p.w, "[loop] attempt %d: verify %s (exit %d)\n", e.Attempt, e.Status, e.ExitCode)
 	case "stop":
@@ -384,22 +410,34 @@ type loopJSON struct {
 	Attempts     int      `json:"attempts"`
 	SessionIDs   []string `json:"session_ids,omitempty"`
 	VerifyStatus string   `json:"verify_status"`
-	VerifyExit   int      `json:"verify_exit_code"`
+	VerifyExit   *int     `json:"verify_exit_code,omitempty"` // chỉ khi verify đã cho ra mã thoát, như báo cáo routine
 	Journal      string   `json:"journal"`
 }
 
 func printLoopJSON(w io.Writer, o loopOutcome) error {
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
-	return enc.Encode(loopJSON{
+	j := loopJSON{
 		Reason: string(o.Result.Reason), Detail: o.Result.Detail, Attempts: o.Result.Attempts,
-		SessionIDs: o.Result.SessionIDs, VerifyStatus: string(o.Result.Last.Status),
-		VerifyExit: o.Result.Last.ExitCode, Journal: o.JournalPath,
-	})
+		SessionIDs: o.Result.SessionIDs, VerifyStatus: string(o.Result.Last.Status), Journal: o.JournalPath,
+	}
+	j.VerifyExit = verifyExitCode(o.Result.Last)
+	return enc.Encode(j)
 }
 
-// newLoopAgent dựng hàm chạy MỘT lượt agent trong session mới, qua server của dự
-// án (mặc định) hoặc in-process, đúng như `run`. out nhận phần văn bản của agent.
+// verifyExitCode là mã thoát của verify để báo, chỉ khi verify thật sự cho ra mã: PASS, FAIL,
+// hoặc CHƯA ĐO với mã thật khác 0 (126/127). Quá verify_timeout hay không chạy được thì nil:
+// 0 đọc như đã qua.
+func verifyExitCode(v loop.VerifyResult) *int {
+	if v.Status == loop.StatusPass || v.Status == loop.StatusFail || v.Status == loop.StatusUnmeasured && v.ExitCode != 0 {
+		return &v.ExitCode
+	}
+	return nil
+}
+
+// newLoopAgent dựng hàm chạy MỘT lượt agent trong session mới (hoặc tiếp session
+// loop.ResumeSession khi chạy lại sau lỗi tạm thời), qua server của dự án (mặc
+// định) hoặc in-process, đúng như `run`. out nhận phần văn bản của agent.
 func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.Writer) (func(context.Context, string) (loop.RunInfo, error), func(), error) {
 	if useClientServer() {
 		c, ws, cleanup, err := connectToServer(cmd)
@@ -415,6 +453,26 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
 			cleanup()
 			return nil, nil, err
 		}
+		// Mỗi lượt runNonInteractive đóng luồng SSE của nó khi xong, và server gỡ
+		// workspace khi client không còn luồng nào quá 10s: verify hay lúc chờ chạy
+		// lại dài hơn thế làm lượt sau hỏng "workspace not found". Giữ một luồng
+		// (cùng client id) suốt lần chạy loop.
+		// shortcut: luồng giữ này rớt thì không mở lại; khi cần, nối lại trong goroutine đọc.
+		holdCtx, stopHold := context.WithCancel(ctx)
+		hold, err := c.SubscribeEvents(holdCtx, ws.ID)
+		if err != nil {
+			stopHold()
+			cleanup()
+			return nil, nil, err
+		}
+		go func() {
+			for range hold {
+			}
+		}()
+		release := func() {
+			stopHold()
+			cleanup()
+		}
 		return func(ctx context.Context, prompt string) (loop.RunInfo, error) {
 			var (
 				info loop.RunInfo
@@ -422,29 +480,42 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
 			)
 			err := runNonInteractive(ctx, c, ws, io.MultiWriter(out, &text),
 				func(id string) { info.SessionID = id }, nil,
-				prompt, p.Model, "", p.ReasoningEffort, true, "", false)
+				prompt, p.Model, "", p.ReasoningEffort, true, loop.ResumeSession(ctx), false)
 			info.Text = text.String()
 			return info, err
-		}, cleanup, nil
+		}, release, nil
 	}
 
-	return newLocalLoopAgent(cmd, p, out)
+	agent, cleanup, _, err := newLocalLoopAgent(cmd, p, out)
+	return agent, cleanup, err
 }
 
 // newLocalLoopAgent chạy agent in-process (không qua server), trong thư mục hiện
 // tại của tiến trình. Routine luôn dùng đường này: lớp chặn không người trực là
 // trạng thái của chính tiến trình, nên không thể bị một server dùng chung bỏ qua.
-func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(context.Context, string) (loop.RunInfo, error), func(), error) {
+// model() trả provider/model large mà lượt dùng (routineModel), cho báo cáo routine.
+func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
 	ws, cleanup, err := setupLocalWorkspace(cmd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	event.AppInitialized()
 	if !ws.Config().IsConfigured() {
 		cleanup()
-		return nil, nil, fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
+		return nil, nil, nil, fmt.Errorf("no providers configured - please run 'dew' to set up a provider interactively")
 	}
 	appWs := ws.(*workspace.AppWorkspace)
+	model := func() string {
+		store := appWs.App().Store()
+		return routineModel(store.Config().Models[config.SelectedModelTypeLarge], store.Overrides().Models[config.SelectedModelTypeLarge], p.Model)
+	}
+	// Model ghim trùng model large mặc định (`routine new` đóng băng nó) thì đừng áp như -m: áp
+	// sẽ thay cả SelectedModel (mất max_tokens, temperature, reasoning_effort...) và đổi model
+	// nhỏ sang model nhỏ mặc định của provider, tức chạy KHÁC cái mặc định đã đóng băng.
+	large := p.Model
+	if large == routineModel(appWs.App().Store().Config().Models[config.SelectedModelTypeLarge], config.SelectedModel{}, "") {
+		large = ""
+	}
 	return func(ctx context.Context, prompt string) (loop.RunInfo, error) {
 		var (
 			info loop.RunInfo
@@ -452,8 +523,8 @@ func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(co
 		)
 		err := appWs.App().RunNonInteractive(ctx, io.MultiWriter(out, &text),
 			func(id string) { info.SessionID = id },
-			prompt, p.Model, "", p.ReasoningEffort, true, "", false)
+			prompt, large, "", p.ReasoningEffort, true, loop.ResumeSession(ctx), false)
 		info.Text = text.String()
 		return info, err
-	}, cleanup, nil
+	}, cleanup, model, nil
 }

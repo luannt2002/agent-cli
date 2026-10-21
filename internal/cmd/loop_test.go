@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/fantasy"
 	"github.com/charmbracelet/crush/internal/loop"
 	"github.com/stretchr/testify/require"
 )
@@ -128,7 +129,7 @@ func TestGitFingerprint_NotAGitRepoAssumesChanged(t *testing.T) {
 func newLoopParams(t *testing.T, dir, verify string) loopParams {
 	t.Helper()
 	return loopParams{
-		Goal: "do the thing", Verify: verify, Name: "t", MaxRepairs: 2,
+		Goal: "do the thing", Verify: verify, Name: "t", MaxRepairs: 2, StreamRetries: 2,
 		Cwd: dir, JournalDir: t.TempDir(), VerifyTimeout: 5 * time.Second,
 	}
 }
@@ -187,19 +188,75 @@ func TestExecuteLoop_UnrunnableVerifyNeverStartsTheAgent(t *testing.T) {
 	require.Zero(t, runs, "không đo được cổng thì không đốt lượt agent")
 }
 
-func TestExecuteLoop_AgentTimeoutIsRunError(t *testing.T) {
+// F2: quá --run-timeout là TIMEOUT (không phải bị huỷ, không phải RUN_ERROR), và verify vẫn
+// chạy một lần trên cây agent bỏ lại; xanh cũng không thành GREEN, thoát 1.
+func TestExecuteLoop_AgentTurnTimeoutIsTimeoutAndVerifiesOnce(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		writes bool
+		status loop.Status
+		exit   int
+		note   string
+	}{
+		"work left behind passes verify": {true, loop.StatusPass, 0, "verify PASS after the agent was cut off — review before trusting"},
+		"nothing done":                   {false, loop.StatusFail, 1, "verify FAIL (exit 1) after the agent was cut off"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := gitInit(t)
+			p := newLoopParams(t, dir, "test -f done.txt")
+			p.RunTimeout = 100 * time.Millisecond
+			agent := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+				if tc.writes {
+					_ = os.WriteFile(filepath.Join(dir, "done.txt"), []byte("x"), 0o644)
+				}
+				<-ctx.Done()
+				return loop.RunInfo{}, ctx.Err()
+			}
+			out, err := executeLoop(t.Context(), p, loopDeps{Agent: agent, Stderr: &bytes.Buffer{}})
+			require.NoError(t, err)
+			require.Equal(t, loop.StopTimeout, out.Result.Reason, out.Result.Detail)
+			require.Contains(t, out.Result.Detail, "agent turn timed out after 100ms (per-turn run timeout)")
+			require.Contains(t, out.Result.Detail, tc.note)
+			require.Equal(t, tc.status, out.Result.Last.Status)
+			require.Equal(t, tc.exit, out.Result.Last.ExitCode)
+			require.Error(t, loopExitErr(out.Result.Reason), "TIMEOUT thoát 1")
+			var b bytes.Buffer
+			require.NoError(t, printLoopJSON(&b, out))
+			require.Contains(t, b.String(), fmt.Sprintf(`"verify_exit_code":%d`, tc.exit), "verify đã chạy sau lượt bị cắt")
+		})
+	}
+}
+
+// F4: hết hạn mức (429 có lời "Usage limit") qua bộ phân loại thật: QUOTA ngay, không chờ
+// để chạy lại; 429 không có lời hạn mức thì vẫn là lỗi tạm thời.
+func TestExecuteLoop_QuotaStopsAtOnceButRateLimitStillRetries(t *testing.T) {
 	t.Parallel()
 	dir := gitInit(t)
 	p := newLoopParams(t, dir, "exit 1")
-	p.RunTimeout = 100 * time.Millisecond
+	runs := 0
+	quota := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429, Message: "Usage limit reached for 5 hour. Your limit will reset at 12:00"}
 	agent := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
-		<-ctx.Done()
-		return loop.RunInfo{}, ctx.Err()
+		runs++
+		return loop.RunInfo{SessionID: "s"}, fmt.Errorf("agent processing failed: %w", &fantasy.RetryError{Errors: []error{quota}})
 	}
-	out, err := executeLoop(t.Context(), p, loopDeps{Agent: agent, Stderr: &bytes.Buffer{}})
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second) // chờ chạy lại 30s = sai
+	defer cancel()
+	out, err := executeLoop(ctx, p, loopDeps{Agent: agent, Stderr: &bytes.Buffer{}})
 	require.NoError(t, err)
-	require.Equal(t, loop.StopRunError, out.Result.Reason, "quá hạn một lượt agent là lỗi chạy, không phải bị huỷ")
-	require.Contains(t, out.Result.Detail, "timed out")
+	require.Equal(t, loop.StopQuota, out.Result.Reason, out.Result.Detail)
+	require.Equal(t, 1, runs)
+	require.Contains(t, out.Result.Detail, "Usage limit reached for 5 hour")
+	require.Error(t, loopExitErr(out.Result.Reason))
+
+	rate := errors.New("agent run failed: too many requests: Rate limit reached for requests per min")
+	ctx2, cancel2 := context.WithCancel(t.Context())
+	defer cancel2()
+	stderr := &cancelOnWrite{want: "temporary rate_limit", cancel: cancel2}
+	out, err = executeLoop(ctx2, p, loopDeps{Agent: func(context.Context, string) (loop.RunInfo, error) { return loop.RunInfo{}, rate }, Stderr: stderr})
+	require.NoError(t, err)
+	require.Equal(t, loop.StopCancelled, out.Result.Reason, "429 không có lời hạn mức: chờ để chạy lại")
+	require.Contains(t, out.Result.Detail, "waiting to retry")
 }
 
 func TestValidateLoopParams(t *testing.T) {
@@ -212,12 +269,18 @@ func TestValidateLoopParams(t *testing.T) {
 		"no verify":        {Goal: "g", MaxRepairs: 2},
 		"blank verify":     {Goal: "g", Verify: "  ", MaxRepairs: 2},
 		"negative repairs": {Goal: "g", Verify: "true", MaxRepairs: -1},
+		"negative retries": {Goal: "g", Verify: "true", StreamRetries: -1},
+		"too many retries": {Goal: "g", Verify: "true", StreamRetries: 6},
 	} {
 		err := validateLoopParams(p)
 		require.Error(t, err, name)
 		var ue *usageError
 		require.True(t, errors.As(err, &ue), "%s: thiếu đề bài hoặc lệnh 'xong' là lỗi dùng lệnh (exit 2)", name)
 	}
+	for _, n := range []int{0, 5} {
+		require.NoError(t, validateLoopParams(loopParams{Goal: "g", Verify: "true", StreamRetries: n}), "--stream-retries %d", n)
+	}
+	require.ErrorContains(t, validateLoopParams(loopParams{Goal: "g", Verify: "true", StreamRetries: 6}), "--stream-retries")
 	err := validateLoopParams(loopParams{Goal: "g", MaxRepairs: 2})
 	require.True(t, strings.Contains(err.Error(), "--verify"), "phải nói rõ thiếu cờ nào: %v", err)
 }
@@ -268,4 +331,75 @@ func TestExecuteLoop_FingerprintCoversTheWholeRepo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, loop.StopStalled, out.Result.Reason, "the agent changed the repo outside sub/")
 	require.Equal(t, 3, runs)
+}
+
+// cancelOnWrite huỷ ctx khi tiến trình in ra dòng chứa want.
+type cancelOnWrite struct {
+	buf    bytes.Buffer
+	want   string
+	cancel context.CancelFunc
+}
+
+func (w *cancelOnWrite) Write(p []byte) (int, error) {
+	n, err := w.buf.Write(p)
+	if strings.Contains(w.buf.String(), w.want) {
+		w.cancel()
+	}
+	return n, err
+}
+
+// executeLoop nối bộ phân loại lỗi tạm thời thật: lỗi 503 qua server làm loop
+// chờ để chạy lại (ở đây huỷ trong lúc chờ), không dừng RUN_ERROR ngay.
+func TestExecuteLoop_TransientAgentErrorWaitsToRetry(t *testing.T) {
+	t.Parallel()
+	dir := gitInit(t)
+	p := newLoopParams(t, dir, "exit 1")
+	agent := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+		return loop.RunInfo{SessionID: "s"}, errors.New("agent run failed: retry error: service unavailable: upstream busy")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	stderr := &cancelOnWrite{want: "temporary server_error", cancel: cancel}
+	out, err := executeLoop(ctx, p, loopDeps{Agent: agent, Stderr: stderr})
+	require.NoError(t, err)
+	require.Equal(t, loop.StopCancelled, out.Result.Reason, stderr.buf.String())
+	require.Contains(t, out.Result.Detail, "waiting to retry")
+
+	events, err := loop.ReadJournal(out.JournalPath)
+	require.NoError(t, err)
+	var classified []loop.Event
+	for _, e := range events {
+		if e.ErrorClass != "" {
+			classified = append(classified, e)
+		}
+	}
+	require.Len(t, classified, 1)
+	require.Equal(t, "server_error", classified[0].ErrorClass)
+	require.Equal(t, 503, classified[0].HTTPStatus)
+}
+
+// verify_exit_code chỉ có khi verify thật sự cho ra mã thoát; không có thì đừng in 0 (giống xanh).
+func TestPrintLoopJSON_VerifyExitCodeOnlyWhenVerifyRan(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		last loop.VerifyResult
+		want string
+	}{
+		"agent failed before any verify": {loop.VerifyResult{}, ""},
+		"verify failed":                  {loop.VerifyResult{Status: loop.StatusFail, ExitCode: 1}, `"verify_exit_code":1`},
+		"verify passed":                  {loop.VerifyResult{Status: loop.StatusPass}, `"verify_exit_code":0`},
+		"verify timed out (no exit)":     {loop.VerifyResult{Status: loop.StatusUnmeasured}, ""},
+		"verify command not found":       {loop.VerifyResult{Status: loop.StatusUnmeasured, ExitCode: 127}, `"verify_exit_code":127`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var b bytes.Buffer
+			require.NoError(t, printLoopJSON(&b, loopOutcome{Result: loop.Result{Reason: loop.StopRunError, Attempts: 1, Last: tc.last}}))
+			if tc.want == "" {
+				require.NotContains(t, b.String(), "verify_exit_code")
+			} else {
+				require.Contains(t, b.String(), tc.want)
+			}
+		})
+	}
 }

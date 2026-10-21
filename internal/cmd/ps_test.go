@@ -11,11 +11,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/crush/internal/lock"
 	"github.com/charmbracelet/crush/internal/proto"
 	"github.com/stretchr/testify/require"
 )
@@ -112,13 +115,13 @@ func TestPSNoServerDoesNotSpawn(t *testing.T) {
 
 	sock := filepath.Join(t.TempDir(), "dew-deadbeef.sock")
 	var buf bytes.Buffer
-	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, false, 9))
+	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, false, 9, nil))
 	require.Equal(t, "No dew server running (open projects with dew-tmux)\n", buf.String())
 	// A spawned server would have created its socket.
 	require.NoFileExists(t, sock)
 
 	buf.Reset()
-	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, true, 9))
+	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, true, 9, nil))
 	require.JSONEq(t, `[]`, buf.String())
 }
 
@@ -205,7 +208,7 @@ func TestPSLiveServerFailureIsNotNoServer(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	host := "unix://" + sock
-	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, false, 9))
+	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, false, 9, nil))
 	require.NotContains(t, out.String(), "No dew server running")
 	require.Contains(t, out.String(), "PROJECT")
 	require.Contains(t, errOut.String(), "Skipping "+host+": ")
@@ -263,7 +266,7 @@ func TestPSHungServerIsNotedNotNoServer(t *testing.T) {
 	// real timeout; the test takes about 3s.
 	var out, errOut bytes.Buffer
 	host := "unix://" + sock
-	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, false, 9))
+	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, false, 9, nil))
 	require.NotContains(t, out.String(), "No dew server running")
 	require.Contains(t, errOut.String(), "Skipping "+host+": not responding (")
 }
@@ -281,7 +284,7 @@ func TestPSDeadServersStaySilent(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	hosts := []string{"unix://" + stale, "unix://" + filepath.Join(dir, "missing.sock")}
-	require.NoError(t, runPS(t.Context(), &out, &errOut, hosts, false, 9))
+	require.NoError(t, runPS(t.Context(), &out, &errOut, hosts, false, 9, nil))
 	require.Empty(t, errOut.String())
 	require.Contains(t, out.String(), "No dew server running")
 }
@@ -312,10 +315,100 @@ func TestPSCountsSkippedSessionsOnStderr(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	host := "unix://" + sock
-	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, true, 9))
+	require.NoError(t, runPS(t.Context(), &out, &errOut, []string{host}, true, 9, nil))
 	var rows []psRow
 	require.NoError(t, json.Unmarshal(out.Bytes(), &rows))
 	require.Equal(t, []psRow{{Path: "/p", SessionID: "c", Busy: true}}, rows)
 	require.Equal(t, 1, strings.Count(errOut.String(), "\n"), errOut.String())
 	require.Contains(t, errOut.String(), "Skipping "+host+": 2 sessions skipped (session a: ")
+}
+
+// putRoutineRun ghi báo cáo của một lượt routine (body là JSON) vào data/name/runs/stamp.
+func putRoutineRun(t *testing.T, data, name, stamp, body string) {
+	t.Helper()
+	dir := filepath.Join(data, name, "runs", stamp)
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "report.json"), []byte(body), 0o600))
+}
+
+// `routine run` chạy agent in-process, không có server: ps thấy nó qua báo cáo RUNNING.
+// Báo cáo có pid thì chỉ hiện khi tiến trình còn sống và đúng là `routine run <tên>`
+// (PID tái dùng sau khi khởi động lại không thành routine ma), KHÔNG thử khoá (thử khoá
+// có thể làm một lượt vừa khởi động thoát 75). Báo cáo cũ không pid thì theo listRuns.
+// Giới hạn theo hệ điều hành: Windows không có tín hiệu 0 (không bao giờ hiện hàng có
+// pid), macOS không có /proc (không nhận ra PID tái dùng).
+func TestRoutinePSShowsLiveRunsWithoutProbingTheLock(t *testing.T) {
+	data := t.TempDir()
+	dead := exec.Command(os.Args[0], "-test.run=^$")
+	require.NoError(t, dead.Run())
+	running := func(wt string, pid int) string {
+		return fmt.Sprintf(`{"reason":"RUNNING","worktree":%q,"started":"2026-10-21T09:00:00Z","pid":%d}`, wt, pid)
+	}
+	putRoutineRun(t, data, "dead", "20261021-090000", running("/wt/dead", dead.ProcessState.Pid()))
+	putRoutineRun(t, data, "done", "20261021-090000", `{"reason":"GREEN","worktree":"/wt/done"}`)
+	putRoutineRun(t, data, "old", "20261021-090000", `{"reason":"RUNNING","worktree":"/wt/old","started":"2026-10-21T09:00:00Z"}`)
+	putRoutineRun(t, data, "oldgone", "20261021-090000", `{"reason":"RUNNING","worktree":"/wt/oldgone"}`)
+	release, err := lock.TryFile(routineLockPath(data, "old"))
+	require.NoError(t, err)
+	t.Cleanup(release)
+	want, unprobed := []string{"old"}, []string{"dead", "done"}
+
+	livePID := 0
+	if runtime.GOOS != "windows" {
+		live := exec.Command("sh", "-c", "sleep 30; true", "routine", "run", "alive")
+		require.NoError(t, live.Start())
+		t.Cleanup(func() { _ = live.Process.Kill(); _ = live.Wait() })
+		livePID = live.Process.Pid
+		putRoutineRun(t, data, "alive", "20261020-090000", `{"reason":"GREEN"}`)
+		putRoutineRun(t, data, "alive", "20261021-090000", running("/wt/alive", livePID))
+		putRoutineRun(t, data, "stale", "20261021-090000", running("/wt/stale", livePID))
+		putRoutineRun(t, data, "stale", "20261021-100000", `{"reason":"GREEN"}`)
+		want, unprobed = []string{"alive", "old"}, append(unprobed, "alive", "stale")
+		if _, err := os.Stat("/proc/self/cmdline"); err == nil {
+			// Tiến trình sống nhưng không phải `routine run <tên này>`.
+			putRoutineRun(t, data, "reused", "20261021-090000", running("/wt/reused", os.Getpid()))
+			putRoutineRun(t, data, "other", "20261021-090000", running("/wt/other", livePID))
+			unprobed = append(unprobed, "reused", "other")
+		}
+	}
+
+	rows := routinePS(data, time.Date(2026, 10, 21, 9, 5, 0, 0, time.UTC))
+	var got []string
+	for _, r := range rows {
+		got = append(got, r.Routine)
+	}
+	require.Equal(t, want, got, "%+v", rows)
+	if livePID != 0 {
+		require.Equal(t, "/wt/alive", rows[0].Path)
+		require.Equal(t, livePID, rows[0].PID)
+		require.True(t, rows[0].Busy, "a running routine is busy for scripts that check busy")
+		require.Equal(t, "ROUTINE", rows[0].status())
+		require.Contains(t, rows[0].Title, "5m0s")
+	}
+	for _, n := range unprobed {
+		require.NoFileExists(t, routineLockPath(data, n), "probing creates the lock file")
+	}
+}
+
+// Không server nào chạy mà có routine đang chạy: in bảng có routine, không phải "No dew
+// server running"; JSON chỉ thêm trường (path/busy giữ nghĩa cho dew-tmux).
+func TestPSShowsRoutinesWithoutAServer(t *testing.T) {
+	t.Parallel()
+
+	sock := filepath.Join(t.TempDir(), "dew-none.sock")
+	rows := []psRow{{Path: "/wt/n", Routine: "nightly", PID: 42, Busy: true, Title: "nightly, running 5m0s"}}
+	var buf bytes.Buffer
+	require.NoError(t, runPS(t.Context(), &buf, io.Discard, []string{"unix://" + sock}, false, 9, rows))
+	require.NotContains(t, buf.String(), "No dew server running")
+	require.Regexp(t, `/wt/n\s+-\s+ROUTINE\s+nightly, running 5m0s`, buf.String())
+
+	buf.Reset()
+	require.NoError(t, runPS(t.Context(), &buf, io.Discard, nil, true, 9, rows))
+	var got []map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	require.Len(t, got, 1)
+	require.Equal(t, "/wt/n", got[0]["path"])
+	require.Equal(t, true, got[0]["busy"])
+	require.Equal(t, "nightly", got[0]["routine"])
+	require.EqualValues(t, 42, got[0]["pid"])
 }

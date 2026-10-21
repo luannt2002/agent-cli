@@ -335,11 +335,27 @@ func envFilePath(getenv func(string) string) string {
 	return ""
 }
 
-// readEnvFile đọc ĐÚNG hai biến của chính sách từ tệp env (gán đơn giản, có
-// thể có `export`, nháy và comment cuối dòng). Mọi dòng khác (khoá API...) bị
-// bỏ qua, không giữ lại. Tệp không có thì rỗng; gán sau thắng gán trước như
-// shell.
+// FileEnv trả giá trị key cho một biến của người dùng ngoài ranh giới: env gốc đã
+// export (trước `.env` của thư mục hiện tại), không có thì tệp env của dew. Lượt
+// routine theo lịch chạy binary trực tiếp, và crushrc chỉ nạp tệp env vào trình thông
+// dịch cấu hình: không đọc ở đây thì giá trị trong tệp env không tới được tiến trình.
+func FileEnv(key string) (string, error) {
+	if v := OriginalEnv(key); v != "" {
+		return v, nil
+	}
+	file, err := readEnvKeys(envFilePath(TrustedEnv), key)
+	return file[key], err
+}
+
+// readEnvFile đọc ĐÚNG hai biến của chính sách từ tệp env.
 func readEnvFile(path string) (map[string]string, error) {
+	return readEnvKeys(path, AllowedModelsEnv, DelegationEnv)
+}
+
+// readEnvKeys đọc ĐÚNG các biến keys từ tệp env (gán đơn giản, có thể có `export`,
+// nháy và comment cuối dòng). Mọi dòng khác (khoá API...) bị bỏ qua, không giữ lại.
+// Tệp không có thì rỗng; gán sau thắng gán trước như shell.
+func readEnvKeys(path string, keys ...string) (map[string]string, error) {
 	out := map[string]string{}
 	if path == "" {
 		return out, nil
@@ -358,24 +374,24 @@ func readEnvFile(path string) (map[string]string, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		for _, k := range []string{AllowedModelsEnv, DelegationEnv} {
-			if old := legacyName(k); strings.Contains(line, old) {
+		for _, k := range keys {
+			if old := legacyName(k); old != "" && strings.Contains(line, old) { // khoá không DEW_ thì không có tên cũ
 				return nil, fmt.Errorf("%s:%d: %s is the old name of %s (renamed on 20/10/2026): rename it by hand (scripts/install-dew.sh renames it only in ~/.config/dew/env)", path, n, old, k)
 			}
 		}
-		mentions := strings.Contains(line, AllowedModelsEnv) || strings.Contains(line, DelegationEnv)
+		mentions := slices.ContainsFunc(keys, func(k string) bool { return strings.Contains(line, k) })
 		if rest, ok := strings.CutPrefix(line, "export"); ok && rest != "" && (rest[0] == ' ' || rest[0] == '\t') {
 			line = strings.TrimSpace(rest)
 		}
 		key, val, ok := strings.Cut(line, "=")
-		if ok && (key == AllowedModelsEnv || key == DelegationEnv) {
+		if ok && slices.Contains(keys, key) {
 			out[key] = shellValue(val)
 			continue
 		}
 		if mentions {
 			// Dạng shell khác (declare -x, readonly, KEY+=, nhiều lệnh một
 			// dòng...): không đọc được thì báo lỗi, đừng lặng lẽ bỏ ranh giới.
-			return nil, fmt.Errorf("%s:%d: write %s and %s as plain KEY=value lines", path, n, AllowedModelsEnv, DelegationEnv)
+			return nil, fmt.Errorf("%s:%d: write %s as plain KEY=value lines", path, n, strings.Join(keys, " and "))
 		}
 	}
 	if err := sc.Err(); err != nil {

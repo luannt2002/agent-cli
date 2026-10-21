@@ -268,6 +268,17 @@ func TestShellValue(t *testing.T) {
 
 // Tệp env viết bằng dạng shell khác (declare -x, readonly, KEY+=, nhiều lệnh
 // một dòng) thì báo lỗi, không lặng lẽ bỏ ranh giới.
+// Khoá không có tiền tố DEW_ không có tên cũ: dòng nào cũng "chứa" tên rỗng, nên kiểm
+// tên cũ phải bỏ qua chứ không báo mọi dòng là tên cũ.
+func TestReadEnvKeysWithoutTheDEWPrefix(t *testing.T) {
+	t.Parallel()
+	f := filepath.Join(t.TempDir(), "env")
+	require.NoError(t, os.WriteFile(f, []byte("# comment\nOTHER=1\nROUTINE_SLOTS=4\n"), 0o600))
+	got, err := readEnvKeys(f, "ROUTINE_SLOTS")
+	require.NoError(t, err)
+	require.Equal(t, "4", got["ROUTINE_SLOTS"])
+}
+
 func TestEnvFileUnusualSpellingsFailClosed(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

@@ -47,6 +47,7 @@ func newRoutineEnv(t *testing.T) *routineEnv {
 	t.Helper()
 	repo := gitInit(t)
 	data := t.TempDir()
+	t.Setenv("GOCACHE", t.TempDir()) // không test nào trim được cache Go thật của người chạy test
 	e := &routineEnv{repo: repo, data: data}
 	e.opts = routineOpts{Def: testDef(repo), Sum: strings.Repeat("a", 64), DataDir: data, Now: fixedClock()}
 	return e
@@ -65,7 +66,7 @@ func fixedClock() func() time.Time {
 func (e *routineEnv) deps(onTurn func(worktree string) error) routineDeps {
 	return routineDeps{
 		Stderr: &bytes.Buffer{},
-		NewAgent: func(worktree string) (func(context.Context, string) (loop.RunInfo, error), func(), error) {
+		NewAgent: func(worktree string) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
 			e.sawDir = worktree
 			return func(ctx context.Context, prompt string) (loop.RunInfo, error) {
 				e.runs++
@@ -74,7 +75,7 @@ func (e *routineEnv) deps(onTurn func(worktree string) error) routineDeps {
 					err = onTurn(worktree)
 				}
 				return loop.RunInfo{SessionID: "s"}, err
-			}, func() {}, nil
+			}, func() {}, func() string { return "fake/m1" }, nil
 		},
 	}
 }
@@ -156,6 +157,68 @@ func TestExecuteRoutine_RefusesWhileAnotherRunHoldsTheLock(t *testing.T) {
 	release()
 	_, err = executeRoutine(t.Context(), e.opts, e.deps(nil))
 	require.NoError(t, err, "nhả khoá thì chạy được (không có khoá mồ côi)")
+}
+
+// Giới hạn chung cho mọi routine: hết chỗ thì thoát 75 như khoá bận, nêu tên biến;
+// không tạo nhánh hay worktree. Slots=0 là không giới hạn.
+func TestExecuteRoutine_RefusesWhenEveryRoutineSlotIsTaken(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	e := newRoutineEnv(t)
+	slot := filepath.Join(e.data, "slots", "0.lock")
+	require.NoError(t, os.MkdirAll(filepath.Dir(slot), 0o700))
+	release, err := lock.TryFile(slot)
+	require.NoError(t, err)
+
+	e.opts.Slots = 1
+	_, err = executeRoutine(t.Context(), e.opts, e.deps(nil))
+	var ec *exitCodeError
+	require.True(t, errors.As(err, &ec), "no free slot must exit 75: %v", err)
+	require.Equal(t, 75, ec.code)
+	require.ErrorContains(t, err, "DEW_ROUTINE_SLOTS")
+	require.Zero(t, e.runs)
+	require.Empty(t, gitIn(t, e.repo, "branch", "--list", "routine/*"))
+
+	e.opts.Slots = 2 // chỗ thứ hai còn trống
+	_, err = executeRoutine(t.Context(), e.opts, e.deps(nil))
+	require.NoError(t, err)
+	e.opts.Slots = 0
+	_, err = executeRoutine(t.Context(), e.opts, e.deps(nil))
+	require.NoError(t, err, "0 = no limit")
+
+	release()
+	e.opts.Slots = 1
+	_, err = executeRoutine(t.Context(), e.opts, e.deps(nil))
+	require.NoError(t, err)
+	again, err := lock.TryFile(slot)
+	require.NoError(t, err, "the run gives its slot back")
+	again()
+}
+
+// Lượt theo lịch chạy binary trực tiếp (không qua crushrc nạp tệp env): giới hạn đặt
+// trong tệp env vẫn phải có hiệu lực; biến export thắng tệp như mọi biến DEW_*.
+func TestRoutineSlots_ExportedEnvThenEnvFile(t *testing.T) {
+	envFile := filepath.Join(t.TempDir(), "env")
+	t.Setenv(execpolicy.EnvFileEnv, envFile)
+	t.Setenv("DEW_ROUTINE_SLOTS", "")
+	n, err := routineSlots()
+	require.NoError(t, err)
+	require.Equal(t, 3, n, "default")
+
+	require.NoError(t, os.WriteFile(envFile, []byte("DEW_API_KEY=x\nexport DEW_ROUTINE_SLOTS=5 # slow machine\n"), 0o600))
+	n, err = routineSlots()
+	require.NoError(t, err)
+	require.Equal(t, 5, n)
+
+	t.Setenv("DEW_ROUTINE_SLOTS", "0")
+	n, err = routineSlots()
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	for _, bad := range []string{"-1", "two"} {
+		t.Setenv("DEW_ROUTINE_SLOTS", bad)
+		_, err = routineSlots()
+		require.ErrorContains(t, err, "DEW_ROUTINE_SLOTS", bad)
+	}
 }
 
 func TestExecuteRoutine_LockIsReleasedAfterARun(t *testing.T) {
@@ -357,8 +420,8 @@ func TestExecuteRoutine_AgentSetupFailureLeavesNoOrphanButWritesAReport(t *testi
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
 	deps := e.deps(nil)
-	deps.NewAgent = func(string) (func(context.Context, string) (loop.RunInfo, error), func(), error) {
-		return nil, nil, errors.New("no providers configured")
+	deps.NewAgent = func(string) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
+		return nil, nil, nil, errors.New("no providers configured")
 	}
 	out, err := executeRoutine(t.Context(), e.opts, deps)
 	require.ErrorContains(t, err, "no providers configured")

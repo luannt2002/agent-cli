@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -49,10 +50,17 @@ type psRow struct {
 	// Waiting is true when the session awaits a permission or question
 	// answer; it takes precedence over Busy in the STATUS column.
 	Waiting bool `json:"waiting"`
+	// Routine names the routine of a running `routine run` (in-process, no
+	// server, no session); Path is then its worktree.
+	Routine string    `json:"routine,omitempty"`
+	PID     int       `json:"pid,omitempty"`
+	Started time.Time `json:"started,omitzero"`
 }
 
 func (r psRow) status() string {
 	switch {
+	case r.Routine != "":
+		return "ROUTINE"
 	case r.Waiting:
 		return "WAITING"
 	case r.Busy:
@@ -64,9 +72,12 @@ func (r psRow) status() string {
 
 var psCmd = &cobra.Command{
 	Use:   "ps",
-	Short: "List open projects and their sessions with BUSY/WAITING/IDLE status",
+	Short: "List open projects and their sessions (BUSY/WAITING/IDLE) and running routines (ROUTINE)",
 	Long: `List every project and session on the running dew servers.
-Without --host, scans all per-project server sockets. Never starts a server.`,
+Without --host, scans all per-project server sockets. Never starts a server.
+Running routines ("dew routine run" works in-process, without a server) are listed
+too, with status ROUTINE, their worktree as the project and "busy": true in --json.
+On Windows they are not listed: whether their process is alive cannot be checked.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		asJSON, _ := cmd.Flags().GetBool("json")
@@ -78,13 +89,13 @@ Without --host, scans all per-project server sockets. Never starts a server.`,
 		if all, _ := cmd.Flags().GetBool("all"); all {
 			perWorkspace = math.MaxInt
 		}
-		return runPS(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), hosts, asJSON, perWorkspace)
+		return runPS(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), hosts, asJSON, perWorkspace, routinePS(routineDataDir(), time.Now()))
 	},
 }
 
 func init() {
 	psCmd.Flags().Bool("all", false, "List every session instead of the newest 9 per project")
-	psCmd.Flags().Bool("json", false, "Output as JSON (prints [] when no server is running)")
+	psCmd.Flags().Bool("json", false, "Output as JSON (prints [] when nothing is running)")
 	rootCmd.AddCommand(psCmd)
 }
 
@@ -127,7 +138,7 @@ type psHostResult struct {
 // input order. A server counts as running once Health succeeds; failures
 // after that only drop the affected rows and are noted on errw. No server is
 // ever started.
-func runPS(ctx context.Context, w, errw io.Writer, hosts []string, asJSON bool, perWorkspace int) error {
+func runPS(ctx context.Context, w, errw io.Writer, hosts []string, asJSON bool, perWorkspace int, routines []psRow) error {
 	results := make([]psHostResult, len(hosts))
 	var wg sync.WaitGroup
 	for i, host := range hosts {
@@ -156,7 +167,8 @@ func runPS(ctx context.Context, w, errw io.Writer, hosts []string, asJSON bool, 
 			fmt.Fprintf(errw, "Skipping %s: %v\n", hosts[i], r.err)
 		}
 	}
-	if alive == 0 && unresponsive == 0 && !asJSON {
+	rows = append(rows, routines...)
+	if alive == 0 && unresponsive == 0 && len(routines) == 0 && !asJSON {
 		_, err := fmt.Fprintln(w, psNoServerMsg)
 		return err
 	}
@@ -227,6 +239,37 @@ scan:
 	return rows, errors.Join(errs...)
 }
 
+// routinePS trả một hàng cho mỗi routine có lượt mới nhất đang chạy. `routine run`
+// chạy in-process nên chỉ thấy qua báo cáo. Báo cáo có pid: kiểm tiến trình là `routine
+// run <tên>` còn sống (routineRunAlive; Windows không kiểm được nên không hiện), KHÔNG thử
+// khoá (thử khoá làm một lượt khởi động đúng lúc đó thoát 75). Báo cáo cũ không pid:
+// theo listRuns (thử khoá). Lượt chưa kịp ghi báo cáo thì bỏ qua (cũng để khỏi thử khoá).
+func routinePS(dataDir string, now time.Time) []psRow {
+	var rows []psRow
+	runsDirs, _ := filepath.Glob(filepath.Join(dataDir, "*", "runs"))
+	for _, runs := range runsDirs {
+		name := filepath.Base(filepath.Dir(runs))
+		dirs, _ := filepath.Glob(filepath.Join(runs, "*"))
+		if len(dirs) == 0 {
+			continue
+		}
+		rep, err := readReport(slices.Max(dirs))
+		switch {
+		case err != nil || rep.Reason != "RUNNING":
+			continue
+		case rep.PID > 0 && !routineRunAlive(rep.PID, name):
+			continue
+		case rep.PID == 0 && listRuns(dataDir, name)[0].Reason != "RUNNING":
+			continue
+		}
+		rows = append(rows, psRow{
+			Path: rep.Worktree, Busy: true, Routine: name, PID: rep.PID, Started: rep.Started,
+			Title: fmt.Sprintf("%s, running %s", name, now.Sub(rep.Started).Round(time.Second)),
+		})
+	}
+	return rows
+}
+
 // psTitleReplacer keeps a title on one table line.
 var psTitleReplacer = strings.NewReplacer("\t", " ", "\n", " ", "\r", " ")
 
@@ -239,7 +282,7 @@ func writePS(w io.Writer, rows []psRow, asJSON bool) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "PROJECT\tSESSION\tSTATUS\tTITLE")
 	for _, r := range rows {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.Path, r.SessionID, r.status(), psTitleReplacer.Replace(r.Title))
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.Path, cmp.Or(r.SessionID, "-"), r.status(), psTitleReplacer.Replace(r.Title))
 	}
 	return tw.Flush()
 }
