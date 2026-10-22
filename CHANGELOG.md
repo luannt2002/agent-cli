@@ -9,6 +9,41 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-22
+
+Sửa ba điểm từ dùng thật, và gom mỗi câu hỏi "lượt còn sống / verify đạt / cây có đổi / được xoá gì / vì sao từ chối /
+lượt bị cắt thì sao" về một chỗ trả lời. Đặc tả: [docs/routine-invariants.md](docs/routine-invariants.md); lý do:
+[reports/DEW_AUDIT_2026-10-22.md](reports/DEW_AUDIT_2026-10-22.md).
+
+### Thêm
+
+- **`routine new --run-timeout D --max-duration D --stream-retries N`:** đặt giới hạn của lượt lúc tạo, không phải sửa
+  JSON tay. Kiểm bằng cùng hàm kiểm định nghĩa: giá trị sai thoát 2 và không ghi tệp.
+- **`routine run --json`:** một object trên stdout, là báo cáo cuối hoặc `{"refused","routine","detail"}` khi thoát 75.
+  `refused` là `lock_held` (routine đang chạy: chạy lại là chạy trùng), `no_slot`, `low_memory` hoặc `low_disk`.
+  Lỗi trước khi có báo cáo (repo không còn là repo git, lỗi IO) in `{"routine","error"}`; dùng sai cú pháp không in gì.
+- Journal có sự kiện `continue`; `dew loop` in một dòng khi chạy tiếp sau lượt bị cắt.
+
+### Thay đổi
+
+- **Lượt bị `run_timeout` cắt mà verify FAIL và còn lượt sửa thì chạy tiếp** một lượt sửa (session mới, đề báo lượt
+  trước bị cắt, tốn một lượt sửa). Verify PASS sau lúc cắt vẫn là `TIMEOUT` (cần soát), không bao giờ GREEN; hết lượt sửa
+  thì `TIMEOUT`. Trước đây mọi lượt bị cắt đều dừng `TIMEOUT`.
+- Lượt bị cắt hoặc lỗi chỉ kết thúc khi agent đã dừng hẳn (chờ tối đa 30 giây); không dừng thì lượt chạy dừng
+  `RUN_ERROR`, không chạy chồng lượt sau.
+
+### Sửa
+
+- **NO_CHANGE/STALLED oan khi agent chỉ ghi tệp bị gitignore** (vd `out/report.md`). "Cây có đổi", `changed_files`,
+  bộ dọn worktree và `routine export` giờ dùng chung một bộ phân loại. Dấu vân tay chỉ tính tên của tệp bị ignore, không
+  tính nội dung, để artefact verify ghi lại mỗi lần (`junit.xml`, `cover.out`) không che STALLED.
+- `changed_files` có cả tệp bị ignore là việc, tệp bị giấu khỏi `git status`, và commit trên nhánh của lượt khi HEAD
+  đã quay về base.
+- `routine export` không còn xuất tệp sparse/skip-worktree vắng trên đĩa thành "đã xoá".
+- `routine export` không còn xuất `.crush/` mà agent đã commit, kể cả khi `GIT_LITERAL_PATHSPECS=1`.
+- Kiểm cây và `routine export` không chạy hook git do repo cấu hình (`core.hooksPath`). Clean filter do repo khai vẫn chạy.
+- Bộ dọn worktree giữ lượt có `base_sha` không phải SHA (báo cáo bị sửa hay hỏng), không còn coi là "không có commit".
+
 ## [0.3.1] - 2026-10-21
 
 Đợt tiếp theo sau một ngày dùng v0.3.0 với routine chạy song song: thấy rõ hơn, đo được độ trễ, xuất patch để soát.
