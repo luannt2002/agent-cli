@@ -155,12 +155,52 @@ func TestExecuteRoutine_RefusesWhileAnotherRunHoldsTheLock(t *testing.T) {
 	var ec *exitCodeError
 	require.True(t, errors.As(err, &ec), "đang chạy rồi thì từ chối bằng mã riêng: %v", err)
 	require.Equal(t, 75, ec.code)
+	require.Equal(t, "lock_held", ec.refused)
 	require.Zero(t, e.runs)
 	require.Empty(t, gitIn(t, e.repo, "branch", "--list", "routine/*"), "bị từ chối thì không tạo nhánh hay worktree")
 
 	release()
 	_, err = executeRoutine(t.Context(), e.opts, e.deps(nil))
 	require.NoError(t, err, "nhả khoá thì chạy được (không có khoá mồ côi)")
+}
+
+// Q5: `routine run --json` in MỘT object trên stdout: loại từ chối khi lượt không được chạy, báo
+// cáo cuối (như report.json) khi lượt chạy xong; lỗi trước khi có báo cáo (dùng sai) không in gì.
+func TestPrintRoutineRunJSON(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	e := newRoutineEnv(t)
+	lockPath := routineLockPath(e.data, "nightly")
+	require.NoError(t, os.MkdirAll(filepath.Dir(lockPath), 0o700))
+	release, err := lock.TryFile(lockPath)
+	require.NoError(t, err)
+	out, runErr := executeRoutine(t.Context(), e.opts, e.deps(nil))
+	require.Equal(t, 75, exitCodeFor(runErr))
+	var buf bytes.Buffer
+	require.NoError(t, printRoutineRunJSON(&buf, "nightly", out, runErr))
+	var refused map[string]string
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &refused), buf.String())
+	require.Equal(t, map[string]string{"refused": "lock_held", "routine": "nightly", "detail": runErr.Error()}, refused)
+	release()
+
+	out, runErr = executeRoutine(t.Context(), e.opts, e.deps(func(wt string) error {
+		return os.WriteFile(filepath.Join(wt, "done.txt"), []byte("x"), 0o644)
+	}))
+	require.NoError(t, runErr)
+	buf.Reset()
+	require.NoError(t, printRoutineRunJSON(&buf, "nightly", out, runErr))
+	require.Equal(t, 1, bytes.Count(buf.Bytes(), []byte("\n")), "one object on one line: %s", buf.String())
+	var rep routineReport
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &rep))
+	disk, err := readReport(out.RunDir)
+	require.NoError(t, err)
+	require.Equal(t, "GREEN", rep.Reason)
+	require.Equal(t, disk.Worktree, rep.Worktree)
+	require.Equal(t, disk.ChangedFiles, rep.ChangedFiles)
+	require.NotContains(t, buf.String(), `"refused"`)
+
+	buf.Reset()
+	require.NoError(t, printRoutineRunJSON(&buf, "nightly", routineOutcome{}, &usageError{errors.New("bad")}))
+	require.Empty(t, buf.String())
 }
 
 // Giới hạn chung cho mọi routine: hết chỗ thì thoát 75 như khoá bận, nêu tên biến;
@@ -178,6 +218,7 @@ func TestExecuteRoutine_RefusesWhenEveryRoutineSlotIsTaken(t *testing.T) {
 	var ec *exitCodeError
 	require.True(t, errors.As(err, &ec), "no free slot must exit 75: %v", err)
 	require.Equal(t, 75, ec.code)
+	require.Equal(t, "no_slot", ec.refused)
 	require.ErrorContains(t, err, "DEW_ROUTINE_SLOTS")
 	require.Zero(t, e.runs)
 	require.Empty(t, gitIn(t, e.repo, "branch", "--list", "routine/*"))
@@ -560,6 +601,7 @@ func TestExecuteRoutine_RefusesWhenAvailableMemoryIsBelowTheMinimum(t *testing.T
 	ec, ok := errors.AsType[*exitCodeError](err)
 	require.True(t, ok, "low memory must exit 75: %v", err)
 	require.Equal(t, exitCodeBusy, ec.code)
+	require.Equal(t, "low_memory", ec.refused)
 	require.ErrorContains(t, err, "1000 MB")
 	require.ErrorContains(t, err, "DEW_ROUTINE_MIN_MEM_MB=3000")
 	require.Zero(t, e.runs)

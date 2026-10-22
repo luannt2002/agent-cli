@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -46,16 +48,20 @@ JSON and the journal's stop event count every agent turn, retries included. A
 quota or usage-limit error (HTTP 402, or a 429/403 whose message says usage limit,
 quota or billing) is never retried. When a turn is cut off (--run-timeout, or a
 temporary error after the retries) the verify command still runs once on what the
-agent left, and its status and exit code are reported; such a run is never GREEN,
-even when that verify passes. The loop stops with one of:
+agent left, and its status and exit code are reported. After a --run-timeout cut,
+a failing verify with repair turns left starts the next repair turn (told that the
+previous turn was cut off); a passing verify, or no repair turn left, stops TIMEOUT.
+The verify right after a cut never makes the run GREEN, even when it passes: GREEN
+only follows an agent turn that ran to its end. The loop stops with one of:
 
-  GREEN         the verify command exited 0 after an agent turn
+  GREEN         the verify command exited 0 after an agent turn that ran to its end
   NO_CHANGE     the verify command passed before any change and the working tree
                 did not change: nothing proves the agent's work
   MAX_REPAIRS   still failing after --max-repairs repair turns (default 2)
   STALLED       the same failure and an unchanged working tree after a repair turn
-  TIMEOUT       --max-duration reached (checked before each agent turn), or an
-                agent turn exceeded --run-timeout (the detail says which)
+  TIMEOUT       --max-duration reached (checked before each agent turn), or a turn
+                cut off by --run-timeout whose verify then passed (review it) or
+                that had no repair turn left (the detail says which)
   STREAM_STALL  the LLM stream sent no data (request_timeout), after the retries
   QUOTA         the provider reported a quota or usage limit (not retried)
   RUN_ERROR     an agent turn failed (a temporary error: after the retries)
@@ -228,7 +234,8 @@ func executeLoop(ctx context.Context, p loopParams, d loopDeps) (loopOutcome, er
 			defer cancel()
 		}
 		info, err := d.Agent(rctx, prompt)
-		if err != nil && ctx.Err() == nil && errors.Is(rctx.Err(), context.DeadlineExceeded) {
+		// Lượt không dừng được (settleTurn) phải dừng cả loop, không được thành lượt bị cắt để chạy tiếp.
+		if err != nil && !errors.Is(err, errTurnNotSettled) && ctx.Err() == nil && errors.Is(rctx.Err(), context.DeadlineExceeded) {
 			err = fmt.Errorf("%w after %s (per-turn run timeout)", loop.ErrTurnTimeout, p.RunTimeout)
 		}
 		return info, err
@@ -327,42 +334,82 @@ func shellVerify(cwd string, timeout time.Duration) func(ctx context.Context, cm
 	}
 }
 
-// gitFingerprint băm trạng thái cây làm việc: HEAD, diff của tệp đã theo dõi, và
-// nội dung tệp chưa theo dõi. Hai lượt cho cùng dấu vân tay nghĩa là agent không
-// đổi gì. Không phải repo git (hoặc chưa có commit) thì không biết cây có đổi
-// không: trả giá trị luôn khác để không dừng oan vì STALLED.
+// gitFingerprint băm trạng thái cây làm việc theo bộ phân loại (classifyWorktree, Q3): HEAD, diff
+// của tệp đã theo dõi, tên và nội dung tệp chưa theo dõi và tệp bị giấu khỏi status, và CHỈ TÊN
+// của mục bị ignore là việc (kể cả tên tệp bên trong thư mục bị ignore trọn): verify hay ghi lại
+// artefact bị ignore (junit.xml, cover.out) với nội dung mới mỗi lần, băm nội dung thì STALLED
+// không bao giờ bắt được; agent tạo tệp bị ignore mới thì có tên mới. Hai lượt cho cùng dấu vân
+// tay nghĩa là agent không đổi gì. Không phải repo git (hoặc chưa có commit, hoặc git hỏng) thì
+// không biết cây có đổi không: trả giá trị luôn khác để không dừng oan vì STALLED.
 func gitFingerprint(dir string) func(ctx context.Context) (string, error) {
-	// Cấu hình của repo có thể do agent vừa ghi (core.fsmonitor, diff.external): tắt
-	// mọi chương trình do cấu hình chỉ định để dấu vân tay không chạy mã của nó.
+	// Cấu hình của repo có thể do agent vừa ghi: tắt fsmonitor, hook và chương trình diff ngoài
+	// (--no-ext-diff, --no-textconv). Clean filter do repo khai vẫn chạy (xem classifyWorktree).
 	git := func(ctx context.Context, args ...string) ([]byte, error) {
-		c := exec.CommandContext(ctx, "git", append([]string{"-c", "core.fsmonitor=false"}, args...)...)
+		c := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
 		c.Dir = dir
 		return c.Output()
 	}
 	return func(ctx context.Context) (string, error) {
+		unknown := "unknown-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 		head, err := git(ctx, "rev-parse", "HEAD")
 		if err != nil {
-			return "unknown-" + strconv.FormatInt(time.Now().UnixNano(), 10), nil
+			return unknown, nil
+		}
+		st, err := classifyWorktree(ctx, dir, "", "")
+		if err != nil {
+			return unknown, nil
+		}
+		diff, err := git(ctx, "-C", st.Root, "diff", "--no-ext-diff", "--no-textconv", "HEAD")
+		if err != nil {
+			return unknown, nil
 		}
 		h := sha256.New()
 		h.Write(head)
-		if diff, err := git(ctx, "diff", "--no-ext-diff", "--no-textconv", "HEAD"); err == nil {
-			h.Write(diff)
-		}
-		if names, err := git(ctx, "ls-files", "--others", "--exclude-standard", "-z"); err == nil {
-			for _, name := range bytes.Split(names, []byte{0}) {
-				if len(name) == 0 {
-					continue
-				}
-				h.Write(name)
-				if f, err := os.Open(filepath.Join(dir, string(name))); err == nil {
-					_, _ = io.CopyN(h, f, maxVerifyOutput)
-					f.Close()
-				}
+		h.Write(diff)
+		for _, class := range []struct {
+			tag     string
+			paths   []string
+			content bool
+		}{{"??", st.Untracked, true}, {"!!", st.IgnoredWork, false}, {"h", st.Hidden, true}} {
+			for _, p := range class.paths {
+				hashTree(h, st.Root, class.tag, p, class.content)
 			}
 		}
 		return hex.EncodeToString(h.Sum(nil))[:16], nil
 	}
+}
+
+// hashTree băm tên một mục "việc", và nội dung khi content: mỗi tệp tối đa maxVerifyOutput byte,
+// chỉ tệp thường (FIFO hay thiết bị làm treo), symlink băm đích. Chỉ băm tên (mục bị ignore) thì đi
+// cả thư mục, bỏ qua .git: tệp mới trong thư mục bị ignore trọn có tên mới. Băm nội dung thì không
+// đi vào thư mục: với -uall thư mục chưa theo dõi chỉ là repo lồng, băm tên như bản cũ.
+// shortcut: tên trong thư mục bị ignore lớn không thuộc regenerableDirs (vendor/ của PHP...) được
+// liệt kê lại mỗi lượt (không đọc nội dung); thêm thư mục đó vào regenerableDirs khi việc này chậm thật.
+func hashTree(h io.Writer, root, tag, p string, content bool) {
+	_ = filepath.WalkDir(filepath.Join(root, p), func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+		rel, _ := filepath.Rel(root, path)
+		fmt.Fprintf(h, "%s %s\x00", tag, filepath.ToSlash(rel))
+		switch {
+		case content && d.IsDir():
+			return filepath.SkipDir
+		case !content:
+		case d.Type().IsRegular():
+			if f, err := os.Open(path); err == nil {
+				_, _ = io.CopyN(h, f, maxVerifyOutput)
+				f.Close()
+			}
+		case d.Type()&fs.ModeSymlink != 0:
+			target, _ := os.Readlink(path)
+			_, _ = io.WriteString(h, target)
+		}
+		return nil
+	})
 }
 
 // progressJournal in một dòng người đọc được cho mỗi sự kiện quan trọng rồi
@@ -394,6 +441,8 @@ func (p progressJournal) Append(e loop.Event) error {
 		}
 	case "verify":
 		fmt.Fprintf(p.w, "[loop] attempt %d: verify %s (exit %d)\n", e.Attempt, e.Status, e.ExitCode)
+	case "continue": // lượt bị cắt, verify FAIL, còn lượt sửa: Note nói lượt nào bị cắt và vì sao
+		fmt.Fprintf(p.w, "[loop] attempt %d: %s\n", e.Attempt, e.Note)
 	case "stop":
 		if e.Note != "" {
 			fmt.Fprintf(p.w, "[loop] stop: %s (%s)\n", e.Reason, e.Note)
@@ -486,15 +535,50 @@ func newLoopAgent(ctx context.Context, cmd *cobra.Command, p loopParams, out io.
 		}, release, nil
 	}
 
-	agent, cleanup, _, err := newLocalLoopAgent(cmd, p, out)
+	agent, cleanup, _, err := newLocalLoopAgent(ctx, cmd, p, out)
 	return agent, cleanup, err
+}
+
+// settleWait là thời gian tối đa chờ một lượt agent bị cắt (hay lỗi) dừng hẳn (settleTurn).
+const settleWait = 30 * time.Second
+
+var errTurnNotSettled = errors.New("the agent turn did not stop")
+
+// settleTurn bọc một lượt agent in-process: lượt lỗi hay bị cắt thì chỉ trả về khi app hết bận
+// (busy). RunNonInteractive trả về ngay khi ctx của lượt hết hạn, không chờ coordinator dọn xong
+// (tool, ghi DB); lượt sau (chạy tiếp sau khi cắt, chạy lại sau lỗi tạm thời) dựng coordinator mới
+// trong lúc lượt cũ còn chạy. Chờ tối đa limit, theo outer (Ctrl+C); không dừng được thì trả
+// errTurnNotSettled (lỗi gốc chỉ ghi chữ, không bọc: không được phân loại thành lỗi tạm thời rồi
+// chạy lại): dừng cả loop còn hơn chạy chồng.
+func settleTurn(outer context.Context, run func(context.Context, string) (loop.RunInfo, error), busy func() bool, limit time.Duration) func(context.Context, string) (loop.RunInfo, error) {
+	return func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+		info, err := run(ctx, prompt)
+		cause := cmp.Or(err, ctx.Err())
+		if cause == nil {
+			return info, nil
+		}
+		deadline := time.NewTimer(limit)
+		defer deadline.Stop()
+		tick := time.NewTicker(50 * time.Millisecond)
+		defer tick.Stop()
+		for busy() {
+			select {
+			case <-outer.Done():
+				return info, err
+			case <-deadline.C:
+				return info, fmt.Errorf("%w within %s after it ended with: %v; stopping instead of starting another turn over it", errTurnNotSettled, limit, cause)
+			case <-tick.C:
+			}
+		}
+		return info, err
+	}
 }
 
 // newLocalLoopAgent chạy agent in-process (không qua server), trong thư mục hiện
 // tại của tiến trình. Routine luôn dùng đường này: lớp chặn không người trực là
 // trạng thái của chính tiến trình, nên không thể bị một server dùng chung bỏ qua.
 // model() trả provider/model large mà lượt dùng (routineModel), cho báo cáo routine.
-func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
+func newLocalLoopAgent(outer context.Context, cmd *cobra.Command, p loopParams, out io.Writer) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
 	ws, cleanup, err := setupLocalWorkspace(cmd)
 	if err != nil {
 		return nil, nil, nil, err
@@ -516,7 +600,7 @@ func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(co
 	if large == routineModel(appWs.App().Store().Config().Models[config.SelectedModelTypeLarge], config.SelectedModel{}, "") {
 		large = ""
 	}
-	return func(ctx context.Context, prompt string) (loop.RunInfo, error) {
+	run := func(ctx context.Context, prompt string) (loop.RunInfo, error) {
 		var (
 			info loop.RunInfo
 			text bytes.Buffer
@@ -526,5 +610,11 @@ func newLocalLoopAgent(cmd *cobra.Command, p loopParams, out io.Writer) (func(co
 			prompt, large, "", p.ReasoningEffort, true, loop.ResumeSession(ctx), false)
 		info.Text = text.String()
 		return info, err
-	}, cleanup, model, nil
+	}
+	// Coordinator của lượt vừa xong: lượt sau mới thay nó (initCoderAgent), sau khi settleTurn trả về.
+	busy := func() bool {
+		c := appWs.App().AgentCoordinator
+		return c != nil && c.IsBusy()
+	}
+	return settleTurn(outer, run, busy, settleWait), cleanup, model, nil
 }

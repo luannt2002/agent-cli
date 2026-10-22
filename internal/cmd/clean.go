@@ -134,7 +134,7 @@ func routineHousekeep(ctx context.Context, o routineOpts, d routineDeps, now fun
 		return nil
 	}
 	if free < uint64(o.MinFree) {
-		return &exitCodeError{code: exitCodeBusy, err: fmt.Errorf("only %s free on the disk holding %s (%s=%d): see what you can delete with `dew clean` (0 = no check)",
+		return &exitCodeError{code: exitCodeBusy, refused: refusedLowDisk, err: fmt.Errorf("only %s free on the disk holding %s (%s=%d): see what you can delete with `dew clean` (0 = no check)",
 			humanize.Bytes(free), o.DataDir, minFreeEnv, o.MinFree/gb)}
 	}
 	return nil

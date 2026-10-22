@@ -236,6 +236,7 @@ func TestExecuteRoutine_RefusesToRunWhenTheDiskIsAlmostFull(t *testing.T) {
 	var ec *exitCodeError
 	require.True(t, errors.As(err, &ec), "a full disk must exit 75: %v", err)
 	require.Equal(t, 75, ec.code)
+	require.Equal(t, "low_disk", ec.refused)
 	require.ErrorContains(t, err, "dew clean")
 	require.ErrorContains(t, err, "DEW_MIN_FREE_GB=10")
 	require.Equal(t, e.data, asked)

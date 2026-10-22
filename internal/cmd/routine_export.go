@@ -141,13 +141,15 @@ func exportRun(ctx context.Context, dataDir, name string, o exportOpts) (exportR
 	return res, err
 }
 
-// buildPatch dựng patch của worktree wt so với base: mọi thứ từ base tới cây làm việc hiện tại,
-// kể cả tệp chưa theo dõi. Làm trên index và object store TẠM (GIT_INDEX_FILE,
-// GIT_OBJECT_DIRECTORY + alternates): index của lượt, có thể đang chạy, và object store của repo
-// không đổi.
-// shortcut: worktree dùng sparse-checkout sẽ ra patch xoá các tệp không có trên đĩa; nâng cấp
-// khi routine chạy trên repo sparse.
+// buildPatch dựng patch của worktree wt so với base: commit từ base tới HEAD cộng các mục "việc"
+// của bộ phân loại (classifyWorktree; mục bị ignore chỉ khi includeIgnored, .crush/ không bao
+// giờ). Làm trên index và object store TẠM (GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY + alternates):
+// index của lượt, có thể đang chạy, và object store của repo không đổi.
 func buildPatch(ctx context.Context, wt, base string, includeIgnored bool) ([]byte, []string, error) {
+	st, err := classifyWorktree(ctx, wt, "", "")
+	if err != nil {
+		return nil, nil, err
+	}
 	objects, err := runGit(ctx, wt, "rev-parse", "--path-format=absolute", "--git-path", "objects")
 	if err != nil {
 		return nil, nil, err
@@ -162,8 +164,10 @@ func buildPatch(ctx context.Context, wt, base string, includeIgnored bool) ([]by
 	}
 	env := append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(tmp, "index"),
 		"GIT_OBJECT_DIRECTORY="+filepath.Join(tmp, "objects"), "GIT_ALTERNATE_OBJECT_DIRECTORIES="+objects)
+	// Không chạy fsmonitor hay hook do repo cấu hình (post-index-change chạy mỗi lần read-tree/add ghi
+	// index). Clean filter do repo khai vẫn chạy khi add (xem classifyWorktree).
 	git := func(stdin string, args ...string) ([]byte, error) {
-		c := exec.CommandContext(ctx, "git", append([]string{"-C", wt, "-c", "core.fsmonitor=false"}, args...)...)
+		c := exec.CommandContext(ctx, "git", append([]string{"-C", wt, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
 		var stderr bytes.Buffer
 		c.Env, c.Stdin, c.Stderr = env, strings.NewReader(stdin), &stderr
 		out, err := c.Output()
@@ -172,38 +176,55 @@ func buildPatch(ctx context.Context, wt, base string, includeIgnored bool) ([]by
 		}
 		return out, nil
 	}
-	// Index tạm bắt đầu từ HEAD (tệp đã theo dõi mà khớp .gitignore không thành "đã xoá"), rồi
-	// nhận cây làm việc: sửa, xoá, tệp mới không bị ignore. .crush (dữ liệu phiên của dew) loại
-	// tường minh: agent xoá .crush/.gitignore thì crush.db không còn bị ignore.
+	// Index tạm bắt đầu từ HEAD (tệp đã theo dõi mà khớp .gitignore không thành "đã xoá", tệp
+	// sparse không có trên đĩa không thành "đã xoá"), rồi nhận đúng các mục "việc": sửa, xoá, tệp
+	// mới, tệp bị giấu khỏi status (index tạm không mang cờ assume-unchanged). .crush loại tường
+	// minh, kể cả tệp repo theo dõi trong đó.
 	if _, err := git("", "read-tree", "HEAD"); err != nil {
 		return nil, nil, err
 	}
-	if _, err := git("", "add", "-A", "--", ".", ":(exclude).crush"); err != nil {
-		return nil, nil, err
+	// Mục còn trên đĩa thì add, mục đã mất thì bỏ khỏi index tạm (--ignore-unmatch: stage rồi xoá
+	// thì HEAD cũng không có nó). -f cho tệp (tệp stage cưỡng bức trong index của lượt có thể khớp
+	// .gitignore) và cho mục bị ignore được chọn; KHÔNG cho thư mục khác (tệp `foo` thành thư mục
+	// foo/): -f trên thư mục kéo theo con bị ignore (foo/.env).
+	var force, plain, gone []string
+	sortOut := func(paths []string, ignored bool) {
+		for _, p := range paths {
+			switch fi, err := os.Lstat(filepath.Join(st.Root, p)); {
+			case p == ".crush" || strings.HasPrefix(p, ".crush/"):
+			case err != nil:
+				gone = append(gone, p)
+			case fi.IsDir() && !ignored:
+				plain = append(plain, p)
+			default:
+				force = append(force, p)
+			}
+		}
 	}
+	sortOut(slices.Concat(st.Changed, st.Untracked, st.Hidden), false)
 	if includeIgnored {
-		// --directory: thư mục bị ignore trọn hiện một lần, như `routine gc` đọc chúng.
-		out, err := git("", "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory")
-		if err != nil {
+		sortOut(st.IgnoredWork, true)
+	}
+	for _, step := range []struct {
+		paths []string
+		args  []string
+	}{{force, []string{"add", "-f"}}, {plain, []string{"add"}}, {gone, []string{"rm", "--cached", "-r", "-q", "--ignore-unmatch"}}} {
+		if len(step.paths) == 0 {
+			continue
+		}
+		// --literal-pathspecs: tên tệp có * hay : là tên, không phải mẫu.
+		args := append(append([]string{"--literal-pathspecs"}, step.args...), "--pathspec-from-file=-", "--pathspec-file-nul")
+		if _, err := git(strings.Join(step.paths, "\x00"), args...); err != nil {
 			return nil, nil, err
-		}
-		var paths []string
-		for _, p := range strings.Split(string(out), "\x00") {
-			if p != "" && !strings.HasPrefix(p, ".crush/") && !regenerable(p) {
-				paths = append(paths, p)
-			}
-		}
-		if len(paths) > 0 {
-			// --literal-pathspecs: tên tệp có * hay : là tên, không phải mẫu.
-			if _, err := git(strings.Join(paths, "\x00"), "--literal-pathspecs", "add", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
-				return nil, nil, err
-			}
 		}
 	}
 	// Cấu hình của repo không được đổi dạng patch (màu, tiền tố, đổi tên, submodule dạng log,
-	// chương trình diff ngoài). --end-of-options: base không bao giờ được đọc như một cờ.
-	diff := []string{"diff", "--cached", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-relative", "--no-color", "--submodule=short"}
-	names, err := git("", append(diff, "--name-status", "-z", "--end-of-options", base)...)
+	// chương trình diff ngoài). --end-of-options: base không bao giờ được đọc như một cờ. Pathspec loại
+	// .crush cả trong commit của lượt (agent `git add -f .crush/crush.db` rồi commit);
+	// --no-literal-pathspecs: GIT_LITERAL_PATHSPECS=1 trong env của người dùng không được tắt nó.
+	diff := []string{"--no-literal-pathspecs", "diff", "--cached", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-relative", "--no-color", "--submodule=short"}
+	paths := []string{"--", ".", ":(exclude).crush"}
+	names, err := git("", slices.Concat(diff, []string{"--name-status", "-z", "--end-of-options", base}, paths)...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,6 +236,6 @@ func buildPatch(ctx context.Context, wt, base string, includeIgnored bool) ([]by
 	if len(files) == 0 {
 		return nil, nil, nil
 	}
-	patch, err := git("", append(diff, "--binary", "--full-index", "--src-prefix=a/", "--dst-prefix=b/", "--end-of-options", base)...)
+	patch, err := git("", slices.Concat(diff, []string{"--binary", "--full-index", "--src-prefix=a/", "--dst-prefix=b/", "--end-of-options", base}, paths)...)
 	return patch, files, err
 }

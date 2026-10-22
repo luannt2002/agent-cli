@@ -40,7 +40,18 @@ const exitCodeBusy = 75
 type exitCodeError struct {
 	code int
 	err  error
+	// refused là loại từ chối chạy (Q5 của docs/routine-invariants.md), cho `routine run --json`;
+	// rỗng khi lỗi không phải một lần từ chối.
+	refused string
 }
+
+// Loại từ chối chạy (thoát 75). Chỉ lock_held là chạy lại sau cũng vô ích (sẽ chạy trùng).
+const (
+	refusedLockHeld  = "lock_held"
+	refusedNoSlot    = "no_slot"
+	refusedLowMemory = "low_memory"
+	refusedLowDisk   = "low_disk"
+)
 
 func (e *exitCodeError) Error() string { return e.err.Error() }
 func (e *exitCodeError) Unwrap() error { return e.err }
@@ -99,6 +110,13 @@ func init() {
 				n, _ := f.GetInt("max-repairs")
 				d.MaxRepairs = &n
 			}
+			// Chuỗi nguyên văn: Definition.Validate (writeDefinition) kiểm như khi đọc tệp.
+			d.RunTimeout, _ = f.GetString("run-timeout")
+			d.MaxDuration, _ = f.GetString("max-duration")
+			if f.Changed("stream-retries") {
+				n, _ := f.GetInt("stream-retries")
+				d.StreamRetries = &n
+			}
 			if d.Repo != "" {
 				abs, err := filepath.Abs(d.Repo)
 				if err != nil {
@@ -139,6 +157,9 @@ func init() {
 	newCmd.Flags().String("verify", "", "Command that defines \"done\": exit 0 = done (required)")
 	newCmd.Flags().String("model", "", "Model to use (default: the current default large model, written into the definition)")
 	newCmd.Flags().Int("max-repairs", routine.DefaultMaxRepairs, "Repair turns after the first agent turn (0-5)")
+	newCmd.Flags().String("run-timeout", "", "Maximum time of one agent turn, like 30m (default "+routine.DefaultRunTimeout.String()+")")
+	newCmd.Flags().String("max-duration", "", "Stop before starting a new agent turn after this long, like 2h (default: no limit)")
+	newCmd.Flags().Int("stream-retries", routine.DefaultStreamRetries, fmt.Sprintf("Retries in a row of a turn cut off by a temporary provider error (0-%d, 0 = no retry)", routine.MaxStreamRetries))
 	newCmd.Flags().Bool("commit", false, "Allow git commit on the routine/* branch (never push)")
 	newCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return &usageError{err} })
 
@@ -269,16 +290,22 @@ other routine that is still marked RUNNING but whose process is provably gone
 					if err := os.Chdir(worktree); err != nil {
 						return nil, nil, nil, fmt.Errorf("enter the worktree: %w", err)
 					}
-					return newLocalLoopAgent(cmd, loopParams{Model: d.Model}, io.Discard)
+					return newLocalLoopAgent(ctx, cmd, loopParams{Model: d.Model}, io.Discard)
 				},
 			}
 			out, err := executeRoutine(ctx, opts, deps)
+			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+				if jerr := printRoutineRunJSON(cmd.OutOrStdout(), d.Name, out, err); jerr != nil {
+					return errors.Join(err, jerr)
+				}
+			}
 			if err != nil {
 				return err
 			}
 			return routineExitErr(d.Mode, out.Result.Reason)
 		},
 	}
+	runCmd.Flags().Bool("json", false, `Print one JSON object on stdout at the end: the final report, or {"refused":"lock_held|no_slot|low_memory|low_disk","routine":...,"detail":...} when the run was refused (exit 75), or {"routine":...,"error":...} when it failed before writing a report (exit 1); nothing on bad usage (exit 2)`)
 	runCmd.Flags().Bool("scheduled", false, "Mark the run as started by a schedule (refused for goal routines)")
 	runCmd.Flags().String("expect-sha", "", "Refuse to run unless the definition file has this sha256 (set by the printed schedule)")
 	runCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return &usageError{err} })
@@ -316,6 +343,35 @@ retrying a run whose earlier cleanup failed.`,
 
 	routineCmd.AddCommand(newCmd, listCmd, showCmd, scheduleCmd, runCmd, gcCmd)
 	rootCmd.AddCommand(routineCmd)
+}
+
+// printRoutineRunJSON là đầu ra của `routine run --json` (Q5): MỘT object. Loại từ chối khi lượt
+// không được chạy (thoát 75); báo cáo cuối như report.json (cả ERROR) khi lượt đã có báo cáo; lỗi
+// hạ tầng trước khi có báo cáo (repo không còn là repo git, lỗi ghi đĩa, lỗi khoá) là
+// {"routine","error"} (thoát 1). Chỉ lỗi dùng sai (thoát 2: cờ, định nghĩa đã đổi) không in gì.
+func printRoutineRunJSON(w io.Writer, name string, out routineOutcome, err error) error {
+	var v any
+	ec, ok := errors.AsType[*exitCodeError](err)
+	switch {
+	case ok && ec.refused != "":
+		v = struct {
+			Refused string `json:"refused"`
+			Routine string `json:"routine"`
+			Detail  string `json:"detail"`
+		}{ec.refused, name, ec.err.Error()}
+	case out.Report.Routine != "":
+		v = out.Report
+	case err != nil && !isUsageError(err):
+		v = struct {
+			Routine string `json:"routine"`
+			Error   string `json:"error"`
+		}{name, err.Error()}
+	default:
+		return nil
+	}
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(v)
 }
 
 // routineExitErr: NO_CHANGE ở routine bảo trì là "không có việc", kết quả hợp lệ của
@@ -721,7 +777,7 @@ func checkRoutineMemory(minMB int, read func() (uint64, error), w io.Writer) err
 		return nil
 	}
 	if kb < uint64(minMB)*1024 {
-		return &exitCodeError{code: exitCodeBusy, err: fmt.Errorf("only %d MB of memory available (MemAvailable), %s=%d: try again later (0 = no check)", kb/1024, routineMinMemEnv, minMB)}
+		return &exitCodeError{code: exitCodeBusy, refused: refusedLowMemory, err: fmt.Errorf("only %d MB of memory available (MemAvailable), %s=%d: try again later (0 = no check)", kb/1024, routineMinMemEnv, minMB)}
 	}
 	return nil
 }
@@ -763,7 +819,7 @@ func takeRoutineSlot(dataDir string, n int) (func(), error) {
 			return release, err
 		}
 	}
-	return nil, &exitCodeError{code: exitCodeBusy, err: fmt.Errorf("all %d routine slots are in use (%s=%d; 0 = no limit): try again later", n, routineSlotsEnv, n)}
+	return nil, &exitCodeError{code: exitCodeBusy, refused: refusedNoSlot, err: fmt.Errorf("all %d routine slots are in use (%s=%d; 0 = no limit): try again later", n, routineSlotsEnv, n)}
 }
 
 // routineDeps là phần dựng agent (trong worktree) và nơi in tiến trình, được tiêm để test.
@@ -817,8 +873,9 @@ type routineReport struct {
 	// Cờ "xanh mà chưa chắc đã làm": cổng xanh sẵn từ trước, hoặc cây không đổi.
 	BaselinePass bool `json:"baseline_pass,omitempty"`
 	Unchanged    bool `json:"unchanged_tree,omitempty"`
-	// Tệp đổi so với base (đã theo dõi + chưa theo dõi), và cờ khi trong đó có
-	// test hay tệp mà lệnh verify gọi tới: GREEN nhờ sửa cổng là thành công giả.
+	// Tập "việc" của lượt (changedFiles, Q3: cả tệp bị ignore ngoài .crush/ và thư mục dựng lại
+	// được), và cờ khi trong đó có test hay tệp mà lệnh verify gọi tới: GREEN nhờ sửa cổng là
+	// thành công giả.
 	ChangedFiles []string `json:"changed_files,omitempty"`
 	TouchedTests bool     `json:"touched_tests,omitempty"`
 	TouchedGate  bool     `json:"touched_gate,omitempty"`
@@ -830,21 +887,20 @@ var testPath = regexp.MustCompile(`(_test\.go$|\.(test|spec)\.[cm]?[jt]sx?$|(^|/
 // gateScript: tệp chạy được mà lệnh verify có thể gọi.
 var gateScript = regexp.MustCompile(`\.(sh|bash|py|js|mjs|cjs|ts|rb|pl|mk)$`)
 
-// changedFiles liệt kê tệp trong worktree khác với base: diff (cả commit lẫn chưa
-// commit) cộng tệp chưa theo dõi. Không chạy chương trình do cấu hình repo chỉ định.
-func changedFiles(ctx context.Context, worktree, base string) []string {
-	run := func(args ...string) []string {
-		c := exec.CommandContext(ctx, "git", append([]string{"-C", worktree, "-c", "core.fsmonitor=false"}, args...)...)
-		out, err := c.Output()
-		if err != nil {
-			return nil
-		}
-		return strings.Fields(strings.TrimSpace(string(out)))
+// changedFiles là tập "việc" của worktree (classifyWorktree): tệp đổi trong commit ngoài base
+// và chưa commit, tệp chưa theo dõi, tệp bị ignore ngoài .crush/ và thư mục dựng lại được (thư
+// mục bị ignore trọn hiện một lần, "out/"), tệp bị giấu khỏi status. Không đọc được thì rỗng.
+func changedFiles(ctx context.Context, worktree, base, branch string) []string {
+	st, err := classifyWorktree(ctx, worktree, base, branch)
+	if err != nil {
+		// Agent đổi tên hay xoá nhánh của lượt: rev-list trên nhánh hỏng. Báo cáo vẫn liệt kê việc
+		// theo HEAD; bộ dọn thì vẫn giữ worktree khi lỗi (không bỏ qua nhánh mất ở classifyWorktree).
+		st, err = classifyWorktree(ctx, worktree, base, "")
 	}
-	files := append(run("diff", "--no-ext-diff", "--no-textconv", "--name-only", base),
-		run("ls-files", "--others", "--exclude-standard")...)
-	sort.Strings(files)
-	return slices.Compact(files)
+	if err != nil {
+		return nil
+	}
+	return st.workFiles()
 }
 
 // markChanges điền tệp đã đổi và hai cờ test/cổng vào báo cáo.
@@ -906,7 +962,7 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	release, err := lock.TryFile(routineLockPath(o.DataDir, def.Name))
 	if err != nil {
 		if errors.Is(err, lock.ErrContended) {
-			return routineOutcome{}, &exitCodeError{code: exitCodeBusy, err: fmt.Errorf("routine %q is already running (lock held)", def.Name)}
+			return routineOutcome{}, &exitCodeError{code: exitCodeBusy, refused: refusedLockHeld, err: fmt.Errorf("routine %q is already running (lock held)", def.Name)}
 		}
 		return routineOutcome{}, err
 	}
@@ -1057,7 +1113,7 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	// ctx đã huỷ (CANCELLED) vẫn phải liệt kê được việc agent đã làm.
 	gitCtx, gitCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer gitCancel()
-	markChanges(&rep, changedFiles(gitCtx, worktree, base), def.Verify)
+	markChanges(&rep, changedFiles(gitCtx, worktree, base, branch), def.Verify)
 	if rep.Reason == string(loop.StopGreen) && (rep.TouchedTests || rep.TouchedGate) {
 		fmt.Fprintf(stderr, "[routine] %s: warning: GREEN, but the run changed test files or files the verify command uses; review them before trusting it\n", def.Name)
 	}
@@ -1300,60 +1356,24 @@ func keepReason(ctx context.Context, dataDir, name, dir string, rep routineRepor
 	if sessionModTime(rep.Worktree).After(rep.Finished.Add(time.Minute)) {
 		return "its session db changed after the run finished (opened in dew since?)", 0
 	}
-	git := func(args ...string) (string, error) {
-		c := exec.CommandContext(ctx, "git", append([]string{"-C", rep.Worktree, "-c", "core.fsmonitor=false"}, args...)...)
-		out, err := c.Output()
-		return string(out), err
+	// base_sha không phải SHA (sửa tay, hỏng) thì không đếm được commit ngoài base: giữ (fail closed).
+	if !commitSHA.MatchString(rep.BaseSHA) {
+		return "the report's base_sha is not a commit SHA", 0
 	}
-	// -uall: status.showUntrackedFiles=no không giấu được tệp mới. --ignored=matching: tệp bị
-	// gitignore (.env, notes/) là việc agent để lại mà changed_files không thấy; thư mục bị
-	// ignore hiện MỘT lần thay vì từng tệp bên trong (node_modules). -z: đường dẫn nguyên văn.
-	out, err := git("status", "--porcelain", "-z", "--untracked-files=all", "--ignored=matching")
-	if err != nil {
-		return "cannot read git status: " + err.Error(), 0
-	}
-	var ignored []string
-	regen := 0
-	for _, rec := range strings.Split(out, "\x00") {
-		switch {
-		case rec == "":
-		case !strings.HasPrefix(rec, "!! "):
-			return "uncommitted changes", 0
-		case strings.HasPrefix(rec, "!! .crush/"):
-		case regenerable(rec[3:]):
-			regen++
-		default:
-			ignored = append(ignored, rec[3:])
-		}
-	}
-	// assume-unchanged (thẻ chữ thường) và skip-worktree (S/s) giấu sửa đổi khỏi status, và
-	// `worktree remove` xoá luôn nó. skip-worktree mà tệp không có trên đĩa (sparse-checkout)
-	// thì không có gì để mất.
-	files, err := git("ls-files", "-v", "-z")
-	if err != nil {
-		return "cannot list tracked files: " + err.Error(), 0
-	}
-	for _, rec := range strings.Split(files, "\x00") {
-		if len(rec) < 3 {
-			continue
-		}
-		switch tag := rec[0]; {
-		case tag == 'S' || tag == 's':
-			if _, err := os.Lstat(filepath.Join(rep.Worktree, rec[2:])); errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-		case tag < 'a' || tag > 'z':
-			continue
-		}
-		return rec[2:] + " is hidden from git status (assume-unchanged or skip-worktree)", 0
-	}
+	// Chỉ gỡ khi tập "việc" (Q3) rỗng; --include-ignored cho bỏ cả tệp bị ignore ngoài .crush/.
 	// Cả HEAD của worktree lẫn nhánh: commit trên HEAD tách rời mất theo worktree.
-	if n, err := git("rev-list", "--count", "HEAD", "refs/heads/"+rep.Branch, "^"+rep.BaseSHA); err != nil {
-		return "cannot count commits: " + err.Error(), 0
-	} else if n = strings.TrimSpace(n); n != "0" {
-		return n + " commit(s) not in base " + shortSHA(rep.BaseSHA), 0
+	st, err := classifyWorktree(ctx, rep.Worktree, rep.BaseSHA, rep.Branch)
+	switch {
+	case err != nil:
+		return "cannot read the worktree: " + err.Error(), 0
+	case len(st.Changed) > 0 || len(st.Untracked) > 0:
+		return "uncommitted changes", 0
+	case len(st.Hidden) > 0:
+		return st.Hidden[0] + " is hidden from git status (assume-unchanged or skip-worktree)", 0
+	case st.Commits > 0:
+		return fmt.Sprintf("%d commit(s) not in base %s", st.Commits, shortSHA(rep.BaseSHA)), 0
 	}
-	if len(ignored) > 0 && !o.IncludeIgnored {
+	if ignored := st.IgnoredWork; len(ignored) > 0 && !o.IncludeIgnored {
 		size := ""
 		if o.Manual {
 			var n int64
@@ -1374,7 +1394,7 @@ func keepReason(ctx context.Context, dataDir, name, dir string, rep routineRepor
 	if hint := housekeep.FindStuck(rep.Worktree, currentUID()).Hint(rep.Worktree); hint != "" {
 		return hint, 0
 	}
-	return "", regen
+	return "", len(st.Regenerable)
 }
 
 // removeRunWorktree chuyển dữ liệu dew của lượt (crush.db, -wal, -shm, logs; .crush/.gitignore

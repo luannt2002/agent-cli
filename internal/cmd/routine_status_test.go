@@ -431,6 +431,48 @@ func TestRoutineNew_WarnsWhenTheDefaultCannotBeResolved(t *testing.T) {
 	require.Contains(t, stderr, "--model provider/model")
 }
 
+// `routine new` ghi run_timeout, max_duration, stream_retries vào định nghĩa; không cờ thì để
+// trống (mặc định của routine.Definition). Giá trị sai bị chính bước kiểm của Definition từ
+// chối: dùng sai (2), không ghi tệp.
+func TestRoutineNew_WritesRunLimits(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		tmp, repo := sandboxConfig(t, "m1")
+		_, _, err := runRoutineNew(t, "plain", "--mode", "goal", "--repo", repo, "--goal", "g", "--verify", "true", "--model", "m1")
+		require.NoError(t, err)
+		d, _, err := loadRoutine(filepath.Join(tmp, "config", "routines"), "plain")
+		require.NoError(t, err)
+		require.Empty(t, d.RunTimeout)
+		require.Empty(t, d.MaxDuration)
+		require.Nil(t, d.StreamRetries)
+	})
+	t.Run("set", func(t *testing.T) {
+		tmp, repo := sandboxConfig(t, "m1")
+		_, _, err := runRoutineNew(t, "limited", "--mode", "goal", "--repo", repo, "--goal", "g", "--verify", "true", "--model", "m1",
+			"--run-timeout", "20m", "--max-duration", "2h", "--stream-retries", "0")
+		require.NoError(t, err)
+		d, _, err := loadRoutine(filepath.Join(tmp, "config", "routines"), "limited")
+		require.NoError(t, err)
+		require.Equal(t, "20m", d.RunTimeout)
+		require.Equal(t, "2h", d.MaxDuration)
+		require.NotNil(t, d.StreamRetries)
+		require.Zero(t, *d.StreamRetries, "0 = no retry is a real value, not the default")
+		_, _, runTO, _, err := d.Limits()
+		require.NoError(t, err)
+		require.Equal(t, 20*time.Minute, runTO)
+	})
+	for _, bad := range [][]string{{"--run-timeout", "soon"}, {"--run-timeout", "-5m"}, {"--max-duration", "2 hours"}, {"--stream-retries", "6"}, {"--stream-retries", "-1"}} {
+		t.Run(strings.Join(bad, "="), func(t *testing.T) {
+			tmp, repo := sandboxConfig(t, "m1")
+			_, _, err := runRoutineNew(t, append([]string{"bad", "--mode", "goal", "--repo", repo, "--goal", "g", "--verify", "true", "--model", "m1"}, bad...)...)
+			require.Error(t, err)
+			require.Equal(t, 2, exitCodeFor(err), "%v", err)
+			// Lỗi của Definition nêu tên trường (run_timeout...), không phải lỗi phân tích cờ của cobra.
+			require.ErrorContains(t, err, strings.ReplaceAll(strings.TrimPrefix(bad[0], "--"), "-", "_"))
+			require.NoFileExists(t, filepath.Join(tmp, "config", "routines", "bad.json"))
+		})
+	}
+}
+
 // Verify không chạy được ngay từ baseline (exit 127): chưa có lượt agent nào, nên không
 // có mã thoát "sau lượt agent" để báo.
 func TestExecuteRoutine_UnmeasuredBaselineHasNoVerifyExitCode(t *testing.T) {
@@ -556,6 +598,8 @@ func TestExecuteRoutine_TurnTimeoutWithoutChangesHasTheRealVerifyExit(t *testing
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
 	e.opts.Def.RunTimeout = "200ms"
+	zero := 0 // không lượt sửa: verify FAIL sau lúc cắt là TIMEOUT ngay (Q6), một lượt
+	e.opts.Def.MaxRepairs = &zero
 	out, err := executeRoutine(t.Context(), e.opts, routineDeps{
 		Stderr: &bytes.Buffer{},
 		NewAgent: func(string) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
@@ -570,6 +614,7 @@ func TestExecuteRoutine_TurnTimeoutWithoutChangesHasTheRealVerifyExit(t *testing
 	require.Equal(t, "TIMEOUT", raw["reason"])
 	require.Equal(t, "FAIL", raw["verify_status"])
 	require.EqualValues(t, 1, raw["verify_exit_code"])
+	require.EqualValues(t, 1, raw["attempts"])
 	require.NotContains(t, raw, "changed_files")
 }
 
@@ -721,7 +766,7 @@ func TestNewLocalLoopAgent_FrozenDefaultRunsExactlyLikeTheDefault(t *testing.T) 
 	c.Flags().String("cwd", "", "")
 	c.SetContext(t.Context())
 
-	agent, cleanup, model, err := newLocalLoopAgent(c, loopParams{Model: "fake/m1"}, io.Discard)
+	agent, cleanup, model, err := newLocalLoopAgent(t.Context(), c, loopParams{Model: "fake/m1"}, io.Discard)
 	require.NoError(t, err)
 	defer cleanup()
 	_, err = agent(t.Context(), "LARGEPROMPT do the thing")

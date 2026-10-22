@@ -12,7 +12,8 @@
 # `routine list`/`ps` nêu trạng thái theo pid sống (ABANDONED khi đã chết), model, verify;
 # DEW_ROUTINE_MIN_MEM_MB (RAM thiếu -> 75); 3 lượt khởi động cùng lúc với DEW_ROUTINE_SLOTS=2
 # -> đúng 1 lượt 75; lượt kế của routine khác đóng run ma (pid đã chết) thành ABANDONED; và
-# `routine export` ra patch git apply được vào clone sạch ở base.
+# `routine export` ra patch git apply được vào clone sạch ở base; `routine run --json` in một object
+# (báo cáo cuối, hoặc refused lock_held / no_slot / low_memory / low_disk với rc 75).
 # Mọi thứ nằm trong thư mục tạm. Dùng: scripts/test-dew-routine.sh
 # (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
@@ -486,6 +487,47 @@ PY
 "$bin" routine export green -o "$t/tampered.patch" >/dev/null 2>"$t/export-tamper.err"; rc=$?
 tamper_err="$(tr -s '[:space:]' ' ' <"$t/export-tamper.err")"
 [ "$rc" -eq 1 ] && [[ "$tamper_err" == *"base_sha"* ]] && [ ! -e "$t/pwned" ] && [ ! -e "$t/tampered.patch" ]; check "report.json có base_sha dạng cờ -> rc=1, từ chối, không tệp nào bị ghi (rc=$rc)" $?
+
+# ---- 14: routine run --json: MỘT object trên stdout (báo cáo cuối, hoặc loại từ chối, rc 75) ----
+# jone <tệp>: "refused routine reason" của đúng MỘT object JSON trong tệp; "BAD ..." nếu không phải.
+jone() {
+  python3 - "$1" <<'PY'
+import json, sys
+try:
+    o = json.loads(open(sys.argv[1]).read())
+except Exception as e:
+    print("BAD", e); sys.exit()
+print(o.get("refused", "-"), o.get("routine", "-"), o.get("reason", "-"))
+PY
+}
+sleep 1.1
+(cd "$t" && "$bin" routine run green --json) >"$t/j-green.out" 2>/dev/null; rc=$?
+jg="$(jone "$t/j-green.out")"; jg_wt="$(jget "$t/j-green.out" worktree)"
+jg_disk="$(jget "$(ls -d "$data/green/runs/"* | tail -n1)/report.json" worktree)"
+[ "$rc" -eq 0 ] && [ "$jg" = "- green GREEN" ] && [ -n "$jg_wt" ] && [ "$jg_wt" = "$jg_disk" ]; check "routine run --json xong: một object là báo cáo cuối, khớp report.json (rc=$rc '$jg')" $?
+# Hai lượt cùng routine: lượt đang chạy giữ khoá, lượt thứ hai từ chối lock_held.
+(cd "$t" && DEW_ROUTINE_SLOTS=1 exec "$bin" routine run slow) >/dev/null 2>"$t/j-slow.err" &
+jslow=$!
+for _ in $(seq 100); do
+  f="$(ls -d "$data/slow/runs/"* 2>/dev/null | tail -n1)/report.json"
+  [ -f "$f" ] && [ "$(jget "$f" pid)" = "$jslow" ] && break
+  sleep 0.1
+done
+(cd "$t" && "$bin" routine run slow --json) >"$t/j-lock.out" 2>/dev/null; rc=$?
+jl="$(jone "$t/j-lock.out")"; jl_detail="$(jget "$t/j-lock.out" detail)"
+[ "$rc" -eq 75 ] && [ "$jl" = "lock_held slow -" ] && [[ "$jl_detail" == *"already running"* ]]; check "hai lượt cùng routine: lượt thứ hai rc=75, --json in refused lock_held (rc=$rc '$jl')" $?
+# DEW_ROUTINE_SLOTS=1, routine khác đang giữ chỗ duy nhất: no_slot.
+(cd "$t" && DEW_ROUTINE_SLOTS=1 "$bin" routine run green --json) >"$t/j-slot.out" 2>/dev/null; rc=$?
+js="$(jone "$t/j-slot.out")"
+[ "$rc" -eq 75 ] && [ "$js" = "no_slot green -" ]; check "DEW_ROUTINE_SLOTS=1 với hai routine: routine thứ hai rc=75, --json in refused no_slot (rc=$rc '$js')" $?
+kill -TERM "$jslow" 2>/dev/null
+( sleep 25; kill -9 "$jslow" 2>/dev/null ) & wd=$!
+wait "$jslow" 2>/dev/null
+kill "$wd" 2>/dev/null; wait "$wd" 2>/dev/null
+(cd "$t" && DEW_ROUTINE_MIN_MEM_MB=99999999 "$bin" routine run green --json) >"$t/j-mem.out" 2>/dev/null; rc=$?
+(cd "$t" && DEW_MIN_FREE_GB=999999 "$bin" routine run green --json) >"$t/j-disk.out" 2>/dev/null; rc2=$?
+jm="$(jone "$t/j-mem.out")"; jd="$(jone "$t/j-disk.out")"
+[ "$rc" -eq 75 ] && [ "$rc2" -eq 75 ] && [ "$jm" = "low_memory green -" ] && [ "$jd" = "low_disk green -" ]; check "RAM/đĩa thiếu: rc=75, --json in refused low_memory / low_disk (rc=$rc/$rc2 '$jm' '$jd')" $?
 
 if [ "$fail" -eq 0 ]; then echo PASS; else echo "FAILED"; fi
 exit "$fail"
