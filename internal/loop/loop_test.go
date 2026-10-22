@@ -515,8 +515,8 @@ func verifyEvents(j *memJournal) []Event {
 	return out
 }
 
-// F2: lượt bị chính hạn chờ mỗi lượt cắt (run_timeout) dừng TIMEOUT, nhưng vẫn đo verify
-// MỘT lần trên cây agent bỏ lại; verify xanh cũng KHÔNG thành GREEN.
+// F2/Q6: lượt bị chính hạn chờ mỗi lượt cắt (run_timeout) vẫn đo verify MỘT lần trên cây agent
+// bỏ lại; verify xanh thì dừng TIMEOUT, KHÔNG thành GREEN, dù còn lượt sửa.
 func TestEngine_TurnTimeoutVerifiesOnceAndIsNeverGreen(t *testing.T) {
 	t.Parallel()
 	s := &script{
@@ -534,18 +534,168 @@ func TestEngine_TurnTimeoutVerifiesOnceAndIsNeverGreen(t *testing.T) {
 	require.Len(t, verifyEvents(s.journal), 1)
 }
 
-// Verify đỏ sau khi bị cắt: vẫn TIMEOUT, chi tiết nêu mã thoát thật.
+// Verify đỏ sau khi bị cắt mà hết lượt sửa (Q6): TIMEOUT, chi tiết nêu mã thoát thật.
 func TestEngine_TurnTimeoutWithFailingVerify(t *testing.T) {
 	t.Parallel()
 	s := &script{
 		verifies: []VerifyResult{fail("b"), {Status: StatusFail, ExitCode: 3, Output: "x"}},
 		errs:     []error{fmt.Errorf("%w after 1s", ErrTurnTimeout)},
 	}
-	res, err := s.engine(baseSpec()).Run(t.Context())
+	spec := baseSpec()
+	spec.MaxRepairs = 0
+	res, err := s.engine(spec).Run(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, StopTimeout, res.Reason)
 	require.Equal(t, 3, res.Last.ExitCode)
 	require.Contains(t, res.Detail, "verify FAIL (exit 3) after the agent was cut off")
+}
+
+// cutErr là lỗi mà driver trả khi hạn chờ mỗi lượt (run_timeout) cắt một lượt.
+var cutErr = fmt.Errorf("%w after 45m0s (per-turn run timeout)", ErrTurnTimeout)
+
+// Q6: lượt bị run_timeout cắt, verify sau lúc cắt đỏ mà còn lượt sửa: không dừng TIMEOUT mà chạy
+// tiếp một lượt sửa (session mới như mọi lượt sửa; đề = một dòng báo bị cắt + đề sửa thường).
+// Lượt đó chạy trọn và verify xanh thì GREEN.
+func TestEngine_TurnTimeoutWithRepairsLeftContinuesThenGreen(t *testing.T) {
+	t.Parallel()
+	s := &script{
+		verifies:     []VerifyResult{fail("b"), fail("FAIL TestHalfDone"), pass()},
+		fingerprints: []string{"fp1", "fp2"},
+		errs:         []error{cutErr},
+	}
+	res, err := s.engine(baseSpec()).Run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, StopGreen, res.Reason, res.Detail)
+	require.Equal(t, 2, s.ai)
+	require.Equal(t, 2, res.Attempts)
+	require.Equal(t, 3, s.vi, "baseline + verify sau lúc cắt + verify sau lượt sửa")
+	require.Equal(t, []string{"", ""}, s.resumes, "lượt sửa sau lúc cắt mở session mới như mọi lượt sửa")
+	note, rest, ok := strings.Cut(s.prompts[1], "\n\n")
+	require.True(t, ok)
+	require.Equal(t, "Your previous turn was cut off before it finished: agent turn timed out after 45m0s (per-turn run timeout). "+
+		"Continue from the current state of the files instead of starting over.", note)
+	require.Equal(t, repairPrompt(baseSpec(), fail("FAIL TestHalfDone"), 1), rest)
+	require.Equal(t, []string{
+		"start", "baseline",
+		"attempt_begin", "agent_end", "verify", "continue",
+		"attempt_begin", "agent_end", "verify",
+		"stop",
+	}, s.journal.kinds())
+	cont := s.journal.events[5]
+	require.Equal(t, 1, cont.Attempt, "số của lượt bị cắt, như sự kiện verify ngay trước")
+	require.Contains(t, cont.Note, "repair 1 of 2")
+}
+
+// Q6: lượt sửa sau lúc cắt tốn đúng một lượt sửa như lượt sửa thường; hết lượt sửa thì verify đỏ
+// sau lúc cắt là TIMEOUT; verify xanh sau lúc cắt không bao giờ là GREEN; STALLED vẫn so với lần
+// đo ngay trước lượt sửa (ở đây là lần đo sau lúc cắt).
+func TestEngine_TurnTimeoutContinuationCountsAsARepair(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		maxRepairs int
+		errs       []error
+		verifies   []VerifyResult
+		fps        []string
+		want       Stop
+		turns      int
+	}{
+		"no repair at all: the cut turn is the only one": {
+			0, []error{cutErr}, []VerifyResult{fail("b"), fail("A")}, nil, StopTimeout, 1,
+		},
+		"the last repair is cut": {
+			1, []error{nil, cutErr}, []VerifyResult{fail("b"), fail("A"), fail("B")}, []string{"fp1", "fp2"}, StopTimeout, 2,
+		},
+		"the continuation is the last repair": {
+			1, []error{cutErr, nil}, []VerifyResult{fail("b"), fail("A"), fail("B")}, []string{"fp1", "fp2"}, StopMaxRepairs, 2,
+		},
+		"every turn cut": {
+			2, []error{cutErr, cutErr, cutErr}, []VerifyResult{fail("b"), fail("A"), fail("B"), fail("C")}, nil, StopTimeout, 3,
+		},
+		"cut again and PASS: still not GREEN": {
+			2, []error{cutErr, cutErr}, []VerifyResult{fail("b"), fail("A"), pass()}, nil, StopTimeout, 2,
+		},
+		"continuation changes nothing and fails the same way": {
+			2, []error{cutErr, nil}, []VerifyResult{fail("b"), fail("FAIL TestFoo 12ms"), fail("FAIL TestFoo 15ms")}, []string{"same", "same"}, StopStalled, 2,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			s := &script{verifies: tc.verifies, fingerprints: tc.fps, errs: tc.errs}
+			spec := baseSpec()
+			spec.MaxRepairs = tc.maxRepairs
+			res, err := s.engine(spec).Run(t.Context())
+			require.NoError(t, err)
+			require.Equal(t, tc.want, res.Reason, res.Detail)
+			require.Equal(t, tc.turns, s.ai)
+			require.Equal(t, len(tc.verifies), s.vi, "mỗi lượt đúng một lần verify")
+		})
+	}
+}
+
+// Verify sau lúc cắt không đo được: TIMEOUT như cũ, không chạy tiếp dù còn lượt sửa.
+func TestEngine_TurnTimeoutWithUnmeasuredVerifyDoesNotContinue(t *testing.T) {
+	t.Parallel()
+	s := &script{verifies: []VerifyResult{fail("b"), {Status: StatusUnmeasured, Output: "verify timed out"}}, errs: []error{cutErr}}
+	res, err := s.engine(baseSpec()).Run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, StopTimeout, res.Reason, res.Detail)
+	require.Equal(t, 1, s.ai)
+	require.Contains(t, res.Detail, "verify could not run after the agent was cut off")
+}
+
+// Lượt sửa sau lúc cắt là lượt mới: trần chạy lại vì lỗi tạm thời đếm lại từ 0, dù lượt bị cắt
+// là một lần chạy lại. Lần chạy lại của nó chỉ mang MỘT lời báo bị cắt (lỗi tạm thời), không
+// chồng thêm lời báo run_timeout mà session đó đã đọc.
+func TestEngine_TurnTimeoutContinuationResetsTheRetryCounter(t *testing.T) {
+	t.Parallel()
+	temp := tempErr{"server_error", 503}
+	s := &script{
+		verifies:     []VerifyResult{fail("b"), fail("A"), pass()},
+		fingerprints: []string{"f1", "f2", "f3", "f4", "f5"},
+		errs:         []error{temp, cutErr, temp, temp, nil},
+	}
+	res, err := s.engine(baseSpec()).Run(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, StopGreen, res.Reason, res.Detail)
+	require.Equal(t, 5, s.ai)
+	require.Equal(t, []string{"", "sess-1", "", "sess-3", "sess-3"}, s.resumes)
+	repair := repairPrompt(baseSpec(), fail("A"), 1)
+	require.Equal(t, fmt.Sprintf(cutNote, cutErr)+"\n\n"+repair, s.prompts[2])
+	require.Equal(t, interruptedNote+"\n\n"+repair, s.prompts[3])
+	require.Equal(t, s.prompts[3], s.prompts[4])
+}
+
+// Hết max_duration ngay sau khi quyết chạy tiếp lượt sửa sau lúc cắt: chi tiết TIMEOUT nói lượt
+// cuối bị run_timeout cắt. Hết hạn sau một lượt chạy trọn thì không nói.
+func TestEngine_MaxDurationAfterACutNamesTheCut(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		errs     []error
+		verifies []VerifyResult
+		named    bool
+	}{
+		"right after the cut":           {[]error{cutErr}, []VerifyResult{fail("b"), fail("A")}, true},
+		"after a completed repair turn": {[]error{cutErr, nil}, []VerifyResult{fail("b"), fail("A"), fail("B")}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			s := &script{verifies: tc.verifies, fingerprints: []string{"fp1", "fp2"}, errs: tc.errs}
+			spec := baseSpec()
+			spec.MaxDuration = time.Hour
+			e := s.engine(spec)
+			s.onAgent = func() { s.clock = s.clock.Add(time.Hour / time.Duration(len(tc.errs))) }
+			res, err := e.Run(t.Context())
+			require.NoError(t, err)
+			require.Equal(t, StopTimeout, res.Reason, res.Detail)
+			require.Equal(t, len(tc.errs), s.ai)
+			require.Contains(t, res.Detail, "max duration 1h0m0s reached")
+			if tc.named {
+				require.Contains(t, res.Detail, "; the last turn was cut by run_timeout")
+			} else {
+				require.NotContains(t, res.Detail, "cut by run_timeout")
+			}
+		})
+	}
 }
 
 // Stream im (lớp stream_stall) hết lần chạy lại: STREAM_STALL, verify chạy một lần.

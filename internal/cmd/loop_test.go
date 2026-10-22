@@ -249,10 +249,6 @@ func TestExecuteLoop_CutTurnWithFailingVerifyContinuesWhileRepairsRemain(t *test
 	}
 	out, err := executeLoop(t.Context(), p, loopDeps{Agent: agent, Stderr: &bytes.Buffer{}})
 	require.NoError(t, err)
-	if runs == 1 && out.Result.Reason == loop.StopTimeout {
-		// shortcut: bỏ guard này khi engine Q6 (internal/loop, chạy tiếp sau lượt bị cắt) đã gộp.
-		t.Skip("needs the Q6 engine change: this engine stops TIMEOUT after the first cut turn")
-	}
 	require.Equal(t, loop.StopTimeout, out.Result.Reason, out.Result.Detail)
 	require.Equal(t, 3, runs)
 	require.Equal(t, 3, out.Result.Attempts)

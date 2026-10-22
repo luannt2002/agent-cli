@@ -14,7 +14,7 @@ import (
 // chừng thì lần sau vẫn biết đã tới đâu và verify cuối ra sao.
 type Event struct {
 	Time        time.Time `json:"time"`
-	Kind        string    `json:"kind"`              // start, baseline, attempt_begin, llm_request, agent_end, verify, stop
+	Kind        string    `json:"kind"`              // start, baseline, attempt_begin, llm_request, agent_end, verify, continue, stop
 	Attempt     int       `json:"attempt,omitempty"` // lượt chạy lại giữ số lượt bị cắt; ở stop: tổng số lượt agent, kể cả lượt chạy lại
 	SessionID   string    `json:"session_id,omitempty"`
 	Status      string    `json:"status,omitempty"`

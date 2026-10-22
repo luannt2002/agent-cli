@@ -40,7 +40,7 @@ const (
 	StopNoChange   Stop = "NO_CHANGE"   // verify xanh từ trước VÀ cây không đổi: không chứng minh gì
 	StopMaxRepairs Stop = "MAX_REPAIRS" // hết số lần sửa mà verify vẫn đỏ
 	StopStalled    Stop = "STALLED"     // cùng lỗi, cây làm việc không đổi
-	StopTimeout    Stop = "TIMEOUT"     // quá MaxDuration (kiểm trước mỗi lượt agent), hoặc một lượt quá hạn của nó (ErrTurnTimeout)
+	StopTimeout    Stop = "TIMEOUT"     // quá MaxDuration (kiểm trước mỗi lượt agent), hoặc một lượt bị run_timeout cắt (ErrTurnTimeout) mà verify sau lúc cắt không FAIL hoặc đã hết lượt sửa (Q6)
 	StopRunError   Stop = "RUN_ERROR"   // lượt agent lỗi (lỗi tạm thời: đã chạy lại hết trần)
 	StopCancelled  Stop = "CANCELLED"   // ctx bị huỷ
 	StopUnmeasured Stop = "UNMEASURED"  // không chạy được verify
@@ -57,7 +57,8 @@ const (
 )
 
 // ErrTurnTimeout là lỗi mà driver bọc (%w) khi chính hạn chờ mỗi lượt của nó cắt một
-// lượt agent (--run-timeout, run_timeout): engine dừng TIMEOUT sau khi đo verify một lần.
+// lượt agent (--run-timeout, run_timeout): engine đo verify một lần; FAIL mà còn lượt sửa thì
+// chạy tiếp một lượt sửa, còn lại dừng TIMEOUT (Q6, docs/routine-invariants.md).
 var ErrTurnTimeout = errors.New("agent turn timed out")
 
 // Spec mô tả một lần chạy loop.
@@ -131,6 +132,10 @@ var transientWaits = []time.Duration{30 * time.Second, time.Minute}
 // hoặc chạy lệnh dở dang.
 const interruptedNote = "Your previous turn was cut off by a temporary provider error before it finished. Check the current state of the files before you continue."
 
+// cutNote mở đầu prompt của lượt sửa sau một lượt bị hạn chờ mỗi lượt cắt (Q6); %v là lỗi hết
+// hạn của driver, vd "agent turn timed out after 45m0s (per-turn run timeout)".
+const cutNote = "Your previous turn was cut off before it finished: %v. Continue from the current state of the files instead of starting over."
+
 type resumeKey struct{}
 
 // ResumeSession là session mà hàm Agent nên chạy tiếp ("" = session mới). Engine
@@ -173,31 +178,6 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		res.Reason, res.Detail = reason, detail
 		return res, emit(Event{Kind: "stop", Attempt: res.Attempts, Reason: string(reason), Note: detail})
 	}
-	// cut dừng một lần chạy mà lượt agent bị cắt ngang (hết hạn lượt, lỗi tạm thời hết lần
-	// chạy lại): đo verify MỘT lần trên cây agent bỏ lại để báo cáo có trạng thái thật.
-	// Không bao giờ GREEN, kể cả khi verify xanh: không ai biết agent đã làm xong chưa.
-	cut := func(attempt int, reason Stop, detail string) (Result, error) {
-		fp, _ := e.fingerprint(ctx)
-		v, _ := e.runVerify(ctx) // lỗi hạ tầng đã thành CHƯA ĐO trong v
-		if ctx.Err() != nil {
-			return stop(StopCancelled, "cancelled during the verify after the agent was cut off")
-		}
-		res.Last = v
-		if err := emit(Event{Kind: "verify", Attempt: attempt, Status: string(v.Status), ExitCode: v.ExitCode,
-			Output: tail(v.Output, tailLines), Fingerprint: fp, Note: "after the agent was cut off"}); err != nil {
-			return res, err
-		}
-		switch v.Status {
-		case StatusPass:
-			detail += "; verify PASS after the agent was cut off — review before trusting"
-		case StatusFail:
-			detail += fmt.Sprintf("; verify FAIL (exit %d) after the agent was cut off", v.ExitCode)
-		default:
-			detail += "; verify could not run after the agent was cut off: " + strings.TrimSpace(tail(v.Output, 5))
-		}
-		return stop(reason, detail)
-	}
-
 	if err := emit(Event{Kind: "start", Note: e.Spec.Name}); err != nil {
 		return res, err
 	}
@@ -239,14 +219,55 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	}
 	turn := goalPrompt(e.Spec) // đề bài của lượt hiện tại (lượt đầu hoặc lượt sửa)
 	prompt, resume, retries := turn, "", 0
+	cutLast := false // lượt vừa rồi bị run_timeout cắt và Run đang chạy tiếp lượt sửa
+
+	// cut đo verify MỘT lần trên cây mà lượt bị cắt ngang bỏ lại (hết hạn lượt, lỗi tạm thời hết lần
+	// chạy lại) để báo cáo có trạng thái thật, rồi dừng với reason. Không bao giờ GREEN, kể cả khi
+	// verify xanh: không ai biết agent đã làm xong chưa. repair (lượt hết hạn mà còn lượt sửa, Q6):
+	// verify FAIL thì không dừng mà soạn lượt sửa kế; res trả về chưa có Reason, Run chạy tiếp.
+	cut := func(attempt int, reason Stop, detail string, repair bool) (Result, error) {
+		fp, _ := e.fingerprint(ctx)
+		v, _ := e.runVerify(ctx) // lỗi hạ tầng đã thành CHƯA ĐO trong v
+		if ctx.Err() != nil {
+			return stop(StopCancelled, "cancelled during the verify after the agent was cut off")
+		}
+		res.Last = v
+		if err := emit(Event{Kind: "verify", Attempt: attempt, Status: string(v.Status), ExitCode: v.ExitCode,
+			Output: tail(v.Output, tailLines), Fingerprint: fp, Note: "after the agent was cut off"}); err != nil {
+			return res, err
+		}
+		switch v.Status {
+		case StatusPass:
+			detail += "; verify PASS after the agent was cut off — review before trusting"
+		case StatusFail:
+			if repair {
+				// Như mọi lượt sửa: session mới, đề tự chứa đủ, STALLED so với lần đo này.
+				prevSig, prevFP = signature(v.ExitCode, v.Output), fp
+				// Lời báo nằm ngoài turn: lần chạy lại tiếp session đã đọc nó, chỉ cần interruptedNote.
+				turn = repairPrompt(e.Spec, v, attempt)
+				prompt, resume, retries, cutLast = fmt.Sprintf(cutNote, detail)+"\n\n"+turn, "", 0, true
+				return res, emit(Event{Kind: "continue", Attempt: attempt, Note: fmt.Sprintf(
+					"verify FAIL after the agent was cut off: repair %d of %d continues from the current tree", attempt, e.Spec.MaxRepairs)})
+			}
+			detail += fmt.Sprintf("; verify FAIL (exit %d) after the agent was cut off", v.ExitCode)
+		default:
+			detail += "; verify could not run after the agent was cut off: " + strings.TrimSpace(tail(v.Output, 5))
+		}
+		return stop(reason, detail)
+	}
 
 	for attempt := 1; ; {
 		if ctx.Err() != nil {
 			return stop(StopCancelled, "cancelled")
 		}
 		if !deadline.IsZero() && !now().Before(deadline) {
-			return stop(StopTimeout, fmt.Sprintf("max duration %s reached after %d agent turn(s)", e.Spec.MaxDuration, res.Attempts))
+			detail := fmt.Sprintf("max duration %s reached after %d agent turn(s)", e.Spec.MaxDuration, res.Attempts)
+			if cutLast {
+				detail += "; the last turn was cut by run_timeout"
+			}
+			return stop(StopTimeout, detail)
 		}
+		cutLast = false
 
 		// Ghi trước khi làm: bị kill giữa lượt thì journal vẫn nói đang ở lượt nào.
 		if err := emit(Event{Kind: "attempt_begin", Attempt: attempt, PromptLen: len(prompt)}); err != nil {
@@ -274,7 +295,12 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 			switch {
 			case errors.Is(runErr, ErrTurnTimeout):
 				_ = emit(ev)
-				return cut(attempt, StopTimeout, runErr.Error())
+				r, err := cut(attempt, StopTimeout, runErr.Error(), attempt-1 < e.Spec.MaxRepairs)
+				if err != nil || r.Reason != "" {
+					return r, err
+				}
+				attempt++ // lượt sửa sau lúc cắt tốn một lượt sửa như lượt sửa thường
+				continue
 			case ev.ErrorClass == ClassQuota:
 				_ = emit(ev)
 				detail := runErr.Error()
@@ -298,13 +324,13 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 				if ev.ErrorClass == ClassStreamStall {
 					reason = StopStreamStall
 				}
-				return cut(attempt, reason, fmt.Sprintf("temporary %s persists after %d retries: %v", class, retries, runErr))
+				return cut(attempt, reason, fmt.Sprintf("temporary %s persists after %d retries: %v", class, retries, runErr), false)
 			}
 			wait := retryWait(e.retryWaits, retries)
 			// Lượt chạy lại không được phóng sau hạn: đừng ngủ hết thời gian chờ rồi mới dừng.
 			if !deadline.IsZero() && !now().Add(wait).Before(deadline) {
 				_ = emit(ev)
-				return cut(attempt, StopTimeout, fmt.Sprintf("max duration %s leaves no time to retry after a temporary %s (%d agent turn(s))", e.Spec.MaxDuration, class, res.Attempts))
+				return cut(attempt, StopTimeout, fmt.Sprintf("max duration %s leaves no time to retry after a temporary %s (%d agent turn(s))", e.Spec.MaxDuration, class, res.Attempts), false)
 			}
 			retries++
 			ev.Note += fmt.Sprintf("; retry %d of %d in %s", retries, e.Spec.StreamRetries, wait)
