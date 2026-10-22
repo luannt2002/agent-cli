@@ -747,10 +747,19 @@ dew routine show tidy         # định nghĩa, sha256, nơi lưu khoá và báo
 Model: lượt chạy model ghim trong định nghĩa (`--model provider/model` hoặc trường `"model"`). `routine new` không có
 `--model` ghi sẵn model large mặc định lúc tạo vào định nghĩa; muốn đổi thì sửa trường `model`. Đầu mỗi lượt stderr in
 model đang dùng. Xem patch của một lượt: `dew routine export NAME [-o FILE]`; độ trễ và lỗi từng request LLM:
-`dew routine stats [NAME] [--since 24h]`. `DEW_ROUTINE_MIN_MEM_MB` (mặc định 0 = tắt): RAM trống dưới ngưỡng thì lượt
+`dew routine stats [NAME] [--since 24h]`. Giới hạn của lượt đặt lúc tạo: `routine new --run-timeout 90m --max-duration 3h
+--stream-retries 3` (`run_timeout` mặc định 45 phút; giá trị sai thoát 2, không ghi tệp). Script cần biết vì sao bị từ chối thì dùng `routine run --json`:
+thoát 75 kèm `refused` là `lock_held` (đang chạy, đừng chạy lại), `no_slot`, `low_memory` hoặc `low_disk` (chạy lại
+sau được). `DEW_ROUTINE_MIN_MEM_MB` (mặc định 0 = tắt): RAM trống dưới ngưỡng thì lượt
 thoát 75. `stream_retries` (0–5, mặc định 2): số lần chạy lại liên tiếp khi lượt bị lỗi tạm thời cắt ngang (5xx,
-429 không phải hạn mức, stream im, mất kết nối). Lý do dừng có thêm `STREAM_STALL` và `QUOTA`; `TIMEOUT` gồm cả lượt quá
-`run_timeout`. Run bị cắt vẫn chạy verify một lần nhưng không bao giờ GREEN.
+429 không phải hạn mức, stream im, mất kết nối). Lý do dừng có thêm `STREAM_STALL` và `QUOTA`; lượt quá `run_timeout` vẫn
+chạy verify một lần: PASS thì dừng `TIMEOUT` (cần soát, không bao giờ GREEN từ lần verify này); FAIL mà còn lượt sửa thì
+chạy tiếp một lượt sửa (session mới, báo cho agent biết lượt trước bị cắt); hết lượt sửa thì `TIMEOUT`. Bảng đầy đủ:
+[routine-invariants.md](routine-invariants.md).
+
+"Cây có đổi" (NO_CHANGE, STALLED), `changed_files`, bộ dọn và export dùng chung một bộ phân loại: tệp bị gitignore
+ngoài `.crush/` và ngoài thư mục dựng lại được cũng là việc (vd `out/report.md`). Dấu vân tay chỉ tính TÊN của các tệp
+đó, không tính nội dung, để artefact verify ghi lại mỗi lần (`junit.xml`, `cover.out`) không che STALLED.
 
 Mỗi lượt chạy làm việc trong worktree riêng (nhánh `routine/tidy-<thời điểm>`, nằm ngoài repo), giữ khoá (lượt thứ
 hai, hoặc khi đã có `DEW_ROUTINE_SLOTS` lượt routine đang chạy, thoát 75), chạy với chế độ không người trực (không push/merge/reset --hard/xoá đệ quy ngoài workspace) và ghi

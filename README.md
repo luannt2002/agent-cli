@@ -225,7 +225,7 @@ MODEL NÓI XONG ≠ DEW ĐÃ XONG.
 | `run`, `send --wait` | lượt chạy hết, không lỗi runtime | lỗi | 2: sai cú pháp |
 | `send` (không `--wait`) | server đã nhận và đã ghi prompt | lỗi | 2: sai cú pháp |
 | `loop` | `GREEN` | mọi lý do dừng khác | 2: sai cú pháp |
-| `routine run` | `GREEN`; `NO_CHANGE` (maintenance) | còn lại | 2: sai cú pháp, định nghĩa khác lịch; 75: có lượt giữ khoá |
+| `routine run` | `GREEN`; `NO_CHANGE` (maintenance) | còn lại | 2: sai cú pháp, định nghĩa khác lịch; 75: từ chối chạy (`--json` in loại: `lock_held`, `no_slot`, `low_memory`, `low_disk`) |
 
 ## Loop và routine
 
