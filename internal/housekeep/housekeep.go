@@ -252,8 +252,10 @@ func Inventory(ctx context.Context, home string, run Runner) []Item {
 	p, err = run(ctx, "pip", "cache", "dir")
 	dirItem(Item{Class: Ask, Name: "pip cache", Effect: "pip downloads and builds wheels again", Command: "pip cache purge"}, p, err)
 	p, err = run(ctx, "go", "env", "GOMODCACHE")
-	dirItem(Item{Class: Never, Name: "Go module cache",
-		Effect: "offline builds (GOPROXY=off, -mod=readonly) need it, and it cannot be downloaded again without network"}, p, err)
+	dirItem(Item{
+		Class: Never, Name: "Go module cache",
+		Effect: "offline builds (GOPROXY=off, -mod=readonly) need it, and it cannot be downloaded again without network",
+	}, p, err)
 
 	out, err := run(ctx, "docker", "system", "df", "--format", "{{.Type}}\t{{.Size}}\t{{.Reclaimable}}")
 	switch {
@@ -270,14 +272,20 @@ func Inventory(ctx context.Context, home string, run Runner) []Item {
 			reclaim, _, _ := strings.Cut(f[2], " ")
 			switch f[0] {
 			case "Images":
-				items = append(items, Item{Class: Ask, Name: "Docker images", Bytes: parseSize(reclaim),
-					Effect: "images no container uses; pulled or built again when needed", Command: "docker image prune -a"})
+				items = append(items, Item{
+					Class: Ask, Name: "Docker images", Bytes: parseSize(reclaim),
+					Effect: "images no container uses; pulled or built again when needed", Command: "docker image prune -a",
+				})
 			case "Build Cache":
-				items = append(items, Item{Class: Ask, Name: "Docker build cache", Bytes: parseSize(reclaim),
-					Effect: "the next docker builds start without cache", Command: "docker builder prune"})
+				items = append(items, Item{
+					Class: Ask, Name: "Docker build cache", Bytes: parseSize(reclaim),
+					Effect: "the next docker builds start without cache", Command: "docker builder prune",
+				})
 			case "Local Volumes":
-				items = append(items, Item{Class: Never, Name: "Docker volumes", Bytes: parseSize(f[1]),
-					Effect: "volumes hold data (databases, uploads) that cannot be rebuilt"})
+				items = append(items, Item{
+					Class: Never, Name: "Docker volumes", Bytes: parseSize(f[1]),
+					Effect: "volumes hold data (databases, uploads) that cannot be rebuilt",
+				})
 			}
 		}
 	}

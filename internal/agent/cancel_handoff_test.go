@@ -117,8 +117,10 @@ func (m *summarizeGateModel) Stream(ctx context.Context, _ fantasy.Call) (fantas
 			if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolCall, ID: "tc1", ToolCallName: "noop", ToolCallInput: "{}"}) {
 				return
 			}
-			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls,
-				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}})
+			yield(fantasy.StreamPart{
+				Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls,
+				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960},
+			})
 		}, nil
 	}
 	text := "done"

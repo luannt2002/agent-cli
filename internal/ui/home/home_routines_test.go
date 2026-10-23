@@ -72,8 +72,10 @@ func routinesFixture(t *testing.T) (dir, worktree string) {
 	done := time.Now().Add(-10*time.Minute + 95*time.Second).UTC().Format(time.RFC3339)
 	writeReport(t, dir, "live", map[string]any{"started": started, "reason": "RUNNING", "pid": startRoutineProc(t, "live")})
 	writeReport(t, dir, "dead", map[string]any{"started": started, "reason": "RUNNING", "pid": deadPID(t), "worktree": filepath.Join(dir, "gone")})
-	writeReport(t, dir, "green", map[string]any{"started": started, "finished": done, "reason": "GREEN", "verify_status": "PASS",
-		"attempts": 1, "changed_files": []string{"a.go", "b.go"}, "worktree": worktree})
+	writeReport(t, dir, "green", map[string]any{
+		"started": started, "finished": done, "reason": "GREEN", "verify_status": "PASS",
+		"attempts": 1, "changed_files": []string{"a.go", "b.go"}, "worktree": worktree,
+	})
 	writeReport(t, dir, "rerr", map[string]any{"started": started, "finished": done, "reason": "RUN_ERROR", "verify_exit_code": 0})
 	writeReport(t, dir, "bad", []byte(`{"started": `))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "notroutine", "x"), 0o755))

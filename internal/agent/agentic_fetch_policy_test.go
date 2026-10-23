@@ -13,8 +13,10 @@ import (
 // được agentic_fetch vì bộ tool bên trong cố định.
 func TestFilterDisabledToolsAppliesToInnerTools(t *testing.T) {
 	t.Parallel()
-	inner := []fantasy.AgentTool{namedTool(tools.WebFetchToolName), namedTool(tools.WebSearchToolName),
-		namedTool(tools.SourcegraphToolName), namedTool(tools.ViewToolName)}
+	inner := []fantasy.AgentTool{
+		namedTool(tools.WebFetchToolName), namedTool(tools.WebSearchToolName),
+		namedTool(tools.SourcegraphToolName), namedTool(tools.ViewToolName),
+	}
 	got := filterDisabledTools(inner, []string{"web_search", "sourcegraph", "download"})
 	var names []string
 	for _, tl := range got {

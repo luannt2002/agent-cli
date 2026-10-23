@@ -48,20 +48,34 @@ func TestTransientError(t *testing.T) {
 	toolErr := func(err error) error {
 		return &fantasy.ToolExecutionError{ToolName: "fetch", ToolCallID: "c1", Err: err}
 	}
-	usage := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429,
-		Message: "Usage limit reached for 5 hour. Your limit will reset at 2026-10-20 12:00:00"}
-	quota429 := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429,
-		Message: "You exceeded your current quota, please check your plan and billing details."}
-	rate429 := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429,
-		Message: "Rate limit reached for requests per min. Please try again in 20s."}
-	geminiMinute := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429,
-		Message: "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, per minute"}
-	geminiCurrent := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429,
-		Message: "You exceeded your current quota, please check your plan and billing details. Quota exceeded for metric: generate_content_free_tier_requests, limit: 15 per minute"}
-	openaiFree := &fantasy.ProviderError{Title: "too many requests", StatusCode: 429,
-		Message: "Rate limit reached for gpt-4o-mini in organization org-x on requests per min (RPM): Limit 3, Used 3, Requested 1. Please try again in 20s. You can increase your rate limit by adding a payment method to your account at https://platform.openai.com/account/billing."}
-	overflow500 := &fantasy.ProviderError{Title: "internal server error", StatusCode: 500,
-		Message: "This model's maximum context length is 8192 tokens. However, you requested 9000 tokens"}
+	usage := &fantasy.ProviderError{
+		Title: "too many requests", StatusCode: 429,
+		Message: "Usage limit reached for 5 hour. Your limit will reset at 2026-10-20 12:00:00",
+	}
+	quota429 := &fantasy.ProviderError{
+		Title: "too many requests", StatusCode: 429,
+		Message: "You exceeded your current quota, please check your plan and billing details.",
+	}
+	rate429 := &fantasy.ProviderError{
+		Title: "too many requests", StatusCode: 429,
+		Message: "Rate limit reached for requests per min. Please try again in 20s.",
+	}
+	geminiMinute := &fantasy.ProviderError{
+		Title: "too many requests", StatusCode: 429,
+		Message: "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, per minute",
+	}
+	geminiCurrent := &fantasy.ProviderError{
+		Title: "too many requests", StatusCode: 429,
+		Message: "You exceeded your current quota, please check your plan and billing details. Quota exceeded for metric: generate_content_free_tier_requests, limit: 15 per minute",
+	}
+	openaiFree := &fantasy.ProviderError{
+		Title: "too many requests", StatusCode: 429,
+		Message: "Rate limit reached for gpt-4o-mini in organization org-x on requests per min (RPM): Limit 3, Used 3, Requested 1. Please try again in 20s. You can increase your rate limit by adding a payment method to your account at https://platform.openai.com/account/billing.",
+	}
+	overflow500 := &fantasy.ProviderError{
+		Title: "internal server error", StatusCode: 500,
+		Message: "This model's maximum context length is 8192 tokens. However, you requested 9000 tokens",
+	}
 
 	for name, tc := range map[string]struct {
 		err    error

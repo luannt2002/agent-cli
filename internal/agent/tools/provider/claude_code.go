@@ -5,9 +5,10 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/crush/internal/execpolicy"
 	"slices"
 	"strings"
+
+	"github.com/charmbracelet/crush/internal/execpolicy"
 
 	"charm.land/fantasy"
 )

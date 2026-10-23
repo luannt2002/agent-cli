@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/crush/internal/execpolicy"
 	"log/slog"
 	"maps"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/charmbracelet/crush/internal/execpolicy"
 
 	"charm.land/catwalk/pkg/catwalk"
 	hyperp "github.com/charmbracelet/crush/internal/agent/hyper"

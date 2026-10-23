@@ -96,8 +96,10 @@ func TestTrimTo_RemovesOldestFirstUntilUnderTheCap(t *testing.T) {
 		require.NoFileExists(t, gone)
 		require.NoDirExists(t, gone)
 	}
-	for _, stays := range []string{kept1, kept2, foreign, fuzz, link, target, outEntry,
-		filepath.Join(dir, "README"), filepath.Join(dir, "trim.txt"), filepath.Join(dir, "testexpire.txt")} {
+	for _, stays := range []string{
+		kept1, kept2, foreign, fuzz, link, target, outEntry,
+		filepath.Join(dir, "README"), filepath.Join(dir, "trim.txt"), filepath.Join(dir, "testexpire.txt"),
+	} {
 		_, err := os.Lstat(stays)
 		require.NoErrorf(t, err, "%s must stay", stays)
 	}
@@ -302,8 +304,10 @@ func TestInventory_MeasuresOnlyWithReadOnlyCommands(t *testing.T) {
 	for _, it := range items {
 		byName[it.Name] = it
 	}
-	require.Equal(t, Item{Class: Ask, Name: "npm cache", Path: filepath.Join(home, ".npm"), Bytes: 10,
-		Effect: byName["npm cache"].Effect, Command: "npm cache clean --force"}, byName["npm cache"])
+	require.Equal(t, Item{
+		Class: Ask, Name: "npm cache", Path: filepath.Join(home, ".npm"), Bytes: 10,
+		Effect: byName["npm cache"].Effect, Command: "npm cache clean --force",
+	}, byName["npm cache"])
 	require.Equal(t, int64(20), byName["pnpm store"].Bytes)
 	require.Equal(t, "pnpm store prune", byName["pnpm store"].Command)
 	require.NotContains(t, byName, "pip cache", "no pip: no row")
@@ -312,8 +316,10 @@ func TestInventory_MeasuresOnlyWithReadOnlyCommands(t *testing.T) {
 	require.Equal(t, int64(30), mc.Bytes)
 	require.Empty(t, mc.Command)
 	require.Contains(t, mc.Effect, "offline")
-	require.Equal(t, Item{Class: Ask, Name: "Docker images", Bytes: 2_500_000_000,
-		Effect: byName["Docker images"].Effect, Command: "docker image prune -a"}, byName["Docker images"])
+	require.Equal(t, Item{
+		Class: Ask, Name: "Docker images", Bytes: 2_500_000_000,
+		Effect: byName["Docker images"].Effect, Command: "docker image prune -a",
+	}, byName["Docker images"])
 	require.Equal(t, int64(3_000_000_000), byName["Docker build cache"].Bytes)
 	require.Equal(t, "docker builder prune", byName["Docker build cache"].Command)
 	vol := byName["Docker volumes"]
@@ -323,8 +329,10 @@ func TestInventory_MeasuresOnlyWithReadOnlyCommands(t *testing.T) {
 	for _, it := range items {
 		require.NotEmpty(t, it.Effect, it.Name)
 	}
-	require.ElementsMatch(t, []string{"pnpm store path", "pip cache dir", "go env GOMODCACHE",
-		"docker system df --format {{.Type}}\t{{.Size}}\t{{.Reclaimable}}"}, calls, "read-only commands only")
+	require.ElementsMatch(t, []string{
+		"pnpm store path", "pip cache dir", "go env GOMODCACHE",
+		"docker system df --format {{.Type}}\t{{.Size}}\t{{.Reclaimable}}",
+	}, calls, "read-only commands only")
 
 	broken := func(_ context.Context, name string, args ...string) (string, error) {
 		if name == "docker" {
@@ -355,8 +363,10 @@ func TestFindStuck(t *testing.T) {
 	require.Equal(t, Stuck{Foreign: 4, FirstForeign: filepath.Join(dir, "target"), Owner: os.Getuid()}, s,
 		"target, target/debug, target/debug/app, z.txt")
 	s.Owner = 0
-	for _, want := range []string{"4 file(s)", "uid 0", s.FirstForeign, `sudo chown -R "$(id -u):$(id -g)" ` + dir,
-		`docker run --user "$(id -u):$(id -g)"`, "dew routine gc"} {
+	for _, want := range []string{
+		"4 file(s)", "uid 0", s.FirstForeign, `sudo chown -R "$(id -u):$(id -g)" ` + dir,
+		`docker run --user "$(id -u):$(id -g)"`, "dew routine gc",
+	} {
 		require.Contains(t, s.Hint(dir), want)
 	}
 

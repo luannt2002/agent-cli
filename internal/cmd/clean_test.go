@@ -144,8 +144,10 @@ func TestClean_ApplyOnlyDeletesTheSafeRows(t *testing.T) {
 		require.FileExists(t, p)
 	}
 	for _, c := range tools.calls {
-		require.Contains(t, []string{"pnpm store path", "pip cache dir", "go env GOMODCACHE",
-			"docker system df --format {{.Type}}\t{{.Size}}\t{{.Reclaimable}}"}, c, "only read-only commands run")
+		require.Contains(t, []string{
+			"pnpm store path", "pip cache dir", "go env GOMODCACHE",
+			"docker system df --format {{.Type}}\t{{.Size}}\t{{.Reclaimable}}",
+		}, c, "only read-only commands run")
 	}
 
 	// DEW_GOCACHE_MAX=0: không trần, không trim.
@@ -300,8 +302,10 @@ func TestRoutineGC_KeepsAWorktreeHoldingFilesOfAnotherUser(t *testing.T) {
 	t.Cleanup(func() { currentUID = uid })
 
 	out := e.gc(t, gcOpts{DryRun: true})
-	for _, want := range []string{"keep " + old.Report.Worktree + ": you cannot delete", "owned by",
-		`sudo chown -R "$(id -u):$(id -g)" ` + old.Report.Worktree, `docker run --user "$(id -u):$(id -g)"`} {
+	for _, want := range []string{
+		"keep " + old.Report.Worktree + ": you cannot delete", "owned by",
+		`sudo chown -R "$(id -u):$(id -g)" ` + old.Report.Worktree, `docker run --user "$(id -u):$(id -g)"`,
+	} {
 		require.Contains(t, out, want)
 	}
 	require.Contains(t, e.gc(t, gcOpts{}), "keep "+old.Report.Worktree+": you cannot delete")
@@ -352,8 +356,10 @@ func TestRoutineGC_KeepsAWorktreeWithAReadOnlyDirectory(t *testing.T) {
 // nên `dew clean` in chỗ trống và gợi ý `go clean -cache` (hạng ASK) bên cạnh các lệnh ASK khác.
 func TestClean_SuggestsGoCleanCacheWhenTheDiskIsLow(t *testing.T) {
 	e, _, cache, tools := cleanSetup(t)
-	o := cleanOpts{GoCacheMax: 1000, MinFree: 10_000_000_000, DataDir: e.data, Home: tools.home, Run: tools.run,
-		FreeBytes: func(string) (uint64, error) { return 5_000_000_000, nil }}
+	o := cleanOpts{
+		GoCacheMax: 1000, MinFree: 10_000_000_000, DataDir: e.data, Home: tools.home, Run: tools.run,
+		FreeBytes: func(string) (uint64, error) { return 5_000_000_000, nil },
+	}
 	var buf bytes.Buffer
 	require.NoError(t, runClean(t.Context(), o, &buf))
 	out := buf.String()

@@ -88,10 +88,14 @@ func TestRunStream_SkipsTheAutoSummary(t *testing.T) {
 	buf := &bytes.Buffer{}
 	s := &runStream{sessionID: "S", out: buf, read: map[string]int{}}
 	for _, m := range []proto.Message{
-		{ID: "sum", SessionID: "S", Role: proto.Assistant, IsSummaryMessage: true,
-			Parts: []proto.ContentPart{proto.TextContent{Text: "## Current State\nSUMMARY"}, proto.Finish{Reason: proto.FinishReasonEndTurn}}},
-		{ID: "m2", SessionID: "S", Role: proto.Assistant,
-			Parts: []proto.ContentPart{proto.TextContent{Text: "DONE"}, proto.Finish{Reason: proto.FinishReasonEndTurn}}},
+		{
+			ID: "sum", SessionID: "S", Role: proto.Assistant, IsSummaryMessage: true,
+			Parts: []proto.ContentPart{proto.TextContent{Text: "## Current State\nSUMMARY"}, proto.Finish{Reason: proto.FinishReasonEndTurn}},
+		},
+		{
+			ID: "m2", SessionID: "S", Role: proto.Assistant,
+			Parts: []proto.ContentPart{proto.TextContent{Text: "DONE"}, proto.Finish{Reason: proto.FinishReasonEndTurn}},
+		},
 	} {
 		_, err := s.handle(pubsub.Event[proto.Message]{Payload: m}, nil)
 		require.NoError(t, err)

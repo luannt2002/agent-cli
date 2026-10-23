@@ -568,11 +568,17 @@ func TestJobsKeysMoveSelection(t *testing.T) {
 		key  tea.KeyPressMsg
 		want string
 	}{
-		{keyDown, "002"}, {keyDown, "001"}, {keyUp, "002"},
-		{keyMsg('j'), "001"}, {keyMsg('k'), "002"},
-		{jobsCtrl('n'), "001"}, {jobsCtrl('p'), "002"},
-		{tea.KeyPressMsg{Code: tea.KeyEnd}, "000"}, {keyDown, "000"},
-		{tea.KeyPressMsg{Code: tea.KeyHome}, "003"}, {keyUp, "003"},
+		{keyDown, "002"},
+		{keyDown, "001"},
+		{keyUp, "002"},
+		{keyMsg('j'), "001"},
+		{keyMsg('k'), "002"},
+		{jobsCtrl('n'), "001"},
+		{jobsCtrl('p'), "002"},
+		{tea.KeyPressMsg{Code: tea.KeyEnd}, "000"},
+		{keyDown, "000"},
+		{tea.KeyPressMsg{Code: tea.KeyHome}, "003"},
+		{keyUp, "003"},
 	} {
 		d.HandleMsg(tc.key)
 		require.Equal(t, tc.want, d.selectedID, tc.key.String())

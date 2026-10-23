@@ -76,8 +76,10 @@ func TestModelSeesOneResultAfterConcurrentSettle(t *testing.T) {
 	require.NoError(t, err)
 	_, err = env.messages.Create(ctx, sess.ID, message.CreateMessageParams{Role: message.User, Parts: []message.ContentPart{message.TextContent{Text: "go"}}})
 	require.NoError(t, err)
-	_, err = env.messages.Create(ctx, sess.ID, message.CreateMessageParams{Role: message.Assistant,
-		Parts: []message.ContentPart{message.ToolCall{ID: "c1", Name: "bash", Input: "{}", Finished: true}}})
+	_, err = env.messages.Create(ctx, sess.ID, message.CreateMessageParams{
+		Role:  message.Assistant,
+		Parts: []message.ContentPart{message.ToolCall{ID: "c1", Name: "bash", Input: "{}", Finished: true}},
+	})
 	require.NoError(t, err)
 	var wg sync.WaitGroup
 	start := make(chan struct{})

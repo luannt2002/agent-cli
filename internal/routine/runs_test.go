@@ -75,8 +75,10 @@ func fixture(t *testing.T) (dir string, by map[string]RunSummary) {
 	writeRun(t, dir, "live", "20261021-100000", map[string]any{"routine": "live", "started": ts(0), "reason": "RUNNING", "pid": live, "worktree": "/wt/live"})
 	writeRun(t, dir, "dead", "20261021-100000", map[string]any{"routine": "dead", "started": ts(0), "reason": "RUNNING", "pid": deadPID(t)})
 	writeRun(t, dir, "old", "20261021-100000", map[string]any{"routine": "old", "started": ts(0), "finished": "0001-01-01T00:00:00Z", "reason": "RUNNING"})
-	writeRun(t, dir, "green", "20261021-100000", map[string]any{"routine": "green", "started": ts(0), "finished": ts(95 * time.Second), "reason": "GREEN",
-		"worktree": wt, "verify_status": "PASS", "verify_exit_code": 0, "attempts": 1, "changed_files": []string{"a.go", "b.go"}})
+	writeRun(t, dir, "green", "20261021-100000", map[string]any{
+		"routine": "green", "started": ts(0), "finished": ts(95 * time.Second), "reason": "GREEN",
+		"worktree": wt, "verify_status": "PASS", "verify_exit_code": 0, "attempts": 1, "changed_files": []string{"a.go", "b.go"},
+	})
 	writeRun(t, dir, "rerr", "20261021-100000", map[string]any{"routine": "rerr", "started": ts(0), "finished": ts(time.Minute), "reason": "RUN_ERROR", "verify_exit_code": 0})
 	writeRun(t, dir, "rpass", "20261021-100000", map[string]any{"routine": "rpass", "started": ts(0), "finished": ts(time.Minute), "reason": "RUN_ERROR", "verify_status": "PASS"})
 	writeRun(t, dir, "tpass", "20261021-100000", map[string]any{"routine": "tpass", "started": ts(0), "finished": ts(time.Minute), "reason": "TIMEOUT", "verify_status": "PASS"})

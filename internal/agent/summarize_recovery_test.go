@@ -84,8 +84,10 @@ func (m *summaryFailModel) Stream(_ context.Context, call fantasy.Call) (fantasy
 			if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolCall, ID: "tc1", ToolCallName: "noop", ToolCallInput: "{}"}) {
 				return
 			}
-			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls,
-				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}})
+			yield(fantasy.StreamPart{
+				Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls,
+				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960},
+			})
 		}, nil
 	}
 	m.record("work", last)
@@ -99,8 +101,10 @@ func (m *summaryFailModel) Stream(_ context.Context, call fantasy.Call) (fantasy
 		if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextEnd, ID: "1"}) {
 			return
 		}
-		yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop,
-			Usage: fantasy.Usage{InputTokens: 950, OutputTokens: 10, TotalTokens: 960}})
+		yield(fantasy.StreamPart{
+			Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop,
+			Usage: fantasy.Usage{InputTokens: 950, OutputTokens: 10, TotalTokens: 960},
+		})
 	}, nil
 }
 

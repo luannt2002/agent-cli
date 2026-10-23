@@ -57,8 +57,10 @@ func TestBuildAgentModelsEnforcesTheModelAllowlist(t *testing.T) {
 	require.NoError(t, err)
 	cfg.SetupAgents()
 	build := func(spec string) error {
-		coord := &coordinator{cfg: cfg, sessions: env.sessions, messages: env.messages, permissions: env.permissions, history: env.history, filetracker: *env.filetracker,
-			policy: func() (execpolicy.Policy, error) { return execpolicy.Parse(spec) }}
+		coord := &coordinator{
+			cfg: cfg, sessions: env.sessions, messages: env.messages, permissions: env.permissions, history: env.history, filetracker: *env.filetracker,
+			policy: func() (execpolicy.Policy, error) { return execpolicy.Parse(spec) },
+		}
 		_, _, err := coord.buildAgentModels(t.Context(), false)
 		return err
 	}

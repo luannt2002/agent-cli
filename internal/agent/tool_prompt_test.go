@@ -70,8 +70,10 @@ func TestMCPInstructionsFollowRunTools(t *testing.T) {
 	}
 
 	// Đối chứng agent chính (đủ tool MCP): nhận đủ, server chưa kết nối bị bỏ.
-	all := mcpInstructions(states, []fantasy.AgentTool{view, alpha, beta, gamma,
-		&fakeTool{name: tools.ListMCPResourcesToolName}, &fakeTool{name: tools.ReadMCPResourceToolName}})
+	all := mcpInstructions(states, []fantasy.AgentTool{
+		view, alpha, beta, gamma,
+		&fakeTool{name: tools.ListMCPResourcesToolName}, &fakeTool{name: tools.ReadMCPResourceToolName},
+	})
 	require.Contains(t, all, "ALPHA-INSTR")
 	require.Contains(t, all, "BETA-INSTR")
 

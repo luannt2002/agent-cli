@@ -449,6 +449,7 @@ func exportUnattendedEnv(commit bool) func() {
 // Thư mục định nghĩa nằm cạnh cấu hình toàn cục của người dùng; dữ liệu chạy (khoá,
 // worktree, báo cáo) nằm cạnh dữ liệu toàn cục.
 func routineDefsDir() string { return filepath.Join(filepath.Dir(config.GlobalConfig()), "routines") }
+
 func routineDataDir() string {
 	return filepath.Join(filepath.Dir(config.GlobalConfigData()), "routines")
 }
@@ -475,9 +476,11 @@ func schedulePATH() string {
 // của thư mục hiện tại do repo kiểm soát, không được chen vào lịch.
 func scheduleEnv() []string {
 	var env []string
-	for _, k := range []string{"CRUSH_GLOBAL_CONFIG", "CRUSH_GLOBAL_DATA", "CRUSH_CACHE_DIR",
+	for _, k := range []string{
+		"CRUSH_GLOBAL_CONFIG", "CRUSH_GLOBAL_DATA", "CRUSH_CACHE_DIR",
 		"CRUSH_DISABLE_METRICS", "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "CRUSH_DISABLE_UPDATE_CHECK",
-		execpolicy.EnvFileEnv} {
+		execpolicy.EnvFileEnv,
+	} {
 		if v := execpolicy.OriginalEnv(k); v != "" {
 			env = append(env, k+"="+v)
 		}
@@ -662,12 +665,16 @@ func listRuns(dataDir, name string) []routineReport {
 		if err != nil || json.Unmarshal(raw, &rep) != nil {
 			// Lượt mới nhất giữ khoá mà chưa có báo cáo là vừa khởi động, chưa chết.
 			if i == 0 && routineLockHeld(dataDir, name) {
-				out = append(out, routineReport{Routine: name, Reason: "RUNNING",
-					Detail: "starting: no report written yet; run dir " + dir})
+				out = append(out, routineReport{
+					Routine: name, Reason: "RUNNING",
+					Detail: "starting: no report written yet; run dir " + dir,
+				})
 				continue
 			}
-			rep = routineReport{Routine: name, Reason: "ABANDONED",
-				Detail: "no report: the run died before writing one; run dir " + dir}
+			rep = routineReport{
+				Routine: name, Reason: "ABANDONED",
+				Detail: "no report: the run died before writing one; run dir " + dir,
+			}
 			out = append(out, rep)
 			continue
 		}
@@ -1809,8 +1816,10 @@ func findWorktreeEntry(ctx context.Context, repo, wt, branch string) (worktreeEn
 		}
 		_, lerr := os.Lstat(filepath.Join(admin, "locked"))
 		head, _ := os.ReadFile(filepath.Join(admin, "HEAD"))
-		return worktreeEntry{Admin: admin, Locked: !errors.Is(lerr, fs.ErrNotExist),
-			OnBranch: strings.TrimSpace(string(head)) == "ref: refs/heads/"+branch}, nil
+		return worktreeEntry{
+			Admin: admin, Locked: !errors.Is(lerr, fs.ErrNotExist),
+			OnBranch: strings.TrimSpace(string(head)) == "ref: refs/heads/"+branch,
+		}, nil
 	}
 	return worktreeEntry{}, nil
 }

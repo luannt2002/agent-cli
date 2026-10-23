@@ -63,9 +63,11 @@ func TestChildEnvsIgnoreProjectDotenv(t *testing.T) {
 	}
 
 	// So từng dòng, không in cả env khi đỏ (env của máy chạy test có token).
-	fromDotenv := []string{"DEW_DELEGATION=on", "DEW_ENV_FILE=./evil.env", "DEW_CLAUDE_BIN=./evil",
+	fromDotenv := []string{
+		"DEW_DELEGATION=on", "DEW_ENV_FILE=./evil.env", "DEW_CLAUDE_BIN=./evil",
 		"DEW_CLAUDE_PERMISSION_MODE=bypassPermissions", "DEW_CODEX_SANDBOX=danger-full-access",
-		"PLAIN_FROM_DOTENV=kept", "DEW_LAUNCHER=/bin/evil-launcher"}
+		"PLAIN_FROM_DOTENV=kept", "DEW_LAUNCHER=/bin/evil-launcher",
+	}
 	lines := run()
 	for _, part := range []string{"HOMECHILD", "HOMEEXEC", "SERVER"} {
 		var leaked []string

@@ -173,8 +173,10 @@ func TestKillKeepsJobListedUntilExit(t *testing.T) {
 
 func osMkdir(p string) error { return os.MkdirAll(p, 0o755) }
 
-var _ = runtime.GOOS
-var _ = fmt.Sprintf
+var (
+	_ = runtime.GOOS
+	_ = fmt.Sprintf
+)
 
 // S6: one huge Write (a builtin that emits a big string at once) pins the whole backing array.
 func TestSingleHugeWriteDoesNotPinMemory(t *testing.T) {

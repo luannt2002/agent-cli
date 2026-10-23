@@ -206,9 +206,11 @@ func runClean(ctx context.Context, o cleanOpts, w io.Writer) error {
 	var gcOut bytes.Buffer
 	st, gcErr := routineGCStats(ctx, o.DataDir, nil, gcOpts{DryRun: !o.Apply}, &gcOut)
 	rep.RoutineGC = gcOut.String()
-	rep.Items = append(rep.Items, housekeep.Item{Class: housekeep.Safe, Name: "routine worktrees", Path: o.DataDir, Bytes: st.Freed,
+	rep.Items = append(rep.Items, housekeep.Item{
+		Class: housekeep.Safe, Name: "routine worktrees", Path: o.DataDir, Bytes: st.Freed,
 		Effect:  fmt.Sprintf("%d worktree(s) of finished runs that hold no work (reports and session data stay); %d kept, see below", st.Removed, st.Kept),
-		Command: "dew routine gc"})
+		Command: "dew routine gc",
+	})
 	wts, _ := filepath.Glob(filepath.Join(o.DataDir, "*", "wt", "*"))
 	for _, wt := range wts {
 		if hint := housekeep.FindStuck(wt, currentUID()).Hint(wt); hint != "" {
@@ -228,9 +230,11 @@ func runClean(ctx context.Context, o cleanOpts, w io.Writer) error {
 	}
 	low := freeErr == nil && o.MinFree > 0 && free < uint64(o.MinFree)
 	if low && c != nil && (o.GoCacheMax == 0 || c.Bytes <= o.GoCacheMax) {
-		rep.Items = append(rep.Items, housekeep.Item{Class: housekeep.Ask, Name: "Go build cache", Path: c.Dir, Bytes: c.Bytes,
+		rep.Items = append(rep.Items, housekeep.Item{
+			Class: housekeep.Ask, Name: "Go build cache", Path: c.Dir, Bytes: c.Bytes,
 			Effect:  "the disk is low and the cache is under its cap: deleting all of it frees the most, and every package builds again once",
-			Command: "go clean -cache"})
+			Command: "go clean -cache",
+		})
 	}
 	rep.Items = append(rep.Items, housekeep.Inventory(ctx, o.Home, o.Run)...)
 
@@ -295,9 +299,11 @@ func existingDir(dir string) string {
 // goCacheItem là dòng SAFE của cache build Go: dung lượng theo tuổi và trần.
 func goCacheItem(c *housekeep.GoCache, limit int64) housekeep.Item {
 	h := func(n int64) string { return humanize.Bytes(uint64(n)) }
-	it := housekeep.Item{Class: housekeep.Safe, Name: "Go build cache", Path: c.Dir, Bytes: c.Bytes,
+	it := housekeep.Item{
+		Class: housekeep.Safe, Name: "Go build cache", Path: c.Dir, Bytes: c.Bytes,
 		Effect: fmt.Sprintf("by last use: <1 day %s, 1-3 days %s, 3-7 days %s, older %s; Go rebuilds what it needs, so the next builds are slower",
-			h(c.Age[0]), h(c.Age[1]), h(c.Age[2]), h(c.Age[3]))}
+			h(c.Age[0]), h(c.Age[1]), h(c.Age[2]), h(c.Age[3])),
+	}
 	switch {
 	case limit == 0:
 		it.Effect += "; no cap (" + goCacheMaxEnv + "=0)"

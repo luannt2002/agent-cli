@@ -27,8 +27,10 @@ func (m titleStreamModel) Stream(context.Context, fantasy.Call) (fantasy.StreamR
 			!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextEnd, ID: "1"}) {
 			return
 		}
-		yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop,
-			Usage: fantasy.Usage{InputTokens: 20, OutputTokens: 5, TotalTokens: 25}})
+		yield(fantasy.StreamPart{
+			Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop,
+			Usage: fantasy.Usage{InputTokens: 20, OutputTokens: 5, TotalTokens: 25},
+		})
 	}, nil
 }
 

@@ -30,9 +30,11 @@ func (m *rawToolCallModel) Model() string    { return "fake-model" }
 func (m *rawToolCallModel) Generate(context.Context, fantasy.Call) (*fantasy.Response, error) {
 	return &fantasy.Response{Content: fantasy.ResponseContent{fantasy.TextContent{Text: "t"}}, FinishReason: fantasy.FinishReasonStop}, nil
 }
+
 func (m *rawToolCallModel) GenerateObject(context.Context, fantasy.ObjectCall) (*fantasy.ObjectResponse, error) {
 	return nil, errors.New("na")
 }
+
 func (m *rawToolCallModel) StreamObject(context.Context, fantasy.ObjectCall) (fantasy.ObjectStreamResponse, error) {
 	return nil, errors.New("na")
 }

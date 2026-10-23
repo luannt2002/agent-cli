@@ -12,8 +12,10 @@ import (
 // thoát 2 mỗi lần (audit g3, chạy thật với env của cron).
 func TestScheduleText_CarriesLauncherEnv(t *testing.T) {
 	t.Parallel()
-	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
-		Schedule: &Schedule{OnCalendar: "*-*-* 03:00:00", Cron: "0 3 * * *"}}
+	d := Definition{
+		Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
+		Schedule: &Schedule{OnCalendar: "*-*-* 03:00:00", Cron: "0 3 * * *"},
+	}
 	sum := strings.Repeat("a", 64)
 	env := []string{"CRUSH_GLOBAL_CONFIG=/home/u/.config/dew", "CRUSH_GLOBAL_DATA=/home/u/.local/share/dew"}
 	out, err := d.ScheduleText("/usr/local/bin/dew", sum, "/usr/bin:/bin", env)
@@ -33,8 +35,10 @@ func TestScheduleText_CarriesLauncherEnv(t *testing.T) {
 // Giá trị có ký tự shell/khoảng trắng không được ghi vào unit hay crontab.
 func TestScheduleText_RefusesUnsafeEnvValues(t *testing.T) {
 	t.Parallel()
-	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
-		Schedule: &Schedule{Cron: "0 3 * * *"}}
+	d := Definition{
+		Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
+		Schedule: &Schedule{Cron: "0 3 * * *"},
+	}
 	_, err := d.ScheduleText("/bin/dew", strings.Repeat("a", 64), "/bin", []string{"CRUSH_GLOBAL_CONFIG=/x; rm -rf ~"})
 	require.Error(t, err)
 }
@@ -43,8 +47,10 @@ func TestScheduleText_RefusesUnsafeEnvValues(t *testing.T) {
 // khoảng trắng, nháy, $, %, xuống dòng, gạch ngược vẫn bị từ chối.
 func TestScheduleText_EnvAllowsModelAllowlist(t *testing.T) {
 	t.Parallel()
-	d := Definition{Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
-		Schedule: &Schedule{Cron: "0 3 * * *"}}
+	d := Definition{
+		Name: "nightly", Mode: ModeMaintenance, Repo: "/r", Goal: "g", Verify: "true",
+		Schedule: &Schedule{Cron: "0 3 * * *"},
+	}
 	sum := strings.Repeat("a", 64)
 	out, err := d.ScheduleText("/bin/dew", sum, "/bin", []string{"DEW_ALLOWED_MODELS=openai:gpt-5,anthropic:claude-x"})
 	require.NoError(t, err)

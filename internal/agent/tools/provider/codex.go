@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/charmbracelet/crush/internal/execpolicy"
 	"slices"
 	"strings"
+
+	"github.com/charmbracelet/crush/internal/execpolicy"
 
 	"charm.land/fantasy"
 )

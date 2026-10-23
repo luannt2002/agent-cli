@@ -67,8 +67,10 @@ func TestEngine_RecordsEachLLMRequestWithAttemptAndRetry(t *testing.T) {
 	require.Equal(t, 0, ev[0].Retry)
 
 	// Thứ tự: dòng request của một lượt nằm giữa attempt_begin và agent_end của nó.
-	require.Equal(t, []string{"start", "baseline", "attempt_begin", "llm_request", "llm_request", "agent_end",
-		"attempt_begin", "llm_request", "agent_end", "verify", "stop"}, s.journal.kinds())
+	require.Equal(t, []string{
+		"start", "baseline", "attempt_begin", "llm_request", "llm_request", "agent_end",
+		"attempt_begin", "llm_request", "agent_end", "verify", "stop",
+	}, s.journal.kinds())
 }
 
 // Request còn chạy khi lượt đã trả về (tiêu đề sinh nền) không được ghi chen sau

@@ -184,10 +184,14 @@ func TestSelectedModelGoneFallsBackWithinProvider(t *testing.T) {
 // chính provider đó (không phải model đầu, không phải provider đứng trước).
 func TestResolveSelectedModels_SameProviderCatalogDefault(t *testing.T) {
 	known := []catwalk.Provider{
-		{ID: "openai", APIKey: "k", DefaultLargeModelID: "o-large", DefaultSmallModelID: "o-small",
-			Models: []catwalk.Model{{ID: "o-large"}, {ID: "o-small"}}},
-		{ID: "anthropic", APIKey: "k", DefaultLargeModelID: "a-large", DefaultSmallModelID: "a-small",
-			Models: []catwalk.Model{{ID: "a-other"}, {ID: "a-large", DefaultMaxTokens: 700}, {ID: "a-small"}}},
+		{
+			ID: "openai", APIKey: "k", DefaultLargeModelID: "o-large", DefaultSmallModelID: "o-small",
+			Models: []catwalk.Model{{ID: "o-large"}, {ID: "o-small"}},
+		},
+		{
+			ID: "anthropic", APIKey: "k", DefaultLargeModelID: "a-large", DefaultSmallModelID: "a-small",
+			Models: []catwalk.Model{{ID: "a-other"}, {ID: "a-large", DefaultMaxTokens: 700}, {ID: "a-small"}},
+		},
 	}
 	cfg, err := configureWith(t, map[string]ProviderConfig{}, map[SelectedModelType]SelectedModel{
 		SelectedModelTypeLarge: {Provider: "anthropic", Model: "gone"},
@@ -208,8 +212,10 @@ func TestResolveSelectedModels_SameProviderCatalogDefault(t *testing.T) {
 // chọn, không thay bằng model của provider khác; cả large lẫn small.
 func TestResolveSelectedModels_NoCrossProviderFallback(t *testing.T) {
 	known := []catwalk.Provider{
-		{ID: "openai", APIKey: "k", DefaultLargeModelID: "o-large", DefaultSmallModelID: "o-small",
-			Models: []catwalk.Model{{ID: "o-large"}, {ID: "o-small"}}},
+		{
+			ID: "openai", APIKey: "k", DefaultLargeModelID: "o-large", DefaultSmallModelID: "o-small",
+			Models: []catwalk.Model{{ID: "o-large"}, {ID: "o-small"}},
+		},
 	}
 	cfg, err := configureWith(t, map[string]ProviderConfig{}, map[SelectedModelType]SelectedModel{
 		SelectedModelTypeLarge: {Provider: "ghost", Model: "g-large"},

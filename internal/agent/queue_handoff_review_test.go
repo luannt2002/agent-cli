@@ -50,6 +50,7 @@ func (m *probeModel) gate(p string) chan struct{} {
 	m.entered[p] = make(chan struct{})
 	return g
 }
+
 func (m *probeModel) enteredCh(p string) chan struct{} {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -67,9 +68,11 @@ func (m *probeModel) Model() string    { return "fake-model" }
 func (m *probeModel) Generate(context.Context, fantasy.Call) (*fantasy.Response, error) {
 	return &fantasy.Response{Content: fantasy.ResponseContent{fantasy.TextContent{Text: "title"}}, FinishReason: fantasy.FinishReasonStop}, nil
 }
+
 func (m *probeModel) GenerateObject(context.Context, fantasy.ObjectCall) (*fantasy.ObjectResponse, error) {
 	return nil, errors.New("na")
 }
+
 func (m *probeModel) StreamObject(context.Context, fantasy.ObjectCall) (fantasy.ObjectStreamResponse, error) {
 	return nil, errors.New("na")
 }
@@ -155,11 +158,13 @@ func newRCCollector(ctx context.Context, b *pubsub.Broker[notify.RunComplete]) *
 	}()
 	return c
 }
+
 func (c *rcCollector) of(id string) []notify.RunComplete {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]notify.RunComplete(nil), c.got[id]...)
 }
+
 func (c *rcCollector) waitN(t *testing.T, id string, n int, d time.Duration) []notify.RunComplete {
 	t.Helper()
 	dl := time.Now().Add(d)
@@ -777,6 +782,7 @@ func (p *countPub) Publish(_ pubsub.EventType, rc notify.RunComplete) { p.add(rc
 func (p *countPub) PublishMustDeliver(_ context.Context, _ pubsub.EventType, rc notify.RunComplete) {
 	p.add(rc)
 }
+
 func (p *countPub) add(rc notify.RunComplete) {
 	p.mu.Lock()
 	p.n[rc.RunID]++

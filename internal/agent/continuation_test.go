@@ -121,8 +121,10 @@ func (m *scriptModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.St
 	case "empty_unknown", "empty_error", "empty_other":
 		// Provider openai-compat ánh xạ finish lạ (GLM "network_error", "sensitive")
 		// thành unknown; google/Responses API có error/other.
-		reason := map[string]fantasy.FinishReason{"empty_unknown": fantasy.FinishReasonUnknown,
-			"empty_error": fantasy.FinishReasonError, "empty_other": fantasy.FinishReasonOther}[step]
+		reason := map[string]fantasy.FinishReason{
+			"empty_unknown": fantasy.FinishReasonUnknown,
+			"empty_error":   fantasy.FinishReasonError, "empty_other": fantasy.FinishReasonOther,
+		}[step]
 		return textStream("", reason, small), nil
 	case "two_text_blocks":
 		// Khối chữ đầu chỉ có khoảng trắng, câu trả lời thật ở khối sau (google mở khối
@@ -146,8 +148,10 @@ func (m *scriptModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.St
 				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeReasoningEnd, ID: "r1"}) {
 				return
 			}
-			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength,
-				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}})
+			yield(fantasy.StreamPart{
+				Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength,
+				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960},
+			})
 		}, nil
 	case "cut_tool", "think_cut":
 		// Bị cắt ở giới hạn output: provider openai-compat không phát ToolCall cho

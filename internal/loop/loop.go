@@ -200,8 +200,10 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		note = "verify already passes before any change: the gate may not measure this goal"
 		res.BaselinePass = true
 	}
-	if err := emit(Event{Kind: "baseline", Status: string(base.Status), ExitCode: base.ExitCode,
-		Output: tail(base.Output, tailLines), Fingerprint: baseFP, Note: note}); err != nil {
+	if err := emit(Event{
+		Kind: "baseline", Status: string(base.Status), ExitCode: base.ExitCode,
+		Output: tail(base.Output, tailLines), Fingerprint: baseFP, Note: note,
+	}); err != nil {
 		return res, err
 	}
 	if base.Status == StatusUnmeasured {
@@ -232,8 +234,10 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 			return stop(StopCancelled, "cancelled during the verify after the agent was cut off")
 		}
 		res.Last = v
-		if err := emit(Event{Kind: "verify", Attempt: attempt, Status: string(v.Status), ExitCode: v.ExitCode,
-			Output: tail(v.Output, tailLines), Fingerprint: fp, Note: "after the agent was cut off"}); err != nil {
+		if err := emit(Event{
+			Kind: "verify", Attempt: attempt, Status: string(v.Status), ExitCode: v.ExitCode,
+			Output: tail(v.Output, tailLines), Fingerprint: fp, Note: "after the agent was cut off",
+		}); err != nil {
 			return res, err
 		}
 		switch v.Status {
@@ -359,8 +363,10 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 			return stop(StopUnmeasured, err.Error())
 		}
 		res.Last = v
-		if err := emit(Event{Kind: "verify", Attempt: attempt, Status: string(v.Status), ExitCode: v.ExitCode,
-			Output: tail(v.Output, tailLines), Fingerprint: fp}); err != nil {
+		if err := emit(Event{
+			Kind: "verify", Attempt: attempt, Status: string(v.Status), ExitCode: v.ExitCode,
+			Output: tail(v.Output, tailLines), Fingerprint: fp,
+		}); err != nil {
 			return res, err
 		}
 

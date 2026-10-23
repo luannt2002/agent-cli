@@ -94,8 +94,10 @@ func (m *overflowModel) Stream(_ context.Context, call fantasy.Call) (fantasy.St
 				!yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolInputDelta, ID: "tc", Delta: `{"content":"half`}) {
 				return
 			}
-			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength,
-				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}})
+			yield(fantasy.StreamPart{
+				Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonLength,
+				Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960},
+			})
 		}, nil
 	}
 	return func(yield func(fantasy.StreamPart) bool) {
@@ -108,8 +110,10 @@ func (m *overflowModel) Stream(_ context.Context, call fantasy.Call) (fantasy.St
 		if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeToolCall, ID: "tc", ToolCallName: "noop", ToolCallInput: "{}"}) {
 			return
 		}
-		yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls,
-			Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960}})
+		yield(fantasy.StreamPart{
+			Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonToolCalls,
+			Usage: fantasy.Usage{InputTokens: 900, OutputTokens: 60, TotalTokens: 960},
+		})
 	}, nil
 }
 
@@ -216,8 +220,10 @@ func (m *roomModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.Stre
 			if !yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeTextEnd, ID: "1"}) {
 				return
 			}
-			yield(fantasy.StreamPart{Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop,
-				Usage: fantasy.Usage{InputTokens: 300, OutputTokens: 10, TotalTokens: 310}})
+			yield(fantasy.StreamPart{
+				Type: fantasy.StreamPartTypeFinish, FinishReason: fantasy.FinishReasonStop,
+				Usage: fantasy.Usage{InputTokens: 300, OutputTokens: 10, TotalTokens: 310},
+			})
 		}, nil
 	}
 	if m.cutBig && w%2 == 0 {

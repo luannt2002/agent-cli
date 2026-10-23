@@ -13,8 +13,10 @@ import (
 // điểm cắt thì toàn bộ lịch sử bị thay bằng nửa bản tóm tắt mà không ai hay
 // (audit g1: finish=length bị ghi đè thành end_turn). Giữ lịch sử, làm tiếp.
 func TestTruncatedSummaryKeepsHistory(t *testing.T) {
-	h := newContHarness(t, &scriptModel{script: []string{"tool", "done"},
-		summaryText: "## Current State\n- half of the brie", summaryFinish: fantasy.FinishReasonLength})
+	h := newContHarness(t, &scriptModel{
+		script:      []string{"tool", "done"},
+		summaryText: "## Current State\n- half of the brie", summaryFinish: fantasy.FinishReasonLength,
+	})
 
 	_, err := h.sa.Run(t.Context(), SessionAgentCall{SessionID: h.sid, RunID: "x", Prompt: "refactor the scanner"})
 	require.NoError(t, err)
