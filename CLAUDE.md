@@ -20,7 +20,7 @@
 ### P1. Mục tiêu sản phẩm và quyền thực hiện
 
 - **Bài toán:** fork cá nhân của Crush (TUI coding agent bằng Go). User làm FE/BE/devops, cần làm nhiều session và nhiều dự án song song trong một terminal, với model local hoặc provider qua API key. ĐÃ XÁC MINH: `AGENTS.md`, roadmap.
-- **Giai đoạn:** Phase 1 core MVP đã gộp và phát hành (tag `v0.1.0`, `v0.2.0` trên `main`). `dew loop`/`routine` (Phase 4 của roadmap) ra sớm sau `v0.2.0`, chưa phát hành (DECISIONS.md, các mục 16/10). V3 (14 POC sửa lỗi + docs; báo cáo ở `reports/v3-research/`, đọc trước `HANDOFF_2026-10-20.md`) gộp vào `main` 20/10 (đã push), chưa gắn tag phát hành.
+- **Giai đoạn:** Phase 1 core MVP phát hành `v0.1.0`/`v0.2.0`; `dew loop`/`routine` (Phase 4 của roadmap, ra sớm) và V3 (`reports/v3-research/`) phát hành từ `v0.3.0`. Bản mới nhất và nội dung: `CHANGELOG.md`. Audit gần nhất: `reports/DEW_CODE_AUDIT_2026-10-22.md`.
 - **Thành công:** đạt cổng WIN ở roadmap mục 5. Nghĩa là user đi trọn daily workflow trên launcher thật với provider thật. Unit test xanh chưa đủ.
 - **Ngoài phạm vi:** phần còn lại của Phase 2–5 (trừ `loop`/`routine` đã ra sớm); remote SSH picker; GUI/RAG/team; dashboard chi phí; switcher Alt+Tab, phím index, framework keybinding mới, mode quyền mới (đã DEFER).
 - **Quyền agent:**
@@ -85,7 +85,8 @@
 | Phơi nhiễm V3 + kiểm toàn bộ một commit | `SRC=$PWD BASE=<v2-suite.json> bash reports/v3-research/tools/verify-final.sh <commit> <thư-mục-mới>` (harness `scripts/eval/exposure.sh`) | MỘT PHẦN 20/10 | Phơi nhiễm là phép đo, không phải cổng: in EXPOSED/NOT_EXPOSED từng ca. Trên `300c8dd1` đã chạy unit + T1M/T2/T3; các ca sau T3 chưa (`reports/v3-research/HANDOFF_2026-10-20.md`) |
 | Launcher + installer | `bash scripts/test-dew-wrapper.sh` | ĐÃ CHẠY 20/10 | PASS; cài vào thư mục tạm, không đụng bản cài thật |
 | Giao việc thật | `bash scripts/test-dew-delegation.sh` | ĐÃ CHẠY 14/10 | Claude Code + Codex THẬT, LLM chính giả; tốn hạn mức thuê bao; mặc định mức quyền an toàn |
-| Lint | `task lint` | CHƯA CHẠY | |
+| Cổng phát hành | `GO_LOCK=<tệp khoá> scripts/release-gates.sh <tag-nền> [thư-mục-ra]` | ĐÃ CHẠY khi phát hành v0.3.3 | So test theo tên với tag nền, vet chỉ tính dòng mới, vet Windows, race, build, 4 E2E. Đỏ khi thiếu binary `rg` hoặc 3 test an ninh grep/glob không chạy |
+| Lint | `task lint` | CHƯA CHẠY | Máy chưa có `golangci-lint`/`task`; `gofumpt -l` thay tạm |
 
 - **Máy:** máy dev, Intel i7-8750H 6 nhân/12 luồng, RAM 15,5 GiB, swap 8 GiB (đo 16/10 bằng `lscpu`, `/proc/meminfo`; bản ghi 14/10 là Ryzen 9700X 16 luồng/60 GiB, không khớp nữa; `nproc` 16/10 = 12). Tối đa 3 agent cùng lúc; Go nặng chạy một lệnh một lúc, chờ RAM trống ≥3 GB.
 - Phiên Claude Code chạy test giao việc phải bỏ biến `CLAUDECODE`, `CLAUDE_CODE_*` (script dùng `env -i`) để `claude` con chạy như ở terminal thường.

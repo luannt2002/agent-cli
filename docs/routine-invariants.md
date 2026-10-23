@@ -42,7 +42,7 @@ Mọi mục của `git status --porcelain -z --untracked-files=all --ignored=mat
 | tệp theo dõi bị đổi | ` M src/a.go` | có |
 | tệp chưa theo dõi | `?? notes.md` | có |
 | bị ignore, ngoài `.crush/`, không phải thư mục dựng lại được | `!! .env`, `!! build/x.env` (khi `build/` được theo dõi) | có |
-| bị ignore, đúng là thư mục dựng lại được | `!! web/node_modules/` | không |
+| bị ignore, đúng là thư mục dựng lại được (kể cả symlink mang tên đó) | `!! web/node_modules/`, `!! backend/node_modules` (symlink) | không |
 | dữ liệu của dew | `!! .crush/…` | không (chuyển ra ngoài trước khi gỡ) |
 | bị giấu khỏi status (assume-unchanged, hoặc skip-worktree mà tệp có trên đĩa) | `h …`, `S …` | có |
 | commit ngoài base, trên HEAD hoặc nhánh của lượt | — | có |
@@ -52,6 +52,9 @@ Ghi chú cho bảng trên:
   xoá. Tệp theo dõi dưới `.crush/` bị đổi vẫn là việc, nhưng export không bao giờ xuất `.crush/`.
 - **Thư mục bị ignore trọn** hiện một lần (`out/`) trong `changed_files` và trong dòng giữ (keep) của bộ dọn.
 - **skip-worktree mà tệp không có trên đĩa** không phải việc; export không xuất nó thành "đã xoá".
+- **Symlink bị ignore** mà tên cuối là thư mục dựng lại được thì không phải việc: gỡ worktree chỉ gỡ link, đích còn
+  nguyên. Symlink bị ignore mang tên khác (`!! .env`) vẫn là việc. Đo 22/10: cả 110 `node_modules` trong worktree thật là
+  symlink do bộ điều phối ngoài nối vào; 11 worktree sạch bị giữ oan vì chúng.
 - **`base_sha` của báo cáo không phải SHA** (rỗng, bị sửa) thì không đếm được commit: bộ dọn giữ worktree, không bao
   giờ coi là "không có commit".
 - **Giới hạn của git:** tệp theo dõi `out` bị thay bằng thư mục `out/` bị ignore thì `--ignored=matching` không liệt kê
@@ -68,15 +71,42 @@ Dùng chung bởi:
 - **bộ dọn**: chỉ gỡ khi tập "việc" rỗng;
 - **export**: patch gồm các mục "việc"; mục bị ignore chỉ khi có `--include-ignored`, `.crush/` không bao giờ.
 
+`.git` dùng chung (config, HEAD, `hooks/`, `info/` trừ `info/refs`, mọi ref trừ `refs/remotes/*` và nhánh của chính lượt;
+nhánh `routine/*` của lượt khác chỉ tính khi bị viết lại, vì routine chạy song song tạo và xoá nhánh của chúng) không
+thuộc cây làm việc, nên Q3 không thấy. Routine chụp nó trước lượt agent đầu và sau khi loop xong; có khác thì báo cáo ghi `git_dir_changed`
+và in cảnh báo. Người dùng tự commit hay đổi nhánh trong lúc lượt chạy cũng hiện ở đây.
+
 ## Q4. Được xoá gì?
 
 Chỉ xoá worktree của một lượt khi **đủ cả**:
 - báo cáo đã kết thúc;
 - đường worktree và nhánh đúng của lượt đó;
 - Q3 không còn "việc";
-- không phải lượt mới nhất;
 - không có tệp thuộc user khác hay thư mục chỉ đọc;
 - `crush.db*` không bị ghi sau `finished` + 1 phút.
+
+Lượt mới nhất theo cùng luật đó. Routine `goal` thường chỉ chạy một lần, nên giữ "lượt mới nhất" vô điều kiện thì bộ dọn không
+bao giờ gỡ được gì (đo 22/10: 54 worktree, 6,6 GB, `dew clean` thu hồi 0 B). Lượt mới nhất còn việc thì vẫn được giữ, vì Q3
+còn "việc".
+
+Worktree đã bị gỡ từ bên ngoài (thư mục không còn) mà nhánh của lượt còn: chỉ xoá nhánh khi đủ cả:
+- đường worktree và nhánh đúng của lượt (cùng phép kiểm như trên);
+- `base_sha` là SHA;
+- nhánh không có commit ngoài base.
+
+Mục quản trị của worktree đó trong `.git/worktrees/` chỉ gỡ khi trỏ đúng đường đã mất, không bị khoá, và `HEAD` của nó
+đúng là `ref: refs/heads/<nhánh của lượt>`. Lý do: `HEAD` và `logs/HEAD` trong mục quản trị là gốc giữ commit; HEAD tách
+rời có commit thì gỡ mục là mất commit. Mục bị khoá thì giữ và in một dòng `keep`, không tính là lỗi. Không chạy `git worktree
+prune` cho cả repo. Đo 22/10: 95 lượt GREEN ở dạng này.
+
+Bộ dọn in số worktree đã giữ, kèm lý do của từng cái; không giữ im lặng.
+Chạy thử (`dew clean` không `--apply`, `routine gc --dry-run`) không lấy khoá routine, vì nó không ghi gì. Do đó nó không
+bao giờ liệt kê là gỡ được một lượt RUNNING mà chưa chứng minh được đã chết (không có pid, hoặc không kiểm được trên
+Windows). Lượt xoá nhánh của worktree đã mất ghi `worktree_gone` vào báo cáo để không thử lại mãi.
+
+Gỡ chủ động: `dew routine rm NAME` gỡ định nghĩa, worktree và nhánh của mọi lượt. Lượt còn "việc" thì từ chối và in danh sách
+(gợi ý `routine export` trước), trừ khi có `--discard`. Lượt đang chạy thì luôn từ chối. Báo cáo, journal và `crush.db` đã
+chuyển ra được giữ lại.
 
 Trước khi xoá, chuyển `.crush/` ra cạnh `report.json`. Cache Go chỉ xoá mục của chính Go, không đụng mục dùng trong 2 giờ
 qua. Không bao giờ xoá module cache Go hay Docker volume.

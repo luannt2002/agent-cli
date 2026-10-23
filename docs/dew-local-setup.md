@@ -762,18 +762,26 @@ ngoài `.crush/` và ngoài thư mục dựng lại được cũng là việc (v
 đó, không tính nội dung, để artefact verify ghi lại mỗi lần (`junit.xml`, `cover.out`) không che STALLED.
 
 Mỗi lượt chạy làm việc trong worktree riêng (nhánh `routine/tidy-<thời điểm>`, nằm ngoài repo), giữ khoá (lượt thứ
-hai, hoặc khi đã có `DEW_ROUTINE_SLOTS` lượt routine đang chạy, thoát 75), chạy với chế độ không người trực (không push/merge/reset --hard/xoá đệ quy ngoài workspace) và ghi
+hai, hoặc khi đã có `DEW_ROUTINE_SLOTS` lượt routine đang chạy, thoát 75), chạy với chế độ không người trực (lớp chặn chống tai nạn, không phải sandbox: xem đoạn "Giới hạn cần biết" bên dưới) và ghi
 báo cáo ra ngoài worktree. Mã thoát: 0 khi `GREEN`, và khi `NO_CHANGE` ở routine `maintenance` (hôm nay không có việc);
-`NO_CHANGE` ở routine `goal` và mọi lý do khác thoát 1. Bạn duyệt: `git -C <repo> diff <base>..routine/tidy-...`, lượt sau tự dọn worktree của các lượt cũ không còn việc.
+`NO_CHANGE` ở routine `goal` và mọi lý do khác thoát 1. Bạn duyệt bằng `dew routine export tidy -o tidy.patch` (gồm cả thay đổi chưa commit và tệp mới; routine không `--commit`
+thì nhánh không có commit nên `git diff <base>..routine/…` rỗng). Nhận xong thì `dew routine rm tidy`.
 
-Dọn worktree: mỗi `routine run` gỡ worktree và nhánh của các lượt cũ đã xong, giữ lượt mới nhất. Không gỡ khi còn
+Dọn worktree: mỗi `routine run` gỡ worktree và nhánh của các lượt đã xong, kể cả lượt mới nhất, theo cùng một luật. Không gỡ khi còn
 thay đổi chưa commit hay tệp chưa theo dõi (bất kể `status.showUntrackedFiles`), có commit ngoài base (kể cả HEAD tách
 rời), có tệp bị gitignore ngoài `.crush/` (trừ thư mục dựng lại được, ở bất kỳ cấp nào: `node_modules`, `dist`, `build`, `coverage`, `.venv`, `venv`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `target`, `.next`, `.nuxt`, `.turbo`, `.gradle`, `.parcel-cache`; chúng bị xoá
 cùng worktree), có tệp bị giấu khỏi `git status` (assume-unchanged, hoặc skip-worktree mà tệp có trên đĩa), `crush.db*`
 được ghi sau `finished` + 1 phút (có người mở lại), báo cáo trỏ sai worktree hay nhánh, hoặc lần dọn trước lỗi
 (`gc_error`). Nhánh mà lần trước `branch -D` hỏng được thử lại ở mỗi lượt dọn, chỉ khi không có commit ngoài base. `crush.db`, `-wal`, `-shm` và `.crush/logs` được chuyển
-ra cạnh `report.json` trước khi gỡ. Dọn tay: `dew routine gc [NAME] [--dry-run] [--include-ignored]`; `--dry-run` in
-từng worktree sẽ gỡ hay giữ, kèm lý do và dung lượng (chỉ `gc` đo dung lượng; lượt tự động không đo). `DEW_ROUTINE_SLOTS` (mặc định 2, `0` là không giới hạn) giới hạn
+ra cạnh `report.json` trước khi gỡ. Worktree đã bị gỡ từ bên ngoài (thư mục mất, nhánh còn): xoá nhánh khi không có commit
+ngoài base, và chỉ gỡ đúng mục quản trị của nó khi mục đó không bị khoá và HEAD đúng là nhánh của lượt (HEAD tách rời có
+commit thì giữ). Mỗi worktree được giữ in một dòng `keep` kèm lý do. Dọn tay: `dew routine gc [NAME] [--dry-run] [--include-ignored]`; `--dry-run` in
+từng worktree sẽ gỡ hay giữ, kèm lý do và dung lượng (chỉ `gc` đo dung lượng; lượt tự động không đo); chạy thử và `dew clean`
+không `--apply` không lấy khoá routine nên không làm lượt đang khởi động bị từ chối. Nhận kết quả xong: `dew routine rm NAME`
+gỡ định nghĩa, worktree và nhánh; lượt còn việc thì từ chối và liệt kê (gợi ý `routine export`), trừ khi có `--discard`;
+lượt đang chạy thì luôn từ chối; báo cáo và journal được giữ. Trước khi tạo worktree, `routine run` kiểm model ghim có
+thật và provider có key khi cấu hình khai `api_key`; hỏng thì `ERROR` mà không để lại worktree hay nhánh (provider local
+không cần key thì đừng khai `api_key`). `DEW_ROUTINE_SLOTS` (mặc định 2, `0` là không giới hạn) giới hạn
 tổng số routine chạy cùng lúc; đặt ở shell hoặc trong tệp env của dew (lượt theo lịch đọc được), `.env` của repo không
 đổi được nó.
 
@@ -804,12 +812,13 @@ Giới hạn cần biết: lớp chặn không người trực KHÔNG phải ran
 (đọc, add/rm/mv, nhánh mới...; push/merge/reset --hard/alias/`-c` bị chặn), `rm` phải ở trong workspace, tool giao
 việc bị tắt, `working_dir` ngoài workspace bị từ chối, tool ghi tệp không ghi ra ngoài thư mục làm việc. Nhưng agent
 viết mã rồi chạy `go test`/`make`/verify, và mã đó có thể làm bất cứ gì; chưa phủ `python`/`node`, `find -delete`, ghi
-tệp qua redirect, `cd / && rm -rf x` (đủ ở mục kế). Worktree dùng chung refs, config và hooks với repo gốc. Chỉ cho
+tệp qua redirect. Lệnh chạy ở thư mục ngoài workspace (sau `cd`/`pushd`, qua symlink, hay `cd` trong `sh -c`) bị từ chối;
+`env -C`, `make -C`, `go -C` và mã python/node tự `chdir` thì không chặn được. Agent đọc được mọi tệp của bạn và ra được
+mạng. Worktree dùng chung refs, config và hooks với repo gốc: routine so `.git` dùng chung trước và sau lượt, có đổi thì
+báo cáo ghi `git_dir_changed` và in cảnh báo. Các lệnh git do chính dew chạy tắt hook và fsmonitor của repo. Chỉ cho
 routine chạy trên repo và máy bạn tin.
 
 ## Cô lập provider, sổ ghi LLM, bằng chứng của loop/routine
-
-Hành vi có trong bản sau v0.2.0 (xem `CHANGELOG.md`, mục `[Unreleased]`).
 
 **Lời gọi ẩn ở lại provider của model chính.**
 

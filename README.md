@@ -38,15 +38,15 @@ với model local hoặc provider qua API key, mà vẫn biết việc nào đan
 4. Timer/crontab routine cài theo tên cũ: in lại bằng `dew routine schedule <tên> --print` rồi cài tay.
 
 Đổi remote bản clone cũ: [docs/dew-sync.md](docs/dew-sync.md) mục 3. Phần cố ý giữ tên cũ:
-[RENAME_PLAN.md](reports/documentation/RENAME_PLAN.md); chi tiết: [CHANGELOG.md](CHANGELOG.md) mục Unreleased.
+[RENAME_PLAN.md](reports/documentation/RENAME_PLAN.md); chi tiết: [CHANGELOG.md](CHANGELOG.md) mục 0.3.0.
 
 ## Nguồn gốc
 
 Fork cá nhân của [Crush](https://github.com/charmbracelet/crush), coding agent TUI viết bằng Go của Charm. Giấy phép giữ
 nguyên: FSL-1.1-MIT của Charmbracelet kèm thông báo MIT của Kujtim Hoxha ([LICENSE.md](LICENSE.md)); README gốc:
 [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md). Để gộp upstream rẻ, bên trong vẫn giữ chữ Crush: module Go
-`github.com/charmbracelet/crush`, `crush.json`, `.crush/`, biến `CRUSH_*` ([Khác upstream](#khác-upstream)). Đã phát hành
-tag `v0.1.0`, `v0.2.0`; `loop`/`routine` và các sửa lỗi V3 (gộp `main` 20/10) chưa có tag ([CHANGELOG](CHANGELOG.md)).
+`github.com/charmbracelet/crush`, `crush.json`, `.crush/`, biến `CRUSH_*` ([Khác upstream](#khác-upstream)). Mỗi bản phát hành có
+tag `vX.Y.Z` và một mục trong [CHANGELOG](CHANGELOG.md).
 
 ## Cài
 
@@ -237,6 +237,7 @@ dew routine run vet                                        # chạy tay một l�
 dew routine list                                           # lượt cuối: trạng thái, model, thời lượng, verify
 dew routine stats --since 24h                              # độ trễ/lỗi/token từng request LLM
 dew routine export tidy -o tidy.patch                      # patch của lượt cuối, kèm tệp mới
+dew routine rm tidy                                        # nhận xong: gỡ định nghĩa, worktree, nhánh (giữ báo cáo)
 ```
 
 - `loop`: chạy agent, chạy verify, sửa tiếp tới khi verify thoát 0 hoặc gặp điều kiện dừng (mặc định 2 lượt sửa); mỗi
