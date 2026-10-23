@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
@@ -345,7 +344,7 @@ func gitFingerprint(dir string) func(ctx context.Context) (string, error) {
 	// Cấu hình của repo có thể do agent vừa ghi: tắt fsmonitor, hook và chương trình diff ngoài
 	// (--no-ext-diff, --no-textconv). Clean filter do repo khai vẫn chạy (xem classifyWorktree).
 	git := func(ctx context.Context, args ...string) ([]byte, error) {
-		c := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
+		c := gitCmd(ctx, args...)
 		c.Dir = dir
 		return c.Output()
 	}

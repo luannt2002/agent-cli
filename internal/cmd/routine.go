@@ -3,11 +3,13 @@ package cmd
 import (
 	"cmp"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -22,6 +24,7 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	"github.com/charmbracelet/crush/internal/app"
 	"github.com/charmbracelet/crush/internal/config"
 	"github.com/charmbracelet/crush/internal/event"
 	"github.com/charmbracelet/crush/internal/execpolicy"
@@ -81,12 +84,15 @@ repository cannot add a scheduled job). Two modes:
   goal         work with a target, like a feature: runs by hand only
 
 Every run takes a lock (a second run exits 75), works in its OWN git worktree on a
-routine/* branch (your checkout is never touched), runs with the unattended command
-guard on (no push, merge, hard reset, recursive delete outside the worktree), and
-writes a report outside the worktree. It never commits unless the definition says
+routine/* branch, runs with the unattended command guard on (no push, merge, hard
+reset, recursive delete outside the worktree), and writes a report outside the
+worktree. The guard is a guard-rail, not a sandbox: the agent runs as you, so it can
+read your files, reach the network and change the repository's shared .git (config,
+hooks, tags, other branches); a run that changed the shared .git lists it in its
+report as git_dir_changed. dew itself never commits unless the definition says
 "commit": true, never pushes, never merges: reviewing and merging stay yours. Before
-each run, worktrees of older runs that are clean and have no commits are removed
-(the newest is kept; see "routine gc").
+each run, worktrees of finished runs that hold no work are removed (see "routine
+gc"); "routine rm" removes a routine you are done with.
 
 Scheduling is print-only: "routine schedule NAME --print" shows systemd user units
 or a crontab line for you to install. dew never edits your crontab or timers.`,
@@ -285,7 +291,8 @@ other routine that is still marked RUNNING but whose process is provably gone
 			event.SetNonInteractive(true)
 
 			deps := routineDeps{
-				Stderr: os.Stderr,
+				Stderr:    os.Stderr,
+				Preflight: routinePreflight,
 				NewAgent: func(worktree string) (func(context.Context, string) (loop.RunInfo, error), func(), func() string, error) {
 					if err := os.Chdir(worktree); err != nil {
 						return nil, nil, nil, fmt.Errorf("enter the worktree: %w", err)
@@ -312,22 +319,30 @@ other routine that is still marked RUNNING but whose process is provably gone
 
 	gcCmd := &cobra.Command{
 		Use:   "gc [NAME]",
-		Short: "Remove worktrees of finished runs that are clean and have no commits (keeps the newest)",
+		Short: "Remove worktrees of finished runs that are clean and have no commits",
 		Long: `Remove the worktree and branch of finished runs, for one routine or all of them.
 A worktree is kept (one "keep" line says why) when it has uncommitted or untracked
 changes, files hidden from git status (assume-unchanged or skip-worktree), commits not
 in its base (also on a detached HEAD), gitignored files outside .crush (unless
 --include-ignored; regenerable dirs such as node_modules, dist, build, target, .venv
-or __pycache__ do not count and are dropped), a session database written after the
+or __pycache__ do not count and are dropped, also when they are symlinks: removing
+the worktree only removes the link), a session database written after the
 run finished (someone opened it in dew), or a report whose worktree or branch is not
 the run's own. A branch whose deletion failed earlier is retried. A worktree holding
 files you cannot delete (owned by another user, like root after a build in Docker,
 or read-only directories, like a Go module cache) is kept; its keep line says whose
 they are and how to fix that.
-The newest run's worktree is always kept, and so are reports and journals. The run's
-session database (.crush/crush.db, -wal, -shm) and .crush/logs are moved next to its
-report first; if one cannot be moved the worktree stays and the report says why. A
-routine whose lock is held is skipped. "routine run" does the same for its own
+The latest run follows the same rules as the others. Reports and journals always
+stay. The run's session database (.crush/crush.db, -wal, -shm) and .crush/logs are
+moved next to its report first; if one cannot be moved the worktree stays and the
+report says why. A worktree removed outside dew leaves its branch: that branch is
+deleted when it is the run's own and has no commits beyond the run's base; that one
+worktree's entry in .git/worktrees is removed only while its HEAD is still the run's
+branch (a detached HEAD there may hold commits). A worktree you locked with "git
+worktree lock" is kept, gone or not. Every kept worktree or branch gets a "keep"
+line and is counted in the summary; --dry-run shows the same decisions. A routine
+whose lock is held is skipped; --dry-run takes no lock, changes nothing, and never
+lists a run that may still be running. "routine run" does the same for its own
 routine before every run, always keeping worktrees with gitignored files and not
 retrying a run whose earlier cleanup failed.`,
 		Args: cobra.MaximumNArgs(1),
@@ -721,6 +736,43 @@ func defaultLargeModel(repo string) (string, error) {
 	return routineModel(store.Config().Models[config.SelectedModelTypeLarge], config.SelectedModel{}, ""), nil
 }
 
+// routinePreflight kiểm, TRƯỚC khi tạo worktree và nhánh, rằng lượt dựng được agent: model large của
+// lượt (want ghim, hoặc mặc định) có ở một provider đã cấu hình, và api_key của provider đó, khi cấu
+// hình có khai, không phân giải ra rỗng. Đo 22/10: 9 lượt hỏng ngay lượt agent đầu (`large model ...
+// not found`, `No api key passed in`), mỗi lượt để lại một worktree và một nhánh. Nạp cấu hình như lượt
+// sẽ nạp trong worktree: data dir là .crush của worktree sắp tạo (chưa có), không đọc .crush của
+// checkout. Không bao giờ in giá trị key.
+// shortcut: provider không khai api_key là provider không cần key (model local; crushrc mặc định cho
+// key rỗng); gateway cần key mà nhận key rỗng vẫn chỉ lộ ra ở lượt agent đầu (RUN_ERROR, HTTP 401).
+// Nâng cấp khi provider khai được "cần key", hoặc gọi thử /models trước khi tạo worktree.
+// shortcut: đọc crush.json của checkout, không phải bản đã commit mà worktree sẽ có.
+func routinePreflight(repo, worktree, want string) error {
+	store, err := config.InitProject(config.ProjectRoot(repo), repo, filepath.Join(worktree, ".crush"), false)
+	if err != nil {
+		return fmt.Errorf("load the config: %w", err)
+	}
+	cfg := store.Config()
+	if !cfg.IsConfigured() {
+		return errors.New("no providers configured - please run 'dew' to set up a provider interactively")
+	}
+	cur := cfg.Models[config.SelectedModelTypeLarge]
+	provider, model := cur.Provider, cur.Model
+	// Như newLocalLoopAgent: chuỗi ghim trùng model mặc định thì lượt chạy chính mặc định.
+	if want != "" && want != routineModel(cur, config.SelectedModel{}, "") {
+		if provider, model, err = app.FindLargeModel(cfg.Providers.Copy(), want); err != nil {
+			return err
+		}
+	}
+	pc, ok := cfg.Providers.Get(provider)
+	if !ok || pc.Disable || !cfg.IsModelAvailable(provider, model) {
+		return fmt.Errorf("large model %s/%s is not available: provider %q is not configured (missing api_key or base_url?) or has no such model", provider, model, provider)
+	}
+	if pc.APIKey != "" && pc.OAuthToken == nil && !pc.HasAPIKey(store.Resolver()) {
+		return fmt.Errorf("provider %q: its api_key in the config resolves to an empty value (is the variable it names set where the routine runs?)", provider)
+	}
+	return nil
+}
+
 // warnUnpinnedModel: không phân giải được model mặc định lúc tạo thì định nghĩa không ghim
 // model, và mỗi lượt chạy model mặc định LÚC CHẠY (20/10: 7 lượt chết vì hạn mức của model
 // mặc định mà người dùng tưởng là model khác). now là lý do không phân giải được.
@@ -833,6 +885,9 @@ type routineDeps struct {
 	MemAvailableKB func() (uint64, error)
 	// RunAlive kiểm lượt của routine khác còn sống (closeGhostRuns); nil là routine.RunAlive.
 	RunAlive func(pid int, name string) bool
+	// Preflight kiểm model/provider/key trước khi tạo worktree (routinePreflight); nil là không kiểm
+	// (test với agent giả). `routine run` luôn đặt nó.
+	Preflight func(repo, worktree, model string) error
 }
 
 // routineReport là báo cáo một lượt chạy, ghi NGOÀI worktree (xoá worktree không
@@ -864,6 +919,9 @@ type routineReport struct {
 	WorktreeRemoved time.Time `json:"worktree_removed,omitzero"`
 	SessionDB       string    `json:"session_db,omitempty"`
 	SessionLogs     string    `json:"session_logs,omitempty"` // .crush/logs của lượt, chuyển cùng crush.db
+	// WorktreeGone: thư mục worktree đã bị gỡ từ bên ngoài (không phải dew) và bộ dọn đã xử lý nhánh
+	// của lượt (xoá vì không có commit ngoài base, hoặc nhánh cũng không còn): lần dọn sau bỏ qua.
+	WorktreeGone time.Time `json:"worktree_gone,omitzero"`
 	// Model là provider/model large mà lượt dùng (đã phân giải), không phải trường "model"
 	// của định nghĩa: không ghim model thì là mặc định toàn cục lúc chạy.
 	Model string `json:"model,omitempty"`
@@ -879,6 +937,9 @@ type routineReport struct {
 	ChangedFiles []string `json:"changed_files,omitempty"`
 	TouchedTests bool     `json:"touched_tests,omitempty"`
 	TouchedGate  bool     `json:"touched_gate,omitempty"`
+	// GitDirChanged: phần .git dùng chung mà lượt đã đổi (gitDirSnapshot: config, HEAD, hooks/*,
+	// info/*, ref trừ nhánh của chính lượt và refs/remotes/*), thứ changed_files và export không thấy.
+	GitDirChanged []string `json:"git_dir_changed,omitempty"`
 }
 
 // testPath nhận đường dẫn test theo quy ước phổ biến (Go, JS/TS, Python, thư mục test).
@@ -973,6 +1034,12 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	if st.Removed > 0 {
 		fmt.Fprintf(stderr, "[routine] %s: removed %d old worktree(s) that held no work\n", def.Name, st.Removed)
 	}
+	if st.Branches > 0 {
+		fmt.Fprintf(stderr, "[routine] %s: deleted %d branch(es) whose worktree was removed outside dew\n", def.Name, st.Branches)
+	}
+	if st.Kept > 0 { // không giữ im lặng (Q4); lý do từng cái ở `routine gc --dry-run`
+		fmt.Fprintf(stderr, "[routine] %s: kept %d old worktree(s) or branch(es) that may hold work; see why with: dew routine gc %s --dry-run\n", def.Name, st.Kept, def.Name)
+	}
 	if gcErr != nil {
 		fmt.Fprintf(stderr, "[routine] %s: warning: cleaning old runs: %v\n", def.Name, gcErr)
 	}
@@ -990,7 +1057,7 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	defer releaseSlot()
 
 	git := func(args ...string) (string, error) {
-		c := exec.CommandContext(ctx, "git", append([]string{"-C", def.Repo}, args...)...)
+		c := gitCmd(ctx, append([]string{"-C", def.Repo}, args...)...)
 		out, err := c.CombinedOutput()
 		return strings.TrimSpace(string(out)), err
 	}
@@ -1037,6 +1104,13 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	if err := writeReport(runDir, running); err != nil {
 		return fail(err)
 	}
+	// Lỗi cấu hình (model, key) là lỗi dựng lượt như khi dựng agent hỏng: ERROR, và kiểm trước
+	// khi có worktree/nhánh nào để dọn.
+	if d.Preflight != nil {
+		if err := d.Preflight(def.Repo, worktree, def.Model); err != nil {
+			return fail(fmt.Errorf("before creating the worktree: %w", err))
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(worktree), 0o700); err != nil {
 		return fail(err)
 	}
@@ -1067,6 +1141,10 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 		source = "the default at run time; pin one with \"model\" in the definition"
 	}
 	fmt.Fprintf(stderr, "[routine] %s: model %s (%s)\n", def.Name, running.Model, source)
+
+	// .git dùng chung mà agent đổi được từ worktree (config, hook, tag, nhánh khác): chụp ngay trước
+	// lượt agent đầu, so lại ngay sau khi loop xong.
+	gitDirBefore, gitDirErr := gitDirSnapshot(ctx, def.Repo, branch)
 
 	// Engine chỉ giữ chuỗi lỗi của lượt agent; giữ lại lỗi gốc để đọc mã HTTP của provider.
 	var agentErr error
@@ -1113,6 +1191,19 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	// ctx đã huỷ (CANCELLED) vẫn phải liệt kê được việc agent đã làm.
 	gitCtx, gitCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer gitCancel()
+	if gitDirErr == nil {
+		var after map[string]string
+		if after, gitDirErr = gitDirSnapshot(gitCtx, def.Repo, branch); gitDirErr == nil {
+			rep.GitDirChanged = changedKeys(gitDirBefore, after)
+		}
+	}
+	switch {
+	case gitDirErr != nil:
+		fmt.Fprintf(stderr, "[routine] %s: warning: cannot check the repository's shared .git for changes: %v\n", def.Name, gitDirErr)
+	case len(rep.GitDirChanged) > 0:
+		fmt.Fprintf(stderr, "[routine] %s: warning: the run changed the repository's shared .git outside its worktree: %s; this never shows in changed_files or routine export, so check it yourself\n",
+			def.Name, strings.Join(rep.GitDirChanged, ", "))
+	}
 	markChanges(&rep, changedFiles(gitCtx, worktree, base, branch), def.Verify)
 	if rep.Reason == string(loop.StopGreen) && (rep.TouchedTests || rep.TouchedGate) {
 		fmt.Fprintf(stderr, "[routine] %s: warning: GREEN, but the run changed test files or files the verify command uses; review them before trusting it\n", def.Name)
@@ -1124,9 +1215,118 @@ func executeRoutine(ctx context.Context, o routineOpts, d routineDeps) (routineO
 	if loopErr != nil {
 		return out, loopErr
 	}
-	fmt.Fprintf(stderr, "[routine] %s: %s. Review: git -C %s diff %s..%s\n[routine] clean up when done: git -C %s worktree remove %s && git -C %s branch -D %s\n",
-		def.Name, rep.Reason, def.Repo, shortSHA(base), branch, def.Repo, worktree, def.Repo, branch)
+	gitDirNote := ""
+	if len(rep.GitDirChanged) > 0 {
+		gitDirNote = " The shared .git changed too (git_dir_changed): " + strings.Join(rep.GitDirChanged, ", ") + "."
+	}
+	fmt.Fprintf(stderr, "[routine] %s: %s.%s Review: git -C %s diff %s..%s\n[routine] clean up when done: git -C %s worktree remove %s && git -C %s branch -D %s\n",
+		def.Name, rep.Reason, gitDirNote, def.Repo, shortSHA(base), branch, def.Repo, worktree, def.Repo, branch)
 	return out, nil
+}
+
+// Trần của gitDirSnapshot: agent đổi được hooks/ thành symlink trỏ vào $HOME, và lượt chụp chạy lúc
+// đang giữ khoá và slot của routine.
+const (
+	gitDirWalkMax = 1000    // mục tối đa mỗi cây hooks/, info/; quá thì cây chỉ còn một dấu "<cây>/"
+	gitDirFileMax = 1 << 20 // byte tối đa đọc từ mỗi tệp để băm (kèm kích thước tệp)
+)
+
+// errGitDirTooLarge dừng việc đi một cây quá gitDirWalkMax mục.
+var errGitDirTooLarge = errors.New("too large")
+
+// gitDirSnapshot là dấu vết của phần .git dùng chung mà agent đổi được từ worktree của nó và không
+// bao giờ hiện trong changed_files hay export: config, HEAD (nhánh đang checkout ở checkout chính),
+// hooks/* (hooks là symlink thì các tệp nó trỏ tới), info/* trừ info/refs (gc --auto ghi lại) (chế độ +
+// băm nội dung), và mọi ref (tên → SHA, cả tag) trừ nhánh của chính lượt và refs/remotes/* (IDE tự
+// fetch; lớp chặn đã cấm fetch). Nhánh routine/* của lượt khác so theo changedKeys.
+// shortcut: người dùng tự commit hay đổi nhánh ở checkout của mình trong lúc lượt chạy cũng hiện ở đây;
+// danh sách nêu đúng tên để người duyệt tự phân biệt. Hook ở core.hooksPath ngoài .git và
+// config.worktree không được chụp; nâng cấp khi có repo dùng chúng.
+// shortcut: cây đã quá trần ở cả hai lần chụp thì đổi bên trong không thấy (chỉ thấy lúc vượt trần);
+// tệp lớn hơn gitDirFileMax đổi phần đuôi mà giữ kích thước thì không thấy.
+func gitDirSnapshot(ctx context.Context, repo, ownBranch string) (map[string]string, error) {
+	common, err := runGit(ctx, repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return nil, err
+	}
+	snap := map[string]string{}
+	add := func(into map[string]string, name, p string) {
+		switch fi, err := os.Lstat(p); {
+		case err != nil || name == "info/refs":
+		case fi.Mode()&fs.ModeSymlink != 0:
+			target, _ := os.Readlink(p)
+			into[name] = "link:" + target
+		case fi.Mode().IsRegular():
+			h := sha256.New()
+			if f, err := os.Open(p); err == nil {
+				_, _ = io.Copy(h, io.LimitReader(f, gitDirFileMax))
+				f.Close()
+			}
+			into[name] = fmt.Sprintf("%o:%d:%x", fi.Mode().Perm(), fi.Size(), h.Sum(nil))
+		}
+	}
+	add(snap, "config", filepath.Join(common, "config"))
+	add(snap, "HEAD", filepath.Join(common, "HEAD"))
+	for _, d := range []string{"hooks", "info"} {
+		root := filepath.Join(common, d)
+		if r, err := filepath.EvalSymlinks(root); err == nil { // thư mục là symlink: đi vào nơi nó trỏ
+			root = r
+		}
+		tree, n := map[string]string{}, 0
+		werr := filepath.WalkDir(root, func(p string, e fs.DirEntry, err error) error {
+			if cerr := ctx.Err(); cerr != nil {
+				return cerr
+			}
+			if n++; n > gitDirWalkMax {
+				return errGitDirTooLarge
+			}
+			if rel, rerr := filepath.Rel(root, p); err == nil && rerr == nil && !e.IsDir() {
+				add(tree, d+"/"+filepath.ToSlash(rel), p)
+			}
+			return nil
+		})
+		switch {
+		case errors.Is(werr, errGitDirTooLarge): // đổi từ bình thường sang quá lớn vẫn hiện ra
+			snap[d+"/"] = fmt.Sprintf("too large: more than %d entries", gitDirWalkMax)
+		case werr != nil:
+			return nil, werr
+		default:
+			maps.Copy(snap, tree)
+		}
+	}
+	refs, err := runGit(ctx, repo, "for-each-ref", "--format=%(objectname) %(refname)")
+	if err != nil {
+		return nil, err
+	}
+	for line := range strings.Lines(refs) {
+		sha, ref, _ := strings.Cut(strings.TrimSpace(line), " ")
+		if ref != "" && ref != "refs/heads/"+ownBranch && !strings.HasPrefix(ref, "refs/remotes/") {
+			snap[ref] = sha
+		}
+	}
+	return snap, nil
+}
+
+// changedKeys là các khoá thêm, mất hoặc đổi giá trị giữa hai lần chụp, đã sắp xếp. Nhánh routine/*
+// (của lượt khác) chỉ tính khi bị viết lại, tức có ở cả hai lần mà SHA khác: lượt khác bắt đầu (tạo
+// nhánh) hay bị dọn (xoá nhánh) cùng lúc trên cùng repo là chuyện thường.
+// shortcut: một routine "commit": true chạy cùng lúc trên cùng repo commit lên nhánh của nó, nên cũng
+// hiện ở đây; nâng cấp bằng cách bỏ nhánh của các lượt đang sống (RunAlive) khi có người dùng commit.
+func changedKeys(before, after map[string]string) []string {
+	var out []string
+	for k, v := range before {
+		w, ok := after[k]
+		if ok && w != v || !ok && !strings.HasPrefix(k, "refs/heads/routine/") {
+			out = append(out, k)
+		}
+	}
+	for k := range after {
+		if _, ok := before[k]; !ok && !strings.HasPrefix(k, "refs/heads/routine/") {
+			out = append(out, k)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // readReport đọc report.json của một thư mục lượt.
@@ -1220,17 +1420,18 @@ type gcOpts struct {
 
 // gcStats đếm một lượt dọn.
 type gcStats struct {
-	Removed int   // worktree đã gỡ (hoặc sẽ gỡ, khi chạy thử)
-	Kept    int   // giữ vì còn việc, đang dùng hoặc dọn hỏng (mỗi cái một dòng "keep")
-	Freed   int64 // byte
+	Removed  int   // worktree đã gỡ (hoặc sẽ gỡ, khi chạy thử)
+	Kept     int   // giữ vì còn việc, đang dùng hoặc dọn hỏng (mỗi cái một dòng "keep" hay "skip")
+	Branches int   // nhánh đã xoá (hoặc sẽ xoá) của worktree đã bị gỡ từ bên ngoài
+	Freed    int64 // byte
 }
 
-// gcRoutine dọn các lượt cũ của một routine. Người gọi PHẢI giữ khoá của routine: khi
-// đó báo cáo còn RUNNING là của lượt đã chết (trừ khi pid của nó vẫn là `routine run`
-// cùng tên: flock không có tác dụng trên NFS/sshfs), nên được ghi lại thành ABANDONED.
-// Worktree+nhánh của một lượt đã xong chỉ bị gỡ khi keepReason rỗng; worktree của lượt
-// mới nhất còn worktree luôn được giữ để xem lại. Báo cáo và journal luôn còn. w nhận
-// một dòng cho mỗi worktree gỡ hoặc giữ.
+// gcRoutine dọn các lượt cũ của một routine. Người gọi PHẢI giữ khoá của routine, trừ khi
+// chạy thử: khi đó báo cáo còn RUNNING là của lượt đã chết (trừ khi pid của nó vẫn là
+// `routine run` cùng tên: flock không có tác dụng trên NFS/sshfs), nên được ghi lại thành
+// ABANDONED. Worktree+nhánh của một lượt đã xong, kể cả lượt mới nhất (Q4), chỉ bị gỡ khi
+// keepReason rỗng; worktree đã bị gỡ từ bên ngoài thì chỉ xét nhánh (gcGoneWorktree). Báo cáo
+// và journal luôn còn. w nhận một dòng cho mỗi worktree gỡ hoặc giữ: không giữ im lặng.
 func gcRoutine(ctx context.Context, dataDir, name string, o gcOpts, w io.Writer) (gcStats, error) {
 	var st gcStats
 	var errs []error
@@ -1240,7 +1441,6 @@ func gcRoutine(ctx context.Context, dataDir, name string, o gcOpts, w io.Writer)
 	}
 	dirs, _ := filepath.Glob(filepath.Join(dataDir, name, "runs", "*"))
 	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
-	keptNewest := false
 	for _, dir := range dirs {
 		rep, err := readReport(dir)
 		if err != nil {
@@ -1249,7 +1449,15 @@ func gcRoutine(ctx context.Context, dataDir, name string, o gcOpts, w io.Writer)
 		if rep.Reason == "RUNNING" {
 			// pid của chính tiến trình này là PID tái dùng: báo cáo của lượt này chưa ghi.
 			if rep.PID != os.Getpid() && routine.RunAlive(rep.PID, name) {
+				st.Kept++
 				fmt.Fprintf(w, "skip %s: its run is still alive (pid %d)\n", dir, rep.PID)
+				continue
+			}
+			// Chạy thử không giữ khoá: chỉ pid chắc chắn đã chết mới là lượt bỏ dở (Q1); không pid
+			// hay không kiểm được (Windows) thì có thể đang chạy.
+			if o.DryRun && (rep.PID <= 0 || runtime.GOOS == "windows") {
+				st.Kept++
+				fmt.Fprintf(w, "skip %s: its report says RUNNING and a dry run (no lock) cannot tell whether that run is alive\n", dir)
 				continue
 			}
 			rep = abandonRun(dir, rep)
@@ -1271,14 +1479,20 @@ func gcRoutine(ctx context.Context, dataDir, name string, o gcOpts, w io.Writer)
 			errs = append(errs, writeReport(dir, rep))
 			continue
 		}
-		if rep.Worktree == "" || !rep.WorktreeRemoved.IsZero() || (rep.GCError != "" && !o.Manual) {
+		if rep.Worktree == "" || !rep.WorktreeRemoved.IsZero() || !rep.WorktreeGone.IsZero() {
 			continue
 		}
-		if _, err := os.Stat(rep.Worktree); err != nil {
+		if rep.GCError != "" && !o.Manual {
+			st.Kept++
+			fmt.Fprintf(w, "keep %s: an earlier cleanup failed (%s); `dew routine gc` retries it\n", rep.Worktree, rep.GCError)
 			continue
 		}
-		if !keptNewest {
-			keptNewest = true
+		if _, err := os.Lstat(rep.Worktree); errors.Is(err, fs.ErrNotExist) {
+			errs = append(errs, gcGoneWorktree(ctx, dataDir, name, dir, rep, o, w, &st))
+			continue
+		} else if _, err := os.Stat(rep.Worktree); err != nil {
+			st.Kept++
+			fmt.Fprintf(w, "keep %s: %v\n", rep.Worktree, err)
 			continue
 		}
 		why, regen := keepReason(ctx, dataDir, name, dir, rep, o)
@@ -1297,7 +1511,7 @@ func gcRoutine(ctx context.Context, dataDir, name string, o gcOpts, w io.Writer)
 			detail += fmt.Sprintf(", drops %d regenerable ignored path(s)", regen)
 		}
 		if !o.DryRun {
-			err := removeRunWorktree(ctx, dir, &rep)
+			err := removeRunWorktree(ctx, dir, &rep, false)
 			rep.GCError = ""
 			if err != nil {
 				rep.GCError = err.Error()
@@ -1334,6 +1548,15 @@ func regenerable(p string) bool {
 	return strings.HasSuffix(p, "/") && regenerableDirs[path.Base(strings.TrimSuffix(p, "/"))]
 }
 
+// regenerableLink: mục bị ignore là một SYMLINK mà tên cuối thuộc regenerableDirs, vd backend/node_modules
+// do bộ điều phối ngoài link vào (đo 22/10: cả 110 node_modules trong worktree thật; git liệt kê chúng
+// không có "/"). `git worktree remove` chỉ gỡ link, không đi vào đích. Symlink mang tên khác (.env) vẫn
+// là việc.
+func regenerableLink(p string) bool {
+	fi, err := os.Lstat(p)
+	return err == nil && fi.Mode()&fs.ModeSymlink != 0 && regenerableDirs[filepath.Base(p)]
+}
+
 const errRunPaths = "the report's worktree or branch is not where this run puts them"
 
 // runPathsMatch: worktree và nhánh trong báo cáo đúng là chỗ lượt stamp của routine name đặt
@@ -1349,6 +1572,10 @@ func keepReason(ctx context.Context, dataDir, name, dir string, rep routineRepor
 	// worktree và nhánh mà lượt này tạo ra.
 	if !runPathsMatch(dataDir, name, filepath.Base(dir), rep) {
 		return errRunPaths, 0
+	}
+	// Người dùng khoá worktree (`git worktree lock`) là cố ý giữ: `worktree remove` cũng từ chối.
+	if e, err := findWorktreeEntry(ctx, rep.Repo, rep.Worktree, rep.Branch); err == nil && e.Locked {
+		return fmt.Sprintf("its worktree entry %s is locked (worktree locked)", e.Admin), 0
 	}
 	// Lượt đóng crush.db trước khi chốt finished: ghi sau mốc đó là người đã mở worktree bằng dew.
 	// shortcut: lượt của bản cũ đóng DB SAU finished (đo: +6 ms), nên cho một phút; người mở lại
@@ -1400,9 +1627,10 @@ func keepReason(ctx context.Context, dataDir, name, dir string, rep routineRepor
 // removeRunWorktree chuyển dữ liệu dew của lượt (crush.db, -wal, -shm, logs; .crush/.gitignore
 // che chúng nên cây vẫn "sạch") ra cạnh report.json, rồi gỡ worktree và nhánh. Mỗi mục
 // chuyển riêng, không ghi đè; một mục không chuyển được thì KHÔNG gỡ worktree (mục đó chỉ
-// còn ở đó). Không ghi báo cáo: người gọi ghi.
+// còn ở đó). discard (`routine rm --discard`): gỡ cả worktree còn việc và nhánh có commit.
+// Không ghi báo cáo: người gọi ghi.
 // shortcut: chỉ tìm ở .crush (data_directory mặc định); nâng cấp khi có người đổi nó.
-func removeRunWorktree(ctx context.Context, dir string, rep *routineReport) error {
+func removeRunWorktree(ctx context.Context, dir string, rep *routineReport, discard bool) error {
 	var errs []error
 	for _, n := range []string{"crush.db", "crush.db-wal", "crush.db-shm", "logs"} {
 		src, dst := filepath.Join(rep.Worktree, ".crush", n), filepath.Join(dir, n)
@@ -1428,32 +1656,196 @@ func removeRunWorktree(ctx context.Context, dir string, rep *routineReport) erro
 		return err
 	}
 	// Lớp kiểm của chính git (không --force) cũng không được để cấu hình giấu tệp mới.
-	if _, err := runGit(ctx, rep.Repo, "-c", "status.showUntrackedFiles=all", "worktree", "remove", rep.Worktree); err != nil {
+	args := []string{"-c", "status.showUntrackedFiles=all", "worktree", "remove", rep.Worktree}
+	if discard {
+		args = append(args, "--force")
+	}
+	if _, err := runGit(ctx, rep.Repo, args...); err != nil {
 		return err
 	}
 	rep.WorktreeRemoved = time.Now()
+	if discard {
+		return discardRunBranch(ctx, *rep)
+	}
 	return deleteRunBranch(ctx, *rep)
 }
 
-// deleteRunBranch xoá nhánh của lượt nếu nó còn và không có commit ngoài base (đếm lại:
-// lần thử lại có thể sau khi ai đó đã commit lên nhánh).
-func deleteRunBranch(ctx context.Context, rep routineReport) error {
+// discardRunBranch xoá nhánh của lượt kể cả khi nó có commit ngoài base (`routine rm --discard`).
+func discardRunBranch(ctx context.Context, rep routineReport) error {
 	ref := "refs/heads/" + rep.Branch
 	if out, err := runGit(ctx, rep.Repo, "for-each-ref", "--format=%(refname)", ref); err != nil || out == "" {
-		return err // không còn nhánh, hoặc không đọc được
-	}
-	if n, err := runGit(ctx, rep.Repo, "rev-list", "--count", ref, "^"+rep.BaseSHA); err != nil {
 		return err
-	} else if n != "0" {
-		return fmt.Errorf("branch %s has %s commit(s) not in base %s; not deleted", rep.Branch, n, shortSHA(rep.BaseSHA))
 	}
 	_, err := runGit(ctx, rep.Repo, "branch", "-D", rep.Branch)
 	return err
 }
 
-// runGit chạy git -C dir (không chạy fsmonitor do repo cấu hình) và trả stdout đã cắt khoảng trắng.
+// deleteRunBranch xoá nhánh của lượt nếu nó còn và không có commit ngoài base (đếm lại:
+// lần thử lại có thể sau khi ai đó đã commit lên nhánh).
+func deleteRunBranch(ctx context.Context, rep routineReport) error {
+	exists, n, err := runBranchCommits(ctx, rep)
+	switch {
+	case err != nil || !exists:
+		return err // không còn nhánh, hoặc không đọc được
+	case n != "0":
+		return fmt.Errorf("branch %s has %s commit(s) not in base %s; not deleted", rep.Branch, n, shortSHA(rep.BaseSHA))
+	}
+	_, err = runGit(ctx, rep.Repo, "branch", "-D", rep.Branch)
+	return err
+}
+
+// runBranchCommits: nhánh của lượt còn không, và số commit trên nó ngoài base. base_sha không phải
+// SHA (report.json sửa được; "^HEAD" vẫn là một rev hợp lệ) thì không đếm: lỗi, không bao giờ "0".
+func runBranchCommits(ctx context.Context, rep routineReport) (bool, string, error) {
+	ref := "refs/heads/" + rep.Branch
+	if out, err := runGit(ctx, rep.Repo, "for-each-ref", "--format=%(refname)", ref); err != nil || out == "" {
+		return false, "", err
+	}
+	if !commitSHA.MatchString(rep.BaseSHA) {
+		return true, "", errors.New("the report's base_sha is not a commit SHA")
+	}
+	n, err := runGit(ctx, rep.Repo, "rev-list", "--count", ref, "^"+rep.BaseSHA)
+	return true, n, err
+}
+
+// gcGoneWorktree xử lý một lượt có thư mục worktree đã bị gỡ từ bên ngoài (Q4; đo 22/10: 95 lượt
+// GREEN ở dạng này): chỉ còn nhánh có thể mang việc. Xoá nhánh khi đúng là nhánh của lượt, base_sha
+// là SHA, nhánh không có commit ngoài base và worktree không bị khoá; mục quản trị của worktree đó chỉ
+// gỡ khi nó còn đứng trên nhánh (dropGoneWorktreeEntry). Chạy thử xét đúng các điều kiện đó, chỉ không
+// làm. Xong thì ghi worktree_gone để lần dọn sau bỏ qua; lỗi ghi gc_error như khi gỡ worktree hỏng.
+// Giữ thì in một dòng "keep branch".
+func gcGoneWorktree(ctx context.Context, dataDir, name, dir string, rep routineReport, o gcOpts, w io.Writer, st *gcStats) error {
+	keep := func(why string) {
+		st.Kept++
+		fmt.Fprintf(w, "keep branch %s: its worktree %s is gone, but %s\n", rep.Branch, rep.Worktree, why)
+	}
+	switch {
+	case !runPathsMatch(dataDir, name, filepath.Base(dir), rep):
+		keep(errRunPaths)
+		return nil
+	case !commitSHA.MatchString(rep.BaseSHA):
+		keep("the report's base_sha is not a commit SHA")
+		return nil
+	}
+	var e worktreeEntry
+	exists, n, err := runBranchCommits(ctx, rep)
+	if err == nil && exists {
+		e, err = findWorktreeEntry(ctx, rep.Repo, rep.Worktree, rep.Branch)
+	}
+	note := entryStaysNote(e)
+	switch {
+	case err == nil && exists && n != "0":
+		keep(fmt.Sprintf("it has %s commit(s) not in base %s", n, shortSHA(rep.BaseSHA)))
+		return nil
+	case err == nil && e.Locked: // người dùng cố ý giữ (`git worktree lock`): không phải lỗi
+		keep(fmt.Sprintf("its worktree entry %s is locked (worktree locked)", e.Admin))
+		return nil
+	case err == nil && exists && o.DryRun:
+		st.Branches++
+		fmt.Fprintf(w, "would delete branch %s (its worktree %s is already gone)%s\n", rep.Branch, rep.Worktree, note)
+		return nil
+	case err == nil && exists:
+		if err = dropGoneWorktreeEntry(rep.Worktree, e); err == nil {
+			_, err = runGit(ctx, rep.Repo, "branch", "-D", rep.Branch)
+		}
+	}
+	if o.DryRun {
+		if err != nil {
+			keep(err.Error())
+		}
+		return nil
+	}
+	if err != nil {
+		keep(err.Error())
+		rep.GCError = err.Error()
+		return errors.Join(fmt.Errorf("branch %s: %w", rep.Branch, err), writeReport(dir, rep))
+	}
+	if exists {
+		st.Branches++
+		fmt.Fprintf(w, "deleted branch %s (its worktree %s was removed outside dew)%s\n", rep.Branch, rep.Worktree, note)
+	}
+	rep.GCError, rep.WorktreeGone = "", time.Now()
+	return writeReport(dir, rep)
+}
+
+// entryStaysNote là ghi chú khi mục quản trị của worktree đã mất được để lại vì HEAD của nó không phải
+// nhánh của lượt (dropGoneWorktreeEntry): gc và rm in cùng câu, không để lại im lặng.
+func entryStaysNote(e worktreeEntry) string {
+	if e.Admin == "" || e.OnBranch {
+		return ""
+	}
+	return fmt.Sprintf("; its worktree entry %s stays: its HEAD is not the run's branch (it may hold commits)", e.Admin)
+}
+
+// worktreeEntry là mục quản trị (<common dir>/worktrees/<id>) của một worktree.
+type worktreeEntry struct {
+	Admin    string // "" khi không có mục nào trỏ vào worktree (git đã prune)
+	Locked   bool   // `git worktree lock`: người dùng cố ý giữ (vd worktree trên ổ chưa gắn)
+	OnBranch bool   // HEAD của mục đúng là `ref: refs/heads/<nhánh của lượt>`
+}
+
+// findWorktreeEntry tìm mục quản trị có tệp gitdir trỏ vào wt/.git, và đọc khoá cùng HEAD của nó. Chỉ đọc.
+func findWorktreeEntry(ctx context.Context, repo, wt, branch string) (worktreeEntry, error) {
+	common, err := runGit(ctx, repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return worktreeEntry{}, err
+	}
+	want := []string{filepath.Join(wt, ".git")}
+	if parent, err := filepath.EvalSymlinks(filepath.Dir(wt)); err == nil {
+		want = append(want, filepath.Join(parent, filepath.Base(wt), ".git"))
+	}
+	entries, _ := filepath.Glob(filepath.Join(common, "worktrees", "*"))
+	for _, admin := range entries {
+		raw, err := os.ReadFile(filepath.Join(admin, "gitdir"))
+		if err != nil {
+			continue
+		}
+		p := strings.TrimSpace(string(raw))
+		if !filepath.IsAbs(p) { // worktree.useRelativePaths: tính từ chính thư mục quản trị
+			p = filepath.Join(admin, p)
+		}
+		if !slices.Contains(want, filepath.Clean(p)) {
+			continue
+		}
+		_, lerr := os.Lstat(filepath.Join(admin, "locked"))
+		head, _ := os.ReadFile(filepath.Join(admin, "HEAD"))
+		return worktreeEntry{Admin: admin, Locked: !errors.Is(lerr, fs.ErrNotExist),
+			OnBranch: strings.TrimSpace(string(head)) == "ref: refs/heads/"+branch}, nil
+	}
+	return worktreeEntry{}, nil
+}
+
+// dropGoneWorktreeEntry gỡ mục quản trị của worktree wt đã mất, để git cho xoá nhánh mà mục đó còn
+// checkout. Chỉ gỡ khi HEAD của mục đúng là nhánh của lượt: HEAD và logs/HEAD của mục là gốc với tới
+// (reachability) của git, nên HEAD tách rời (người duyệt checkout --detach rồi commit) hay nhánh khác
+// có thể là thứ duy nhất còn giữ commit; khi đó để nguyên mục, và git không chặn xoá nhánh vì mục
+// không đứng trên nó. Không bao giờ gỡ mục bị khoá, không bao giờ `git worktree prune` cả repo.
+func dropGoneWorktreeEntry(wt string, e worktreeEntry) error {
+	if e.Admin == "" || !e.OnBranch {
+		return nil
+	}
+	if _, err := os.Lstat(wt); !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%s still exists", wt)
+	}
+	if _, err := os.Lstat(filepath.Join(e.Admin, "locked")); !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("its worktree entry %s is locked (worktree locked)", e.Admin)
+	}
+	return os.RemoveAll(e.Admin)
+}
+
+// gitCmd là lệnh git DUY NHẤT mà dew tự chạy trong internal/cmd. Repo và cấu hình của nó do agent
+// ghi được (lớp chặn không phải sandbox), nên không chạy hook do repo khai (post-checkout của
+// `worktree add`, reference-transaction của `branch -D`: theo A, hook agent cài chạy ở lượt sau) hay
+// fsmonitor, và không lấy khoá tuỳ chọn (lượt có thể đang chạy git trong cây đó). Người gọi thêm cờ
+// riêng (-C, status.showUntrackedFiles=all), env và cách xử lý lỗi của mình.
+// TestGitIsOnlyRunThroughGitCmd hỏng khi có chỗ chạy git ngoài hàm này.
+func gitCmd(ctx context.Context, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
+}
+
+// runGit chạy git -C dir (gitCmd) và trả stdout đã cắt khoảng trắng.
 func runGit(ctx context.Context, dir string, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", append([]string{"-C", dir, "-c", "core.fsmonitor=false"}, args...)...).CombinedOutput()
+	out, err := gitCmd(ctx, append([]string{"-C", dir}, args...)...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
 	}
@@ -1488,29 +1880,41 @@ func routineGCStats(ctx context.Context, dataDir string, names []string, o gcOpt
 			errs = append(errs, fmt.Errorf("routine %q has no runs in %s", name, dataDir))
 			continue
 		}
-		release, err := lock.TryFile(routineLockPath(dataDir, name))
-		if errors.Is(err, lock.ErrContended) {
-			skipped++
-			fmt.Fprintf(w, "skip %s: a run holds its lock\n", name)
-			continue
-		}
-		if err != nil {
-			errs = append(errs, err)
-			continue
+		// Chạy thử không ghi gì nên không lấy khoá: giữ khoá thì một lượt bắt đầu đúng lúc đó nhận
+		// lock_held, loại không được chạy lại (Q5), và mất im lặng. Không có khoá, gcRoutine không
+		// coi một báo cáo RUNNING là lượt đã chết khi chưa chứng minh được.
+		release := func() {}
+		if !dryRun {
+			r, err := lock.TryFile(routineLockPath(dataDir, name))
+			if errors.Is(err, lock.ErrContended) {
+				skipped++
+				fmt.Fprintf(w, "skip %s: a run holds its lock\n", name)
+				continue
+			}
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			release = r
 		}
 		st, err := gcRoutine(ctx, dataDir, name, o, w)
 		release()
 		errs = append(errs, err)
 		total.Removed += st.Removed
 		total.Kept += st.Kept
+		total.Branches += st.Branches
 		total.Freed += st.Freed
 	}
-	verb := "removed"
+	verb, del := "removed", "deleted"
 	if dryRun {
-		verb = "would remove"
+		verb, del = "would remove", "would delete"
 	}
-	fmt.Fprintf(w, "%s %d worktree(s), %s; kept %d; skipped %d running routine(s)\n",
-		verb, total.Removed, humanize.Bytes(uint64(total.Freed)), total.Kept, skipped)
+	branches := ""
+	if total.Branches > 0 {
+		branches = fmt.Sprintf("; %s %d branch(es) whose worktree was already gone", del, total.Branches)
+	}
+	fmt.Fprintf(w, "%s %d worktree(s), %s; kept %d; skipped %d running routine(s)%s\n",
+		verb, total.Removed, humanize.Bytes(uint64(total.Freed)), total.Kept, skipped, branches)
 	return total, errors.Join(errs...)
 }
 

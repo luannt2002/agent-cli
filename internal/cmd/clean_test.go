@@ -93,8 +93,7 @@ func cleanSetup(t *testing.T) (*routineEnv, routineOutcome, string, *fakeTools) 
 	t.Helper()
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
-	old := e.run(t, nil)
-	e.run(t, nil) // old không còn là lượt mới nhất: `routine gc` gỡ được
+	old := e.run(t, nil) // lượt mới nhất đã xong theo cùng luật (Q4): `routine gc` gỡ được
 	cache := goCacheForTest(t)
 	fillGoCache(t, cache, 0, 5)
 	return e, old, cache, newFakeTools(t)
@@ -296,7 +295,6 @@ func TestRoutineGC_KeepsAWorktreeHoldingFilesOfAnotherUser(t *testing.T) {
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
 	old := e.run(t, nil)
-	e.run(t, nil)
 	uid := currentUID
 	currentUID = func() int { return os.Getuid() + 1 } // mọi tệp trông như của người khác
 	t.Cleanup(func() { currentUID = uid })

@@ -74,6 +74,18 @@ func filter(modelFilter, providerFilter, model, provider string) bool {
 		(providerFilter == "" || strings.EqualFold(provider, providerFilter))
 }
 
+// FindLargeModel phân giải chuỗi model large ("model" hoặc "provider/model") theo đúng luật của lượt
+// in-process (overrideModelsForNonInteractive), để `routine run` kiểm trước khi tạo worktree mà không
+// có luật thứ hai.
+func FindLargeModel(providers map[string]config.ProviderConfig, model string) (provider, modelID string, err error) {
+	matches, _, err := findModels(providers, model, "")
+	if err != nil {
+		return "", "", err
+	}
+	found, err := validateMatches(matches, model, "large")
+	return found.provider, found.modelID, err
+}
+
 // Validate and return a single match.
 func validateMatches(matches []modelMatch, modelID, label string) (modelMatch, error) {
 	switch {

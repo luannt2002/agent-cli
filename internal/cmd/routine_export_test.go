@@ -113,7 +113,7 @@ func TestRoutineExport_RefusesWithoutAWorktreeOrChanges(t *testing.T) {
 	require.ErrorContains(t, err, "no changes")
 
 	rep := out.Report
-	require.NoError(t, removeRunWorktree(t.Context(), out.RunDir, &rep))
+	require.NoError(t, removeRunWorktree(t.Context(), out.RunDir, &rep, false))
 	require.NoError(t, writeReport(out.RunDir, rep))
 	_, err = exportRun(t.Context(), e.data, "nightly", exportOpts{Stamp: filepath.Base(out.RunDir)})
 	require.ErrorContains(t, err, "is gone")

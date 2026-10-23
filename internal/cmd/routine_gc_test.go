@@ -73,9 +73,9 @@ func requireFile(t *testing.T, path, want string) {
 	require.Equal(t, want, string(got))
 }
 
-// Mỗi lượt gỡ worktree+nhánh của lượt cũ đã xong mà cây sạch và không có commit; giữ
-// worktree bẩn, worktree có commit (commit=false thì việc của agent chỉ còn ở đó) và
-// worktree của lượt mới nhất. Dữ liệu dew (crush.db, -wal, -shm, logs) chuyển ra cạnh
+// Mỗi lượt gỡ worktree+nhánh của lượt cũ đã xong mà cây sạch và không có commit, kể cả lượt
+// mới nhất của lần trước (Q4); giữ worktree bẩn và worktree có commit (commit=false thì việc
+// của agent chỉ còn ở đó). Dữ liệu dew (crush.db, -wal, -shm, logs) chuyển ra cạnh
 // report.json trước khi gỡ.
 func TestExecuteRoutine_RemovesOnlyOldCleanWorktrees(t *testing.T) {
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
@@ -92,12 +92,14 @@ func TestExecuteRoutine_RemovesOnlyOldCleanWorktrees(t *testing.T) {
 		gitIn(t, wt, "commit", "-q", "-m", "work")
 		return nil
 	})
-	previous := e.run(t, nil) // sạch, nhưng là lượt mới nhất lúc lượt sau khởi động
+	previous := e.run(t, nil) // sạch, là lượt mới nhất lúc lượt sau khởi động: vẫn gỡ (Q4)
 	newest := e.run(t, nil)
 
-	require.NoDirExists(t, clean.Report.Worktree)
-	require.Empty(t, gitIn(t, e.repo, "branch", "--list", clean.Report.Branch))
-	for _, kept := range []routineOutcome{dirty, committed, previous, newest} {
+	for _, removed := range []routineOutcome{clean, previous} {
+		require.NoDirExists(t, removed.Report.Worktree)
+		require.Empty(t, gitIn(t, e.repo, "branch", "--list", removed.Report.Branch))
+	}
+	for _, kept := range []routineOutcome{dirty, committed, newest} {
 		require.DirExists(t, kept.Report.Worktree)
 		require.NotEmpty(t, gitIn(t, e.repo, "branch", "--list", kept.Report.Branch))
 	}
@@ -122,9 +124,7 @@ func TestRoutineGC_DryRunRemoveAndSkipWhileLocked(t *testing.T) {
 	dirty := e.run(t, func(wt string) error {
 		return os.WriteFile(filepath.Join(wt, "notes.txt"), []byte("x"), 0o644)
 	})
-	old := e.run(t, nil)
-	newest := e.run(t, nil)
-	require.DirExists(t, old.Report.Worktree, "the newest run at the time keeps its worktree")
+	old := e.run(t, nil) // lượt mới nhất, sạch: gỡ được (Q4)
 
 	release, err := lock.TryFile(routineLockPath(e.data, "nightly"))
 	require.NoError(t, err)
@@ -143,7 +143,6 @@ func TestRoutineGC_DryRunRemoveAndSkipWhileLocked(t *testing.T) {
 	require.NoError(t, routineGC(t.Context(), e.data, []string{"nightly"}, gcOpts{}, &buf))
 	require.Contains(t, buf.String(), "removed 1 worktree(s)")
 	require.NoDirExists(t, old.Report.Worktree)
-	require.DirExists(t, newest.Report.Worktree)
 	require.DirExists(t, dirty.Report.Worktree)
 	require.FileExists(t, filepath.Join(old.RunDir, "report.json"))
 
@@ -155,7 +154,6 @@ func TestRoutineGC_DryRunChangesNothing(t *testing.T) {
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
 	old := e.run(t, writeTranscript)
-	e.run(t, nil)
 	editReport(t, old.RunDir, func(r *routineReport) { r.Reason, r.PID = "RUNNING", 999999 })
 
 	out := e.gc(t, gcOpts{DryRun: true})
@@ -191,7 +189,7 @@ func TestRemoveRunWorktree_GitAlsoSeesUntrackedFilesTheConfigHides(t *testing.T)
 	gitIn(t, e.repo, "config", "status.showUntrackedFiles", "no")
 
 	rep := old.Report
-	require.Error(t, removeRunWorktree(t.Context(), old.RunDir, &rep))
+	require.Error(t, removeRunWorktree(t.Context(), old.RunDir, &rep, false))
 	requireFile(t, filepath.Join(old.Report.Worktree, "new.txt"), "work")
 }
 
@@ -255,7 +253,6 @@ func TestRoutineGC_KeepsAWorktreeWhoseSessionChangedAfterTheRun(t *testing.T) {
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
 	old := e.run(t, writeTranscript)
-	e.run(t, nil)
 	wal := filepath.Join(old.Report.Worktree, ".crush", "crush.db-wal")
 	closing := old.Report.Finished.Add(30 * time.Second)
 	require.NoError(t, os.Chtimes(wal, closing, closing))
@@ -276,7 +273,6 @@ func TestRoutineGC_KeepsTheWorktreeWhenASessionFileCannotMove(t *testing.T) {
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
 	old := e.run(t, writeTranscript)
-	e.run(t, nil)
 	blocker := filepath.Join(old.RunDir, "crush.db-wal")
 	require.NoError(t, os.WriteFile(blocker, []byte("someone else's"), 0o600))
 
@@ -315,10 +311,22 @@ func TestRoutineGC_KeepsTheWorktreeWhenASessionFileCannotMove(t *testing.T) {
 // report.json không phải nguồn tin cậy (mã của agent sửa được nó): chỉ gỡ đúng worktree
 // và nhánh mà lượt đó tạo ra.
 func TestRoutineGC_DoesNotTrustTheReportPaths(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs sh, and signal 0 is not supported on Windows")
+	}
 	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
 	e := newRoutineEnv(t)
-	old := e.run(t, nil)
+	old := e.run(t, func(wt string) error { // tệp giữ old qua lượt dọn tự động của lượt sau
+		return os.WriteFile(filepath.Join(wt, "notes.txt"), []byte("x"), 0o644)
+	})
 	newest := e.run(t, nil)
+	require.NoError(t, os.Remove(filepath.Join(old.Report.Worktree, "notes.txt")))
+	// Báo cáo của newest nói nó còn chạy (pid sống, đúng `routine run nightly`): gc bỏ qua nó, nên
+	// chỉ báo cáo bị sửa của old mới có thể đụng tới worktree sạch của newest.
+	live := exec.Command("sh", "-c", "sleep 30; true", "routine", "run", "nightly")
+	require.NoError(t, live.Start())
+	t.Cleanup(func() { _ = live.Process.Kill(); _ = live.Wait() })
+	editReport(t, newest.RunDir, func(r *routineReport) { r.Reason, r.PID, r.Finished = "RUNNING", live.Process.Pid, time.Time{} })
 	editReport(t, old.RunDir, func(r *routineReport) { r.Worktree, r.Branch = newest.Report.Worktree, newest.Report.Branch })
 	out := e.gc(t, gcOpts{IncludeIgnored: true})
 	require.Contains(t, out, "keep "+newest.Report.Worktree+": the report's worktree or branch is not where this run puts them")
@@ -326,7 +334,6 @@ func TestRoutineGC_DoesNotTrustTheReportPaths(t *testing.T) {
 
 	e = newRoutineEnv(t)
 	old = e.run(t, nil)
-	e.run(t, nil)
 	gitIn(t, e.repo, "branch", "keepme")
 	editReport(t, old.RunDir, func(r *routineReport) { r.Branch = "keepme" })
 	e.gc(t, gcOpts{IncludeIgnored: true})
@@ -476,7 +483,6 @@ func TestRoutineGC_RetriesABranchItCouldNotDelete(t *testing.T) {
 	for _, commitOnBranch := range []bool{false, true} {
 		e := newRoutineEnv(t)
 		old := e.run(t, nil)
-		e.run(t, nil)
 		gitIn(t, e.repo, "checkout", "-q", "--ignore-other-worktrees", old.Report.Branch)
 		var buf bytes.Buffer
 		require.Error(t, routineGC(t.Context(), e.data, nil, gcOpts{}, &buf))
@@ -525,7 +531,6 @@ func TestRoutineGC_KeepsChangesHiddenFromStatus(t *testing.T) {
 	assumed := e.run(t, hide("--assume-unchanged", "a.txt", false))
 	skipped := e.run(t, hide("--skip-worktree", "a.txt", false))
 	sparse := e.run(t, hide("--skip-worktree", "b.txt", true))
-	e.run(t, nil)
 
 	out := e.gc(t, gcOpts{IncludeIgnored: true})
 	require.Contains(t, out, "keep "+assumed.Report.Worktree+": a.txt is hidden from git status")

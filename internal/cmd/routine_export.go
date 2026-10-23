@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
@@ -167,7 +166,7 @@ func buildPatch(ctx context.Context, wt, base string, includeIgnored bool) ([]by
 	// Không chạy fsmonitor hay hook do repo cấu hình (post-index-change chạy mỗi lần read-tree/add ghi
 	// index). Clean filter do repo khai vẫn chạy khi add (xem classifyWorktree).
 	git := func(stdin string, args ...string) ([]byte, error) {
-		c := exec.CommandContext(ctx, "git", append([]string{"-C", wt, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
+		c := gitCmd(ctx, append([]string{"-C", wt}, args...)...)
 		var stderr bytes.Buffer
 		c.Env, c.Stdin, c.Stderr = env, strings.NewReader(stdin), &stderr
 		out, err := c.Output()

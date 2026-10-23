@@ -42,3 +42,17 @@ func TestRootAndRunHelpDescribeDEW(t *testing.T) {
 		}
 	}
 }
+
+// Help của `dew routine` không hứa "checkout không bị đụng" (lớp chặn là guard-rail, không phải
+// sandbox), gc không còn nói lượt mới nhất luôn được giữ (Q4), và có lệnh rm.
+func TestRoutineHelpSaysGuardRailNotSandbox(t *testing.T) {
+	require.NotContains(t, routineCmd.Long, "never touched")
+	require.Contains(t, routineCmd.Long, "guard-rail, not a sandbox")
+	require.Contains(t, routineCmd.Long, "shared .git")
+	sub := map[string]*cobra.Command{}
+	for _, c := range routineCmd.Commands() {
+		sub[c.Name()] = c
+	}
+	require.Contains(t, sub, "rm")
+	require.NotContains(t, sub["gc"].Short+sub["gc"].Long+routineCmd.Long, "newest")
+}

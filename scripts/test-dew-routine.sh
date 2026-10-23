@@ -13,7 +13,9 @@
 # DEW_ROUTINE_MIN_MEM_MB (RAM thiếu -> 75); 3 lượt khởi động cùng lúc với DEW_ROUTINE_SLOTS=2
 # -> đúng 1 lượt 75; lượt kế của routine khác đóng run ma (pid đã chết) thành ABANDONED; và
 # `routine export` ra patch git apply được vào clone sạch ở base; `routine run --json` in một object
-# (báo cáo cuối, hoặc refused lock_held / no_slot / low_memory / low_disk với rc 75).
+# (báo cáo cuối, hoặc refused lock_held / no_slot / low_memory / low_disk với rc 75); model không có
+# -> ERROR trước worktree add (không nhánh, không worktree); nhánh của worktree bị gỡ từ bên ngoài được
+# gc xoá; `routine rm` từ chối lượt còn việc, --discard gỡ hết trừ báo cáo.
 # Mọi thứ nằm trong thư mục tạm. Dùng: scripts/test-dew-routine.sh
 # (DEW_BIN=... để bỏ qua build)
 set -uo pipefail
@@ -276,6 +278,12 @@ fin7="$(jget "$run7/report.json" finished)"; reason7="$(jget "$run7/report.json"
 flock -n "$data/slow/slow.lock" true; rc=$?
 [ "$rc" -eq 0 ]; check "sau khi bị huỷ khoá đã được nhả (flock rc=$rc)" $?
 
+# Ghi chú agent để lại mà gitignore che (changed_files không thấy): giữ worktree của lượt CANCELLED qua
+# lượt dọn tự động của lượt sau (cây sạch thì lượt mới nhất cũng bị gỡ, Q4), trừ khi --include-ignored.
+wt7="$(jget "$run7/report.json" worktree)"
+echo 'notes/' >>"$repo3/.git/info/exclude"
+mkdir -p "$wt7/notes" && echo findings >"$wt7/notes/n.md"
+
 # ---- 8: SIGKILL giữa lượt -> ABANDONED, không bị che sau báo cáo cũ (CANCELLED ở trên) ---
 (cd "$t" && exec "$bin" routine run slow) >/dev/null 2>"$t/slow2.err" &
 ps_=$!
@@ -292,19 +300,18 @@ list8="$(grep '^slow ' "$t/list8.out")"
 flock -n "$data/slow/slow.lock" true; rc=$?
 [ "$rc" -eq 0 ]; check "sau SIGKILL khoá đã nhả, lượt khác chạy được (flock rc=$rc)" $?
 
-# ---- 9: routine gc: lượt CANCELLED (cây sạch) bị gỡ, lượt mới nhất (bị kill) giữ ------
+# ---- 9: routine gc: lượt CANCELLED (cây sạch) bị gỡ, lượt mới nhất (bị kill, sạch) cũng gỡ (Q4) ------
 run8="$(ls -d "$data/slow/runs/"* | tail -n1)"
 wt7="$(jget "$run7/report.json" worktree)"; br7="$(jget "$run7/report.json" branch)"; wt8="$(jget "$run8/report.json" worktree)"
 vexit7="$(jget "$run7/report.json" verify_exit_code)"
 [ -z "$vexit7" ]; check "lượt CANCELLED không có verify_exit_code (='$vexit7')" $?
-# Ghi chú agent để lại mà gitignore che (changed_files không thấy): giữ worktree, trừ khi --include-ignored.
-echo 'notes/' >>"$repo3/.git/info/exclude"
-mkdir -p "$wt7/notes" && echo findings >"$wt7/notes/n.md"
 "$bin" routine gc slow --dry-run >"$t/gc-ign.out" 2>&1; rc=$?
 gc_ign="$(cat "$t/gc-ign.out")"
 [ "$rc" -eq 0 ] && [[ "$gc_ign" == *"keep $wt7: 1 ignored path(s) outside .crush ("*"): notes/;"* ]]; check "gc --dry-run liệt kê mục bị gitignore ngoài .crush và giữ worktree (rc=$rc)" $?
 "$bin" routine gc slow >"$t/gc-keep.out" 2>&1; rc=$?
+gc_keep="$(cat "$t/gc-keep.out")"
 [ "$rc" -eq 0 ] && [ -f "$wt7/notes/n.md" ]; check "gc không --include-ignored: tệp bị gitignore còn nguyên (rc=$rc)" $?
+[ ! -e "$wt8" ] && [[ "$gc_keep" == *"removed $wt8 "* ]] && [[ "$gc_keep" == *"kept 1;"* ]]; check "lượt mới nhất (bị kill, cây sạch) không còn được giữ vô điều kiện: gc gỡ nó; dòng tổng đếm worktree giữ ($gc_keep)" $?
 "$bin" routine gc slow --include-ignored --dry-run >"$t/gc-dry.out" 2>&1; rc=$?
 gc_dry="$(cat "$t/gc-dry.out")"
 [ "$rc" -eq 0 ] && [[ "$gc_dry" == *"would remove $wt7 "* ]] && [[ "$gc_dry" == *"would remove 1 worktree(s)"* ]] && [ -d "$wt7" ]; check "gc --include-ignored --dry-run in worktree sẽ gỡ và số byte, không gỡ gì (rc=$rc)" $?
@@ -313,7 +320,7 @@ gc_out="$(cat "$t/gc.out")"
 br7_left="$(git -C "$repo3" branch --list "$br7")"
 sdb="$(jget "$run7/report.json" session_db)"; slogs="$(jget "$run7/report.json" session_logs)"
 reason8="$(jget "$run8/report.json" reason)"; fin8="$(jget "$run8/report.json" finished)"
-[ "$rc" -eq 0 ] && [ ! -e "$wt7" ] && [ -z "$br7_left" ] && [ -d "$wt8" ] && [ -f "$run7/report.json" ]; check "gc gỡ worktree+nhánh sạch, giữ lượt mới nhất và báo cáo (rc=$rc $gc_out)" $?
+[ "$rc" -eq 0 ] && [ ! -e "$wt7" ] && [ -z "$br7_left" ] && [ -f "$run7/report.json" ] && [ -f "$run8/report.json" ]; check "gc gỡ worktree+nhánh sạch, giữ báo cáo (rc=$rc $gc_out)" $?
 [ "$sdb" = "$run7/crush.db" ] && [ -s "$sdb" ] && [ "$slogs" = "$run7/logs" ] && [ -d "$slogs" ]; check "crush.db và .crush/logs chuyển ra cạnh report.json trước khi gỡ (session_db='$sdb' session_logs='$slogs')" $?
 [ "$reason8" = ABANDONED ] && [ -n "$fin8" ]; check "gc giữ khoá: báo cáo RUNNING của lượt bị kill ghi lại thành ABANDONED trên đĩa ($reason8 finished='$fin8')" $?
 
@@ -323,7 +330,7 @@ printf 'node_modules/\nnotes/\n' >"$repo6/.gitignore"
 git -C "$repo6" add .gitignore && git -C "$repo6" commit -q -m ignore
 "$bin" routine new deps --mode goal --repo "$repo6" --model m --goal "nothing to do" --verify 'test -f never' --max-repairs 0 >"$t/newdeps.out" 2>&1
 deps_run() { sleep 1.1; (cd "$t" && "$bin" routine run deps) >/dev/null 2>"$t/deps.err"; }
-deps_run; deps_run
+deps_run
 rund1="$(ls -d "$data/deps/runs/"* | head -n1)"; wtd1="$(jget "$rund1/report.json" worktree)"
 newdeps="$(cat "$t/newdeps.out")"; modeld="$(jget "$rund1/report.json" model)"
 [[ "$newdeps" != *"warning: no --model"* ]] && [ "$modeld" = fake/m ]; check "routine new --model m: không cảnh báo; báo cáo ghi model ghim đã phân giải fake/m (model='$modeld')" $?
@@ -528,6 +535,58 @@ kill "$wd" 2>/dev/null; wait "$wd" 2>/dev/null
 (cd "$t" && DEW_MIN_FREE_GB=999999 "$bin" routine run green --json) >"$t/j-disk.out" 2>/dev/null; rc2=$?
 jm="$(jone "$t/j-mem.out")"; jd="$(jone "$t/j-disk.out")"
 [ "$rc" -eq 75 ] && [ "$rc2" -eq 75 ] && [ "$jm" = "low_memory green -" ] && [ "$jd" = "low_disk green -" ]; check "RAM/đĩa thiếu: rc=75, --json in refused low_memory / low_disk (rc=$rc/$rc2 '$jm' '$jd')" $?
+
+# ---- 15: kiểm cấu hình trước worktree add; nhánh của worktree bị gỡ từ bên ngoài; routine rm -------
+repo15="$(mkrepo life)"
+"$bin" routine new nomodel --mode goal --repo "$repo15" --model fake/nope --goal "nothing to do" --verify 'test -f never' --max-repairs 0 >/dev/null 2>&1
+(cd "$t" && "$bin" routine run nomodel) >/dev/null 2>"$t/nomodel.err"; rc=$?
+"$bin" routine show nomodel >"$t/show15.json" 2>/dev/null
+reason="$(jget "$t/show15.json" last_run.reason)"; detail="$(jget "$t/show15.json" last_run.detail)"
+nm_branches="$(git -C "$repo15" branch --list 'routine/*')"; nm_wt="$(ls "$data/nomodel/wt" 2>/dev/null)"
+[ "$rc" -eq 1 ] && [ "$reason" = ERROR ] && [[ "$detail" == *'large model "fake/nope" not found'* ]] && [ -z "$nm_branches" ] && [ -z "$nm_wt" ]; check "model không tồn tại -> ERROR trước worktree add: không nhánh, không worktree (rc=$rc $reason detail='$detail')" $?
+
+"$bin" routine new life --mode goal --repo "$repo15" --goal "nothing to do" --verify 'test -f never' --max-repairs 0 >/dev/null 2>&1
+(cd "$t" && "$bin" routine run life) >/dev/null 2>&1
+run15="$(ls -d "$data/life/runs/"* | tail -n1)"; wt15="$(jget "$run15/report.json" worktree)"; br15="$(jget "$run15/report.json" branch)"
+rm -rf "$wt15" # gỡ từ bên ngoài: mục quản trị trong .git/worktrees và nhánh còn lại
+"$bin" routine gc life --dry-run >"$t/gc15d.out" 2>&1
+gc15d="$(cat "$t/gc15d.out")"; br15_dry="$(git -C "$repo15" branch --list "$br15")"
+[[ "$gc15d" == *"would delete branch $br15"* ]] && [ -n "$br15_dry" ]; check "gc --dry-run: nhánh của worktree đã bị gỡ từ bên ngoài sẽ được xoá, chưa xoá gì ('$gc15d')" $?
+"$bin" routine gc life >"$t/gc15.out" 2>&1; rc=$?
+gc15="$(cat "$t/gc15.out")"; br15_left="$(git -C "$repo15" branch --list "$br15")"
+wt15_listed="$(git -C "$repo15" worktree list --porcelain | grep -c "^worktree $wt15\$")"; gone15="$(jget "$run15/report.json" worktree_gone)"
+[ "$rc" -eq 0 ] && [[ "$gc15" == *"deleted branch $br15"* ]] && [ -z "$br15_left" ] && [ "$wt15_listed" = 0 ] && [ -n "$gone15" ]; check "gc xoá nhánh (không commit ngoài base) và mục quản trị của worktree đã mất, ghi worktree_gone (rc=$rc listed=$wt15_listed)" $?
+
+# Worktree đã mất mà HEAD của nó là commit tách rời (người duyệt checkout --detach rồi commit): mục quản trị
+# là thứ duy nhất còn giữ commit đó, gc không gỡ nó; nhánh của lượt (không commit ngoài base) vẫn xoá.
+sleep 1.1
+(cd "$t" && "$bin" routine run life) >/dev/null 2>&1
+rund="$(ls -d "$data/life/runs/"* | tail -n1)"; wtd="$(jget "$rund/report.json" worktree)"; brd="$(jget "$rund/report.json" branch)"
+git -C "$wtd" checkout -q --detach && echo d >"$wtd/d.txt" && git -C "$wtd" add d.txt && git -C "$wtd" commit -q -m detached
+shad="$(git -C "$wtd" rev-parse HEAD)"
+rm -rf "$wtd"
+"$bin" routine gc life >"$t/gc15h.out" 2>&1; rc=$?
+gc15h="$(cat "$t/gc15h.out")"; reach="$(git -C "$repo15" rev-list --all | grep -c "^$shad\$")"; brd_left="$(git -C "$repo15" branch --list "$brd")"
+[ "$rc" -eq 0 ] && [ "$reach" = 1 ] && [ -z "$brd_left" ] && [[ "$gc15h" == *"its worktree entry"*"stays"* ]]; check "worktree đã mất có commit trên HEAD tách rời: gc giữ mục quản trị (commit còn với tới), vẫn xoá nhánh rỗng (rc=$rc reach=$reach)" $?
+
+sleep 1.1
+(cd "$t" && "$bin" routine run life) >/dev/null 2>&1 # lượt sạch
+sleep 1.1
+python3 - "$defs/life.json" <<'PY2'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["goal"] = "TOOLCALL create the probe file"
+json.dump(d, open(p, "w"), indent=2)
+PY2
+(cd "$t" && "$bin" routine run life) >/dev/null 2>&1 # lượt để lại e2e-probe (việc chưa commit)
+run15w="$(ls -d "$data/life/runs/"* | tail -n1)"; wt15w="$(jget "$run15w/report.json" worktree)"
+"$bin" routine rm life >"$t/rm1.out" 2>&1; rc=$?
+rm1="$(cat "$t/rm1.out")"
+[ "$rc" -eq 1 ] && [[ "$rm1" == *"holds work: $wt15w: uncommitted changes"* ]] && [[ "$rm1" == *"dew routine export life --run $(basename "$run15w")"* ]] && [ -d "$wt15w" ] && [ -f "$defs/life.json" ]; check "routine rm: lượt còn việc -> rc=1, liệt kê, gợi ý export, không gỡ gì (rc=$rc)" $?
+"$bin" routine rm life --discard >"$t/rm2.out" 2>&1; rc=$?
+rm2="$(cat "$t/rm2.out")"; life_branches="$(git -C "$repo15" branch --list 'routine/life-*')"; life_wts="$(ls "$data/life/wt" 2>/dev/null)"
+nreports="$(ls "$data/life/runs/"*/report.json | wc -l)"
+[ "$rc" -eq 0 ] && [ ! -e "$defs/life.json" ] && [ -z "$life_branches" ] && [ -z "$life_wts" ] && [ "$nreports" -ge 3 ] && [[ "$rm2" == *"removed routine life"* ]]; check "routine rm --discard: gỡ worktree, nhánh và định nghĩa; giữ $nreports báo cáo (rc=$rc)" $?
 
 if [ "$fail" -eq 0 ]; then echo PASS; else echo "FAILED"; fi
 exit "$fail"

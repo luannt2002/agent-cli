@@ -158,3 +158,16 @@ func TestStreamRetries(t *testing.T) {
 		require.Equal(t, v, n)
 	}
 }
+
+// Văn bản lịch không hứa checkout của người dùng không bị đụng: lớp chặn là guard-rail, không phải
+// sandbox (audit 22/10: agent đổi được nhánh, tệp và .git dùng chung của checkout thật).
+func TestScheduleText_SaysGuardRailNotSandbox(t *testing.T) {
+	t.Parallel()
+	d, sum, err := Parse([]byte(goodDef))
+	require.NoError(t, err)
+	out, err := d.ScheduleText("/usr/local/bin/dew", sum, "/usr/bin:/bin", nil)
+	require.NoError(t, err)
+	require.Contains(t, out, "guard-rail, not a sandbox")
+	require.Contains(t, out, "shared .git")
+	require.NotContains(t, out, "never touched")
+}

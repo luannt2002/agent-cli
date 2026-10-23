@@ -211,8 +211,10 @@ func (d Definition) ScheduleText(bin, sum, path string, env []string) (string, e
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Routine %q (mode %s). dew only PRINTS this; install it yourself.\n", d.Name, d.Mode)
 	fmt.Fprintf(&b, "# The run refuses to start if the definition file changed (sha256 %s).\n", sum)
-	fmt.Fprintf(&b, "# It works in its own git worktree on a routine/* branch, never pushes or merges,\n")
-	fmt.Fprintf(&b, "# and takes a lock, so a second run while one is active exits 75 (EX_TEMPFAIL).\n\n")
+	fmt.Fprintf(&b, "# It works in its own git worktree on a routine/* branch, dew never pushes or merges,\n")
+	fmt.Fprintf(&b, "# and it takes a lock, so a second run while one is active exits 75 (EX_TEMPFAIL).\n")
+	fmt.Fprintf(&b, "# Its command guard is a guard-rail, not a sandbox: the agent runs as you, so it can\n")
+	fmt.Fprintf(&b, "# read your files, reach the network and change the repository's shared .git.\n\n")
 	if s.OnCalendar != "" {
 		fmt.Fprintf(&b, "# --- systemd user units: ~/.config/systemd/user/dew-routine-%s.service\n", d.Name)
 		fmt.Fprintf(&b, "[Unit]\nDescription=dew routine %s\n\n[Service]\nType=oneshot\n", d.Name)

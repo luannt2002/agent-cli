@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -24,7 +23,7 @@ type worktreeState struct {
 	Changed     []string // tệp theo dõi bị đổi so với HEAD (đã stage hay chưa, kể cả xoá): việc
 	Untracked   []string // tệp chưa theo dõi, không bị ignore: việc
 	IgnoredWork []string // bị ignore, ngoài .crush/, không phải thư mục dựng lại được: việc
-	Regenerable []string // thư mục bị ignore dựng lại được (regenerableDirs): không phải việc
+	Regenerable []string // thư mục bị ignore dựng lại được (regenerableDirs), kể cả symlink mang tên đó: không phải việc
 	DewData     []string // chưa theo dõi hoặc bị ignore dưới .crush/: dữ liệu phiên của dew, không phải việc
 	Hidden      []string // assume-unchanged, hoặc skip-worktree mà tệp có trên đĩa: việc mà status không thấy
 	Commits     int      // commit ngoài base trên HEAD hoặc nhánh của lượt (chỉ khi có base): việc
@@ -53,8 +52,7 @@ func classifyWorktree(ctx context.Context, dir, base, branch string) (worktreeSt
 	}
 	git := func(args ...string) (string, error) {
 		// status.showUntrackedFiles=all: cấu hình repo không giấu được tệp mới.
-		c := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-C", dir,
-			"-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "status.showUntrackedFiles=all"}, args...)...)
+		c := gitCmd(ctx, append([]string{"-C", dir, "-c", "status.showUntrackedFiles=all"}, args...)...)
 		var stderr bytes.Buffer
 		c.Stderr = &stderr
 		out, err := c.Output()
@@ -89,7 +87,7 @@ func classifyWorktree(ctx context.Context, dir, base, branch string) (worktreeSt
 			st.DewData = append(st.DewData, p)
 		case code == "??":
 			st.Untracked = append(st.Untracked, p)
-		case regenerable(p):
+		case regenerable(p) || regenerableLink(filepath.Join(dir, p)):
 			st.Regenerable = append(st.Regenerable, p)
 		default:
 			st.IgnoredWork = append(st.IgnoredWork, p)
