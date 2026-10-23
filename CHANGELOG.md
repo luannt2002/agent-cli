@@ -9,6 +9,50 @@ Quy trình phát hành: xem [CLAUDE.md](CLAUDE.md), mục P6.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-22
+
+Làm theo [audit mã 22/10](reports/DEW_CODE_AUDIT_2026-10-22.md): đóng các lối thoát vô tình khỏi worktree khi không người
+trực, cho routine có bước kết thúc, và để cổng phát hành chạy được từ repo.
+
+### Thêm
+
+- **`dew routine rm NAME [--discard]`:** nhận kết quả xong thì gỡ định nghĩa, worktree và nhánh của mọi lượt. Lượt còn việc
+  thì từ chối và liệt kê (gợi ý `routine export`), trừ khi có `--discard`; lượt đang chạy thì luôn từ chối. Báo cáo,
+  journal và `crush.db` đã chuyển ra được giữ.
+- **`git_dir_changed` trong báo cáo routine:** routine so `.git` dùng chung (config, HEAD, hooks, info, ref trừ `refs/remotes/*`
+  và nhánh của chính lượt; nhánh routine khác chỉ tính khi bị viết lại) trước và sau lượt, có đổi thì ghi danh sách và in
+  cảnh báo. Thay đổi ở đó không hiện trong diff hay patch. Cây hooks/info quá 1.000 mục chỉ ghi một dấu "too large".
+- **`scripts/release-gates.sh <tag-nền>`:** so test theo tên, vet chỉ tính dòng mới, vet Windows, race, build, 4 E2E. Đỏ khi
+  thiếu binary `rg` hoặc 3 test an ninh của grep/glob không chạy.
+
+### Thay đổi
+
+- **Khi không người trực, lệnh chạy ở thư mục ngoài workspace bị từ chối:** sau `cd`/`pushd`, qua symlink, `git -C` qua
+  symlink, job nền, script có shebang, và `cd` bên trong `sh -c` (theo dõi từng bước, `cd sub && … && cd ..` vẫn chạy).
+  Trước đây `cd ../<repo> && git checkout -b x` đổi được checkout thật của bạn. `env -C`, `make -C` và mã tự `chdir` vẫn
+  chưa chặn được.
+- **Bộ dọn worktree gỡ cả lượt mới nhất** khi lượt đó không còn việc (cùng luật với mọi lượt). Routine `goal` chạy một lần
+  trước đây không bao giờ được dọn. Mỗi worktree được giữ in một dòng kèm lý do; worktree bị `git worktree lock` thì giữ, không
+  báo lỗi.
+- Help của `dew routine` và văn bản lịch nói rõ lớp chặn là guard-rail, không phải sandbox.
+
+### Sửa
+
+- **Nhánh của worktree đã bị gỡ từ bên ngoài không bao giờ được dọn:** nay xoá khi không có commit ngoài base, và chỉ gỡ đúng
+  mục quản trị của worktree đó khi mục không bị khoá và HEAD là nhánh của lượt.
+- **`dew clean` và `routine gc --dry-run` giữ khoá routine:** một lượt khởi động đúng lúc đó bị từ chối `lock_held` (loại
+  không được chạy lại) và mất. Chạy thử nay không lấy khoá.
+- **Symlink `node_modules` bị ignore làm worktree sạch bị giữ mãi:** symlink mang tên thư mục dựng lại được nay cũng là thư
+  mục dựng lại được (gỡ worktree chỉ gỡ link). Chạy thử trên dữ liệu thật 23/10: gỡ được 7 worktree (839 MB) và 126 nhánh
+  của worktree đã bị gỡ từ bên ngoài, trước đây là 0.
+- **Lượt hỏng vì cấu hình vẫn để lại worktree và nhánh:** `routine run` kiểm model ghim và key (khi cấu hình khai `api_key`)
+  trước khi tạo worktree; hỏng thì `ERROR`.
+- Lệnh git do dew chạy trên repo của bạn (`worktree add`, `branch -D`, gc, export, kiểm cây) đều tắt hook và fsmonitor của
+  repo. Trước đây hook do agent cài chạy ở lượt sau.
+- Chặn gọi CLI agent khác: phân tích lệnh lồng có dấu nháy (`bash -c "bash -c \"claude …\""`), lồng quá sâu thì chặn,
+  `--`, `builtin`, `eval` tĩnh. Model được báo lý do chặn.
+- Agent tự phục hồi khi web request lỗi (lấy từ upstream `f5309364`); quyền token CI hẹp lại (upstream `94f93645`).
+
 ## [0.3.2] - 2026-10-22
 
 Sửa ba điểm từ dùng thật, và gom mỗi câu hỏi "lượt còn sống / verify đạt / cây có đổi / được xoá gì / vì sao từ chối /
