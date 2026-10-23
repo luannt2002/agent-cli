@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -417,5 +419,155 @@ func TestExternalAgentCommandInterpreterLiterals(t *testing.T) {
 	} {
 		_, blocked := ExternalAgentCommand(args)
 		require.Falsef(t, blocked, "must allow %q", args)
+	}
+}
+
+// Script của `bash -c`/`sh -c` được phân tích như shell thật (mvdan), nên dấu nháy lồng
+// không làm lọt: trước đây tách bằng strings.Fields, `bash -c "bash -c \"claude -p hi\""`
+// cho ra từ `"claude` và qua được. Không phân tích được thì chặn (fail closed).
+//
+// Vế ngược giữ hợp đồng cũ: chặn theo VỊ TRÍ LỆNH, không theo chữ. "claude" là đối số
+// (`echo claude`, `git log --grep codex`) không chạy gì, chặn theo chữ sẽ chặn nhầm cả
+// grep/log/commit message nhắc tên công cụ.
+func TestExternalAgentCommandParsesQuotedNesting(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{
+		{"bash", "-c", `bash -c "claude -p hi"`},
+		{"bash", "-c", `bash -c 'codex exec x'`},
+		{"sh", "-c", `bash -c "sh -c 'claude -p hi'"`},
+		{"bash", "-c", `sh -c 'bash -c "codex exec x"'`},
+		{"bash", "-c", "bash -c \"bash -c 'gemini -p x'\""},
+		{"env", "FOO=1", "bash", "-c", `bash -c "claude -p hi"`},
+		{"sh", "-c", `cd sub && "claude" -p hi`},
+		{"bash", "-c", `'cl'"aude" -p hi`},
+		{"bash", "-c", `x=$(claude -p hi); echo "$x"`},
+		{"bash", "-c", "echo `codex exec x`"},
+		{"bash", "-c", `f() { claude -p hi; }; f`},
+		{"sh", "-c", `FOO=1 timeout 60 codex exec x`},
+		// script không phân tích được: bộ tách theo chữ (bản 5337a9f7) vẫn soi
+		{"bash", "-c", `claude -p 'unterminated`},
+		// script lồng là từ động (`"$1"`): không biết nội dung thì chặn
+		{"sh", "-c", `bash -c "$1"`, "_", "claude -p hi"},
+		// literal code không phân tích được như shell vẫn được soi theo từ
+		{"python3", "-c", `import os; os.system("claude -p 'it''s")`},
+	} {
+		name, ok := ExternalAgentCommand(args)
+		require.Truef(t, ok, "%q must be blocked", args)
+		require.NotEmptyf(t, name, "%q", args)
+	}
+	for _, args := range [][]string{
+		{"bash", "-c", "echo claude"},
+		{"bash", "-c", `echo "claude -p hi"`},
+		{"bash", "-c", `bash -c "echo claude"`},
+		{"sh", "-c", `git log --grep 'codex exec'`},
+		{"bash", "-c", `go test ./... | tail -5`},
+		{"sh", "-c", `cd "$DIR" && make test`},
+		{"bash", "-c", `printf '%s\n' "it's claude's turn"`},
+		// literal code không phải shell (nháy lẻ) không làm chặn nhầm
+		{"python3", "-c", `import subprocess; subprocess.run(['make']); print("don't")`},
+		// script không phân tích được mà bộ tách theo chữ không thấy agent: không chặn
+		{"bash", "-c", `bash -c "echo 'unterminated"`},
+		{"sh", "-c", "if then fi ((("},
+	} {
+		_, ok := ExternalAgentCommand(args)
+		require.Falsef(t, ok, "%q must pass", args)
+	}
+}
+
+// Soát độc lập 22/10 (KHONG-DAT): các ca dưới đây hoặc bị chặn ở 5337a9f7 rồi lọt sau
+// khi đổi sang mvdan (literal bắt đầu bằng toán tử, here-doc, mảng), hoặc là lối lách
+// rẻ (nháy kép có `\"`, `--`, `builtin exec`, `eval`). Chặn khi bộ tách theo chữ của
+// 5337a9f7 HOẶC bộ phân tích mvdan thấy agent ở vị trí lệnh.
+func TestExternalAgentCommandReviewFindings(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{
+		// #1: literal code nối chuỗi, phần sau bắt đầu bằng toán tử shell
+		{"python3", "-c", `import subprocess; subprocess.run("git diff" + " | claude -p review", shell=True)`},
+		{"python3", "-c", `import os; os.system("make" + "; claude -p hi")`},
+		{"node", "-e", `require("child_process").execSync("npm test" + " && codex exec fix")`},
+		{"python3", "-c", `import os; os.system("A=1 claude -p '" + p + "'")`},
+		// #2: here-doc vào shell, mảng
+		{"sh", "-c", "bash <<EOF\nclaude -p hi\nEOF"},
+		{"bash", "-c", "sh -c 'bash <<EOF\nclaude -p hi\nEOF'"},
+		{"bash", "-c", `a=(claude -p hi); "${a[@]}"`},
+		// #3: `\"` trong nháy kép được shell bỏ dấu `\`
+		{"sh", "-c", `bash -c "\"claude\" -p hi"`},
+		{"sh", "-c", `bash -c "cl\aude -p hi"`},
+		// #6: tuỳ chọn của shell trước -c (có tuỳ chọn ăn giá trị), tuỳ chọn sau -c
+		{"bash", "-o", "pipefail", "-c", "claude -p hi"},
+		{"bash", "-c", "-x", "codex exec x"},
+		// #7: `--` sau -c, builtin exec, eval với đối số tĩnh
+		{"bash", "-c", "--", "claude -p hi"},
+		{"builtin", "exec", "claude", "-p", "hi"},
+		{"bash", "-c", "eval claude -p x"},
+		{"bash", "-c", `eval "codex exec x"`},
+		// soát lại 22/10 (A): $'…' không có dấu `\` là chuỗi tĩnh
+		{"bash", "-c", "$'claude' -p hi"},
+		// (B): tuỳ chọn dài lạ ăn giá trị làm shellScriptArg dừng sớm; quét kiểu 5337a9f7 vẫn bắt
+		{"zsh", "--emulate", "sh", "-c", "claude -p hi"},
+		{"ksh", "-R", "x", "-c", "claude -p hi"},
+		{"bash", "./x.sh", "-c", "claude"}, // hợp đồng cũ: chặn
+		// (C): eval có phần động vẫn được bộ tách theo chữ soi phần tĩnh
+		{"bash", "-c", `eval claude "$X"`},
+		// (E): `-` như `--`; cụm tuỳ chọn có o ăn giá trị ở arg kế
+		{"bash", "-c", "-", "claude -p hi"},
+		{"bash", "-co", "pipefail", "claude -p hi"},
+	} {
+		name, ok := ExternalAgentCommand(args)
+		assert.Truef(t, ok, "%q must be blocked", args)
+		assert.NotEmptyf(t, name, "%q", args)
+	}
+	for _, args := range [][]string{
+		// #6: -c sau tên script mà chuỗi không có agent: không phân tích được thôi thì không chặn
+		{"bash", "./x.sh", "-c", "it's"},
+		// #6: zsh mà mvdan không phân tích được: rơi về bộ tách theo chữ, không chặn
+		{"zsh", "-c", "print -l ${(f)x}"},
+		{"bash", "-c", `echo "\"claude\" -p hi"`},
+		// (C): eval của đầu ra lệnh khác (idiom thường gặp) không bị chặn chỉ vì động
+		{"bash", "-lc", `eval "$(conda shell.bash hook)" && conda activate x && pytest`},
+		{"bash", "-c", `eval "$(ssh-agent -s)" && ssh-add k`},
+		{"sh", "-c", "eval $(opam env) && dune build"},
+	} {
+		_, ok := ExternalAgentCommand(args)
+		assert.Falsef(t, ok, "%q must pass", args)
+	}
+}
+
+// nested bọc inner trong n lớp wrapper; mỗi lớp là một mức lồng của
+// externalAgentCommand, nên với `node --` thì n là đúng độ sâu mà inner được soi.
+func nested(n int, wrapper []string, inner ...string) []string {
+	args := inner
+	for range n {
+		args = append(slices.Clone(wrapper), args...)
+	}
+	return args
+}
+
+// Lồng quá sâu để soi thì CHẶN (fail closed), không cho qua: trước đây `depth > 4`
+// trả "không phải agent", nên agent nằm ở lớp thứ 5 chạy được (audit 16/10 C-10).
+// Tới 4 lớp thì giữ nguyên: agent bị bắt, lệnh thường qua.
+func TestExternalAgentCommandFailsClosedWhenNestedTooDeep(t *testing.T) {
+	t.Parallel()
+	node := []string{"node", "--"}
+	for depth := 0; depth <= 4; depth++ {
+		_, ok := ExternalAgentCommand(nested(depth, node, "claude", "-p", "hi"))
+		require.Truef(t, ok, "depth %d: agent caught", depth)
+		_, ok = ExternalAgentCommand(nested(depth, node, "ls"))
+		require.Falsef(t, ok, "depth %d: ordinary command passes", depth)
+	}
+	for _, args := range [][]string{
+		nested(5, node, "claude", "-p", "hi"),
+		nested(6, node, "codex", "exec", "x"),
+		nested(5, node, "ls"),
+		nested(6, node, "ls"),
+		// bash -c ngoài cùng: bash là lớp 0, chuỗi -c tách thành lớp 1, bốn lớp node nữa tới lớp 5/6.
+		{"bash", "-c", "node -- node -- node -- node -- claude -p hi"},
+		{"bash", "-c", "node -- node -- node -- node -- node -- claude -p hi"},
+		// find -exec soi lại mọi -exec ở lớp nông nên agent vẫn bị bắt; lệnh thường lồng 5 lớp thì nay bị chặn.
+		nested(5, []string{"find", ".", "-exec"}, "ls"),
+	} {
+		name, ok := ExternalAgentCommand(args)
+		require.Truef(t, ok, "%q: too deep to inspect must be blocked", args)
+		require.NotEmpty(t, name)
 	}
 }

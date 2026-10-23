@@ -346,6 +346,9 @@ func blockHandler(blockFuncs []BlockFunc) execMiddleware {
 			if blockedByGitEnv(ctx, blockFuncs, args) {
 				return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
 			}
+			if err := workspaceBlocked(ctx, args); err != nil {
+				return err
+			}
 			return next(ctx, args)
 		}
 	}

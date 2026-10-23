@@ -292,3 +292,45 @@ func TestProtect_ParsedScriptDoesNotBlockHarmlessText(t *testing.T) {
 		require.Falsef(t, ok, "%q", args)
 	}
 }
+
+// Soát 22/10 (A): $'…' không có dấu `\` là chuỗi tĩnh như bash, nên `pkill $'dew'` bị
+// chặn như ở 5337a9f7; có dấu `\` hay biến thì không biết mẫu, pkill/killall coi như
+// trúng dew (fail closed).
+func TestProtect_DollarQuotedAndDynamicKillPatterns(t *testing.T) {
+	t.Parallel()
+	g := testGuard()
+	for _, args := range [][]string{
+		{"sh", "-c", "pkill $'dew'"},
+		{"bash", "-c", "killall $'dew'"},
+		{"sh", "-c", `pkill -f $'d\x65w'`},
+		{"bash", "-c", `killall "$NAME"`},
+	} {
+		_, ok := g.Blocked(args)
+		require.Truef(t, ok, "%q", args)
+	}
+	for _, args := range [][]string{
+		{"sh", "-c", "pkill $'node'"},
+		{"bash", "-c", "killall chrome"},
+	} {
+		_, ok := g.Blocked(args)
+		require.Falsef(t, ok, "%q", args)
+	}
+}
+
+// Soát lại 22/10 (vòng 3): mẫu còn dấu `\` (`pkill d\\ew` thành `d\ew`, `pkill "d\ew"`)
+// không biên dịch được thành regexp của Go nên lọt, nhưng pkill của procps coi `\e` là `e`
+// và giết dew. Mẫu được xét thêm khi đã bỏ hết dấu `\`.
+func TestProtect_BackslashedKillPatterns(t *testing.T) {
+	t.Parallel()
+	g := testGuard()
+	for _, args := range [][]string{
+		{"sh", "-c", `pkill d\\ew`},
+		{"sh", "-c", `killall \\dew`},
+		{"sh", "-c", `pkill "d\ew"`},
+	} {
+		_, ok := g.Blocked(args)
+		require.Truef(t, ok, "%q", args)
+	}
+	_, ok := g.Blocked([]string{"sh", "-c", "pkill node"})
+	require.False(t, ok)
+}

@@ -239,13 +239,18 @@ func scriptCommands(script string) (cmds [][]string, ok bool) {
 	return cmds, true
 }
 
+// staticWord trả giá trị của từ sau khi bỏ nháy và dấu `\` như shell; từ có expansion
+// (hay $'…' có dấu `\`) thành dynamicWord. Bản sao ở internal/execpolicy phải giữ giống hệt.
 func staticWord(w *syntax.Word) string {
 	var b strings.Builder
 	for _, part := range w.Parts {
 		switch p := part.(type) {
 		case *syntax.Lit:
-			b.WriteString(strings.ReplaceAll(p.Value, `\`, ""))
+			b.WriteString(unescapeWord(p.Value, false))
 		case *syntax.SglQuoted:
+			if p.Dollar && strings.Contains(p.Value, `\`) {
+				return dynamicWord // $'…' có mã thoát (\x61, \n…): không tự giải
+			}
 			b.WriteString(p.Value)
 		case *syntax.DblQuoted:
 			for _, q := range p.Parts {
@@ -253,11 +258,31 @@ func staticWord(w *syntax.Word) string {
 				if !isLit {
 					return dynamicWord
 				}
-				b.WriteString(lit.Value)
+				b.WriteString(unescapeWord(lit.Value, true))
 			}
 		default:
 			return dynamicWord
 		}
+	}
+	return b.String()
+}
+
+// unescapeWord bỏ dấu `\` như bash: ngoài nháy, `\x` thành `x`; trong nháy kép chỉ trước
+// $ ` " \ và xuống dòng. `\<xuống dòng>` mất cả hai (nối dòng).
+func unescapeWord(s string, dquoted bool) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && (!dquoted || strings.IndexByte("$`\"\\\n", s[i+1]) >= 0) {
+			i++
+			if s[i] != '\n' {
+				b.WriteByte(s[i])
+			}
+			continue
+		}
+		b.WriteByte(s[i])
 	}
 	return b.String()
 }
@@ -335,7 +360,12 @@ func (g ProcessGuard) blocked(args []string, depth int) (reason string, blocked 
 		}
 	case killByName[cmd]:
 		for _, name := range killNames(args) {
-			if g.ProtectedName != nil && g.ProtectedName(name) {
+			// Mẫu chỉ biết lúc chạy ("$N", $'d\x65w') có thể trúng dew: chặn (fail closed).
+			if g.ProtectedName != nil && name == dynamicWord {
+				return "refusing to " + cmd + " a pattern only known at run time: it could match this session's own server or client", true
+			}
+			// Mẫu còn `\` (`d\ew`) không thành regexp của Go, nhưng pkill coi `\e` là `e`: xét cả bản bỏ `\`.
+			if g.ProtectedName != nil && (g.ProtectedName(name) || g.ProtectedName(strings.ReplaceAll(name, `\`, ""))) {
 				return "refusing to " + cmd + " a process matching dew (" + name + "): it would kill this session's own server or client", true
 			}
 		}

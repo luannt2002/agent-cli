@@ -217,3 +217,77 @@ func TestBashRefusesWorkingDirOutsideWorkspaceWhileUnattended(t *testing.T) {
 	runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: "touch inside", WorkingDir: sub})
 	require.FileExists(t, filepath.Join(sub, "inside"))
 }
+
+// `cd` TRONG lệnh (không qua working_dir) là lối thoát của audit 22/10: tool bash phải nối
+// guard thư mục thật vào shell của nó, cả lệnh chạy ngay lẫn run_in_background, và nói lý
+// do cho model. Đối chứng: không ở chế độ không người trực thì cùng lệnh xoá được tệp.
+// KHÔNG song song (công tắc toàn cục).
+func TestBashRefusesCommandsThatLeaveTheWorkspaceWhileUnattended(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	setup := func() (work, main string) {
+		parent := t.TempDir()
+		work, main = filepath.Join(parent, "wt"), filepath.Join(parent, "main")
+		require.NoError(t, os.MkdirAll(filepath.Join(work, "sub"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(main, "sub"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(main, "precious.txt"), nil, 0o644))
+		return work, main
+	}
+	run := func(work string, params BashParams) fantasy.ToolResponse {
+		tool, _ := newBashToolWithRecordingPerms(work, true)
+		ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+		params.Description = "probe"
+		return runBashTool(t, tool, ctx, params)
+	}
+
+	execpolicy.SetUnattended(false, false)
+	work, main := setup()
+	run(work, BashParams{Command: "cd ../main && rm -f precious.txt"})
+	require.NoFileExists(t, filepath.Join(main, "precious.txt"), "control: attended, the escape really deletes")
+
+	execpolicy.SetUnattended(true, false)
+	for _, params := range []BashParams{
+		{Command: "cd ../main && rm -f precious.txt"},
+		{Command: "cd .. && rm -rf main/sub main/precious.txt"},
+		{Command: "ln -s ../main r && cd r && rm -f precious.txt"},
+		{Command: "cd ../main && rm -f precious.txt", RunInBackground: true},
+		{Command: "sh -c 'cd sub && cd ../.. && rm -f main/precious.txt'"},
+	} {
+		work, main := setup()
+		resp := run(work, params)
+		require.FileExistsf(t, filepath.Join(main, "precious.txt"), "%+v", params)
+		require.DirExistsf(t, filepath.Join(main, "sub"), "%+v", params)
+		require.Containsf(t, resp.Content, "left the workspace", "%+v: the model is told why", params)
+	}
+
+	// Đi lại trong workspace vẫn chạy.
+	work, _ = setup()
+	run(work, BashParams{Command: "cd sub && touch made && cd .. && touch top"})
+	require.FileExists(t, filepath.Join(work, "sub", "made"))
+	require.FileExists(t, filepath.Join(work, "top"))
+}
+
+// Lệnh gọi thẳng CLI agent khác bị chặn thì model được biết lý do (soát 22/10 #6), không
+// chỉ "not allowed for security reasons".
+func TestBashTellsTheModelWhyAnAgentCLIWasBlocked(t *testing.T) {
+	t.Parallel()
+	tool, _ := newBashToolWithRecordingPerms(t.TempDir(), true)
+	ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+	resp := runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: `bash -c "bash -c \"claude -p hi\""`})
+	require.Contains(t, resp.Content, "Blocked: ")
+	require.Contains(t, resp.Content, "agent CLI (claude)")
+}
+
+// Mẫu hợp lệ `sh -c "cd web && npm test && cd .."` không bị chặn: guard theo dõi thư mục
+// của script thay vì cấm mọi `cd ..` (bản soi chữ trước đó chặn nhầm). KHÔNG song song.
+func TestBashAllowsCdBackInsideShellScriptsWhileUnattended(t *testing.T) {
+	t.Cleanup(func() { execpolicy.SetUnattended(false, false) })
+	execpolicy.SetUnattended(true, false)
+	work := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(work, "web"), 0o755))
+	tool, _ := newBashToolWithRecordingPerms(work, true)
+	ctx := context.WithValue(t.Context(), SessionIDContextKey, "s")
+	resp := runBashTool(t, tool, ctx, BashParams{Description: "probe", Command: "sh -c 'cd web && touch tested && cd .. && touch back'"})
+	require.NotContains(t, resp.Content, "Blocked")
+	require.FileExists(t, filepath.Join(work, "web", "tested"))
+	require.FileExists(t, filepath.Join(work, "back"))
+}

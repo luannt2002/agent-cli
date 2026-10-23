@@ -164,6 +164,10 @@ type coordinator struct {
 	notify      pubsub.Publisher[notify.Notification]
 	runComplete pubsub.Publisher[notify.RunComplete]
 	interactive bool
+	// policy thay execpolicy.Current, chỉ test đặt (nil = chính sách của tiến trình):
+	// trong test binary execpolicy luôn trả chính sách rỗng, nên không có chỗ tiêm này
+	// thì xoá chốt allowlist model vẫn xanh.
+	policy func() (execpolicy.Policy, error)
 
 	// agentMu guards mainAgent and mainAgentName: SetMainAgent runs on
 	// HTTP handler goroutines while runs, cancels, and probes read the
@@ -1055,6 +1059,9 @@ func (c *coordinator) buildTools(ctx context.Context, agent config.Agent, isSubA
 // execPolicy là ranh giới provider/model (env gốc của người dùng và tệp env
 // của dew, không theo cấu hình hay `.env` của dự án).
 func (c *coordinator) execPolicy() (execpolicy.Policy, error) {
+	if c.policy != nil {
+		return c.policy()
+	}
 	return execpolicy.Current()
 }
 

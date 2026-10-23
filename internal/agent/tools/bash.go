@@ -216,6 +216,19 @@ func (n *blockNotes) annotate(output string) string {
 	return strings.TrimRight(output, "\n") + "\nBlocked: " + note
 }
 
+// unattendedBlocked ghi log và giữ lý do khi guard không người trực chặn một lệnh.
+func (n *blockNotes) unattendedBlocked(reason string, args []string) {
+	slog.Warn("Blocked a command while running unattended", "reason", reason, "command", args[0])
+	n.add(reason)
+}
+
+// jobContext là ctx tách rời (job sống tiếp sau khi tool trả về) cho shell của một lời
+// gọi tool: khi không người trực, lệnh có thư mục thật (sau cd/pushd/symlink) ngoài
+// workspace bị chặn, việc BlockFunc chỉ thấy argv không làm được.
+func jobContext(workspace string, notes *blockNotes) context.Context {
+	return shell.WithWorkspaceGuard(context.Background(), execpolicy.Unattended, workspace, notes.unattendedBlocked)
+}
+
 func blockFuncs() []shell.BlockFunc { return blockFuncsWithNotes(nil) }
 
 func blockFuncsWithNotes(notes *blockNotes) []shell.BlockFunc {
@@ -224,7 +237,7 @@ func blockFuncsWithNotes(notes *blockNotes) []shell.BlockFunc {
 
 		// Ranh giới provider (execpolicy): gọi thẳng CLI agent khác (claude,
 		// codex, gemini...) vượt qua tool giao việc (ghim model, hỏi quyền).
-		blockExternalAgents,
+		func(args []string) bool { return blockExternalAgents(args, notes) },
 
 		// Bảo vệ tiến trình điều khiển: không cho agent giết chính client/
 		// server/launcher dew đang giữ phiên, hay tắt/khởi động lại máy.
@@ -237,10 +250,7 @@ func blockFuncsWithNotes(notes *blockNotes) []shell.BlockFunc {
 
 		// Chế độ không người trực (routine): `run` tự duyệt mọi quyền nên chặn cứng
 		// lệnh phá huỷ/đẩy ra ngoài ở đây. Tắt thì không chặn gì thêm.
-		shell.UnattendedGuard(execpolicy.Unattended, execpolicy.UnattendedAllowsCommit, func(reason string, args []string) {
-			slog.Warn("Blocked a command while running unattended", "reason", reason, "command", args[0])
-			notes.add(reason)
-		}),
+		shell.UnattendedGuard(execpolicy.Unattended, execpolicy.UnattendedAllowsCommit, notes.unattendedBlocked),
 
 		// System package managers
 		shell.ArgumentsBlocker("apk", []string{"add"}, nil),
@@ -272,10 +282,11 @@ func blockFuncsWithNotes(notes *blockNotes) []shell.BlockFunc {
 
 // blockExternalAgents chặn lệnh bash gọi CLI agent bên ngoài; tool giao việc
 // (claude_code, codex) là đường duy nhất, và chỉ có khi execpolicy cho phép.
-func blockExternalAgents(args []string) bool {
+func blockExternalAgents(args []string, notes *blockNotes) bool {
 	name, ok := execpolicy.ExternalAgentCommand(args)
 	if ok {
 		slog.Info("Delegation denied", "backend", name, "code", execpolicy.CodeExternalAgentNotAllowed, "path", "bash")
+		notes.add("possible direct call to another agent CLI (" + name + "), which is not allowed; use the delegation tool when it is enabled")
 	}
 	return ok
 }
@@ -334,7 +345,7 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 				// Use background context so it continues after tool returns
 				owner := shell.JobOwner{SessionID: GetSessionFromContext(ctx), ToolCallID: call.ID, Root: workingDir}
 				notes := &blockNotes{}
-				bgShell, err := bgManager.StartFor(context.Background(), owner, execWorkingDir, blockFuncsWithNotes(notes), params.Command, params.Description)
+				bgShell, err := bgManager.StartFor(jobContext(workingDir, notes), owner, execWorkingDir, blockFuncsWithNotes(notes), params.Command, params.Description)
 				if err != nil {
 					return fantasy.ToolResponse{}, fmt.Errorf("error starting background shell: %w", err)
 				}
@@ -393,7 +404,7 @@ func NewBashTool(permissions permission.Service, workingDir, spillDir string, at
 			bgManager.Cleanup()
 			owner := shell.JobOwner{SessionID: GetSessionFromContext(ctx), ToolCallID: call.ID, Root: workingDir}
 			notes := &blockNotes{}
-			bgShell, err := bgManager.StartFor(context.Background(), owner, execWorkingDir, blockFuncsWithNotes(notes), params.Command, params.Description)
+			bgShell, err := bgManager.StartFor(jobContext(workingDir, notes), owner, execWorkingDir, blockFuncsWithNotes(notes), params.Command, params.Description)
 			if err != nil {
 				return fantasy.ToolResponse{}, fmt.Errorf("error starting shell: %w", err)
 			}

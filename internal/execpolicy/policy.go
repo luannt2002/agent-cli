@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"unicode"
+
+	"mvdan.cc/sh/v3/syntax"
 )
 
 const (
@@ -563,6 +565,7 @@ var launchers = map[string][]string{
 	"sudo":    {"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T"},
 	"doas":    {"-u", "-C"},
 	"command": nil,
+	"builtin": nil,
 	"exec":    {"-a"},
 	"time":    {"-f", "-o"},
 	"setsid":  nil,
@@ -599,7 +602,9 @@ func ExternalAgentCommand(args []string) (string, bool) {
 
 func externalAgentCommand(args []string, depth int) (string, bool) {
 	if depth > 4 {
-		return "", false
+		// Lồng quá sâu để soi thì coi như gọi agent (fail closed): cho qua thì agent
+		// nằm ở lớp thứ 5 chạy được.
+		return "command nested too deep to inspect", true
 	}
 	for i := 0; i < len(args); i++ {
 		name := normalizeName(args[i])
@@ -634,12 +639,27 @@ func externalAgentCommand(args []string, depth int) (string, bool) {
 			return interpreterCommand(args[i:], depth)
 		}
 		if shells[name] {
+			if script, ok := shellScriptArg(args[i:]); ok {
+				if got, ok := commandString(script, depth); ok {
+					return got, true
+				}
+			}
+			// Hợp với cách quét của 5337a9f7 (cờ đầu tiên có chữ c, lấy arg kế): tuỳ chọn dài
+			// lạ ăn giá trị (`zsh --emulate sh -c x`) làm shellScriptArg dừng sớm.
 			for j := i + 1; j+1 < len(args); j++ {
 				if strings.HasPrefix(args[j], "-") && !strings.HasPrefix(args[j], "--") && strings.Contains(args[j], "c") {
 					return commandString(args[j+1], depth)
 				}
 			}
 			return "", false
+		}
+		if name == "eval" {
+			if slices.Contains(args[i+1:], dynamicWord) {
+				// `eval "$(conda shell.bash hook)"`: không chặn chỉ vì động; chữ tĩnh của
+				// script đã qua bộ tách theo chữ (textualAgent) ở lớp ngoài.
+				return "", false
+			}
+			return commandString(strings.Join(args[i+1:], " "), depth)
 		}
 		if name == "find" {
 			for j := i + 1; j+1 < len(args); j++ {
@@ -679,9 +699,31 @@ func externalAgentCommand(args []string, depth int) (string, bool) {
 	return "", false
 }
 
-// commandString xét một dòng lệnh dạng chuỗi (bash -c, env -S): tách theo
-// toán tử nối lệnh rồi xét từng lệnh.
+// commandString xét một dòng lệnh dạng chuỗi (bash -c, env -S, literal trong code): chặn
+// khi bộ tách theo chữ (textualAgent) HOẶC bộ phân tích shell (mvdan: nháy lồng, $(…),
+// hàm) thấy agent ở vị trí lệnh. Phép hợp giữ mọi ca bản cũ đã chặn (here-doc, mảng,
+// literal code bắt đầu bằng toán tử mà mvdan từ chối). Script là từ động (`bash -c "$1"`
+// trong script khác) thì chặn; mvdan không phân tích được (vd cú pháp zsh) thì chỉ dựa
+// vào bộ tách theo chữ, không chặn oan.
+//
+// shortcut: $'…' (ANSI-C), tham số vị trí ("$@") và trap không soi được; chặn hẳn phải
+// dùng sandbox của OS.
 func commandString(cmd string, depth int) (string, bool) {
+	if name, ok := textualAgent(cmd, depth); ok {
+		return name, true
+	}
+	if cmd == dynamicWord {
+		return "shell script only known at run time", true
+	}
+	if cmds, ok := shellCommands(cmd); ok {
+		return agentIn(cmds, depth)
+	}
+	return "", false
+}
+
+// textualAgent là commandString của 5337a9f7, giữ nguyên: tách theo toán tử nối lệnh,
+// bỏ gán đầu lệnh, rồi xét từng lệnh.
+func textualAgent(cmd string, depth int) (string, bool) {
 	segments := strings.FieldsFunc(cmd, func(r rune) bool {
 		return r == ';' || r == '|' || r == '&' || r == '\n' || r == '(' || r == ')' || r == '`'
 	})
@@ -695,6 +737,120 @@ func commandString(cmd string, depth int) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// shellScriptArg trả script của `sh -c`: đối số đầu tiên không phải tuỳ chọn, khi -c nằm
+// trong các tuỳ chọn của chính shell (`bash -o pipefail -c x`, `bash -c -x x`, `bash -c --
+// x`). Gặp tên script trước (`bash ./x.sh -c y`) thì -c là đối số của script (người gọi
+// vẫn hợp với cách quét của 5337a9f7).
+func shellScriptArg(args []string) (string, bool) {
+	sawC := false
+	for j := 1; j < len(args); j++ {
+		a := args[j]
+		switch {
+		case a == "--" || a == "-": // `-` như `--`: hết tuỳ chọn
+			if sawC && j+1 < len(args) {
+				return args[j+1], true
+			}
+			return "", false
+		case a == "--rcfile" || a == "--init-file":
+			j++ // tuỳ chọn ăn giá trị ở arg kế
+		case strings.HasPrefix(a, "--"):
+		case len(a) > 1 && (a[0] == '-' || a[0] == '+'):
+			sawC = sawC || a[0] == '-' && strings.Contains(a[1:], "c")
+			if strings.ContainsAny(a[1:], "oO") {
+				j++ // -o/-O, kể cả trong cụm (`-co pipefail`), ăn giá trị ở arg kế
+			}
+		default:
+			if sawC {
+				return a, true
+			}
+			return "", false
+		}
+	}
+	return "", false
+}
+
+// agentIn trả CLI agent đầu tiên trong các lệnh đơn cmds (lồng thêm một mức).
+func agentIn(cmds [][]string, depth int) (string, bool) {
+	for _, argv := range cmds {
+		if got, ok := externalAgentCommand(argv, depth+1); ok {
+			return got, true
+		}
+	}
+	return "", false
+}
+
+// dynamicWord thay một từ có expansion ($x, $(…), `…`): giá trị chỉ biết lúc chạy.
+const dynamicWord = "\x00"
+
+// shellCommands phân tích script (cú pháp bash) thành argv của từng lệnh đơn, phép gán
+// đầu lệnh (`A=1 codex`) nằm riêng nên không lẫn vào argv. Như scriptCommands của
+// internal/shell; chép lại để chính sách không phụ thuộc trình thực thi.
+func shellCommands(script string) (cmds [][]string, ok bool) {
+	file, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(script), "")
+	if err != nil {
+		return nil, false
+	}
+	syntax.Walk(file, func(n syntax.Node) bool {
+		if call, isCall := n.(*syntax.CallExpr); isCall && len(call.Args) > 0 {
+			argv := make([]string, len(call.Args))
+			for i, w := range call.Args {
+				argv[i] = staticWord(w)
+			}
+			cmds = append(cmds, argv)
+		}
+		return true
+	})
+	return cmds, true
+}
+
+// staticWord trả giá trị của từ sau khi bỏ nháy và dấu `\` như shell; từ có expansion
+// (hay $'…' có dấu `\`) thành dynamicWord. Bản sao ở internal/shell (protect.go) phải giữ giống hệt.
+func staticWord(w *syntax.Word) string {
+	var b strings.Builder
+	for _, part := range w.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			b.WriteString(unescapeWord(p.Value, false))
+		case *syntax.SglQuoted:
+			if p.Dollar && strings.Contains(p.Value, `\`) {
+				return dynamicWord // $'…' có mã thoát (\x61, \n…): không tự giải
+			}
+			b.WriteString(p.Value)
+		case *syntax.DblQuoted:
+			for _, q := range p.Parts {
+				lit, isLit := q.(*syntax.Lit)
+				if !isLit {
+					return dynamicWord
+				}
+				b.WriteString(unescapeWord(lit.Value, true))
+			}
+		default:
+			return dynamicWord
+		}
+	}
+	return b.String()
+}
+
+// unescapeWord bỏ dấu `\` như bash: ngoài nháy, `\x` thành `x`; trong nháy kép chỉ trước
+// $ ` " \ và xuống dòng. `\<xuống dòng>` mất cả hai (nối dòng).
+func unescapeWord(s string, dquoted bool) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && (!dquoted || strings.IndexByte("$`\"\\\n", s[i+1]) >= 0) {
+			i++
+			if s[i] != '\n' {
+				b.WriteByte(s[i])
+			}
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 // isNumberish nhận tham số kiểu số/thời lượng của launcher ("30", "5s", "1.5m").

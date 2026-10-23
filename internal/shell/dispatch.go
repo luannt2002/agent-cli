@@ -68,6 +68,10 @@ func scriptDispatchHandler(blockFuncs []BlockFunc) execMiddleware {
 			if blockedByGitEnv(ctx, blockFuncs, args) {
 				return fmt.Errorf("command is not allowed for security reasons: %q", args[0])
 			}
+			// Script có shebang chạy ở thư mục hiện tại mà không qua blockHandler.
+			if err := workspaceBlocked(ctx, args); err != nil {
+				return err
+			}
 			probe, err := probeFile(scriptPath)
 			if err != nil {
 				return err

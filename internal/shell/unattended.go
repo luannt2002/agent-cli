@@ -1,9 +1,15 @@
 package shell
 
 import (
+	"context"
+	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/charmbracelet/crush/internal/filepathext"
+	"mvdan.cc/sh/v3/interp"
 )
 
 // Chế độ không người trực (routine chạy theo lịch hay lúc không ai nhìn): `run`
@@ -16,9 +22,10 @@ import (
 // Cố ý KHÔNG phủ: ngôn ngữ khác (python/node tự xoá hay mở socket), `find
 // -delete`, script nạp từ tệp hoặc stdin. Xem docs trong CHANGELOG.
 //
-// Guard soi CHỮ của lệnh nên cũng không phủ: thư mục symlink (`ln -s /other r;
-// git -C r ...`), `cd` ra ngoài trước lệnh, chuyển hướng/cp ghi ra ngoài
-// (`> /other/f`), và tên biến git ghép lúc chạy (`"GIT_""DIR"`). Đây là danh sách
+// Guard soi CHỮ của lệnh nên cũng không phủ: chuyển hướng/cp ghi ra ngoài
+// (`> /other/f`), và tên biến git ghép lúc chạy (`"GIT_""DIR"`). `cd`/`pushd` ra ngoài
+// trước lệnh và thư mục symlink (`ln -s /other r; git -C r ...`) do WithWorkspaceGuard
+// lo (xét thư mục thật), trừ khi tiến trình con tự đổi thư mục. Đây là danh sách
 // đen, không phải sandbox.
 
 // UnattendedGuard là BlockFunc chặn lệnh nguy hiểm khi enabled() trả true.
@@ -46,6 +53,89 @@ func UnattendedGuard(enabled, allowCommit func() bool, onBlock func(reason strin
 		}
 		return blocked
 	}
+}
+
+type workspaceGuardKey struct{}
+
+type workspaceGuard struct {
+	enabled func() bool
+	root    string // đã giải symlink
+	logical string // như người gọi đưa (sạch), cùng hệ với thư mục theo từ vựng của shell
+	onBlock func(reason string, args []string)
+}
+
+// WithWorkspaceGuard gắn vào ctx guard THƯ MỤC THẬT: khi enabled(), mọi lệnh ngoài chạy
+// dưới ctx (Shell.Exec/ExecStream, Run, job nền, subshell, `&`, script chạy in-process)
+// bị từ chối nếu thư mục hiện tại của trình thông dịch (sau cd, pushd, symlink; giải
+// bằng EvalSymlinks, lỗi thì coi như ngoài) nằm ngoài root, hoặc git có
+// -C/--git-dir/--work-tree trỏ (giải symlink) ra ngoài root. BlockFunc chỉ thấy argv
+// nên không bắt được `cd ../main && git rm x`. onBlock (có thể nil) nhận lý do.
+//
+// Script của `sh -c` chạy ở shell con: cd trong đó được theo dõi theo từ vựng (followCd).
+//
+// shortcut: chỉ thấy thư mục của trình thông dịch và cd trong script `sh -c`; tiến trình
+// con khác tự đổi thư mục (python os.chdir, `env -C`, `make -C`, `go -C`, `bash x.sh`)
+// thì không. Muốn chặn hẳn phải chạy routine trong clone riêng + sandbox của OS.
+func WithWorkspaceGuard(ctx context.Context, enabled func() bool, root string, onBlock func(reason string, args []string)) context.Context {
+	return context.WithValue(ctx, workspaceGuardKey{}, workspaceGuard{enabled: enabled, root: resolveDir(root), logical: filepath.Clean(root), onBlock: onBlock})
+}
+
+// workspaceBlocked trả lỗi chặn khi ctx mang guard đang bật và lệnh args ra ngoài workspace.
+func workspaceBlocked(ctx context.Context, args []string) error {
+	g, ok := ctx.Value(workspaceGuardKey{}).(workspaceGuard)
+	if !ok || !g.enabled() {
+		return nil
+	}
+	reason, blocked := g.denied(interp.HandlerCtx(ctx).Dir, args)
+	if !blocked {
+		return nil
+	}
+	if g.onBlock != nil {
+		g.onBlock(reason, args)
+	}
+	return fmt.Errorf("command is not allowed for security reasons: %q: %s", args[0], reason)
+}
+
+// denied quyết lệnh args chạy ở thư mục dir có ra ngoài workspace không.
+func (g workspaceGuard) denied(dir string, args []string) (string, bool) {
+	if outsideDir(g.root, dir) {
+		return "the command left the workspace: it runs in " + dir + ", outside the workspace " + g.root + " (cd, pushd or a symlink); not allowed while unattended", true
+	}
+	args = peelLaunchers(args)
+	if len(args) == 0 {
+		return "", false
+	}
+	switch name := baseName(args[0]); {
+	case name == "git":
+		return gitDirDenied(g.root, dir, args)
+	case shellInterpreters[name]:
+		if script, _, ok := shellScript(args); ok {
+			return followCd(g, dir, script)
+		}
+	}
+	return "", false
+}
+
+// gitDirDenied: chữ của -C ở trong (`r`) mà đích thật ở ngoài (r là symlink): giải từ dir.
+// shortcut: chỉ git gọi thẳng hay qua lớp bọc; git trong script của `sh -c` chỉ được soi
+// chữ (gitDenied), đủ cho lối vô tình.
+func gitDirDenied(root, dir string, args []string) (string, bool) {
+	for i := 1; i < len(args) && strings.HasPrefix(args[i], "-"); i++ {
+		if p, ok := gitRepoFlagValue(args, i); ok && outsideDir(root, filepathext.SmartJoin(dir, p)) {
+			return "git " + args[i] + " " + p + " points git outside the workspace " + root + " (through a symlink): the command left the workspace; not allowed while unattended", true
+		}
+		if gitGlobalValueFlags[args[i]] {
+			i++
+		}
+	}
+	return "", false
+}
+
+// outsideDir: p (giải symlink) nằm ngoài root; không giải được (đã xoá, không tồn tại)
+// hay không có gốc thì coi như ngoài.
+func outsideDir(root, p string) bool {
+	resolved, err := filepath.EvalSymlinks(p)
+	return root == "" || err != nil || !within(root, resolved)
 }
 
 // outboundTools nói chuyện với dịch vụ ngoài hoặc mở kênh mạng thô.
@@ -325,7 +415,8 @@ func isLetters(s string) bool {
 }
 
 // leavesWorkspace: đường dẫn có thể ra ngoài thư mục hiện tại (tuyệt đối, ~, biến
-// chưa mở rộng, thành phần ".."). Không xét `cd` trước đó.
+// chưa mở rộng, thành phần ".."). Chỉ soi chữ: `cd` trước đó và symlink do
+// WithWorkspaceGuard xét.
 func leavesWorkspace(p string) bool {
 	return strings.HasPrefix(p, "/") || strings.HasPrefix(p, "~") || strings.Contains(p, "$") ||
 		strings.Contains(p, dynamicWord) || p == ".." || strings.HasPrefix(p, "../") ||
@@ -352,8 +443,8 @@ func gitRepoFlagValue(args []string, i int) (string, bool) {
 // ~/.ssh/id_rsa` cũng nguy hiểm): đường dẫn tuyệt đối, ~, có biến chưa mở rộng,
 // hoặc có thành phần "..". Không có đích nào (tham số đến từ xargs/stdin) cũng bị
 // chặn vì không kiểm được. Xoá trong workspace (rm -rf build, rm file) vẫn qua. KHÔNG
-// xét thư mục hiện tại: `cd / && rm -rf home` không bị bắt ở đây (tool bash từ chối
-// working_dir ngoài workspace khi không người trực, nhưng `cd` trong lệnh thì không).
+// xét thư mục hiện tại: `cd / && rm -rf home` do WithWorkspaceGuard bắt (thư mục thật
+// của lệnh), tool bash thì từ chối working_dir ngoài workspace.
 func rmDenied(args []string) (string, bool) {
 	recursive := false
 	var targets []string
